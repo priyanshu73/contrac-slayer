@@ -54,19 +54,25 @@ const SAMPLE_PRODUCTS = [
   },
 ]
 
-export function CustomerRequestForm() {
+interface CustomerRequestFormProps {
+  contractorId: number
+  contractorName: string
+}
+
+export function CustomerRequestForm({ contractorId, contractorName }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     address: "",
-    projectType: "",
+    project_type: "",
     description: "",
   })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState("")
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -87,19 +93,17 @@ export function CustomerRequestForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    console.log("[v0] Form submitted:", {
-      formData,
-      files: uploadedFiles.map((f) => f.name),
-      selectedProducts,
-    })
-
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+    try {
+      const { api } = await import("@/lib/api")
+      await api.submitQuoteRequest(contractorId, formData, uploadedFiles)
+      setIsSubmitted(true)
+    } catch (err: any) {
+      setError(err.message || "Failed to submit request")
+      setIsSubmitting(false)
+    }
   }
 
   if (isSubmitted) {
@@ -132,7 +136,7 @@ export function CustomerRequestForm() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Request a Quote</h1>
-            <p className="text-sm text-muted-foreground">Green Valley Landscaping</p>
+            <p className="text-sm text-muted-foreground">{contractorName}</p>
           </div>
         </div>
         <p className="text-muted-foreground">
@@ -140,8 +144,12 @@ export function CustomerRequestForm() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Contact Information */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">{error}</div>
+          )}
+          
+          {/* Contact Information */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
           <div className="space-y-4">
@@ -195,11 +203,11 @@ export function CustomerRequestForm() {
           <h2 className="text-lg font-semibold mb-4">Project Details</h2>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="projectType">Project Type *</Label>
+              <Label htmlFor="project_type">Project Type *</Label>
               <Input
-                id="projectType"
-                value={formData.projectType}
-                onChange={(e) => setFormData({ ...formData, projectType: e.target.value })}
+                id="project_type"
+                value={formData.project_type}
+                onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
                 placeholder="e.g., Patio Installation, Lawn Care, Tree Removal"
                 required
               />

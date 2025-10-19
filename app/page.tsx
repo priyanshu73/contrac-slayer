@@ -1,31 +1,31 @@
 import { DashboardHeader } from "@/components/dashboard-header"
-import { StatsCards } from "@/components/stats-cards"
+import { StatsCardsReal } from "@/components/stats-cards-real"
 import { QuickActions } from "@/components/quick-actions"
-import { RecentLeads } from "@/components/recent-leads"
+import { RecentLeadsReal } from "@/components/recent-leads-real"
 import { UpcomingJobs } from "@/components/upcoming-jobs"
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24 md:pb-6">
       <DashboardHeader />
 
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
+      <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
           {/* Stats Overview */}
-          <StatsCards />
+          <StatsCardsReal />
 
           {/* Quick Actions */}
           <QuickActions />
 
           {/* Recent Activity */}
           <div className="grid gap-6 md:grid-cols-2">
-            <RecentLeads />
+            <RecentLeadsReal />
             <UpcomingJobs />
           </div>
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation is now in Navbar component */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card md:hidden">
         <div className="grid grid-cols-5 gap-1 p-2">
           <a href="/" className="flex flex-col items-center gap-1 rounded-lg bg-primary/10 px-3 py-2 text-primary">

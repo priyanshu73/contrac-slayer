@@ -1,0 +1,95 @@
+# Frontend Cursor Rules - Contractor Management System
+
+## Project Context
+Next.js 14+ contractor management application with TypeScript, Tailwind CSS, and shadcn/ui components.
+
+## Tech Stack
+- Next.js 14+ (App Router)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- React Hook Form
+- Cloudinary for file uploads
+
+## Code Style & Preferences
+
+### UI/UX
+- Clean, professional UI with minimal color
+- Pure black backgrounds (bg-black) instead of dark blue or near-black
+- Update styling via Tailwind CSS file rather than editing individual components
+- Mobile-first responsive design
+
+### TypeScript
+- Use strict TypeScript
+- Import types from `@/lib/types`
+- Prefer interfaces over types for object shapes
+- Use proper type annotations for all functions
+- No `any` types unless absolutely necessary
+
+### Components
+- Use "use client" for client components
+- Server components by default for pages
+- Extract reusable logic into custom hooks
+- Keep components focused and single-responsibility
+
+### API Integration
+- All API calls through `@/lib/api` layer
+- Use async/await, no .then() chains
+- Proper error handling with try/catch
+- Loading states for all async operations
+- Type-safe API responses
+
+### File Structure
+```
+app/              # Next.js app router pages
+components/       # Reusable UI components
+lib/
+  ├── api.ts     # API client layer
+  ├── types.ts   # TypeScript types (matches backend)
+  └── utils.ts   # Utility functions
+hooks/            # Custom React hooks
+public/           # Static assets
+styles/           # Global styles
+```
+
+### Naming Conventions
+- Components: PascalCase (UserProfile.tsx)
+- Hooks: camelCase with 'use' prefix (useAuth.ts)
+- Utilities: camelCase (formatDate.ts)
+- Constants: UPPER_SNAKE_CASE
+- Files: kebab-case for utilities, PascalCase for components
+
+### State Management
+- Use React hooks (useState, useEffect, useContext)
+- Keep state close to where it's used
+- Lift state up only when necessary
+- Use URL state for shareable UI state
+
+### Forms
+- Use React Hook Form for complex forms
+- shadcn/ui form components
+- Client-side validation before API calls
+- Proper error messages
+
+### Best Practices
+- Optimize images with Next.js Image component
+- Use dynamic imports for code splitting
+- Implement proper loading and error states
+- Follow accessibility best practices (ARIA labels, keyboard navigation)
+- Use environment variables for configuration
+
+## Backend Integration
+- Backend API runs on http://localhost:4000
+- Use NEXT_PUBLIC_API_URL from .env.local
+- All API endpoints prefixed with /api
+- JWT tokens stored in httpOnly cookies
+- CORS enabled for localhost:3000
+
+## Don't Do
+- Don't use inline styles
+- Don't create multiple README files
+- Don't use gradients in UI
+- Don't use near-black colors (use pure black)
+- Don't bypass the API layer for fetch calls
+- Don't commit sensitive env variables
+
