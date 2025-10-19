@@ -92,7 +92,7 @@ export function InvoicesList() {
                   <span
                     className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(invoice.status)}`}
                   >
-                    {invoice.status}
+                    {status}
                   </span>
                 </div>
               </div>
