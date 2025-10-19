@@ -214,7 +214,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-card/60 md:hidden">
         <div className="flex gap-2">
           <Button className="flex-1" size="lg" asChild>
-            <a href={`/invoices/new?leadId=${lead.id}`}>
+            <a href={`/quotes/new?leadId=${lead.id}`}>
               <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -240,7 +240,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       <Card className="hidden p-6 md:block">
         <div className="flex flex-wrap gap-2">
           <Button size="lg" asChild>
-            <a href={`/invoices/new?leadId=${lead.id}`}>
+            <a href={`/quotes/new?leadId=${lead.id}`}>
               <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>

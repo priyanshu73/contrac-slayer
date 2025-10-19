@@ -27,7 +27,7 @@ export function QuickActions() {
       href: "/calendar/new",
     },
     {
-      label: "Create Invoice",
+      label: "Create Quote",
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -38,7 +38,7 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: "/invoices/new",
+      href: "/quotes/new",
     },
     {
       label: "Add Client",

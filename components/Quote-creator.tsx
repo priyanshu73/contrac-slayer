@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 
-export function InvoiceCreator() {
+export function QuoteCreator() {
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
   const [items, setItems] = useState([{ description: "", quantity: 1, rate: 0 }])
@@ -218,7 +218,7 @@ export function InvoiceCreator() {
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          Create Invoice
+          Create Quote
         </Button>
         <Button size="lg" variant="outline">
           <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
