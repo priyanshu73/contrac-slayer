@@ -6,13 +6,13 @@ export function LeadsList() {
     {
       id: "1",
       name: "Sarah Johnson",
-      service: "Lawn Maintenance",
+      service: "Landscaping - Patio Installation",
       status: "new",
       time: "2 hours ago",
       phone: "(555) 123-4567",
       email: "sarah.j@email.com",
-      address: "123 Oak Street",
-      notes: "Interested in weekly service starting next month",
+      address: "123 Oak Street, Springfield, IL 62701",
+      notes: "Looking to install a new patio in backyard. 20x15 feet area with natural stone pavers.",
     },
     {
       id: "2",
