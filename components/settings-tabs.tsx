@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,8 +8,142 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { api } from "@/lib/api"
+import { ContractorProfile } from "@/lib/types"
+import { useAuth } from "@/contexts/AuthContext"
+import Image from "next/image"
 
 export function SettingsTabs() {
+  const { user } = useAuth()
+  const [profile, setProfile] = useState<ContractorProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [formData, setFormData] = useState({
+    company_name: "",
+    email: "",
+    phone_number: "",
+    address: "",
+    website_url: "",
+    default_zip_code: "",
+    default_labor_rate_per_hour: "",
+    default_sales_tax_rate: "",
+    default_markup_percentage: "",
+    low_tier_markup: "",
+    mid_tier_markup: "",
+    high_tier_markup: "",
+  })
+
+  useEffect(() => {
+    loadProfile()
+  }, [])
+
+  const loadProfile = async () => {
+    try {
+      setIsLoading(true)
+      const data = await api.getMyProfile()
+      setProfile(data)
+      setFormData({
+        company_name: data.company_name || "",
+        email: data.email || "",
+        phone_number: data.phone_number || "",
+        address: data.address || "",
+        website_url: data.website_url || "",
+        default_zip_code: data.default_zip_code || "",
+        default_labor_rate_per_hour: data.default_labor_rate_per_hour?.toString() || "",
+        default_sales_tax_rate: data.default_sales_tax_rate?.toString() || "",
+        default_markup_percentage: data.default_markup_percentage?.toString() || "",
+        low_tier_markup: data.low_tier_markup?.toString() || "",
+        mid_tier_markup: data.mid_tier_markup?.toString() || "",
+        high_tier_markup: data.high_tier_markup?.toString() || "",
+      })
+      setLogoPreview(data.logo_url || null)
+    } catch (err: any) {
+      setError(err.message || "Failed to load profile")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setLogoFile(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return
+    
+    try {
+      setIsSaving(true)
+      setError("")
+      const result = await api.uploadLogo(logoFile)
+      setSuccessMessage("Logo uploaded successfully!")
+      setLogoFile(null)
+      await loadProfile()
+      setTimeout(() => setSuccessMessage(""), 3000)
+    } catch (err: any) {
+      setError(err.message || "Failed to upload logo")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      setIsSaving(true)
+      setError("")
+      setSuccessMessage("")
+
+      await api.updateProfile({
+        company_name: formData.company_name,
+        email: formData.email,
+        phone_number: formData.phone_number || null,
+        address: formData.address || null,
+        website_url: formData.website_url || null,
+        default_zip_code: formData.default_zip_code || null,
+        default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
+        default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
+        default_markup_percentage: parseFloat(formData.default_markup_percentage),
+        low_tier_markup: parseFloat(formData.low_tier_markup),
+        mid_tier_markup: parseFloat(formData.mid_tier_markup),
+        high_tier_markup: parseFloat(formData.high_tier_markup),
+      })
+
+      setSuccessMessage("Profile updated successfully!")
+      await loadProfile()
+      setTimeout(() => setSuccessMessage(""), 3000)
+    } catch (err: any) {
+      setError(err.message || "Failed to update profile")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Tabs defaultValue="business" className="space-y-6">
       <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
@@ -17,94 +152,271 @@ export function SettingsTabs() {
         <TabsTrigger value="notifications">Notifications</TabsTrigger>
       </TabsList>
 
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="bg-green-500/10 text-green-500 px-4 py-3 rounded-lg text-sm">
+          {successMessage}
+        </div>
+      )}
+      {error && (
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Business Settings */}
       <TabsContent value="business" className="space-y-6">
+        {/* Logo Section */}
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">Company Logo</h2>
+          <div className="space-y-4">
+            {logoPreview && (
+              <div className="flex items-center gap-4">
+                <div className="relative h-24 w-24 rounded-lg border-2 border-border overflow-hidden bg-muted">
+                  <Image
+                    src={logoPreview}
+                    alt="Company logo"
+                    fill
+                    className="object-contain p-2"
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">Current logo</p>
+                  {profile?.logo_url && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {logoFile ? "New logo selected" : "Click below to change"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="logo-upload">Upload New Logo</Label>
+              <input
+                ref={fileInputRef}
+                id="logo-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="hidden"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSaving}
+                >
+                  Choose File
+                </Button>
+                {logoFile && (
+                  <Button
+                    type="button"
+                    onClick={handleUploadLogo}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Recommended: Square image, at least 200x200px. PNG or JPG format.
+              </p>
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6">
           <h2 className="mb-4 text-lg font-semibold">Business Information</h2>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="business-name">Business Name</Label>
-                <Input id="business-name" placeholder="Smith Landscaping" defaultValue="Smith Landscaping" />
+                <Label htmlFor="business-name">Company Name *</Label>
+                <Input
+                  id="business-name"
+                  placeholder="Your Company Name"
+                  value={formData.company_name}
+                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                  disabled={isSaving}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business-email">Business Email</Label>
+                <Label htmlFor="business-email">Business Email *</Label>
                 <Input
                   id="business-email"
                   type="email"
-                  placeholder="contact@smithlandscaping.com"
-                  defaultValue="contact@smithlandscaping.com"
+                  placeholder="contact@yourcompany.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  disabled={isSaving}
                 />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="business-phone">Phone Number</Label>
-                <Input id="business-phone" placeholder="(555) 123-4567" defaultValue="(555) 123-4567" />
+                <Input
+                  id="business-phone"
+                  placeholder="(555) 123-4567"
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                  disabled={isSaving}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="business-website">Website</Label>
                 <Input
                   id="business-website"
-                  placeholder="www.smithlandscaping.com"
-                  defaultValue="www.smithlandscaping.com"
+                  placeholder="https://yourcompany.com"
+                  value={formData.website_url}
+                  onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                  disabled={isSaving}
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="business-address">Business Address</Label>
-              <Input
-                id="business-address"
-                placeholder="123 Main Street, Springfield, IL 62701"
-                defaultValue="123 Main Street, Springfield, IL 62701"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="business-description">Business Description</Label>
-              <Textarea
-                id="business-description"
-                placeholder="Tell clients about your business..."
-                className="min-h-[100px]"
-                defaultValue="Professional landscaping services for residential and commercial properties. Specializing in lawn maintenance, garden design, and outdoor improvements."
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="business-address">Business Address</Label>
+                <Input
+                  id="business-address"
+                  placeholder="123 Main Street, City, State ZIP"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  disabled={isSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="default-zip">Default ZIP Code</Label>
+                <Input
+                  id="default-zip"
+                  placeholder="90210"
+                  value={formData.default_zip_code}
+                  onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
+                  disabled={isSaving}
+                />
+              </div>
             </div>
           </div>
           <div className="mt-6 flex gap-2">
-            <Button>Save Changes</Button>
-            <Button variant="outline">Cancel</Button>
+            <Button onClick={handleSaveProfile} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
+              Cancel
+            </Button>
           </div>
         </Card>
 
         <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Invoice Settings</h2>
+          <h2 className="mb-4 text-lg font-semibold">Pricing & Rates</h2>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="invoice-prefix">Invoice Number Prefix</Label>
-                <Input id="invoice-prefix" placeholder="INV-" defaultValue="INV-" />
+                <Label htmlFor="labor-rate">Default Labor Rate ($/hour)</Label>
+                <Input
+                  id="labor-rate"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="75.00"
+                  value={formData.default_labor_rate_per_hour}
+                  onChange={(e) => setFormData({ ...formData, default_labor_rate_per_hour: e.target.value })}
+                  disabled={isSaving}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="payment-terms">Default Payment Terms</Label>
-                <Input id="payment-terms" placeholder="Net 30" defaultValue="Net 30" />
+                <Label htmlFor="tax-rate">Sales Tax Rate (%)</Label>
+                <Input
+                  id="tax-rate"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="8.25"
+                  value={formData.default_sales_tax_rate}
+                  onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
+                  disabled={isSaving}
+                />
               </div>
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="tax-rate">Tax Rate (%)</Label>
-              <Input id="tax-rate" type="number" step="0.01" placeholder="8.00" defaultValue="8.00" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-notes">Default Invoice Notes</Label>
-              <Textarea
-                id="invoice-notes"
-                placeholder="Add default notes that appear on all invoices..."
-                className="min-h-[80px]"
-                defaultValue="Payment due within terms specified. Thank you for your business!"
+              <Label htmlFor="default-markup">Default Markup (%)</Label>
+              <Input
+                id="default-markup"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="20.00"
+                value={formData.default_markup_percentage}
+                onChange={(e) => setFormData({ ...formData, default_markup_percentage: e.target.value })}
+                disabled={isSaving}
               />
+              <p className="text-xs text-muted-foreground">
+                Default markup percentage applied to materials and services
+              </p>
+            </div>
+
+            <div className="pt-4 border-t">
+              <h3 className="text-sm font-semibold mb-3">Quote Tier Markups</h3>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="low-markup">Low Tier (%)</Label>
+                  <Input
+                    id="low-markup"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="15.00"
+                    value={formData.low_tier_markup}
+                    onChange={(e) => setFormData({ ...formData, low_tier_markup: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mid-markup">Mid Tier (%)</Label>
+                  <Input
+                    id="mid-markup"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="30.00"
+                    value={formData.mid_tier_markup}
+                    onChange={(e) => setFormData({ ...formData, mid_tier_markup: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="high-markup">High Tier (%)</Label>
+                  <Input
+                    id="high-markup"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="50.00"
+                    value={formData.high_tier_markup}
+                    onChange={(e) => setFormData({ ...formData, high_tier_markup: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                These markups are used when generating multi-tier quotes for customers
+              </p>
             </div>
           </div>
           <div className="mt-6 flex gap-2">
-            <Button>Save Changes</Button>
-            <Button variant="outline">Cancel</Button>
+            <Button onClick={handleSaveProfile} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
+              Cancel
+            </Button>
           </div>
         </Card>
       </TabsContent>

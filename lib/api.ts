@@ -96,11 +96,18 @@ class ApiClient {
     const formData = new FormData()
     formData.append('file', file)
 
-    return fetch(`${this.baseURL}/contractors/profile/logo`, {
+    const response = await fetch(`${this.baseURL}/contractors/profile/logo`, {
       method: 'POST',
       body: formData,
       credentials: 'include',
-    }).then((res) => res.json())
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to upload logo')
+    }
+
+    return response.json()
   }
 
   // Public contractor profile

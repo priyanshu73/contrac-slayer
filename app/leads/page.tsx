@@ -1,5 +1,4 @@
 import { LeadsHeader } from "@/components/leads-header"
-import { LeadsFilters } from "@/components/leads-filters"
 import { LeadsListReal } from "@/components/leads-list-real"
 
 export default function LeadsPage() {
@@ -8,10 +7,7 @@ export default function LeadsPage() {
       <LeadsHeader />
 
       <main className="container mx-auto px-4 py-6">
-        <div className="space-y-4">
-          <LeadsFilters />
-          <LeadsListReal />
-        </div>
+        <LeadsListReal />
       </main>
     </div>
   )
