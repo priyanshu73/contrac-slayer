@@ -1,7 +1,9 @@
 import { LeadDetail } from "@/components/lead-detail"
 import { Button } from "@/components/ui/button"
 
-export default function LeadDetailPage({ params }: { params: { id: string } }) {
+export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -23,7 +25,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-        <LeadDetail leadId={params.id} />
+        <LeadDetail leadId={id} />
       </main>
     </div>
   )

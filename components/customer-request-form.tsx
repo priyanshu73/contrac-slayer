@@ -11,55 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Upload, X, Check } from "lucide-react"
 import Image from "next/image"
 
-const SAMPLE_PRODUCTS = [
-  {
-    id: 1,
-    name: "Natural Flagstone",
-    category: "Patio Material",
-    price: 12.99,
-    unit: "sq ft",
-    image: "/flagstone-patio-close-up.jpg",
-  },
-  {
-    id: 2,
-    name: "Bluestone Pavers",
-    category: "Patio Material",
-    price: 15.99,
-    unit: "sq ft",
-    image: "/natural-stone-patio-inspiration.jpg",
-  },
-  {
-    id: 3,
-    name: "Concrete Pavers",
-    category: "Patio Material",
-    price: 8.99,
-    unit: "sq ft",
-    image: "/natural-stone-patio-inspiration.jpg",
-  },
-  {
-    id: 4,
-    name: "Decomposed Granite",
-    category: "Base Material",
-    price: 45.0,
-    unit: "ton",
-    image: "/natural-stone-patio-inspiration.jpg",
-  },
-  {
-    id: 5,
-    name: "Polymeric Sand",
-    category: "Joint Material",
-    price: 32.99,
-    unit: "bag",
-    image: "/natural-stone-patio-inspiration.jpg",
-  },
-]
-
 interface CustomerRequestFormProps {
   contractorId: number
-  contractorName: string
+  contractor: any
 }
 
-export function CustomerRequestForm({ contractorId, contractorName }: CustomerRequestFormProps) {
+export function CustomerRequestForm({ contractorId, contractor }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -69,7 +26,6 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
     description: "",
   })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState("")
@@ -83,12 +39,6 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
 
   const removeFile = (index: number) => {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const toggleProduct = (productId: number) => {
-    setSelectedProducts((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
-    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,41 +58,180 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
-          <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-white" />
+      <div className="max-w-2xl mx-auto px-4 py-16">
+        <Card className="p-10 text-center shadow-xl bg-white border border-gray-200">
+          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Check className="w-10 h-10 text-white" strokeWidth={3} />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Request Submitted!</h2>
-          <p className="text-muted-foreground mb-6">
-            Thank you for your project request. We&apos;ll review your details and get back to you within 24 hours with
-            a detailed quote.
+          <h2 className="text-3xl font-bold mb-4 text-gray-900">
+            Request Received! 🎉
+          </h2>
+          <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+            Thank you for reaching out to <strong>{contractor.company_name}</strong>! We've received your project details and our team is reviewing them now.
           </p>
-          <p className="text-sm text-muted-foreground">
-            You&apos;ll receive an email at <strong>{formData.email}</strong> with a link to track your quote.
-          </p>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-semibold text-gray-900 mb-1">What happens next?</p>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  You'll receive a detailed quote via email within the next <strong className="text-blue-600">2-4 hours</strong> during business hours. We'll include pricing, timeline, and answer any questions you may have.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>Confirmation sent to <strong>{formData.email}</strong></span>
+            </div>
+            {contractor.phone_number && (
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <span>Questions? Call us at <strong>{contractor.phone_number}</strong></span>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-6 border-t border-gray-200">
+            <p className="text-sm text-gray-500 italic">
+              "We appreciate your interest and look forward to bringing your project to life!"
+            </p>
+            <p className="text-sm text-gray-600 mt-2 font-medium">
+              — {contractor.company_name} Team
+            </p>
+          </div>
         </Card>
       </div>
     )
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 pb-24">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
-            <Image src="/landscaping-company-logo.png" alt="Logo" width={32} height={32} className="rounded" />
+    <div className="max-w-4xl mx-auto p-4 py-8 pb-24">
+      {/* Contractor Card - Emphasized */}
+      <Card className="mb-8 bg-white border-2 border-blue-100 shadow-xl">
+        <div className="p-8">
+          <div className="flex items-start gap-6 mb-6">
+            {contractor.logo_url ? (
+              <div className="relative w-20 h-20 rounded-xl bg-gray-50 border-2 border-gray-200 p-2 flex-shrink-0">
+                <Image
+                  src={contractor.logo_url}
+                  alt={contractor.company_name}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                <span className="text-3xl font-bold text-white">
+                  {contractor.company_name.charAt(0)}
+                </span>
+              </div>
+            )}
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{contractor.company_name}</h2>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>Verified Contractor</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">Request a Quote</h1>
-            <p className="text-sm text-muted-foreground">{contractorName}</p>
+
+          {/* Contact Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 font-medium">Email</p>
+                <p className="text-sm text-gray-900 truncate">{contractor.email}</p>
+              </div>
+            </div>
+
+            {contractor.phone_number && (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 font-medium">Phone</p>
+                  <p className="text-sm text-gray-900">{contractor.phone_number}</p>
+                </div>
+              </div>
+            )}
+
+            {contractor.address && (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 font-medium">Address</p>
+                  <p className="text-sm text-gray-900">{contractor.address}</p>
+                </div>
+              </div>
+            )}
+
+            {contractor.website_url && (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 font-medium">Website</p>
+                  <a 
+                    href={contractor.website_url.startsWith('http') ? contractor.website_url : `https://${contractor.website_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-700 truncate block"
+                  >
+                    {contractor.website_url.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Response Time Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 mb-1">Fast Response Time</p>
+                <p className="text-sm text-gray-700">
+                  We typically respond within <strong className="text-blue-600">2-4 hours</strong> during business hours with a detailed quote. Free estimate, no obligation!
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-        <p className="text-muted-foreground">
-          Tell us about your project and we&apos;ll provide a detailed quote within 24 hours.
-        </p>
-      </div>
+      </Card>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
@@ -150,8 +239,11 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
           )}
           
           {/* Contact Information */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
+        <Card className="p-6 bg-white shadow-md border border-gray-200">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
+            <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">1</span>
+            Contact Information
+          </h2>
           <div className="space-y-4">
             <div>
               <Label htmlFor="name">Full Name *</Label>
@@ -199,8 +291,11 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
         </Card>
 
         {/* Project Details */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Project Details</h2>
+        <Card className="p-6 bg-white shadow-md border border-gray-200">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
+            <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">2</span>
+            Project Details
+          </h2>
           <div className="space-y-4">
             <div>
               <Label htmlFor="project_type">Project Type *</Label>
@@ -227,10 +322,13 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
         </Card>
 
         {/* Photo Upload */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-2">Project Photos</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Upload photos of the project area to help us provide an accurate quote.
+        <Card className="p-6 bg-white shadow-md border border-gray-200">
+          <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-gray-900">
+            <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">3</span>
+            Project Photos (Optional)
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Upload photos or videos of your project area to help us provide the most accurate quote possible.
           </p>
 
           <div className="space-y-4">
@@ -266,66 +364,29 @@ export function CustomerRequestForm({ contractorId, contractorName }: CustomerRe
           </div>
         </Card>
 
-        {/* Material Selection */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-2">Preferred Materials (Optional)</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Select any materials you&apos;d like us to include in your quote. We&apos;ll provide alternatives if needed.
-          </p>
-
-          <div className="space-y-3">
-            {SAMPLE_PRODUCTS.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => toggleProduct(product.id)}
-                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                  selectedProducts.includes(product.id)
-                    ? "border-accent bg-accent/5"
-                    : "border-border hover:border-accent/50"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.name}
-                      width={64}
-                      height={64}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-muted-foreground">{product.category}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-semibold">${product.price}</p>
-                        <p className="text-xs text-muted-foreground">per {product.unit}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                      selectedProducts.includes(product.id) ? "bg-accent border-accent" : "border-border"
-                    }`}
-                  >
-                    {selectedProducts.includes(product.id) && <Check className="w-4 h-4 text-white" />}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </Card>
-
         {/* Submit Button */}
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting Request..." : "Submit Quote Request"}
+        <Button 
+          type="submit" 
+          size="lg" 
+          className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Submitting Request...</span>
+            </div>
+          ) : (
+            <>
+              <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Submit Quote Request
+            </>
+          )}
         </Button>
 
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-center text-gray-500">
           By submitting this form, you agree to be contacted about your project request.
         </p>
       </form>

@@ -1,17 +1,67 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
+import { api } from "@/lib/api"
+import { Lead } from "@/lib/types"
 
-export function QuoteCreator() {
+interface QuoteCreatorProps {
+  leadId?: string | null
+}
+
+export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
   const [items, setItems] = useState([{ description: "", quantity: 1, rate: 0 }])
+  
+  // Client information states
+  const [clientName, setClientName] = useState("")
+  const [clientEmail, setClientEmail] = useState("")
+  const [clientPhone, setClientPhone] = useState("")
+  const [clientAddress, setClientAddress] = useState("")
+  const [loadingLead, setLoadingLead] = useState(false)
+
+  // Fetch lead data if leadId is provided
+  useEffect(() => {
+    if (leadId) {
+      fetchLeadData()
+    }
+  }, [leadId])
+
+  const fetchLeadData = async () => {
+    if (!leadId) return
+    
+    try {
+      setLoadingLead(true)
+      const data = await api.getLead(parseInt(leadId))
+      const lead = data as Lead
+      
+      // Auto-fill client information
+      setClientName(lead.name || "")
+      setClientEmail(lead.email || "")
+      setClientPhone(lead.phone || "")
+      setClientAddress(lead.address || "")
+      
+      // Pre-fill service description if available
+      if (lead.description) {
+        setServiceDescription(lead.description)
+      }
+      
+      // Pre-fill project type in first line item if available
+      if (lead.project_type && items.length === 1 && !items[0].description) {
+        updateItem(0, "description", lead.project_type)
+      }
+    } catch (error) {
+      console.error("Failed to fetch lead data:", error)
+    } finally {
+      setLoadingLead(false)
+    }
+  }
 
   const addItem = () => {
     setItems([...items, { description: "", quantity: 1, rate: 0 }])
@@ -35,19 +85,56 @@ export function QuoteCreator() {
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Client Information */}
       <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">Client Information</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Client Information</h2>
+          {leadId && (
+            <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
+              Auto-filled from Lead
+            </span>
+          )}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="client-name">Client Name</Label>
-            <Input id="client-name" placeholder="John Smith" />
+            <Label htmlFor="client-name">Client Name *</Label>
+            <Input 
+              id="client-name" 
+              placeholder="John Smith" 
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              disabled={loadingLead}
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="client-email">Email</Label>
-            <Input id="client-email" type="email" placeholder="john@example.com" />
+            <Label htmlFor="client-email">Email *</Label>
+            <Input 
+              id="client-email" 
+              type="email" 
+              placeholder="john@example.com"
+              value={clientEmail}
+              onChange={(e) => setClientEmail(e.target.value)}
+              disabled={loadingLead}
+            />
           </div>
-          <div className="space-y-2 sm:col-span-2">
+          <div className="space-y-2">
+            <Label htmlFor="client-phone">Phone</Label>
+            <Input 
+              id="client-phone" 
+              type="tel" 
+              placeholder="(555) 123-4567"
+              value={clientPhone}
+              onChange={(e) => setClientPhone(e.target.value)}
+              disabled={loadingLead}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="client-address">Address</Label>
-            <Input id="client-address" placeholder="123 Oak Street, Springfield, IL 62701" />
+            <Input 
+              id="client-address" 
+              placeholder="123 Oak Street, Springfield, IL"
+              value={clientAddress}
+              onChange={(e) => setClientAddress(e.target.value)}
+              disabled={loadingLead}
+            />
           </div>
         </div>
       </Card>

@@ -26,7 +26,7 @@ export function RecentLeadsReal() {
   const fetchLeads = async () => {
     try {
       const data = await api.getMyLeads(undefined, 0, 5) // Get only 5 most recent
-      setLeads(data.slice(0, 3)) // Show top 3
+      setLeads((data as Lead[]).slice(0, 3)) // Show top 3
     } catch (error) {
       console.error("Failed to fetch leads:", error)
     } finally {
@@ -91,14 +91,18 @@ export function RecentLeadsReal() {
       ) : (
         <div className="space-y-3">
           {leads.map((lead) => (
-            <div key={lead.id} className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/50">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <a 
+              key={lead.id} 
+              href={`/leads/${lead.id}`}
+              className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 hover:border-primary/50 transition-all cursor-pointer group"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
                 <span className="text-sm font-semibold">{lead.name.charAt(0)}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-medium leading-none">{lead.name}</p>
+                    <p className="font-medium leading-none group-hover:text-primary transition-colors">{lead.name}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {lead.project_type || "General inquiry"}
                     </p>
@@ -107,12 +111,20 @@ export function RecentLeadsReal() {
                     {lead.status}
                   </span>
                 </div>
-                <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                  <span>{formatTime(lead.created_at)}</span>
-                  {lead.phone && <span>{lead.phone}</span>}
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>{formatTime(lead.created_at)}</span>
+                    {lead.phone && <span>{lead.phone}</span>}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="font-medium">View</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       )}

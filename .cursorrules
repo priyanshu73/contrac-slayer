@@ -3,6 +3,7 @@
 ## Project Context
 Next.js 14+ contractor management application with TypeScript, Tailwind CSS, and shadcn/ui components.
 
+DONOT MAKE UNCESSARY README, unless asked specifically
 ## Tech Stack
 - Next.js 14+ (App Router)
 - TypeScript

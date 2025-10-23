@@ -163,6 +163,34 @@ class ApiClient {
       method: 'POST',
     })
   }
+
+  // Jobs/Quotes endpoints
+  async getMyJobs(status?: string, skip = 0, limit = 20) {
+    const params = new URLSearchParams()
+    if (status) params.append('status', status)
+    params.append('skip', skip.toString())
+    params.append('limit', limit.toString())
+
+    return this.request(`/jobs?${params.toString()}`)
+  }
+
+  async getJob(jobId: number) {
+    return this.request(`/jobs/${jobId}`)
+  }
+
+  async createJob(data: any) {
+    return this.request('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateJob(jobId: number, data: any) {
+    return this.request(`/jobs/${jobId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const api = new ApiClient(API_URL)

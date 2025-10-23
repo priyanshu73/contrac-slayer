@@ -1,7 +1,13 @@
+"use client"
+
 import { QuoteCreator } from "@/components/Quote-creator"
 import { Button } from "@/components/ui/button"
+import { useSearchParams } from "next/navigation"
 
 export default function NewQuotePage() {
+  const searchParams = useSearchParams()
+  const leadId = searchParams.get("leadId")
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -16,14 +22,16 @@ export default function NewQuotePage() {
             </Button>
             <div>
               <h1 className="text-lg font-semibold leading-none">Create Quote</h1>
-              <p className="text-sm text-muted-foreground">AI-powered pricing</p>
+              <p className="text-sm text-muted-foreground">
+                {leadId ? "From Lead - AI-powered pricing" : "AI-powered pricing"}
+              </p>
             </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-        <QuoteCreator />
+        <QuoteCreator leadId={leadId} />
       </main>
     </div>
   )
