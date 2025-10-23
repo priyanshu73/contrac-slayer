@@ -230,23 +230,37 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="relative z-10 px-6 py-20 md:px-12">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-sky-500 via-blue-500 to-blue-700 rounded-3xl p-12 md:p-16 shadow-2xl">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Transform Your Business?
-            </h2>
-            <p className="text-xl text-sky-100 mb-8 max-w-2xl mx-auto">
-              Join hundreds of landscape contractors who are growing faster with ContractPro
-            </p>
-            <Button
-              size="lg"
-              onClick={() => router.push("/auth/signup")}
-              className="bg-white text-sky-600 hover:bg-sky-50 px-10 py-6 text-lg shadow-xl transform hover:scale-105 transition-all"
+          <div className="relative rounded-3xl p-12 md:p-16 shadow-2xl overflow-hidden">
+            {/* Background Image */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: 'url(/cta.png)' }}
             >
-              Start Your Free Trial
-              <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Button>
+              {/* Lighter dark overlay for better text readability */}
+              <div className="absolute inset-0 bg-black/40"></div>
+            </div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-sky-300 via-blue-200 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
+                  Ready to Transform Your Business?
+                </span>
+              </h2>
+              <p className="text-xl text-sky-100 mb-8 max-w-2xl mx-auto drop-shadow-md">
+                Join hundreds of landscape contractors who are growing faster with ContractPro
+              </p>
+              <Button
+                size="lg"
+                onClick={() => router.push("/auth/signup")}
+                className="bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white px-10 py-6 text-lg shadow-xl transform hover:scale-105 transition-all"
+              >
+                Start Your Free Trial
+                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
