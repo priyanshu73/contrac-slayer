@@ -36,7 +36,7 @@ interface Job {
   items: JobItem[]
 }
 
-export default function QuoteDetailPage() {
+export default function JobDetailPage() {
   const params = useParams()
   const jobId = params.id as string
   
@@ -56,21 +56,113 @@ export default function QuoteDetailPage() {
       const data = await api.getJob(parseInt(jobId))
       setJob(data as Job)
     } catch (err: any) {
-      setError(err.message || "Failed to load quote")
+      setError(err.message || "Failed to load job")
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      case 'sent': return 'bg-blue-100 text-blue-800'
-      case 'viewed': return 'bg-purple-100 text-purple-800'
-      case 'accepted': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      case 'completed': return 'bg-emerald-100 text-emerald-800'
-      default: return 'bg-gray-100 text-gray-800'
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return { 
+          label: 'Quote - Draft', 
+          color: 'bg-gray-100 text-gray-800',
+          icon: '📝'
+        }
+      case 'SENT':
+        return { 
+          label: 'Quote - Sent', 
+          color: 'bg-blue-100 text-blue-800',
+          icon: '📤'
+        }
+      case 'VIEWED':
+        return { 
+          label: 'Quote - Viewed', 
+          color: 'bg-purple-100 text-purple-800',
+          icon: '👁️'
+        }
+      case 'ACCEPTED':
+        return { 
+          label: 'Quote - Accepted', 
+          color: 'bg-green-100 text-green-800',
+          icon: '✅'
+        }
+      case 'REJECTED':
+        return { 
+          label: 'Quote - Rejected', 
+          color: 'bg-red-100 text-red-800',
+          icon: '❌'
+        }
+      case 'IN_PROGRESS':
+        return { 
+          label: 'Active Job - In Progress', 
+          color: 'bg-green-100 text-green-800',
+          icon: '🔨'
+        }
+      case 'COMPLETED':
+        return { 
+          label: 'Job - Completed', 
+          color: 'bg-emerald-100 text-emerald-800',
+          icon: '🎉'
+        }
+      case 'INVOICED':
+        return { 
+          label: 'Job - Invoiced', 
+          color: 'bg-blue-100 text-blue-800',
+          icon: '💰'
+        }
+      case 'PAID':
+        return { 
+          label: 'Job - Paid', 
+          color: 'bg-gray-100 text-gray-800',
+          icon: '💳'
+        }
+      default:
+        return { 
+          label: status, 
+          color: 'bg-gray-100 text-gray-800',
+          icon: '📄'
+        }
+    }
+  }
+
+  const getActions = (status: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return [
+          { label: 'Edit Quote', variant: 'default' as const },
+          { label: 'Send to Client', variant: 'default' as const },
+          { label: 'Delete', variant: 'destructive' as const }
+        ]
+      case 'SENT':
+        return [
+          { label: 'View Quote', variant: 'outline' as const },
+          { label: 'Resend', variant: 'default' as const },
+          { label: 'Mark as Viewed', variant: 'outline' as const }
+        ]
+      case 'ACCEPTED':
+        return [
+          { label: 'Start Job', variant: 'default' as const },
+          { label: 'Create Invoice', variant: 'outline' as const },
+          { label: 'Schedule', variant: 'outline' as const }
+        ]
+      case 'IN_PROGRESS':
+        return [
+          { label: 'Update Progress', variant: 'default' as const },
+          { label: 'Add Photos', variant: 'outline' as const },
+          { label: 'Complete Job', variant: 'default' as const }
+        ]
+      case 'COMPLETED':
+        return [
+          { label: 'Create Invoice', variant: 'default' as const },
+          { label: 'Request Payment', variant: 'outline' as const },
+          { label: 'Archive', variant: 'outline' as const }
+        ]
+      default:
+        return [
+          { label: 'View Details', variant: 'outline' as const }
+        ]
     }
   }
 
@@ -115,7 +207,7 @@ export default function QuoteDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mb-2">Error Loading Quote</h2>
+            <h2 className="text-xl font-semibold mb-2">Error Loading Job</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
               Try Again
@@ -131,10 +223,10 @@ export default function QuoteDetailPage() {
       <AuthGuard>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <Card className="p-8 text-center">
-            <h2 className="text-xl font-semibold mb-2">Quote Not Found</h2>
-            <p className="text-gray-600 mb-4">The quote you're looking for doesn't exist.</p>
+            <h2 className="text-xl font-semibold mb-2">Job Not Found</h2>
+            <p className="text-gray-600 mb-4">The job you're looking for doesn't exist.</p>
             <Button asChild>
-              <a href="/quotes">Back to Quotes</a>
+              <a href="/jobs">Back to Jobs</a>
             </Button>
           </Card>
         </div>
@@ -142,6 +234,9 @@ export default function QuoteDetailPage() {
     )
   }
 
+  const statusDisplay = getStatusDisplay(job.status)
+  const actions = getActions(job.status)
+  
   // Use backend-calculated total instead of frontend calculation
   const total = job.total_amount || 0
 
@@ -152,15 +247,16 @@ export default function QuoteDetailPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Quote #{job.id}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Job #{job.id}</h1>
               <p className="text-gray-600">Created on {formatDate(job.created_at)}</p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge className={getStatusColor(job.status)}>
-                {job.status}
+              <Badge className={statusDisplay.color}>
+                <span className="mr-1">{statusDisplay.icon}</span>
+                {statusDisplay.label}
               </Badge>
               <Button variant="outline" asChild>
-                <a href="/quotes">Back to Quotes</a>
+                <a href="/jobs">Back to Jobs</a>
               </Button>
             </div>
           </div>
@@ -289,25 +385,16 @@ export default function QuoteDetailPage() {
           </Card>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button size="lg">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Send to Client
-            </Button>
-            <Button size="lg" variant="outline">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit Quote
-            </Button>
-            <Button size="lg" variant="outline">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Create Invoice
-            </Button>
+          <div className="flex flex-wrap gap-3">
+            {actions.map((action, index) => (
+              <Button 
+                key={index}
+                size="lg" 
+                variant={action.variant}
+              >
+                {action.label}
+              </Button>
+            ))}
           </div>
         </div>
       </div>

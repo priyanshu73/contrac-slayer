@@ -224,6 +224,7 @@ export interface Job {
   estimated_duration_days?: number
   estimated_total?: number
   final_total?: number
+  total_amount?: number  // Backend-calculated total with markup and tax
   payment_terms?: string
   internal_notes?: string
   customer_notes?: string

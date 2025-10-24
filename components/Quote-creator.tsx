@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { api } from "@/lib/api"
-import { Lead } from "@/lib/types"
+import { Lead, ContractorProfile } from "@/lib/types"
 import Image from "next/image"
 
 interface LineItem {
@@ -65,6 +66,13 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [clientPhone, setClientPhone] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [loadingLead, setLoadingLead] = useState(false)
+  
+  // Quote creation states
+  const [isCreatingQuote, setIsCreatingQuote] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  
+  // Markup control
+  const [markupPercentage, setMarkupPercentage] = useState(0)
 
   // Fetch lead data if leadId is provided
   useEffect(() => {
@@ -123,8 +131,97 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
     setItems(newItems)
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.rate, 0)
-  const tax = subtotal * 0.08 // 8% tax
+  const validateForm = (): string | null => {
+    if (!clientName.trim()) return "Client name is required"
+    if (!clientEmail.trim()) return "Client email is required"
+    if (!clientAddress.trim()) return "Client address is required"
+    
+    // Check if at least one line item has description and rate
+    const validItems = items.filter(item => 
+      item.description.trim() && item.quantity > 0 && item.rate > 0
+    )
+    
+    if (validItems.length === 0) {
+      return "At least one line item with description, quantity, and rate is required"
+    }
+    
+    return null
+  }
+
+  const handleCreateQuote = async () => {
+    // Clear previous errors
+    setCreateError(null)
+    
+    // Validate form
+    const validationError = validateForm()
+    if (validationError) {
+      setCreateError(validationError)
+      return
+    }
+    
+    setIsCreatingQuote(true)
+    
+    try {
+      // Filter out empty items
+      const validItems = items.filter(item => 
+        item.description.trim() && item.quantity > 0 && item.rate > 0
+      )
+      
+      // Prepare job data
+      const jobData = {
+        client_name: clientName.trim(),
+        client_email: clientEmail.trim(),
+        client_phone: clientPhone.trim() || null,
+        client_address: clientAddress.trim(),
+        location_zip_code: extractZipCode(clientAddress),
+        items: validItems.map(item => ({
+          custom_description: item.description.trim(),
+          quantity: item.quantity,
+          cost_per_unit: item.rate,
+          image_url: item.imageUrl || null,
+          thumbnail_url: item.thumbnailUrl || null,
+          brand: item.brand || null,
+          model: item.model || null,
+          unit_of_measure: "each", // Default unit
+          is_taxable: true,
+          markup_percentage: markupPercentage,
+        }))
+      }
+      
+      // Create the job/quote
+      const response = await api.createJob(jobData)
+      
+      // Success! Redirect to job details page
+      if (response && (response as any).id) {
+        window.location.href = `/jobs/${(response as any).id}`
+      } else {
+        throw new Error("Invalid response from server")
+      }
+      
+    } catch (error: any) {
+      console.error("Failed to create quote:", error)
+      setCreateError(
+        error.message || 
+        "Failed to create quote. Please check your information and try again."
+      )
+    } finally {
+      setIsCreatingQuote(false)
+    }
+  }
+
+  // Calculate base subtotal (without markup)
+  const baseSubtotal = items.reduce((sum, item) => {
+    return sum + (item.quantity * item.rate)
+  }, 0)
+  
+  // Calculate markup amount
+  const markupAmount = baseSubtotal * (markupPercentage / 100)
+  
+  // Calculate subtotal with markup
+  const subtotal = baseSubtotal + markupAmount
+  
+  // Use 8% tax for now (should match backend calculation)
+  const tax = subtotal * 0.08
   const total = subtotal + tax
 
   return (
@@ -346,6 +443,16 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         {/* Totals */}
         <div className="mt-6 space-y-2 border-t border-border pt-4">
           <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Subtotal (before markup)</span>
+            <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
+          </div>
+          {markupPercentage > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
+              <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-medium">${subtotal.toFixed(2)}</span>
           </div>
@@ -356,6 +463,73 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
             <span>Total</span>
             <span>${total.toFixed(2)}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Markup Controller */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Markup Settings</h2>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <svg className="h-4 w-4 text-muted-foreground cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Markup percentage is applied to each line item. This is for your internal pricing and won't be visible to customers.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
+            Internal Use Only
+          </span>
+        </div>
+        
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="markup-percentage">Markup Percentage</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="markup-percentage"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={markupPercentage}
+                onChange={(e) => setMarkupPercentage(Number.parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="w-24"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Applied to all line items
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Preview Impact</Label>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal (no markup):</span>
+                <span>${baseSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Markup amount:</span>
+                <span className="text-primary">+${markupAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>New subtotal:</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
         </div>
       </Card>
@@ -381,18 +555,46 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         </div>
       </Card>
 
+      {/* Error Display */}
+      {createError && (
+        <Card className="p-4 border-red-200 bg-red-50">
+          <div className="flex items-center gap-2 text-red-700">
+            <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">Error:</span>
+            <span>{createError}</span>
+          </div>
+        </Card>
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        <Button size="lg">
-          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          Create Quote
+        <Button 
+          size="lg" 
+          onClick={handleCreateQuote}
+          disabled={isCreatingQuote}
+        >
+          {isCreatingQuote ? (
+            <>
+              <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Creating Quote...
+            </>
+          ) : (
+            <>
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Create Quote
+            </>
+          )}
         </Button>
         <Button size="lg" variant="outline">
           <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

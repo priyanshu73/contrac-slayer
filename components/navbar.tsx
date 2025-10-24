@@ -17,6 +17,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/leads", label: "Leads" },
+    { href: "/jobs", label: "Jobs & Quotes" },
     { href: "/calendar", label: "Calendar" },
     { href: "/clients", label: "Clients" },
     { href: "/invoices", label: "Invoices" },
