@@ -172,73 +172,73 @@ export default function SignupPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
+          {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
                   <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   <span>{error}</span>
                 </div>
-              )}
+          )}
 
-              <div className="space-y-2">
+          <div className="space-y-2">
                 <Label htmlFor="full_name" className="text-gray-700 font-medium">Full Name</Label>
-                <Input
-                  id="full_name"
-                  type="text"
+            <Input
+              id="full_name"
+              type="text"
                   placeholder="John Doe"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  required
-                  disabled={isLoading}
+              value={formData.full_name}
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              required
+              disabled={isLoading}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
+            />
+          </div>
 
-              <div className="space-y-2">
+          <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
+            <Input
+              id="email"
+              type="email"
                   placeholder="you@company.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  disabled={isLoading}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              disabled={isLoading}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
+            />
+          </div>
 
-              <div className="space-y-2">
+          <div className="space-y-2">
                 <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
+            <Input
+              id="password"
+              type="password"
                   placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  minLength={8}
-                  disabled={isLoading}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={8}
+              disabled={isLoading}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
+            />
                 <p className="text-xs text-gray-500">Must be at least 8 characters</p>
-              </div>
+          </div>
 
-              <div className="space-y-2">
+          <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
+            <Input
+              id="confirmPassword"
+              type="password"
                   placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  required
-                  minLength={8}
-                  disabled={isLoading}
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+              minLength={8}
+              disabled={isLoading}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
+            />
+          </div>
 
               <Button
                 type="submit"
@@ -253,17 +253,17 @@ export default function SignupPage() {
                 ) : (
                   "Create Account"
                 )}
-              </Button>
-            </form>
+          </Button>
+        </form>
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-                Already have an account?{" "}
+            Already have an account?{" "}
                 <a href="/auth/login" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-                  Log in
-                </a>
-              </p>
-            </div>
+              Log in
+            </a>
+          </p>
+        </div>
           </div>
         </div>
       </div>
