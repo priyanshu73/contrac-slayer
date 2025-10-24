@@ -191,6 +191,18 @@ class ApiClient {
       body: JSON.stringify(data),
     })
   }
+
+  // Material search endpoints
+  async searchMaterials(query: string, zipCode?: string, maxResults = 10) {
+    const params = new URLSearchParams()
+    params.append('query', query)
+    if (zipCode) params.append('location_zip_code', zipCode)
+    params.append('max_results', maxResults.toString())
+
+    return this.request(`/intelligent/materials/search?${params.toString()}`, {
+      method: 'POST',
+    })
+  }
 }
 
 export const api = new ApiClient(API_URL)

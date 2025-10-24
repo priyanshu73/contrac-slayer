@@ -7,8 +7,48 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
+import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { api } from "@/lib/api"
 import { Lead } from "@/lib/types"
+import Image from "next/image"
+
+interface LineItem {
+  description: string
+  quantity: number
+  rate: number
+  imageUrl?: string
+  thumbnailUrl?: string
+  brand?: string
+  model?: string
+  externalUrl?: string
+}
+
+// Material Thumbnail Component with proper fallback handling
+function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string; className?: string }) {
+  const [imageError, setImageError] = useState(false)
+
+  if (!src || imageError) {
+    return (
+      <div className={`flex items-center justify-center bg-muted border rounded ${className}`}>
+        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`relative overflow-hidden border rounded ${className}`}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        className="object-cover"
+        onError={() => setImageError(true)}
+      />
+    </div>
+  )
+}
 
 interface QuoteCreatorProps {
   leadId?: string | null
@@ -17,7 +57,7 @@ interface QuoteCreatorProps {
 export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
-  const [items, setItems] = useState([{ description: "", quantity: 1, rate: 0 }])
+  const [items, setItems] = useState<LineItem[]>([{ description: "", quantity: 1, rate: 0 }])
   
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -61,6 +101,12 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
     } finally {
       setLoadingLead(false)
     }
+  }
+
+  const extractZipCode = (address: string): string | undefined => {
+    // Extract 5-digit ZIP code from address
+    const zipMatch = address.match(/\b\d{5}\b/)
+    return zipMatch ? zipMatch[0] : undefined
   }
 
   const addItem = () => {
@@ -183,6 +229,34 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         />
       )}
 
+      {/* Material Search */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Search Materials</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Search Home Depot for materials to add to your quote
+            </p>
+          </div>
+        </div>
+        <MaterialSearchWidget
+          zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
+          onAddMaterial={(material) => {
+            // Add material as new line item with image data
+            setItems([...items, {
+              description: material.name,
+              quantity: 1,
+              rate: parseFloat(material.estimated_cost),
+              imageUrl: material.image_url, // Use actual image URL from API
+              thumbnailUrl: material.thumbnail_url, // Use actual thumbnail URL from API
+              brand: undefined,
+              model: undefined,
+              externalUrl: undefined
+            }])
+          }}
+        />
+      </Card>
+
       {/* Line Items */}
       <Card className="p-6">
         <div className="mb-4 flex items-center justify-between">
@@ -198,7 +272,15 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         <div className="space-y-4">
           {items.map((item, index) => (
             <div key={index} className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-12">
-              <div className="sm:col-span-5">
+              {/* Product Image Thumbnail */}
+              <div className="sm:col-span-1 flex items-start pt-6">
+                <MaterialThumbnail
+                  src={item.thumbnailUrl}
+                  alt={item.description}
+                  className="w-12 h-12"
+                />
+              </div>
+              <div className="sm:col-span-4">
                 <Label htmlFor={`item-desc-${index}`} className="text-xs">
                   Description
                 </Label>
@@ -208,6 +290,11 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                   onChange={(e) => updateItem(index, "description", e.target.value)}
                   placeholder="Service description"
                 />
+                {item.brand && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {item.brand} {item.model && `- ${item.model}`}
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <Label htmlFor={`item-qty-${index}`} className="text-xs">
