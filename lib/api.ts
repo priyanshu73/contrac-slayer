@@ -194,14 +194,29 @@ class ApiClient {
 
   // Material search endpoints
   async searchMaterials(query: string, zipCode?: string, maxResults = 10) {
+    console.log(`🌐 API Client: Searching materials for "${query}"`)
+    const startTime = Date.now()
+    
     const params = new URLSearchParams()
     params.append('query', query)
     if (zipCode) params.append('location_zip_code', zipCode)
     params.append('max_results', maxResults.toString())
 
-    return this.request(`/intelligent/materials/search?${params.toString()}`, {
-      method: 'POST',
-    })
+    const url = `/intelligent/materials/search?${params.toString()}`
+    console.log(`🌐 API Client: Making request to ${url}`)
+    
+    try {
+      const result = await this.request(url, {
+        method: 'POST',
+      })
+      const duration = Date.now() - startTime
+      console.log(`🌐 API Client: Request completed in ${duration}ms`)
+      return result
+    } catch (error) {
+      const duration = Date.now() - startTime
+      console.error(`🌐 API Client: Request failed after ${duration}ms:`, error)
+      throw error
+    }
   }
 }
 

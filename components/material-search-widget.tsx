@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { api } from "@/lib/api"
 import Image from "next/image"
 
@@ -21,6 +22,19 @@ interface MaterialResult {
   thumbnail_url?: string
   availability?: string
   url?: string
+  brand?: string
+  model?: string
+  searchResults?: any[] // All search results for substitutes
+}
+
+interface MaterialSearchResponse {
+  materials: MaterialResult[]
+  total_count: number
+  page: number
+  per_page: number
+  total_pages: number
+  has_next: boolean
+  has_prev: boolean
 }
 
 interface MaterialSearchWidgetProps {
@@ -84,24 +98,40 @@ export function MaterialSearchWidget({ zipCode, onAddMaterial }: MaterialSearchW
       return
     }
 
+    // Don't search for very short queries (less than 3 characters)
+    if (searchQuery.trim().length < 3) {
+      setResults([])
+      setSearchAttempted(false)
+      return
+    }
+
     const timer = setTimeout(() => {
       performSearch(searchQuery)
-    }, 500) // 500ms debounce
+    }, 1000) // 1000ms debounce - wait 1 second after user stops typing
 
     return () => clearTimeout(timer)
   }, [searchQuery])
 
   const performSearch = async (query: string) => {
+    console.log(`🔍 Starting material search for: "${query}"`)
+    const startTime = Date.now()
+    
     setLoading(true)
     setError(null)
     setSearchAttempted(true)
 
     try {
       // Call backend API to search materials using api library
-      const data = await api.searchMaterials(query, zipCode, 10)
-      setResults(Array.isArray(data) ? data : [])
+      console.log(`📡 Calling API for: "${query}"`)
+      const response = await api.searchMaterials(query, zipCode, 10) as MaterialSearchResponse
+      const duration = Date.now() - startTime
+      console.log(`✅ API call completed in ${duration}ms for: "${query}"`)
+      console.log(`📊 Results: ${response.materials?.length || 0} items`)
+      
+      setResults(response.materials || [])
     } catch (err) {
-      console.error('Material search error:', err)
+      const duration = Date.now() - startTime
+      console.error(`❌ Material search error after ${duration}ms:`, err)
       setError(err instanceof Error ? err.message : 'Failed to search materials. Please try again.')
       setResults([])
     } finally {
@@ -110,7 +140,12 @@ export function MaterialSearchWidget({ zipCode, onAddMaterial }: MaterialSearchW
   }
 
   const handleAddMaterial = (material: MaterialResult) => {
-    onAddMaterial(material)
+    // Add search results to the material for substitute functionality
+    const materialWithResults = {
+      ...material,
+      searchResults: results // Pass all search results for substitutes
+    }
+    onAddMaterial(materialWithResults)
     // Optional: Show success feedback
   }
 
@@ -185,29 +220,62 @@ export function MaterialSearchWidget({ zipCode, onAddMaterial }: MaterialSearchW
                     <Badge variant="secondary" className="text-xs">
                       {material.category}
                     </Badge>
+                    {material.confidence > 0.95 && (
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        📏 Dimensions
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
-                      {material.confidence * 100}% confidence
+                      {Math.round(material.confidence * 100)}% confidence
                     </span>
                   </div>
 
                   {/* Price and Add Button */}
                   <div className="flex items-center justify-between gap-2 mt-2">
-                    <div>
-                      <p className="text-lg font-bold text-primary">
-                        ${parseFloat(material.estimated_cost).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">per {material.unit_of_measure}</p>
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help">
+                              <p className="text-lg font-bold text-primary">
+                                ${parseFloat(material.estimated_cost).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">per {material.unit_of_measure}</p>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">
+                              Estimated price from {material.source}. You can edit this price after adding to your quote.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleAddMaterial(material)}
-                      className="flex-shrink-0"
-                    >
-                      <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {material.url && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => window.open(material.url, '_blank')}
+                          className="flex-shrink-0"
+                        >
+                          <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          View
+                        </Button>
+                      )}
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleAddMaterial(material)}
+                        className="flex-shrink-0"
+                      >
+                        <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Availability Badge */}
@@ -219,17 +287,6 @@ export function MaterialSearchWidget({ zipCode, onAddMaterial }: MaterialSearchW
                 </div>
               </div>
 
-              {/* External Link */}
-              {material.url && (
-                <a 
-                  href={material.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline mt-2 inline-block"
-                >
-                  View on Home Depot →
-                </a>
-              )}
             </Card>
           ))}
         </div>

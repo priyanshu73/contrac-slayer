@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -22,15 +23,178 @@ interface LineItem {
   brand?: string
   model?: string
   externalUrl?: string
+  unitOfMeasure?: string
+  searchResults?: any[] // All search results for substitutes
+}
+
+// Common units for construction and landscaping
+const COMMON_UNITS = [
+  // Area units
+  { value: "sq ft", label: "Square Feet (sq ft)" },
+  { value: "sq yd", label: "Square Yards (sq yd)" },
+  { value: "sq m", label: "Square Meters (sq m)" },
+  
+  // Volume units
+  { value: "cu ft", label: "Cubic Feet (cu ft)" },
+  { value: "cu yd", label: "Cubic Yards (cu yd)" },
+  { value: "cu m", label: "Cubic Meters (cu m)" },
+  
+  // Weight units
+  { value: "lb", label: "Pounds (lb)" },
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "ton", label: "Tons" },
+  
+  // Length units
+  { value: "linear ft", label: "Linear Feet" },
+  { value: "linear yd", label: "Linear Yards" },
+  { value: "m", label: "Meters (m)" },
+  
+  // Count units
+  { value: "each", label: "Each" },
+  { value: "piece", label: "Piece" },
+  { value: "set", label: "Set" },
+  { value: "box", label: "Box" },
+  { value: "pallet", label: "Pallet" },
+  { value: "bag", label: "Bag" },
+  
+  // Time units
+  { value: "hour", label: "Hour" },
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+]
+
+// Smart unit suggestions based on description
+function getSuggestedUnits(description: string): string[] {
+  const desc = description.toLowerCase()
+  
+  if (desc.includes('paver') || desc.includes('tile') || desc.includes('flooring')) {
+    return ['sq ft', 'each', 'pallet']
+  }
+  if (desc.includes('concrete') || desc.includes('mix')) {
+    return ['bag', 'cu yd', 'lb']
+  }
+  if (desc.includes('mulch') || desc.includes('soil')) {
+    return ['cu ft', 'bag', 'cu yd']
+  }
+  if (desc.includes('lumber') || desc.includes('board')) {
+    return ['linear ft', 'board ft', 'each']
+  }
+  if (desc.includes('labor') || desc.includes('installation')) {
+    return ['hour', 'sq ft', 'each']
+  }
+  
+  return ['each', 'sq ft', 'cu ft', 'lb', 'hour']
+}
+
+// Unit Selector Component
+function UnitSelector({ value, onChange, description }: { value: string; onChange: (value: string) => void; description: string }) {
+  const [isCustom, setIsCustom] = useState(false)
+  const [customValue, setCustomValue] = useState("")
+  
+  const suggestedUnits = getSuggestedUnits(description)
+  const commonUnitValues = COMMON_UNITS.map(unit => unit.value)
+  
+  useEffect(() => {
+    if (value && !commonUnitValues.includes(value)) {
+      setIsCustom(true)
+      setCustomValue(value)
+    }
+  }, [value, commonUnitValues])
+  
+  const handleSelect = (selectedValue: string) => {
+    if (selectedValue === "custom") {
+      setIsCustom(true)
+      setCustomValue("")
+    } else {
+      setIsCustom(false)
+      onChange(selectedValue)
+    }
+  }
+  
+  const handleCustomChange = (newValue: string) => {
+    setCustomValue(newValue)
+    onChange(newValue)
+  }
+  
+  const handleCustomClose = () => {
+    setIsCustom(false)
+    setCustomValue("")
+    onChange("")
+  }
+  
+  return (
+    <div className="space-y-1">
+      {!isCustom ? (
+        <Select value={value || ""} onValueChange={handleSelect}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select unit..." />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Suggested units based on description */}
+            {suggestedUnits.length > 0 && (
+              <>
+                {suggestedUnits.map(unit => {
+                  const unitInfo = COMMON_UNITS.find(u => u.value === unit)
+                  return (
+                    <SelectItem key={unit} value={unit}>
+                      {unitInfo?.label || unit}
+                    </SelectItem>
+                  )
+                })}
+                <div className="border-t my-1"></div>
+              </>
+            )}
+            
+            {/* All common units */}
+            {COMMON_UNITS.map(unit => (
+              <SelectItem key={unit.value} value={unit.value}>
+                {unit.label}
+              </SelectItem>
+            ))}
+            
+            {/* Custom option */}
+            <div className="border-t my-1"></div>
+            <SelectItem value="custom">
+              + Add custom unit
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="flex gap-1">
+          <Input
+            value={customValue}
+            onChange={(e) => handleCustomChange(e.target.value)}
+            placeholder="Custom unit..."
+            className="flex-1"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCustomClose}
+            className="px-2"
+          >
+            ×
+          </Button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Material Thumbnail Component with proper fallback handling
 function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string; className?: string }) {
   const [imageError, setImageError] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  // Reset error state when src changes
+  useEffect(() => {
+    setImageError(false)
+    setImageLoaded(false)
+  }, [src])
 
   if (!src || imageError) {
     return (
-      <div className={`flex items-center justify-center bg-muted border rounded ${className}`}>
+      <div className={`flex items-center justify-center bg-muted border border-border rounded-md ${className}`}>
         <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
@@ -39,14 +203,21 @@ function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string;
   }
 
   return (
-    <div className={`relative overflow-hidden border rounded ${className}`}>
+    <div className={`relative overflow-hidden border border-border rounded-md ${className}`}>
       <Image
         src={src}
         alt={alt}
         fill
         className="object-cover"
         onError={() => setImageError(true)}
+        onLoad={() => setImageLoaded(true)}
+        onLoadingComplete={() => setImageLoaded(true)}
       />
+      {!imageLoaded && (
+        <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+          <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+        </div>
+      )}
     </div>
   )
 }
@@ -58,7 +229,7 @@ interface QuoteCreatorProps {
 export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
-  const [items, setItems] = useState<LineItem[]>([{ description: "", quantity: 1, rate: 0 }])
+  const [items, setItems] = useState<LineItem[]>([])
   
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -73,6 +244,8 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   
   // Markup control
   const [markupPercentage, setMarkupPercentage] = useState(0)
+  const [showSubstitute, setShowSubstitute] = useState(false)
+  const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
 
   // Fetch lead data if leadId is provided
   useEffect(() => {
@@ -99,11 +272,6 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
       if (lead.description) {
         setServiceDescription(lead.description)
       }
-      
-      // Pre-fill project type in first line item if available
-      if (lead.project_type && items.length === 1 && !items[0].description) {
-        updateItem(0, "description", lead.project_type)
-      }
     } catch (error) {
       console.error("Failed to fetch lead data:", error)
     } finally {
@@ -123,6 +291,29 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
+  }
+
+  const handleSubstitute = (index: number) => {
+    setSubstituteItemIndex(index)
+    setShowSubstitute(true)
+  }
+
+  const handleSubstituteSelect = (substitute: any) => {
+    if (substituteItemIndex !== null) {
+      const updatedItems = [...items]
+      updatedItems[substituteItemIndex] = {
+        ...updatedItems[substituteItemIndex],
+        description: substitute.name,
+        rate: parseFloat(substitute.estimated_cost),
+        imageUrl: substitute.image_url,
+        thumbnailUrl: substitute.thumbnail_url,
+        brand: substitute.brand,
+        model: substitute.model
+      }
+      setItems(updatedItems)
+    }
+    setShowSubstitute(false)
+    setSubstituteItemIndex(null)
   }
 
   const updateItem = (index: number, field: string, value: string | number) => {
@@ -182,7 +373,8 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           thumbnail_url: item.thumbnailUrl || null,
           brand: item.brand || null,
           model: item.model || null,
-          unit_of_measure: "each", // Default unit
+          external_url: item.externalUrl || null,
+          unit_of_measure: item.unitOfMeasure || "each", // Use actual unit from material or default
           is_taxable: true,
           markup_percentage: markupPercentage,
         }))
@@ -293,11 +485,11 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           <div className="flex-1">
             <h2 className="text-lg font-semibold">AI Pricing Assistant</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Get competitive pricing suggestions based on your service description and local market rates
+              Get competitive pricing suggestions based on your line item description and local market rates
             </p>
             <div className="mt-4 space-y-3">
               <Textarea
-                placeholder="Describe the service (e.g., 'Weekly lawn mowing for 5,000 sq ft property with edging and cleanup')"
+                placeholder="Describe the line item (e.g., '12x12 inch Charcoal Concrete Pavers - Pavestone - Home Depot')"
                 value={serviceDescription}
                 onChange={(e) => setServiceDescription(e.target.value)}
                 className="min-h-[80px] bg-background"
@@ -317,10 +509,12 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         <AIPricingSuggestions
           serviceDescription={serviceDescription}
           onSelectPrice={(price) => {
-            if (items.length === 1 && !items[0].description) {
-              updateItem(0, "description", serviceDescription)
-              updateItem(0, "rate", price)
-            }
+            // Add new line item with the AI suggestion
+            setItems([...items, {
+              description: serviceDescription,
+              quantity: 1,
+              rate: price
+            }])
             setShowAIPricing(false)
           }}
         />
@@ -339,16 +533,18 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         <MaterialSearchWidget
           zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
           onAddMaterial={(material) => {
-            // Add material as new line item with image data
+            // Add material as new line item with image data and search results
             setItems([...items, {
               description: material.name,
-              quantity: 1,
+              quantity: parseInt(material.estimated_quantity) || 1,
               rate: parseFloat(material.estimated_cost),
               imageUrl: material.image_url, // Use actual image URL from API
               thumbnailUrl: material.thumbnail_url, // Use actual thumbnail URL from API
-              brand: undefined,
-              model: undefined,
-              externalUrl: undefined
+              brand: material.brand,
+              model: material.model,
+              externalUrl: material.url,
+              unitOfMeasure: material.unit_of_measure, // Add unit of measure
+              searchResults: material.searchResults // Store all search results for substitutes
             }])
           }}
         />
@@ -368,61 +564,95 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
 
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-12">
-              {/* Product Image Thumbnail */}
-              <div className="sm:col-span-1 flex items-start pt-6">
-                <MaterialThumbnail
-                  src={item.thumbnailUrl}
-                  alt={item.description}
-                  className="w-12 h-12"
-                />
-              </div>
-              <div className="sm:col-span-4">
-                <Label htmlFor={`item-desc-${index}`} className="text-xs">
-                  Description
-                </Label>
-                <Input
-                  id={`item-desc-${index}`}
-                  value={item.description}
-                  onChange={(e) => updateItem(index, "description", e.target.value)}
-                  placeholder="Service description"
-                />
-                {item.brand && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {item.brand} {item.model && `- ${item.model}`}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor={`item-qty-${index}`} className="text-xs">
-                  Quantity
-                </Label>
-                <Input
-                  id={`item-qty-${index}`}
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <Label htmlFor={`item-rate-${index}`} className="text-xs">
-                  Rate
-                </Label>
-                <Input
-                  id={`item-rate-${index}`}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.rate}
-                  onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="flex items-end sm:col-span-2">
-                <div className="flex w-full items-center justify-between">
+            <div key={index} className="rounded-lg border border-border p-4">
+              {/* Mobile Layout */}
+              <div className="block sm:hidden space-y-4">
+                {/* Image and Description */}
+                <div className="flex gap-3">
+                  <MaterialThumbnail
+                    src={item.thumbnailUrl || item.imageUrl}
+                    alt={item.description}
+                    className="w-12 h-12 flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
+                      Line Item Description
+                    </Label>
+                    <Textarea
+                      id={`item-desc-${index}`}
+                      value={item.description}
+                      onChange={(e) => updateItem(index, "description", e.target.value)}
+                      placeholder="Describe the line item with dimensions, color, brand, and supplier..."
+                      className="min-h-[60px] resize-none mt-1"
+                    />
+                    {item.brand && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.brand} {item.model && `- ${item.model}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Quantity, Unit, Rate Row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
+                      Qty
+                    </Label>
+                    <Input
+                      id={`item-qty-${index}`}
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
+                      Unit
+                    </Label>
+                    <div className="mt-1">
+                      <UnitSelector
+                        value={item.unitOfMeasure || ""}
+                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                        description={item.description}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
+                      Rate
+                    </Label>
+                    <Input
+                      id={`item-rate-${index}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.rate}
+                      onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                
+                {/* Total and Actions */}
+                <div className="flex items-center justify-between pt-2 border-t">
                   <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
-                  {items.length > 1 && (
+                  <div className="flex gap-1">
+                    {item.searchResults && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleSubstitute(index)}
+                        title="View substitutes"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
@@ -433,7 +663,115 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                         />
                       </svg>
                     </Button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Desktop Layout */}
+              <div className="hidden sm:grid sm:grid-cols-12 gap-4">
+                {/* Product Image Thumbnail */}
+                <div className="col-span-1 flex items-start">
+                  <MaterialThumbnail
+                    src={item.thumbnailUrl || item.imageUrl}
+                    alt={item.description}
+                    className="w-12 h-12"
+                  />
+                </div>
+                
+                {/* Line Item Description */}
+                <div className="col-span-5">
+                  <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
+                    Line Item Description
+                  </Label>
+                  <Textarea
+                    id={`item-desc-${index}`}
+                    value={item.description}
+                    onChange={(e) => updateItem(index, "description", e.target.value)}
+                    placeholder="Describe the line item with dimensions, color, brand, and supplier (e.g., '12x12 inch Charcoal Concrete Pavers - Pavestone - Home Depot')"
+                    className="min-h-[60px] resize-none mt-1"
+                  />
+                  {item.brand && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {item.brand} {item.model && `- ${item.model}`}
+                    </p>
                   )}
+                </div>
+                
+                {/* Quantity */}
+                <div className="col-span-1">
+                  <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
+                    Qty
+                  </Label>
+                  <Input
+                    id={`item-qty-${index}`}
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                    className="mt-1"
+                  />
+                </div>
+                
+                {/* Unit of Measure */}
+                <div className="col-span-2">
+                  <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
+                    Unit
+                  </Label>
+                  <div className="mt-1">
+                    <UnitSelector
+                      value={item.unitOfMeasure || ""}
+                      onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                      description={item.description}
+                    />
+                  </div>
+                </div>
+                
+                {/* Rate */}
+                <div className="col-span-2">
+                  <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
+                    Rate
+                  </Label>
+                  <Input
+                    id={`item-rate-${index}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.rate}
+                    onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="mt-1"
+                  />
+                </div>
+                
+                {/* Total and Actions */}
+                <div className="col-span-1 flex items-end">
+                  <div className="flex w-full items-center justify-between">
+                    <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
+                    <div className="flex gap-1">
+                      {item.searchResults && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleSubstitute(index)}
+                          title="View substitutes"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -612,6 +950,68 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           <a href="/invoices">Cancel</a>
         </Button>
       </div>
+
+      {/* Substitute Modal */}
+      {showSubstitute && substituteItemIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Choose Substitute</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowSubstitute(false)}>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {items[substituteItemIndex]?.searchResults?.map((substitute: any, index: number) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-4 p-4 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => handleSubstituteSelect(substitute)}
+                >
+                  {/* Substitute Image */}
+                  <div className="flex-shrink-0">
+                    <MaterialThumbnail
+                      src={substitute.image_url}
+                      alt={substitute.name}
+                      className="h-20 w-20"
+                    />
+                  </div>
+                  
+                  {/* Substitute Details */}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-foreground truncate">{substitute.name}</h4>
+                    <div className="flex items-center space-x-4 mt-1">
+                      <span className="text-lg font-bold text-primary">
+                        ${parseFloat(substitute.estimated_cost).toFixed(2)}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {substitute.brand && `${substitute.brand} `}
+                        {substitute.model}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {substitute.confidence * 100}% confidence
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Select Button with Rate */}
+                  <div className="flex flex-col items-end">
+                    <Button size="sm" className="mb-1">
+                      Select
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      ${parseFloat(substitute.estimated_cost).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
