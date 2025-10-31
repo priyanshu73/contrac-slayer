@@ -229,6 +229,8 @@ interface QuoteCreatorProps {
 export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResults, setAiResults] = useState<any[]>([])
   const [items, setItems] = useState<LineItem[]>([])
   
   // Client information states
@@ -283,6 +285,26 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
     // Extract 5-digit ZIP code from address
     const zipMatch = address.match(/\b\d{5}\b/)
     return zipMatch ? zipMatch[0] : undefined
+  }
+
+  const fetchAiItems = async () => {
+    setAiLoading(true)
+    setAiResults([])
+    try {
+      const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+      const res = await fetch(`${base}/api/generate-lineitems`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: serviceDescription, catalog_version: "v1" })
+      })
+      if (!res.ok) throw new Error(`Request failed ${res.status}`)
+      const data = await res.json()
+      setAiResults(data?.parsed_items || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const addItem = () => {
@@ -494,12 +516,36 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                 onChange={(e) => setServiceDescription(e.target.value)}
                 className="min-h-[80px] bg-background"
               />
-              <Button onClick={() => setShowAIPricing(true)} disabled={!serviceDescription.trim()}>
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Get AI Pricing Suggestions
-              </Button>
+              {(() => {
+                const desc = serviceDescription.trim()
+                const wordCount = desc ? desc.split(/\s+/).length : 0
+                const tooShort = desc.length < 30 || wordCount < 6
+                return (
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={() => setShowAIPricing(true)} disabled={!serviceDescription.trim()}>
+                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Get AI Pricing Suggestions
+                </Button>
+                <Button variant="outline" onClick={fetchAiItems} disabled={aiLoading || tooShort}>
+                  {aiLoading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
+                      Getting AI Line Items...
+                    </span>
+                  ) : (
+                    "Get AI Line Items"
+                  )}
+                </Button>
+                {tooShort && (
+                  <p className="text-xs text-muted-foreground w-full">
+                    Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
+                  </p>
+                )}
+              </div>
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -518,6 +564,77 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
             setShowAIPricing(false)
           }}
         />
+      )}
+
+      {/* AI Line Items Results */}
+      {(aiLoading || aiResults.length > 0) && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-2">AI Line Items</h2>
+          <div className="space-y-3">
+            {aiLoading && (
+              <div className="space-y-2">
+                {[0,1,2].map((i) => (
+                  <div key={i} className="animate-pulse rounded border p-3">
+                    <div className="h-4 w-48 bg-gray-200 rounded" />
+                    <div className="mt-2 h-3 w-64 bg-gray-100 rounded" />
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {[0,1].map((j) => (
+                        <div key={j} className="flex items-center gap-3 border rounded p-2">
+                          <div className="h-12 w-12 bg-gray-200 rounded" />
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div className="h-3 w-40 bg-gray-100 rounded" />
+                            <div className="h-3 w-56 bg-gray-100 rounded" />
+                          </div>
+                          <div className="h-7 w-16 bg-gray-200 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {aiResults.map((block: any, idx: number) => (
+              <div key={idx} className="rounded border p-3">
+                <div className="font-medium">
+                  {block.parsed_object?.canonical_name || block.parsed_object?.title || "Parsed item"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {block.parsed_object?.product_category} {block.parsed_object?.material_type}
+                </div>
+                {Array.isArray(block.matches) && block.matches.length > 0 && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {block.matches.map((m: any, i: number) => (
+                      <div key={i} className="flex items-center gap-3 border rounded p-2">
+                        <div className="flex-shrink-0">
+                          <MaterialThumbnail src={m.image} alt={m.name} className="w-12 h-12" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{m.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{m.vendor || "vendor"} • {m.unit || "unit"} {m.price_unit != null && `• $${m.price_unit}`}</div>
+                          <div className="text-xs">score {(m.combined_score ?? 0).toFixed(2)}</div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Button size="sm" onClick={() => {
+                            setItems([...items, {
+                              description: m.name,
+                              quantity: 1,
+                              rate: Number(m.price_unit) || 0,
+                              imageUrl: m.image,
+                              thumbnailUrl: m.image,
+                              brand: undefined,
+                              model: undefined,
+                              unitOfMeasure: m.unit || "each"
+                            }])
+                          }}>Add</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Material Search */}
@@ -549,6 +666,7 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           }}
         />
       </Card>
+
 
       {/* Line Items */}
       <Card className="p-6">
