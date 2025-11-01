@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { api } from "@/lib/api"
 import { Lead, ContractorProfile } from "@/lib/types"
 import Image from "next/image"
@@ -25,6 +26,9 @@ interface LineItem {
   externalUrl?: string
   unitOfMeasure?: string
   searchResults?: any[] // All search results for substitutes
+  packSize?: number // Number of pieces per pack
+  packPrice?: number // Total price for the pack
+  sourceParsedItem?: any // Reference to the parsed item this match came from
 }
 
 // Common units for construction and landscaping
@@ -231,6 +235,9 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [serviceDescription, setServiceDescription] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResults, setAiResults] = useState<any[]>([])
+  const [aiWorkingItems, setAiWorkingItems] = useState<LineItem[]>([])
+  const [selectedForInvoice, setSelectedForInvoice] = useState<Set<number>>(new Set())
+  const [isAiItemsOpen, setIsAiItemsOpen] = useState(true)
   const [items, setItems] = useState<LineItem[]>([])
   
   // Client information states
@@ -299,7 +306,42 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
       })
       if (!res.ok) throw new Error(`Request failed ${res.status}`)
       const data = await res.json()
-      setAiResults(data?.parsed_items || [])
+      const parsed = data?.parsed_items || []
+      setAiResults(parsed)
+      // Convert ALL AI matches to working items (not added to main items yet)
+      const working: LineItem[] = []
+      for (const pi of parsed) {
+        const matches = Array.isArray(pi.matches) ? pi.matches : []
+        if (matches.length === 0) continue
+        
+        // Add all matches for this parsed item
+        for (const match of matches) {
+          // Calculate per-piece price: divide pack price by pack_size if available
+          const packPrice = Number(match.price_unit) || 0
+          const packSize = match.pack_size ? Number(match.pack_size) : null
+          
+          // If packSize exists and > 1, calculate per-piece price; otherwise use packPrice as-is
+          const perPiecePrice = (packSize && packSize > 1) ? packPrice / packSize : packPrice
+          
+          working.push({
+            description: match.name,
+            quantity: pi.parsed_object?.quantity || 1,
+            rate: perPiecePrice, // Always store per-piece price
+            imageUrl: match.image,
+            thumbnailUrl: match.image,
+            brand: match.vendor || pi.parsed_object?.brand || undefined,
+            model: undefined,
+            unitOfMeasure: match.unit || pi.parsed_object?.unit || "each",
+            searchResults: [match],
+            packSize: (packSize && packSize > 1) ? packSize : undefined,
+            packPrice: (packPrice > 0 && packSize && packSize > 1) ? packPrice : undefined,
+            sourceParsedItem: pi.parsed_object // Keep reference to which parsed item this came from
+          })
+        }
+      }
+      setAiWorkingItems(working)
+      // Auto-select all items initially
+      setSelectedForInvoice(new Set(working.map((_, idx) => idx)))
     } catch (e) {
       console.error(e)
     } finally {
@@ -441,7 +483,7 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Client Information */}
-      <Card className="p-6">
+      <Card className="p-6" id="material-search">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Client Information</h2>
           {leadId && (
@@ -566,74 +608,248 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         />
       )}
 
-      {/* AI Line Items Results */}
-      {(aiLoading || aiResults.length > 0) && (
+      {/* AI Working Area */}
+      {(aiLoading || aiResults.length > 0 || aiWorkingItems.length > 0) && (
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-2">AI Line Items</h2>
-          <div className="space-y-3">
-            {aiLoading && (
-              <div className="space-y-2">
-                {[0,1,2].map((i) => (
-                  <div key={i} className="animate-pulse rounded border p-3">
-                    <div className="h-4 w-48 bg-gray-200 rounded" />
-                    <div className="mt-2 h-3 w-64 bg-gray-100 rounded" />
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {[0,1].map((j) => (
-                        <div key={j} className="flex items-center gap-3 border rounded p-2">
-                          <div className="h-12 w-12 bg-gray-200 rounded" />
-                          <div className="flex-1 min-w-0 space-y-2">
-                            <div className="h-3 w-40 bg-gray-100 rounded" />
-                            <div className="h-3 w-56 bg-gray-100 rounded" />
-                          </div>
-                          <div className="h-7 w-16 bg-gray-200 rounded" />
+          <Collapsible open={isAiItemsOpen} onOpenChange={setIsAiItemsOpen}>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+                    <h2 className="text-lg font-semibold">AI Line Items - Working Area</h2>
+                    <svg 
+                      className={`h-5 w-5 transition-transform ${isAiItemsOpen ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </CollapsibleTrigger>
+                {aiWorkingItems.length > 0 && selectedForInvoice.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      onClick={async () => {
+                        const selectedItems = aiWorkingItems.filter((_, idx) => selectedForInvoice.has(idx))
+                        try {
+                          const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+                          const res = await fetch(`${base}/api/generate-invoice`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              items: selectedItems,
+                              client_name: clientName,
+                              client_email: clientEmail,
+                              client_phone: clientPhone,
+                              client_address: clientAddress,
+                              service_description: serviceDescription
+                            })
+                          })
+                          if (!res.ok) throw new Error(`Request failed ${res.status}`)
+                          const data = await res.json()
+                          console.log("Invoice generated:", data)
+                        } catch (e) {
+                          console.error("Error generating invoice:", e)
+                        }
+                      }}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 group relative overflow-hidden"
+                    >
+                      <span className="relative z-10 flex items-center gap-2">
+                        <svg className="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Generate Invoice
+                        <span className="ml-1 text-xs opacity-90">({selectedForInvoice.size})</span>
+                      </span>
+                      <div className="absolute inset-0 bg-primary/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background hover:bg-muted transition-colors">
+                            <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">
+                            Selected items ({selectedForInvoice.size}) will be used by AI to generate a professional invoice with pricing, quantities, and client information.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Review and manage AI-suggested items. Select items to include in invoice generation.
+              </p>
+              
+              {/* Search Bar */}
+              <div id="ai-material-search" className="mb-6">
+                <MaterialSearchWidget
+                  zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
+                  onAddMaterial={(material) => {
+                    const packPrice = parseFloat(material.estimated_cost) || 0
+                    const packSize = 1 // Default if not available
+                    const perPiecePrice = packPrice
+                    const newIdx = aiWorkingItems.length
+                    setAiWorkingItems(prev => [...prev, {
+                      description: material.name,
+                      quantity: parseInt(material.estimated_quantity) || 1,
+                      rate: perPiecePrice,
+                      imageUrl: material.image_url,
+                      thumbnailUrl: material.thumbnail_url,
+                      brand: material.brand,
+                      model: material.model,
+                      externalUrl: material.url,
+                      unitOfMeasure: material.unit_of_measure,
+                      searchResults: material.searchResults,
+                      packSize: packSize > 1 ? packSize : undefined,
+                      packPrice: packPrice > 0 ? packPrice : undefined
+                    }])
+                    setSelectedForInvoice(prev => new Set([...prev, newIdx]))
+                  }}
+                />
+              </div>
+            </div>
+
+            <CollapsibleContent>
+              {aiLoading && (
+                <div className="space-y-4 mb-6 py-6">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="relative">
+                      <div className="h-16 w-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg className="h-8 w-8 text-primary animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-semibold text-primary">Analyzing your project description...</p>
+                      <p className="text-sm text-muted-foreground mt-1">Finding the best matching materials from our catalog</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {[0,1,2].map((i) => (
+                      <div key={i} className="animate-pulse rounded-lg border border-primary/10 bg-primary/5 p-4">
+                        <div className="h-5 w-56 bg-primary/20 rounded mb-2" />
+                        <div className="h-4 w-72 bg-primary/10 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Working Items List */}
+              {aiWorkingItems.length > 0 && (
+                <div className="mb-6 border rounded-lg overflow-hidden bg-gray-50/50">
+                  <div className="max-h-96 overflow-y-auto p-3 custom-scrollbar">
+                    <div className="space-y-2">
+                      {aiWorkingItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3 border rounded p-3 hover:bg-gray-50 transition-colors bg-white">
+                  {/* Selection Toggle */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            setSelectedForInvoice(prev => {
+                              const next = new Set(prev)
+                              if (next.has(idx)) {
+                                next.delete(idx)
+                              } else {
+                                next.add(idx)
+                              }
+                              return next
+                            })
+                          }}
+                          className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all ${
+                            selectedForInvoice.has(idx)
+                              ? "bg-green-500 border-green-600"
+                              : "bg-white border-gray-300 hover:border-green-400"
+                          }`}
+                        >
+                          {selectedForInvoice.has(idx) && (
+                            <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-16 h-16 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium line-clamp-2">{item.description}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Qty: {item.quantity} {item.unitOfMeasure || "each"} • 
+                      {item.packSize && item.packSize > 1 && item.packPrice ? (
+                        <span> ${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
+                      ) : (
+                        <span> ${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
+                      )}
+                      {item.brand && ` • ${item.brand}`}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            className="h-9 w-9 p-0"
+                            onClick={() => {
+                              setItems(prev => [...prev, item])
+                            }}
+                          >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Add to main quote items</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      const el = document.getElementById("ai-material-search")
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }}>
+                      Substitute
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => {
+                      // Remove item and reindex selections
+                      setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
+                      setSelectedForInvoice(prev => {
+                        const reindexed = new Set<number>()
+                        Array.from(prev).forEach(oldIdx => {
+                          if (oldIdx < idx) reindexed.add(oldIdx)
+                          else if (oldIdx > idx) reindexed.add(oldIdx - 1)
+                        })
+                        return reindexed
+                      })
+                    }}>
+                      Remove
+                    </Button>
+                  </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {aiResults.map((block: any, idx: number) => (
-              <div key={idx} className="rounded border p-3">
-                <div className="font-medium">
-                  {block.parsed_object?.canonical_name || block.parsed_object?.title || "Parsed item"}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {block.parsed_object?.product_category} {block.parsed_object?.material_type}
-                </div>
-                {Array.isArray(block.matches) && block.matches.length > 0 && (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {block.matches.map((m: any, i: number) => (
-                      <div key={i} className="flex items-center gap-3 border rounded p-2">
-                        <div className="flex-shrink-0">
-                          <MaterialThumbnail src={m.image} alt={m.name} className="w-12 h-12" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{m.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{m.vendor || "vendor"} • {m.unit || "unit"} {m.price_unit != null && `• $${m.price_unit}`}</div>
-                          <div className="text-xs">score {(m.combined_score ?? 0).toFixed(2)}</div>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <Button size="sm" onClick={() => {
-                            setItems([...items, {
-                              description: m.name,
-                              quantity: 1,
-                              rate: Number(m.price_unit) || 0,
-                              imageUrl: m.image,
-                              thumbnailUrl: m.image,
-                              brand: undefined,
-                              model: undefined,
-                              unitOfMeasure: m.unit || "each"
-                            }])
-                          }}>Add</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
       )}
 
