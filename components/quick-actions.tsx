@@ -38,7 +38,7 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: "/jobs/new",
+      href: "/quotes/new",
     },
     {
       label: "Add Client",

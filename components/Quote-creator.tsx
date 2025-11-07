@@ -11,6 +11,7 @@ import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { Lead, ContractorProfile } from "@/lib/types"
 import Image from "next/image"
@@ -231,6 +232,7 @@ interface QuoteCreatorProps {
 }
 
 export function QuoteCreator({ leadId }: QuoteCreatorProps) {
+  const { toast } = useToast()
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
@@ -447,9 +449,9 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
       // Create the job/quote
       const response = await api.createJob(jobData)
       
-      // Success! Redirect to job details page
+      // Success! Redirect to quote details page
       if (response && (response as any).id) {
-        window.location.href = `/jobs/${(response as any).id}`
+        window.location.href = `/quotes/${(response as any).id}`
       } else {
         throw new Error("Invalid response from server")
       }
@@ -604,6 +606,10 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
               rate: price
             }])
             setShowAIPricing(false)
+            toast({
+              title: "Item added",
+              description: `${serviceDescription ? `"${serviceDescription}"` : "Item"} has been added to your quote`,
+            })
           }}
         />
       )}
@@ -711,6 +717,10 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                       packPrice: packPrice > 0 ? packPrice : undefined
                     }])
                     setSelectedForInvoice(prev => new Set([...prev, newIdx]))
+                    toast({
+                      title: "Item added",
+                      description: `${material.name || "Item"} has been added to AI working area`,
+                    })
                   }}
                 />
               </div>
@@ -809,6 +819,10 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                             className="h-9 w-9 p-0"
                             onClick={() => {
                               setItems(prev => [...prev, item])
+                              toast({
+                                title: "Item added",
+                                description: `${item.description || "Item"} has been added to your quote`,
+                              })
                             }}
                           >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -879,6 +893,10 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
               unitOfMeasure: material.unit_of_measure, // Add unit of measure
               searchResults: material.searchResults // Store all search results for substitutes
             }])
+            toast({
+              title: "Item added",
+              description: `${material.name || "Item"} has been added to your quote`,
+            })
           }}
         />
       </Card>

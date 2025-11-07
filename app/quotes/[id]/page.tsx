@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
+import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
 
 interface JobItem {
   id: number
@@ -38,6 +39,7 @@ interface Job {
 
 export default function QuoteDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const jobId = params.id as string
   
   const [job, setJob] = useState<Job | null>(null)
@@ -87,6 +89,20 @@ export default function QuoteDetailPage() {
       month: 'long',
       day: 'numeric'
     })
+  }
+
+  const handleSendToClient = async () => {
+    // TODO: Implement send to client functionality
+    console.log("Send to client", jobId)
+  }
+
+  const handleEdit = () => {
+    router.push(`/quotes/${jobId}/edit`)
+  }
+
+  const handleCreateInvoice = () => {
+    // TODO: Implement create invoice functionality
+    router.push(`/invoices/new?jobId=${jobId}`)
   }
 
   if (loading) {
@@ -142,175 +158,15 @@ export default function QuoteDetailPage() {
     )
   }
 
-  // Use backend-calculated total instead of frontend calculation
-  const total = job.total_amount || 0
-
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Quote #{job.id}</h1>
-              <p className="text-gray-600">Created on {formatDate(job.created_at)}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge className={getStatusColor(job.status)}>
-                {job.status}
-              </Badge>
-              <Button variant="outline" asChild>
-                <a href="/quotes">Back to Quotes</a>
-              </Button>
-            </div>
-          </div>
-
-          {/* Client Information */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Client Information</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p className="text-lg">{job.client_name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-lg">{job.client_email}</p>
-              </div>
-              {job.client_phone && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Phone</label>
-                  <p className="text-lg">{job.client_phone}</p>
-                </div>
-              )}
-              <div>
-                <label className="text-sm font-medium text-gray-500">Address</label>
-                <p className="text-lg">{job.client_address}</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Line Items */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Line Items</h2>
-            <div className="space-y-4">
-              {job.items.map((item, index) => (
-                <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                  {/* Item Image */}
-                  {item.thumbnail_url && (
-                    <div className="w-16 h-16 flex-shrink-0 rounded border overflow-hidden bg-muted">
-                      <img
-                        src={item.thumbnail_url}
-                        alt={item.custom_description}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Item Details */}
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.custom_description}</h3>
-                    {item.brand && (
-                      <p className="text-sm text-gray-500">{item.brand} {item.model}</p>
-                    )}
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                      <span>Qty: {item.quantity}</span>
-                      <span>Rate: {formatCurrency(item.cost_per_unit)}</span>
-                      <span>Unit: {item.unit_of_measure}</span>
-                      {item.markup_percentage > 0 && (
-                        <span className="text-primary font-medium">
-                          +{item.markup_percentage}% markup
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Item Total */}
-                  <div className="text-right">
-                    <p className="text-lg font-semibold">
-                      {formatCurrency((item.quantity * item.cost_per_unit) * (1 + item.markup_percentage / 100))}
-                    </p>
-                    {item.markup_percentage > 0 && (
-                      <p className="text-sm text-gray-500">
-                        Base: {formatCurrency(item.quantity * item.cost_per_unit)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Totals */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Quote Summary</h2>
-            <div className="space-y-2">
-              {(() => {
-                // Calculate breakdown
-                const baseSubtotal = job.items.reduce((sum, item) => sum + (item.quantity * item.cost_per_unit), 0)
-                const markupAmount = job.items.reduce((sum, item) => {
-                  const itemBase = item.quantity * item.cost_per_unit
-                  return sum + (itemBase * item.markup_percentage / 100)
-                }, 0)
-                const subtotalWithMarkup = baseSubtotal + markupAmount
-                const taxAmount = total - subtotalWithMarkup
-                
-                return (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal (before markup):</span>
-                      <span>{formatCurrency(baseSubtotal)}</span>
-                    </div>
-                    {markupAmount > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Markup:</span>
-                        <span className="text-primary">+{formatCurrency(markupAmount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal:</span>
-                      <span>{formatCurrency(subtotalWithMarkup)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax:</span>
-                      <span>{formatCurrency(taxAmount)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-semibold border-t pt-2">
-                      <span>Total:</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          </Card>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button size="lg">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Send to Client
-            </Button>
-            <Button size="lg" variant="outline">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit Quote
-            </Button>
-            <Button size="lg" variant="outline">
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Create Invoice
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PersonalizedQuoteView
+        job={job}
+        showActions={true}
+        onSendToClient={handleSendToClient}
+        onEdit={handleEdit}
+        onCreateInvoice={handleCreateInvoice}
+      />
     </AuthGuard>
   )
 }
