@@ -263,11 +263,6 @@ export function PersonalizedQuoteView({
                                     {item.brand} {item.model || item.model}
                                   </p>
                                 )}
-                                {markupPercentage > 0 && (
-                                  <span className="inline-block mt-1 text-xs text-primary font-medium">
-                                    +{markupPercentage}% markup
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </td>
@@ -291,16 +286,6 @@ export function PersonalizedQuoteView({
             {/* Summary */}
             <div className="mb-8">
               <div className="ml-auto max-w-xs space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal (before markup):</span>
-                  <span className="text-gray-900">{formatCurrency(baseSubtotal)}</span>
-                </div>
-                {markupAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Markup:</span>
-                    <span className="text-primary font-medium">+{formatCurrency(markupAmount)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="text-gray-900 font-medium">{formatCurrency(subtotalWithMarkup)}</span>

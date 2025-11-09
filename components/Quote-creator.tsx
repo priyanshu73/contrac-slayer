@@ -32,6 +32,34 @@ interface LineItem {
   sourceParsedItem?: any // Reference to the parsed item this match came from
 }
 
+interface MaterialResult {
+  name: string
+  description: string
+  category: string
+  estimated_quantity: string
+  unit_of_measure: string
+  estimated_cost: string
+  confidence: number
+  source: string
+  image_url?: string
+  thumbnail_url?: string
+  availability?: string
+  url?: string
+  brand?: string
+  model?: string
+  searchResults?: any[] // All search results for substitutes
+}
+
+interface MaterialSearchResponse {
+  materials: MaterialResult[]
+  total_count: number
+  page: number
+  per_page: number
+  total_pages: number
+  has_next: boolean
+  has_prev: boolean
+}
+
 // Common units for construction and landscaping
 const COMMON_UNITS = [
   // Area units
@@ -127,6 +155,9 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
     onChange("")
   }
   
+  // Filter out suggested units from common units to avoid duplicates
+  const remainingUnits = COMMON_UNITS.filter(unit => !suggestedUnits.includes(unit.value))
+
   return (
     <div className="space-y-1">
       {!isCustom ? (
@@ -146,12 +177,12 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
                     </SelectItem>
                   )
                 })}
-                <div className="border-t my-1"></div>
+                {remainingUnits.length > 0 && <div className="border-t my-1"></div>}
               </>
             )}
             
-            {/* All common units */}
-            {COMMON_UNITS.map(unit => (
+            {/* Remaining common units (excluding suggested ones) */}
+            {remainingUnits.map(unit => (
               <SelectItem key={unit.value} value={unit.value}>
                 {unit.label}
               </SelectItem>
@@ -229,9 +260,11 @@ function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string;
 
 interface QuoteCreatorProps {
   leadId?: string | null
+  quoteId?: string | null
+  initialData?: any // Job/Quote data for editing
 }
 
-export function QuoteCreator({ leadId }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps) {
   const { toast } = useToast()
   const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
@@ -253,10 +286,16 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   
-  // Markup control
-  const [markupPercentage, setMarkupPercentage] = useState(0)
+  // Markup control (removed from UI but kept for backend compatibility)
+  const [markupPercentage] = useState(0)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
+  
+  // Inline search states for line items
+  const [searchingItemIndex, setSearchingItemIndex] = useState<number | null>(null)
+  const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({})
+  const [itemSearchResults, setItemSearchResults] = useState<Record<number, MaterialResult[]>>({})
+  const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({})
 
   // Fetch lead data if leadId is provided
   useEffect(() => {
@@ -264,6 +303,39 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
       fetchLeadData()
     }
   }, [leadId])
+
+  // Load initial quote data if editing
+  useEffect(() => {
+    if (initialData && quoteId) {
+      loadQuoteData()
+    }
+  }, [initialData, quoteId])
+
+  const loadQuoteData = () => {
+    if (!initialData) return
+
+    // Set client information
+    setClientName(initialData.client_name || "")
+    setClientEmail(initialData.client_email || "")
+    setClientPhone(initialData.client_phone || "")
+    setClientAddress(initialData.client_address || "")
+
+    // Convert job items to line items format
+    if (initialData.items && initialData.items.length > 0) {
+      const lineItems = initialData.items.map((item: any) => ({
+        description: item.custom_description || item.description || "",
+        quantity: item.quantity || 1,
+        rate: item.cost_per_unit || item.rate || 0,
+        imageUrl: item.image_url || item.imageUrl,
+        thumbnailUrl: item.thumbnail_url || item.thumbnailUrl,
+        brand: item.brand,
+        model: item.model,
+        externalUrl: item.external_url || item.externalUrl,
+        unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
+      }))
+      setItems(lineItems)
+    }
+  }
 
   const fetchLeadData = async () => {
     if (!leadId) return
@@ -294,6 +366,92 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
     // Extract 5-digit ZIP code from address
     const zipMatch = address.match(/\b\d{5}\b/)
     return zipMatch ? zipMatch[0] : undefined
+  }
+
+  // Inline search functions for line items
+  const handleStartSearch = (index: number) => {
+    setSearchingItemIndex(index)
+    setItemSearchQueries(prev => ({ ...prev, [index]: "" }))
+    setItemSearchResults(prev => ({ ...prev, [index]: [] }))
+  }
+
+  const handleCancelSearch = (index: number) => {
+    setSearchingItemIndex(null)
+    setItemSearchQueries(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+    setItemSearchResults(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+    setItemSearchLoading(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+  }
+
+  // Debounced search for inline search
+  useEffect(() => {
+    if (searchingItemIndex === null) return
+
+    const query = itemSearchQueries[searchingItemIndex] || ""
+    
+    if (!query.trim() || query.trim().length < 3) {
+      setItemSearchResults(prev => ({ ...prev, [searchingItemIndex]: [] }))
+      setItemSearchLoading(prev => ({ ...prev, [searchingItemIndex]: false }))
+      return
+    }
+
+    const timer = setTimeout(() => {
+      performInlineSearch(searchingItemIndex, query)
+    }, 1000) // 1 second debounce
+
+    return () => clearTimeout(timer)
+  }, [itemSearchQueries, searchingItemIndex])
+
+  const performInlineSearch = async (index: number, query: string) => {
+    setItemSearchLoading(prev => ({ ...prev, [index]: true }))
+    
+    try {
+      const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
+      const response = await api.searchMaterials(query, zipCode, 10) as MaterialSearchResponse
+      setItemSearchResults(prev => ({ ...prev, [index]: response.materials || [] }))
+    } catch (err) {
+      console.error("Inline search error:", err)
+      setItemSearchResults(prev => ({ ...prev, [index]: [] }))
+    } finally {
+      setItemSearchLoading(prev => ({ ...prev, [index]: false }))
+    }
+  }
+
+  const handleSelectMaterial = (index: number, material: MaterialResult) => {
+    // Update the line item with selected material data
+    const updatedItems = [...items]
+    updatedItems[index] = {
+      ...updatedItems[index],
+      description: material.name,
+      rate: parseFloat(material.estimated_cost) || updatedItems[index].rate,
+      imageUrl: material.image_url,
+      thumbnailUrl: material.thumbnail_url,
+      brand: material.brand,
+      model: material.model,
+      externalUrl: material.url,
+      unitOfMeasure: material.unit_of_measure || updatedItems[index].unitOfMeasure || "each",
+      searchResults: [material],
+    }
+    setItems(updatedItems)
+    
+    // Close search mode
+    handleCancelSearch(index)
+    
+    toast({
+      title: "Item added",
+      description: `${material.name || "Item"} has been added to your quote`,
+    })
   }
 
   const fetchAiItems = async () => {
@@ -446,21 +604,38 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
         }))
       }
       
-      // Create the job/quote
-      const response = await api.createJob(jobData)
+      let response
+      if (quoteId) {
+        // Update existing quote
+        response = await api.updateJob(parseInt(quoteId), jobData)
+        toast({
+          title: "Quote updated",
+          description: "Quote has been successfully updated",
+        })
+      } else {
+        // Create new quote
+        response = await api.createJob(jobData)
+        toast({
+          title: "Quote created",
+          description: "Quote has been successfully created",
+        })
+      }
       
       // Success! Redirect to quote details page
       if (response && (response as any).id) {
         window.location.href = `/quotes/${(response as any).id}`
+      } else if (quoteId) {
+        // For updates, redirect to the same quote
+        window.location.href = `/quotes/${quoteId}`
       } else {
         throw new Error("Invalid response from server")
       }
       
     } catch (error: any) {
-      console.error("Failed to create quote:", error)
+      console.error(`Failed to ${quoteId ? 'update' : 'create'} quote:`, error)
       setCreateError(
         error.message || 
-        "Failed to create quote. Please check your information and try again."
+        `Failed to ${quoteId ? 'update' : 'create'} quote. Please check your information and try again.`
       )
     } finally {
       setIsCreatingQuote(false)
@@ -555,7 +730,7 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
             </p>
             <div className="mt-4 space-y-3">
               <Textarea
-                placeholder="Describe the line item (e.g., '12x12 inch Charcoal Concrete Pavers - Pavestone - Home Depot')"
+                placeholder="Describe the item or service (e.g., materials, labor, installation, etc.)"
                 value={serviceDescription}
                 onChange={(e) => setServiceDescription(e.target.value)}
                 className="min-h-[80px] bg-background"
@@ -916,31 +1091,127 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
 
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="rounded-lg border border-border p-4">
+            <div key={index} className="rounded-lg border border-border p-4 relative">
+              {/* Delete Button - Top Right */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => removeItem(index)}
+                className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </Button>
+
               {/* Mobile Layout */}
               <div className="block sm:hidden space-y-4">
                 {/* Image and Description */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 pr-10">
                   <MaterialThumbnail
                     src={item.thumbnailUrl || item.imageUrl}
                     alt={item.description}
                     className="w-12 h-12 flex-shrink-0"
                   />
                   <div className="flex-1">
-                    <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
-                      Line Item Description
-                    </Label>
-                    <Textarea
-                      id={`item-desc-${index}`}
-                      value={item.description}
-                      onChange={(e) => updateItem(index, "description", e.target.value)}
-                      placeholder="Describe the line item with dimensions, color, brand, and supplier..."
-                      className="min-h-[60px] resize-none mt-1"
-                    />
-                    {item.brand && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.brand} {item.model && `- ${item.model}`}
-                      </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
+                        Description
+                      </Label>
+                      {searchingItemIndex !== index && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleStartSearch(index)}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Search
+                        </Button>
+                      )}
+                    </div>
+                    {searchingItemIndex === index ? (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            type="search"
+                            value={itemSearchQueries[index] || ""}
+                            onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
+                            placeholder="Search for materials..."
+                            className="pr-10"
+                            autoFocus
+                          />
+                          {itemSearchLoading[index] && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelSearch(index)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        {/* Search Results */}
+                        {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
+                          <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
+                            {itemSearchResults[index].map((material, matIndex) => (
+                              <Card
+                                key={matIndex}
+                                className="p-3 hover:border-primary transition-all cursor-pointer"
+                                onClick={() => handleSelectMaterial(index, material)}
+                              >
+                                <div className="flex gap-2">
+                                  <MaterialThumbnail
+                                    src={material.thumbnail_url || material.image_url}
+                                    alt={material.name}
+                                    className="w-12 h-12 flex-shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
+                                    <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-sm font-bold text-primary">
+                                        ${parseFloat(material.estimated_cost).toFixed(2)}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        per {material.unit_of_measure}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <Textarea
+                          id={`item-desc-${index}`}
+                          value={item.description}
+                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                          className="min-h-[60px] resize-none mt-1"
+                        />
+                        {item.brand && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.brand} {item.model && `- ${item.model}`}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -989,33 +1260,9 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                   </div>
                 </div>
                 
-                {/* Total and Actions */}
+                {/* Total */}
                 <div className="flex items-center justify-between pt-2 border-t">
                   <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
-                  <div className="flex gap-1">
-                    {item.searchResults && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleSubstitute(index)}
-                        title="View substitutes"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </Button>
-                  </div>
                 </div>
               </div>
               
@@ -1031,21 +1278,100 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                 </div>
                 
                 {/* Line Item Description */}
-                <div className="col-span-5">
-                  <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
-                    Line Item Description
-                  </Label>
-                  <Textarea
-                    id={`item-desc-${index}`}
-                    value={item.description}
-                    onChange={(e) => updateItem(index, "description", e.target.value)}
-                    placeholder="Describe the line item with dimensions, color, brand, and supplier (e.g., '12x12 inch Charcoal Concrete Pavers - Pavestone - Home Depot')"
-                    className="min-h-[60px] resize-none mt-1"
-                  />
-                  {item.brand && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {item.brand} {item.model && `- ${item.model}`}
-                    </p>
+                <div className="col-span-5 pr-8">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
+                      Description
+                    </Label>
+                    {searchingItemIndex !== index && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartSearch(index)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search
+                      </Button>
+                    )}
+                  </div>
+                  {searchingItemIndex === index ? (
+                    <div className="space-y-2 relative">
+                      <div className="relative">
+                        <Input
+                          type="search"
+                          value={itemSearchQueries[index] || ""}
+                          onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
+                          placeholder="Search for materials..."
+                          className="pr-20"
+                          autoFocus
+                        />
+                        {itemSearchLoading[index] && (
+                          <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelSearch(index)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      {/* Search Results */}
+                      {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
+                        <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background absolute z-50 w-full shadow-lg mt-1">
+                          {itemSearchResults[index].map((material, matIndex) => (
+                            <Card
+                              key={matIndex}
+                              className="p-3 hover:border-primary transition-all cursor-pointer"
+                              onClick={() => handleSelectMaterial(index, material)}
+                            >
+                              <div className="flex gap-2">
+                                <MaterialThumbnail
+                                  src={material.thumbnail_url || material.image_url}
+                                  alt={material.name}
+                                  className="w-12 h-12 flex-shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
+                                  <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-sm font-bold text-primary">
+                                      ${parseFloat(material.estimated_cost).toFixed(2)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      per {material.unit_of_measure}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Textarea
+                        id={`item-desc-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                        className="min-h-[60px] resize-none mt-1"
+                      />
+                      {item.brand && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {item.brand} {item.model && `- ${item.model}`}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 
@@ -1095,35 +1421,9 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                   />
                 </div>
                 
-                {/* Total and Actions */}
+                {/* Total */}
                 <div className="col-span-1 flex items-end">
-                  <div className="flex w-full items-center justify-between">
-                    <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
-                    <div className="flex gap-1">
-                      {item.searchResults && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleSubstitute(index)}
-                          title="View substitutes"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                          </svg>
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
+                  <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1132,16 +1432,6 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
 
         {/* Totals */}
         <div className="mt-6 space-y-2 border-t border-border pt-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal (before markup)</span>
-            <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
-          </div>
-          {markupPercentage > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
-              <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
-            </div>
-          )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-medium">${subtotal.toFixed(2)}</span>
@@ -1153,73 +1443,6 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
           <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
             <span>Total</span>
             <span>${total.toFixed(2)}</span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Markup Controller */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Markup Settings</h2>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <svg className="h-4 w-4 text-muted-foreground cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    Markup percentage is applied to each line item. This is for your internal pricing and won't be visible to customers.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
-            Internal Use Only
-          </span>
-        </div>
-        
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="markup-percentage">Markup Percentage</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="markup-percentage"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={markupPercentage}
-                onChange={(e) => setMarkupPercentage(Number.parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                className="w-24"
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Applied to all line items
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Preview Impact</Label>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal (no markup):</span>
-                <span>${baseSubtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Markup amount:</span>
-                <span className="text-primary">+${markupAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>New subtotal:</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </div>
-            </div>
           </div>
         </div>
       </Card>
@@ -1270,7 +1493,7 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
               <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Creating Quote...
+              {quoteId ? "Updating Quote..." : "Creating Quote..."}
             </>
           ) : (
             <>
@@ -1282,7 +1505,7 @@ export function QuoteCreator({ leadId }: QuoteCreatorProps) {
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Create Quote
+              {quoteId ? "Update Quote" : "Create Quote"}
             </>
           )}
         </Button>

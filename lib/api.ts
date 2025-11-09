@@ -187,7 +187,7 @@ class ApiClient {
 
   async updateJob(jobId: number, data: any) {
     return this.request(`/jobs/${jobId}`, {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(data),
     })
   }
