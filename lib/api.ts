@@ -3,7 +3,7 @@
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
-const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL || 'http://localhost:5001/api'
+const CONTRACTOR_AI_API_URL = 'https://contractorai-0mlr.onrender.com/api'
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
