@@ -4,10 +4,9 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
-import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
+import { QuoteCreator } from "@/components/Quote-creator"
 
 interface JobItem {
   id: number
@@ -35,9 +34,13 @@ interface Job {
   created_at: string
   updated_at: string
   items: JobItem[]
+  job_description?: string
+  project_type?: string
+  payment_terms?: string
+  customer_notes?: string
 }
 
-export default function QuoteDetailPage() {
+export default function EditQuotePage() {
   const params = useParams()
   const router = useRouter()
   const jobId = params.id as string
@@ -62,47 +65,6 @@ export default function QuoteDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      case 'sent': return 'bg-blue-100 text-blue-800'
-      case 'viewed': return 'bg-purple-100 text-purple-800'
-      case 'accepted': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      case 'completed': return 'bg-emerald-100 text-emerald-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
-  const handleSendToClient = async () => {
-    // TODO: Implement send to client functionality
-    console.log("Send to client", jobId)
-  }
-
-  const handleEdit = () => {
-    router.push(`/quotes/${jobId}/edit`)
-  }
-
-  const handleCreateInvoice = () => {
-    // TODO: Implement create invoice functionality
-    router.push(`/invoices/new?jobId=${jobId}`)
   }
 
   if (loading) {
@@ -160,13 +122,24 @@ export default function QuoteDetailPage() {
 
   return (
     <AuthGuard>
-      <PersonalizedQuoteView
-        job={job}
-        showActions={true}
-        onSendToClient={handleSendToClient}
-        onEdit={handleEdit}
-        onCreateInvoice={handleCreateInvoice}
-      />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-6xl mx-auto p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Edit Quote #{job.id}</h1>
+              <p className="text-gray-600 mt-1">Update quote details and line items</p>
+            </div>
+            <Button variant="outline" onClick={() => router.push(`/quotes/${jobId}`)}>
+              Cancel
+            </Button>
+          </div>
+          <QuoteCreator 
+            quoteId={jobId}
+            initialData={job}
+          />
+        </div>
+      </div>
     </AuthGuard>
   )
 }
+

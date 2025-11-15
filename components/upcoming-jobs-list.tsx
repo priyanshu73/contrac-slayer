@@ -1,49 +1,19 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function UpcomingJobsList() {
-  const jobs = [
-    {
-      id: "1",
-      client: "John Smith",
-      service: "Weekly Mowing",
-      date: "Today",
-      time: "2:00 PM",
-      location: "123 Oak Street",
-      status: "confirmed",
-      duration: "1 hour",
-    },
-    {
-      id: "2",
-      client: "Sarah Johnson",
-      service: "Garden Design",
-      date: "Today",
-      time: "4:00 PM",
-      location: "456 Elm Street",
-      status: "confirmed",
-      duration: "2 hours",
-    },
-    {
-      id: "3",
-      client: "Lisa Brown",
-      service: "Hedge Trimming",
-      date: "Tomorrow",
-      time: "10:00 AM",
-      location: "456 Maple Ave",
-      status: "confirmed",
-      duration: "1.5 hours",
-    },
-    {
-      id: "4",
-      client: "Tom Wilson",
-      service: "Mulch Installation",
-      date: "Thu, Oct 19",
-      time: "9:00 AM",
-      location: "789 Pine Road",
-      status: "pending",
-      duration: "3 hours",
-    },
-  ]
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch upcoming jobs from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setJobs([])
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -56,6 +26,37 @@ export function UpcomingJobsList() {
       default:
         return "bg-muted text-muted-foreground"
     }
+  }
+
+  if (loading) {
+    return (
+      <Card className="p-5">
+        <h2 className="mb-4 text-lg font-semibold">Upcoming Jobs</h2>
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-lg border border-border p-3 animate-pulse">
+              <div className="h-16 bg-muted rounded"></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+
+  if (jobs.length === 0) {
+    return (
+      <Card className="p-5">
+        <h2 className="mb-4 text-lg font-semibold">Upcoming Jobs</h2>
+        <div className="text-center py-8">
+          <div className="rounded-full bg-muted p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+            <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-sm text-muted-foreground">No upcoming jobs scheduled</p>
+        </div>
+      </Card>
+    )
   }
 
   return (

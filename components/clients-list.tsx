@@ -1,64 +1,19 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function ClientsList() {
-  const clients = [
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john.smith@email.com",
-      phone: "(555) 123-4567",
-      address: "123 Oak Street, Springfield, IL",
-      totalJobs: 12,
-      totalRevenue: 1850,
-      lastJob: "Oct 17, 2025",
-      status: "active",
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "(555) 234-5678",
-      address: "456 Elm Street, Springfield, IL",
-      totalJobs: 3,
-      totalRevenue: 3200,
-      lastJob: "Oct 14, 2025",
-      status: "active",
-    },
-    {
-      id: "3",
-      name: "Mike Chen",
-      email: "mike.chen@email.com",
-      phone: "(555) 345-6789",
-      address: "789 Maple Ave, Springfield, IL",
-      totalJobs: 5,
-      totalRevenue: 2100,
-      lastJob: "Oct 10, 2025",
-      status: "active",
-    },
-    {
-      id: "4",
-      name: "Lisa Brown",
-      email: "lisa.brown@email.com",
-      phone: "(555) 456-7890",
-      address: "321 Pine Road, Springfield, IL",
-      totalJobs: 8,
-      totalRevenue: 1450,
-      lastJob: "Oct 8, 2025",
-      status: "active",
-    },
-    {
-      id: "5",
-      name: "Tom Wilson",
-      email: "tom.wilson@email.com",
-      phone: "(555) 567-8901",
-      address: "654 Birch Lane, Springfield, IL",
-      totalJobs: 2,
-      totalRevenue: 1800,
-      lastJob: "Sep 28, 2025",
-      status: "inactive",
-    },
-  ]
+  const [clients, setClients] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch clients from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setClients([])
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -69,6 +24,38 @@ export function ClientsList() {
       default:
         return "bg-muted text-muted-foreground"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="p-5 animate-pulse">
+            <div className="h-20 bg-muted rounded"></div>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (clients.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="rounded-full bg-muted p-6">
+            <svg className="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-1">No clients yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Clients will appear here once you create quotes or invoices for them.
+            </p>
+          </div>
+        </div>
+      </Card>
+    )
   }
 
   return (
