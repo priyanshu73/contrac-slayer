@@ -19,7 +19,7 @@ export function Navbar() {
     { href: "/leads", label: "Leads" },
     { href: "/quotes", label: "Quotes" },
     { href: "/calendar", label: "Calendar" },
-    { href: "/clients", label: "Clients" },
+    { href: "/lead-dashboard", label: "Lead Dashboard" },
     { href: "/invoices", label: "Invoices" },
     { href: "/settings", label: "Settings" },
   ]

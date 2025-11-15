@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button"
 
-export function ClientsHeader() {
+interface ClientsHeaderProps {
+  totalCount?: number
+  loading?: boolean
+}
+
+export function ClientsHeader({ totalCount = 0, loading = false }: ClientsHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -24,7 +29,16 @@ export function ClientsHeader() {
           </div>
           <div>
             <h1 className="text-lg font-semibold leading-none">Clients</h1>
-            <p className="text-sm text-muted-foreground">24 total clients</p>
+            <p className="text-sm text-muted-foreground">
+              {loading ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"></span>
+                  Loading...
+                </span>
+              ) : (
+                `${totalCount} ${totalCount === 1 ? 'client' : 'clients'}`
+              )}
+            </p>
           </div>
         </div>
 

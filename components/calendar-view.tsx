@@ -1,11 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function CalendarView() {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 17)) // Oct 17, 2025
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch jobs/calendar events from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setJobs([])
+  }, [])
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay()
@@ -25,18 +34,9 @@ export function CalendarView() {
     "December",
   ]
 
-  // Mock jobs data
-  const jobs = [
-    { date: 17, client: "John Smith", time: "2:00 PM", service: "Weekly Mowing" },
-    { date: 17, client: "Sarah Johnson", time: "4:00 PM", service: "Garden Design" },
-    { date: 18, client: "Lisa Brown", time: "10:00 AM", service: "Hedge Trimming" },
-    { date: 19, client: "Tom Wilson", time: "9:00 AM", service: "Mulch Installation" },
-    { date: 20, client: "Mike Chen", time: "1:00 PM", service: "Tree Removal" },
-    { date: 21, client: "Emily Davis", time: "11:00 AM", service: "Lawn Maintenance" },
-  ]
-
   const getJobsForDay = (day: number) => {
-    return jobs.filter((job) => job.date === day)
+    // TODO: Filter jobs by date when API is available
+    return []
   }
 
   const previousMonth = () => {
@@ -86,7 +86,11 @@ export function CalendarView() {
         {Array.from({ length: daysInMonth }).map((_, index) => {
           const day = index + 1
           const dayJobs = getJobsForDay(day)
-          const isToday = day === 17
+          const today = new Date()
+          const isToday = 
+            day === today.getDate() && 
+            currentDate.getMonth() === today.getMonth() && 
+            currentDate.getFullYear() === today.getFullYear()
 
           return (
             <div

@@ -278,7 +278,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
               />
             </div>
             <div>
-              <Label htmlFor="address">Project Address *</Label>
+              <Label htmlFor="address">Address *</Label>
               <Input
                 id="address"
                 value={formData.address}
@@ -294,11 +294,11 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
         <Card className="p-6 bg-white shadow-md border border-gray-200">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
             <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">2</span>
-            Project Details
+            Request Details
           </h2>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="project_type">Project Type *</Label>
+              <Label htmlFor="project_type">Request Type *</Label>
               <Input
                 id="project_type"
                 value={formData.project_type}
@@ -308,7 +308,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
               />
             </div>
             <div>
-              <Label htmlFor="description">Project Description *</Label>
+              <Label htmlFor="description">Request Description *</Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -325,7 +325,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
         <Card className="p-6 bg-white shadow-md border border-gray-200">
           <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-gray-900">
             <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">3</span>
-            Project Photos (Optional)
+            Request Photos (Optional)
           </h2>
           <p className="text-sm text-gray-600 mb-4">
             Upload photos or videos of your project area to help us provide the most accurate quote possible.

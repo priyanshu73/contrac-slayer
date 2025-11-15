@@ -1,32 +1,49 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
-  // Mock data - would come from database
-  const invoice = {
-    id: invoiceId,
-    number: "INV-002",
-    client: {
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      address: "456 Elm Street, Springfield, IL 62701",
-      phone: "(555) 123-4567",
-    },
-    status: "pending",
-    issueDate: "Oct 14, 2025",
-    dueDate: "Oct 28, 2025",
-    items: [
-      { description: "Garden Design Consultation", quantity: 1, rate: 500, amount: 500 },
-      { description: "Plant Selection & Sourcing", quantity: 1, rate: 800, amount: 800 },
-      { description: "Installation Labor (2 days)", quantity: 2, rate: 600, amount: 1200 },
-    ],
-    subtotal: 2500,
-    tax: 200,
-    total: 2700,
-    notes: "Payment due within 14 days. Thank you for your business!",
-    paymentTerms: "Net 14",
+  const [invoice, setInvoice] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch invoice from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setInvoice(null)
+  }, [invoiceId])
+
+  if (loading) {
+    return (
+      <Card className="p-6 animate-pulse">
+        <div className="h-32 bg-muted rounded"></div>
+      </Card>
+    )
+  }
+
+  if (!invoice) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="rounded-full bg-muted p-6">
+            <svg className="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-1">Invoice not found</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              The invoice you're looking for doesn't exist or hasn't been created yet.
+            </p>
+            <Button variant="outline" asChild>
+              <a href="/invoices">Back to Invoices</a>
+            </Button>
+          </div>
+        </div>
+      </Card>
+    )
   }
 
   const getStatusColor = (status: string) => {

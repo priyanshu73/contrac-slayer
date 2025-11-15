@@ -3,6 +3,11 @@
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
+const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL || 'http://localhost:5001/api'
+
+console.log('🔧 API Configuration:')
+console.log(`  Main API URL: ${API_URL}`)
+console.log(`  Contractor AI URL: ${CONTRACTOR_AI_API_URL}`)
 
 class ApiClient {
   private baseURL: string
@@ -192,6 +197,33 @@ class ApiClient {
     })
   }
 
+  // Client endpoints
+  async createClient(data: any) {
+    return this.request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getClients(skip = 0, limit = 20) {
+    const params = new URLSearchParams()
+    params.append('skip', skip.toString())
+    params.append('limit', limit.toString())
+
+    return this.request(`/clients?${params.toString()}`)
+  }
+
+  async getClient(clientId: number) {
+    return this.request(`/clients/${clientId}`)
+  }
+
+  async updateClient(clientId: number, data: any) {
+    return this.request(`/clients/${clientId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
   // Material search endpoints
   async searchMaterials(query: string, zipCode?: string, maxResults = 10) {
     console.log(`🌐 API Client: Searching materials for "${query}"`)
@@ -220,5 +252,145 @@ class ApiClient {
   }
 }
 
+class ContractorAIClient {
+  private baseURL: string
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`
+    
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      // credentials: 'include', // Temporarily disable credentials for debugging
+    }
+
+    console.log(`🌐 ContractorAI API: Making request to ${url}`)
+    console.log(`🌐 ContractorAI API: Config:`, config)
+
+    try {
+      const response = await fetch(url, config)
+
+      console.log(`🌐 ContractorAI API: Response status: ${response.status}`)
+      console.log(`🌐 ContractorAI API: Response headers:`, Object.fromEntries(response.headers.entries()))
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const error = await response.json()
+          errorMessage = error.error || error.message || errorMessage
+        } catch (parseError) {
+          console.error(`🌐 ContractorAI API: Failed to parse error response:`, parseError)
+        }
+        console.error(`🌐 ContractorAI API: Request failed:`, errorMessage)
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      console.log(`🌐 ContractorAI API: Success response:`, data)
+      return data
+    } catch (error) {
+      console.error(`🌐 ContractorAI API: Request error for ${url}:`, error)
+      if (error instanceof Error) {
+        // Add more specific error information
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error(`Network error: Cannot connect to ${url}. Make sure the contractor-ai backend is running on the correct port.`)
+        }
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
+  // Lead Management APIs
+  async getLeads(params?: {
+    status?: string
+    priority?: string
+    service_type?: string
+    days?: number
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.priority) searchParams.append('priority', params.priority)
+    if (params?.service_type) searchParams.append('service_type', params.service_type)
+    if (params?.days) searchParams.append('days', params.days.toString())
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+
+    return this.request(`/leads?${searchParams.toString()}`)
+  }
+
+  async getLead(leadId: string) {
+    return this.request(`/leads/${leadId}`)
+  }
+
+  async updateLead(leadId: string, data: any) {
+    return this.request(`/leads/${leadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Conversation APIs
+  async getConversations(params?: {
+    sp_id?: string
+    status?: string
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.sp_id) searchParams.append('sp_id', params.sp_id)
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+
+    return this.request(`/conversations?${searchParams.toString()}`)
+  }
+
+  async getConversationMessages(conversationId: string, params?: {
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+
+    return this.request(`/conversations/${conversationId}/messages?${searchParams.toString()}`)
+  }
+
+  async sendMessage(conversationId: string, messageText: string) {
+    return this.request(`/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message_text: messageText }),
+    })
+  }
+
+  // Service Provider APIs
+  async getServiceProvider(spId: string) {
+    return this.request(`/service-providers/${spId}`)
+  }
+
+  async getServiceProviderStats(spId: string, days = 30) {
+    return this.request(`/service-providers/${spId}/stats?days=${days}`)
+  }
+
+  // Health check
+  async healthCheck() {
+    return this.request('/health')
+  }
+}
+
 export const api = new ApiClient(API_URL)
+export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)
 

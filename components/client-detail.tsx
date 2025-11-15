@@ -1,67 +1,55 @@
 "use client"
+
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function ClientDetail({ clientId }: { clientId: string }) {
-  // Mock data - would come from database
-  const client = {
-    id: clientId,
-    name: "John Smith",
-    email: "john.smith@email.com",
-    phone: "(555) 123-4567",
-    address: "123 Oak Street, Springfield, IL 62701",
-    status: "active",
-    since: "Jan 2024",
-    totalJobs: 12,
-    totalRevenue: 1850,
-    notes: "Prefers morning appointments. Gate code: 1234. Dog in backyard.",
+  const [client, setClient] = useState<any>(null)
+  const [jobs, setJobs] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch client data from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setClient(null)
+    setJobs([])
+    setInvoices([])
+  }, [clientId])
+
+  if (loading) {
+    return (
+      <Card className="p-6 animate-pulse">
+        <div className="h-32 bg-muted rounded"></div>
+      </Card>
+    )
   }
 
-  const jobs = [
-    {
-      id: "1",
-      service: "Weekly Mowing",
-      date: "Oct 17, 2025",
-      status: "completed",
-      amount: "$75.00",
-    },
-    {
-      id: "2",
-      service: "Weekly Mowing",
-      date: "Oct 10, 2025",
-      status: "completed",
-      amount: "$75.00",
-    },
-    {
-      id: "3",
-      service: "Hedge Trimming",
-      date: "Oct 3, 2025",
-      status: "completed",
-      amount: "$125.00",
-    },
-  ]
-
-  const invoices = [
-    {
-      id: "INV-001",
-      date: "Oct 15, 2025",
-      amount: "$75.00",
-      status: "paid",
-    },
-    {
-      id: "INV-002",
-      date: "Oct 8, 2025",
-      amount: "$75.00",
-      status: "paid",
-    },
-    {
-      id: "INV-003",
-      date: "Oct 1, 2025",
-      amount: "$125.00",
-      status: "paid",
-    },
-  ]
+  if (!client) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="rounded-full bg-muted p-6">
+            <svg className="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-1">Client not found</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              The client you're looking for doesn't exist or hasn't been created yet.
+            </p>
+            <Button variant="outline" asChild>
+              <a href="/clients">Back to Clients</a>
+            </Button>
+          </div>
+        </div>
+      </Card>
+    )
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

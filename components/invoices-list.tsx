@@ -1,54 +1,19 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function InvoicesList() {
-  const invoices = [
-    {
-      id: "INV-001",
-      client: "John Smith",
-      service: "Weekly Mowing",
-      amount: "$75.00",
-      status: "paid",
-      date: "Oct 15, 2025",
-      dueDate: "Oct 22, 2025",
-    },
-    {
-      id: "INV-002",
-      client: "Sarah Johnson",
-      service: "Garden Design",
-      amount: "$2,500.00",
-      status: "pending",
-      date: "Oct 14, 2025",
-      dueDate: "Oct 28, 2025",
-    },
-    {
-      id: "INV-003",
-      client: "Mike Chen",
-      service: "Tree Removal",
-      amount: "$850.00",
-      status: "pending",
-      date: "Oct 12, 2025",
-      dueDate: "Oct 26, 2025",
-    },
-    {
-      id: "INV-004",
-      client: "Lisa Brown",
-      service: "Hedge Trimming",
-      amount: "$125.00",
-      status: "overdue",
-      date: "Oct 5, 2025",
-      dueDate: "Oct 12, 2025",
-    },
-    {
-      id: "INV-005",
-      client: "Tom Wilson",
-      service: "Mulch Installation",
-      amount: "$1,200.00",
-      status: "pending",
-      date: "Oct 10, 2025",
-      dueDate: "Oct 24, 2025",
-    },
-  ]
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch invoices from API when endpoint is available
+    // For now, show empty state
+    setLoading(false)
+    setInvoices([])
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -61,6 +26,38 @@ export function InvoicesList() {
       default:
         return "bg-muted text-muted-foreground"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="p-4 animate-pulse">
+            <div className="h-16 bg-muted rounded"></div>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="rounded-full bg-muted p-6">
+            <svg className="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-1">No invoices yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Invoices will appear here once you create them from quotes or jobs.
+            </p>
+          </div>
+        </div>
+      </Card>
+    )
   }
 
   return (
