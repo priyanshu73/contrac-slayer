@@ -320,6 +320,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     setClientPhone(initialData.client_phone || "")
     setClientAddress(initialData.client_address || "")
 
+    // Load service description if available
+    if (initialData.job_description) {
+      setServiceDescription(initialData.job_description)
+    }
+
     // Convert job items to line items format
     if (initialData.items && initialData.items.length > 0) {
       const lineItems = initialData.items.map((item: any) => ({
@@ -510,7 +515,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 1, rate: 0 }])
+    setItems([...items, { description: "", quantity: 0, rate: 0 }])
   }
 
   const removeItem = (index: number) => {
@@ -553,7 +558,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     
     // Check if at least one line item has description and rate
     const validItems = items.filter(item => 
-      item.description.trim() && item.quantity > 0 && item.rate > 0
+      item.description.trim() && 
+      (item.quantity || 0) > 0 && 
+      (item.rate || 0) > 0
     )
     
     if (validItems.length === 0) {
@@ -579,7 +586,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     try {
       // Filter out empty items
       const validItems = items.filter(item => 
-        item.description.trim() && item.quantity > 0 && item.rate > 0
+        item.description.trim() && 
+        (item.quantity || 0) > 0 && 
+        (item.rate || 0) > 0
       )
       
       // Prepare job data
@@ -589,6 +598,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         client_phone: clientPhone.trim() || null,
         client_address: clientAddress.trim(),
         location_zip_code: extractZipCode(clientAddress),
+        job_description: serviceDescription.trim() || null,
         items: validItems.map(item => ({
           custom_description: item.description.trim(),
           quantity: item.quantity,
@@ -644,7 +654,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
 
   // Calculate base subtotal (without markup)
   const baseSubtotal = items.reduce((sum, item) => {
-    return sum + (item.quantity * item.rate)
+    return sum + ((item.quantity || 0) * (item.rate || 0))
   }, 0)
   
   // Calculate markup amount
@@ -1225,9 +1235,13 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     <Input
                       id={`item-qty-${index}`}
                       type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                      min="0"
+                      value={item.quantity === 0 ? "" : item.quantity}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                      }}
+                      placeholder="0"
                       className="mt-1"
                     />
                   </div>
@@ -1252,8 +1266,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                       type="number"
                       min="0"
                       step="0.01"
-                      value={item.rate}
-                      onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                      value={item.rate === 0 ? "" : item.rate}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                      }}
                       placeholder="0.00"
                       className="mt-1"
                     />
@@ -1262,7 +1279,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 
                 {/* Total */}
                 <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
+                  <span className="text-sm font-medium">${((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</span>
                 </div>
               </div>
               
@@ -1383,9 +1400,13 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                   <Input
                     id={`item-qty-${index}`}
                     type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                    min="0"
+                    value={item.quantity === 0 ? "" : item.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                    }}
+                    placeholder="0"
                     className="mt-1"
                   />
                 </div>
@@ -1414,8 +1435,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     type="number"
                     min="0"
                     step="0.01"
-                    value={item.rate}
-                    onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                    value={item.rate === 0 ? "" : item.rate}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                    }}
                     placeholder="0.00"
                     className="mt-1"
                   />
@@ -1423,7 +1447,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 
                 {/* Total */}
                 <div className="col-span-1 flex items-end">
-                  <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
+                  <span className="text-sm font-medium">${((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>
