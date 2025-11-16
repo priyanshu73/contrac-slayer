@@ -4,6 +4,7 @@ import { Search, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect } from 'react'
 import { contractorAI } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Lead {
   id: string
@@ -31,10 +32,12 @@ interface LeadInboxProps {
 }
 
 export default function LeadInbox({ selectedLead, onSelectLead, language }: LeadInboxProps) {
+  const { getContractorAISpId } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [spIdError, setSpIdError] = useState<string | null>(null)
 
   const title = language === 'en' ? 'Lead Inbox' : 'Bandeja de Entrada'
   const searchPlaceholder = language === 'en' ? 'Search leads...' : 'Buscar clientes...'
@@ -43,23 +46,34 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
   useEffect(() => {
     loadLeads()
     
-    // Polling disabled for now
-    // const pollInterval = setInterval(loadLeads, 30000) // Poll every 30 seconds
-    // return () => clearInterval(pollInterval)
+    // Set up polling for real-time updates
+    const pollInterval = setInterval(loadLeads, 30000) // Poll every 30 seconds
+    return () => clearInterval(pollInterval)
   }, [statusFilter])
 
   const loadLeads = async () => {
     try {
       console.log('🔄 LeadInbox: Starting to load leads...')
       setLoading(true)
+      setSpIdError(null)
       
-      // Call contractor-ai API for leads
+      // Get contractor AI service provider ID
+      const spId = getContractorAISpId()
+      if (!spId) {
+        setSpIdError('Service provider ID not found. Please contact support to link your account.')
+        setLeads([])
+        return
+      }
+      
+      // Call contractor-ai API for leads with SP ID
       console.log('🔄 LeadInbox: Calling contractorAI.getLeads with params:', {
+        sp_id: spId.toString(),
         status: statusFilter === 'all' ? undefined : statusFilter,
         per_page: 1000
       })
       
       const response = await contractorAI.getLeads({
+        sp_id: spId.toString(),
         status: statusFilter === 'all' ? undefined : statusFilter,
         per_page: 1000  // Request more rows to get all leads
       })
@@ -92,7 +106,12 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
     } catch (error) {
       console.error('❌ LeadInbox: Failed to load leads from contractor-ai:', error)
       
-      // Show empty state if API fails
+      if (error instanceof Error && error.message.includes('service provider ID required')) {
+        setSpIdError('Service provider access required. Please contact support to link your account.')
+      } else {
+        setSpIdError('Failed to connect to lead service. Please try again.')
+      }
+      
       setLeads([])
     } finally {
       setLoading(false)
@@ -148,7 +167,7 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
   }
 
   return (
-    <div className="flex h-full flex-col rounded-lg border border-border bg-card">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card max-h-full">
       <div className="border-b border-border p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
@@ -186,8 +205,13 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {filteredLeads.length === 0 ? (
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {spIdError ? (
+          <div className="p-4 text-center text-destructive">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            <p className="text-sm">{spIdError}</p>
+          </div>
+        ) : filteredLeads.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             {loading ? (
               <div className="flex flex-col items-center gap-2">

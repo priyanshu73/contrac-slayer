@@ -56,8 +56,8 @@ export default function LeadDashboardPage() {
     <div className="min-h-screen bg-background">
       <Header language={language} setLanguage={setLanguage} />
       
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 h-screen overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-140px)]">
           {/* Lead Inbox - Left Column */}
           <div className="lg:col-span-1">
             <LeadInbox
@@ -67,8 +67,8 @@ export default function LeadDashboardPage() {
             />
           </div>
 
-          {/* Conversation Panel - Middle Column */}
-          <div className="lg:col-span-1">
+          {/* Conversation Panel - Middle Column (More Space) */}
+          <div className="lg:col-span-3">
             <ConversationPanel
               lead={selectedLead}
               language={language}
