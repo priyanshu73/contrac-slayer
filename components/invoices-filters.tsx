@@ -8,10 +8,10 @@ export function InvoicesFilters() {
   const [activeFilter, setActiveFilter] = useState("all")
 
   const filters = [
-    { id: "all", label: "All", count: 15 },
-    { id: "pending", label: "Pending", count: 5 },
-    { id: "paid", label: "Paid", count: 8 },
-    { id: "overdue", label: "Overdue", count: 2 },
+    { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
+    { id: "paid", label: "Paid" },
+    { id: "overdue", label: "Overdue" },
   ]
 
   return (
@@ -26,7 +26,6 @@ export function InvoicesFilters() {
             className="shrink-0"
           >
             {filter.label}
-            <span className="ml-2 rounded-full bg-background/20 px-2 py-0.5 text-xs">{filter.count}</span>
           </Button>
         ))}
         <div className="ml-auto flex gap-2">
