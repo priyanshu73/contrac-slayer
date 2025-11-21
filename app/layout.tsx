@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: "ContractPro AI - AI-Powered CRM for Modern Contractors",
   description: "Transform your contracting business with intelligent automation. Generate invoices instantly, capture every lead, and close more deals all powered by cutting edge AI technology.",
   generator: "v0.app",
+  icons: {
+    icon: "/images/favicon.ico",
+  },
 }
 
 export default function RootLayout({
