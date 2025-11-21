@@ -332,7 +332,6 @@ export function UnifiedLeads() {
                 <MessageSquare className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold leading-none">All Leads</h1>
                 <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             </div>
@@ -365,8 +364,7 @@ export function UnifiedLeads() {
               <MessageSquare className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold leading-none">All Leads</h1>
-              <p className="text-sm text-muted-foreground">{counts.all} active leads</p>
+              <h2 className="text-medium font-semibold text-muted-foreground">{counts.all} active leads</h2>
             </div>
           </div>
           <Button asChild>

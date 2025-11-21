@@ -192,6 +192,39 @@ class ApiClient {
     })
   }
 
+  async deleteJob(jobId: number) {
+    const url = `${this.baseURL}/jobs/${jobId}`
+    
+    const config: RequestInit = {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
+        throw new Error(error.detail || 'An error occurred')
+      }
+
+      // 204 No Content responses don't have a body
+      if (response.status === 204) {
+        return null
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
   async createClient(data: any) {
     return this.request('/clients', {
       method: 'POST',

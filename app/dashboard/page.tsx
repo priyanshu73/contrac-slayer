@@ -1,4 +1,3 @@
-import { DashboardHeader } from "@/components/dashboard-header"
 import { StatsCardsReal } from "@/components/stats-cards-real"
 import { QuickActions } from "@/components/quick-actions"
 import { RecentLeadsReal } from "@/components/recent-leads-real"
@@ -7,7 +6,6 @@ import { UpcomingJobs } from "@/components/upcoming-jobs"
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-6">
-      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">

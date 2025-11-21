@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import Image from "next/image"
 
 export function SettingsTabs() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -145,7 +145,8 @@ export function SettingsTabs() {
   }
 
   return (
-    <Tabs defaultValue="business" className="space-y-6">
+    <div className="space-y-6">
+      <Tabs defaultValue="business" className="space-y-6">
       <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
         <TabsTrigger value="business">Business</TabsTrigger>
         <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -656,6 +657,18 @@ export function SettingsTabs() {
           </div>
         </Card>
       </TabsContent>
-    </Tabs>
+      </Tabs>
+
+      {/* Account Actions */}
+      <Card className="p-6 border-destructive/20">
+        <h2 className="mb-4 text-lg font-semibold">Account Actions</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Sign out of your account. You will need to log in again to access your dashboard.
+        </p>
+        <Button onClick={logout} variant="destructive">
+          Logout
+        </Button>
+      </Card>
+    </div>
   )
 }
