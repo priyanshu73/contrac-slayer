@@ -123,7 +123,7 @@ export function Features() {
           <div className="w-full overflow-hidden">
             <div
               ref={scrollerRef}
-              className="flex gap-6 overflow-x-auto snap-x snap-mandatory touch-pan-x pb-6 scroll-smooth px-8 md:px-16"
+              className="flex gap-6 overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x pb-6 scroll-smooth px-8 md:px-16"
             >
               {slides.map((s) => (
                 <article key={s.id} className="snap-center flex-shrink-0 w-[min(92vw,84rem)] h-[64vh]">
@@ -131,7 +131,7 @@ export function Features() {
                     <div className="grid lg:grid-cols-[1.6fr_1fr] gap-8 items-center h-full">
                       {/* Left: laptop-like preview area (slightly larger) */}
                       <div className="flex justify-center">
-                        <div className="w-full max-w-[52rem]">
+                        <div className={`w-full ${s.id === 'pm' ? 'max-w-[85rem]' : 'max-w-[52rem]'}`}>
                           <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-sm overflow-hidden">
                             {/* screen */}
                             <div className="bg-white p-4 border-b border-gray-100">
