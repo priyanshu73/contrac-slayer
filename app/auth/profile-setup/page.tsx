@@ -75,11 +75,24 @@ export default function ProfileSetupPage() {
 
     try {
       // Format contractor_type: if "other", format as "other - {name}"
-      let contractorType = formData.contractor_type || null
-      if (formData.contractor_type === "other" && otherContractorType.trim()) {
-        contractorType = `other - ${otherContractorType.trim()}`
-      } else if (formData.contractor_type === "other" && !otherContractorType.trim()) {
-        contractorType = "other"
+      let contractorType: string | null = null
+      if (formData.contractor_type && formData.contractor_type.trim()) {
+        if (formData.contractor_type === "other") {
+          if (otherContractorType.trim()) {
+            const formattedType = `other - ${otherContractorType.trim()}`
+            // Ensure it doesn't exceed 50 characters
+            if (formattedType.length > 50) {
+              setError("Contractor type description is too long. Please keep it under 44 characters.")
+              setIsLoading(false)
+              return
+            }
+            contractorType = formattedType
+          } else {
+            contractorType = "other"
+          }
+        } else {
+          contractorType = formData.contractor_type
+        }
       }
 
       // Create profile
