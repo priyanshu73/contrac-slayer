@@ -10,7 +10,6 @@ import { useAuth } from "@/contexts/AuthContext"
 
 export default function SignupPage() {
   const router = useRouter()
-  const { login, refreshUser } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -37,11 +36,9 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      await api.signup(formData.email, formData.password, formData.full_name)
-      // Auto login after signup
-      await login(formData.email, formData.password)
-      await refreshUser()
-      router.push("/auth/profile-setup")
+      const response = await api.signup(formData.email, formData.password, formData.full_name) as any
+      // Redirect to OTP verification page
+      router.push(`/auth/verify-otp?email=${encodeURIComponent(formData.email)}`)
     } catch (err: any) {
       setError(err.message || "An error occurred during signup")
     } finally {

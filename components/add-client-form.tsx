@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -17,29 +16,13 @@ export function AddClientForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Form state
+  // Form state - simplified to essential fields only
   const [formData, setFormData] = useState({
-    // Required fields
     name: "",
     email: "",
-    
-    // Contact Information
     phone: "",
     address: "",
-    
-    // Business Information
-    company_name: "",
     billing_address: "",
-    tax_id: "",
-    
-    // Preferences
-    preferred_contact_method: "",
-    payment_terms: "",
-    discount_percentage: "",
-    
-    // Additional Information
-    notes: "",
-    referral_source: "",
   })
 
   const handleChange = (field: string, value: string) => {
@@ -75,7 +58,7 @@ export function AddClientForm() {
     setError(null)
 
     try {
-      // Prepare client data
+      // Prepare client data - only essential fields
       const clientData: any = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -84,19 +67,7 @@ export function AddClientForm() {
       // Add optional fields only if they have values
       if (formData.phone.trim()) clientData.phone = formData.phone.trim()
       if (formData.address.trim()) clientData.address = formData.address.trim()
-      if (formData.company_name.trim()) clientData.company_name = formData.company_name.trim()
       if (formData.billing_address.trim()) clientData.billing_address = formData.billing_address.trim()
-      if (formData.tax_id.trim()) clientData.tax_id = formData.tax_id.trim()
-      if (formData.preferred_contact_method) clientData.preferred_contact_method = formData.preferred_contact_method
-      if (formData.payment_terms.trim()) clientData.payment_terms = formData.payment_terms.trim()
-      if (formData.discount_percentage.trim()) {
-        const discount = parseFloat(formData.discount_percentage)
-        if (!isNaN(discount) && discount >= 0 && discount <= 100) {
-          clientData.discount_percentage = discount
-        }
-      }
-      if (formData.notes.trim()) clientData.notes = formData.notes.trim()
-      if (formData.referral_source.trim()) clientData.referral_source = formData.referral_source.trim()
 
       // Call API to create client
       await api.createClient(clientData)
@@ -134,13 +105,13 @@ export function AddClientForm() {
         </Card>
       )}
 
-      {/* Basic Contact Information */}
+      {/* Contact Information */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Basic Contact Information</h2>
+        <h2 className="text-lg font-semibold mb-4">Client Information</h2>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">
-              Full Name <span className="text-red-500">*</span>
+              Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
@@ -187,23 +158,6 @@ export function AddClientForm() {
               className="min-h-[80px]"
             />
           </div>
-        </div>
-      </Card>
-
-      {/* Business Information */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Business Information</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="company_name">Company Name</Label>
-            <Input
-              id="company_name"
-              type="text"
-              value={formData.company_name}
-              onChange={(e) => handleChange("company_name", e.target.value)}
-              placeholder="ABC Corporation"
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="billing_address">Billing Address</Label>
@@ -214,102 +168,6 @@ export function AddClientForm() {
               placeholder="If different from address above"
               className="min-h-[80px]"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tax_id">Tax ID / SSN</Label>
-            <Input
-              id="tax_id"
-              type="text"
-              value={formData.tax_id}
-              onChange={(e) => handleChange("tax_id", e.target.value)}
-              placeholder="XX-XXXXXXX"
-            />
-            <p className="text-xs text-muted-foreground">
-              Tax ID for business clients or SSN for individuals (optional)
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Preferences */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Preferences</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="preferred_contact_method">Preferred Contact Method</Label>
-            <Select
-              value={formData.preferred_contact_method}
-              onValueChange={(value) => handleChange("preferred_contact_method", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select preferred method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
-                <SelectItem value="text">Text Message</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="payment_terms">Payment Terms</Label>
-            <Input
-              id="payment_terms"
-              type="text"
-              value={formData.payment_terms}
-              onChange={(e) => handleChange("payment_terms", e.target.value)}
-              placeholder="e.g., Net 30, Net 15, Due on Receipt"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="discount_percentage">Discount Percentage</Label>
-            <Input
-              id="discount_percentage"
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={formData.discount_percentage}
-              onChange={(e) => handleChange("discount_percentage", e.target.value)}
-              placeholder="0.00"
-            />
-            <p className="text-xs text-muted-foreground">
-              Special discount percentage for this client (0-100)
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Additional Information */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Additional Information</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="referral_source">Referral Source</Label>
-            <Input
-              id="referral_source"
-              type="text"
-              value={formData.referral_source}
-              onChange={(e) => handleChange("referral_source", e.target.value)}
-              placeholder="e.g., Google, Referral from John, Facebook Ad"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleChange("notes", e.target.value)}
-              placeholder="Any additional notes about this client..."
-              className="min-h-[100px]"
-            />
-            <p className="text-xs text-muted-foreground">
-              Internal notes about the client (e.g., preferences, special instructions, etc.)
-            </p>
           </div>
         </div>
       </Card>

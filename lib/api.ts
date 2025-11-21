@@ -75,6 +75,38 @@ class ApiClient {
     })
   }
 
+  async sendOtp(email: string) {
+    return this.request('/auth/sendotp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async verifyOtp(email: string, otp: string) {
+    return this.request('/auth/verifyotp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    })
+  }
+
+  async checkEmailVerification() {
+    return this.request<{ is_email_verified: boolean; email: string }>('/auth/check-email-verification')
+  }
+
+  async forgotPassword(email: string) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, new_password: newPassword }),
+    })
+  }
+
   async getCurrentUser(): Promise<User> {
     return this.request<User>('/auth/me')
   }

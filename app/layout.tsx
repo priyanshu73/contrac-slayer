@@ -5,6 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { AuthGuard } from "@/components/auth-guard"
 import { Navbar } from "@/components/navbar"
+import { EmailVerificationBanner } from "@/components/email-verification-banner"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -30,9 +32,11 @@ export default function RootLayout({
         <AuthProvider>
           <AuthGuard>
             <Navbar />
+            <EmailVerificationBanner />
             {children}
           </AuthGuard>
         </AuthProvider>
+        <Toaster />
         <Analytics />
       </body>
     </html>
