@@ -85,7 +85,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
   const quote = {
     id: quoteId,
     contractorName: "Johnson Landscaping",
-    contractorLogo: "/landscaping-company-logo.png",
+    contractorLogo: "/logo.png",
     customerName: "Sarah Johnson",
     projectTitle: "Backyard Patio Installation",
     expirationDate: "Nov 1, 2025",
@@ -142,7 +142,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
         <Card className="mb-6 p-6">
           <div className="flex items-start gap-4">
             <img
-              src={quote.contractorLogo || "/placeholder.svg"}
+              src={quote.contractorLogo || "/logo.png"}
               alt={quote.contractorName}
               className="h-16 w-16 rounded-lg object-cover"
             />

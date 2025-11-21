@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import Image from "next/image"
@@ -26,7 +33,9 @@ export default function ProfileSetupPage() {
     website_url: "",
     default_labor_rate_per_hour: "75.00",
     default_sales_tax_rate: "8.25",
+    contractor_type: "",
   })
+  const [otherContractorType, setOtherContractorType] = useState("")
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -65,6 +74,27 @@ export default function ProfileSetupPage() {
     setIsLoading(true)
 
     try {
+      // Format contractor_type: if "other", format as "other - {name}"
+      let contractorType: string | null = null
+      if (formData.contractor_type && formData.contractor_type.trim()) {
+        if (formData.contractor_type === "other") {
+          if (otherContractorType.trim()) {
+            const formattedType = `other - ${otherContractorType.trim()}`
+            // Ensure it doesn't exceed 50 characters
+            if (formattedType.length > 50) {
+              setError("Contractor type description is too long. Please keep it under 44 characters.")
+              setIsLoading(false)
+              return
+            }
+            contractorType = formattedType
+          } else {
+            contractorType = "other"
+          }
+        } else {
+          contractorType = formData.contractor_type
+        }
+      }
+
       // Create profile
       await api.createContractorProfile({
         company_name: formData.company_name,
@@ -75,6 +105,7 @@ export default function ProfileSetupPage() {
         website_url: formData.website_url || null,
         default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
+        contractor_type: contractorType,
       })
 
       // Upload logo if provided
@@ -139,10 +170,10 @@ export default function ProfileSetupPage() {
                 </div>
               ))}
             </div>
-            <div className="flex justify-between text-sm text-gray-600 max-w-md mx-auto">
-              <span className={step >= 1 ? "text-blue-600 font-medium" : ""}>Company Info</span>
-              <span className={step >= 2 ? "text-blue-600 font-medium" : ""}>Branding</span>
-              <span className={step >= 3 ? "text-blue-600 font-medium" : ""}>Rates</span>
+            <div className="flex items-center justify-center gap-16 text-sm text-gray-600 max-w-md mx-auto">
+              <span className={`text-center ${step >= 1 ? "text-blue-600 font-medium" : ""}`}>Company Info</span>
+              <span className={`text-center ${step >= 2 ? "text-blue-600 font-medium" : ""}`}>Branding</span>
+              <span className={`text-center ${step >= 3 ? "text-blue-600 font-medium" : ""}`}>Rates</span>
             </div>
           </div>
 
@@ -228,6 +259,50 @@ export default function ProfileSetupPage() {
                         maxLength={10}
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">Type of Work</Label>
+                      <Select
+                        value={formData.contractor_type}
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, contractor_type: value })
+                          if (value !== "other") {
+                            setOtherContractorType("")
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                          <SelectValue placeholder="Select your specialty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="electrician">Electrician</SelectItem>
+                          <SelectItem value="plumber">Plumber</SelectItem>
+                          <SelectItem value="landscaping">Landscaping</SelectItem>
+                          <SelectItem value="remodeler">Remodeler</SelectItem>
+                          <SelectItem value="roofer">Roofer</SelectItem>
+                          <SelectItem value="hvac">HVAC</SelectItem>
+                          <SelectItem value="painter">Painter</SelectItem>
+                          <SelectItem value="carpenter">Carpenter</SelectItem>
+                          <SelectItem value="concrete">Concrete</SelectItem>
+                          <SelectItem value="flooring">Flooring</SelectItem>
+                          <SelectItem value="general_contractor">General Contractor</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formData.contractor_type === "other" && (
+                        <div className="mt-2">
+                          <Input
+                            id="other_contractor_type"
+                            placeholder="Please specify your specialty"
+                            value={otherContractorType}
+                            onChange={(e) => setOtherContractorType(e.target.value)}
+                            disabled={isLoading}
+                            className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

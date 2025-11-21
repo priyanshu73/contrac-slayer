@@ -34,7 +34,7 @@ export default function LeadSummary({ lead, language }: LeadSummaryProps) {
   
   if (!lead) {
     return (
-      <div className="flex h-full flex-col rounded-lg border border-border bg-card p-6 items-center justify-center">
+      <div className="flex h-full flex-col rounded-lg border border-border bg-card p-6 items-center justify-center max-h-full">
         <div className="text-center">
           <div className="mb-4 mx-auto w-16 h-16 bg-secondary rounded-full flex items-center justify-center">
             <User className="h-8 w-8 text-muted-foreground" />
@@ -117,7 +117,7 @@ export default function LeadSummary({ lead, language }: LeadSummaryProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 h-full max-h-full overflow-hidden">
       {/* Call Summary Card */}
       <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <div className="flex items-center gap-2 mb-3">

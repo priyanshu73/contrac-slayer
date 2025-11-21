@@ -24,7 +24,6 @@ export function InvoicesHeader() {
           </div>
           <div>
             <h1 className="text-lg font-semibold leading-none">Invoices</h1>
-            <p className="text-sm text-muted-foreground">$4,250 pending</p>
           </div>
         </div>
 

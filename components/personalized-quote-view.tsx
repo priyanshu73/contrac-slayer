@@ -89,19 +89,19 @@ export function PersonalizedQuoteView({
   const taxAmount = total - subtotalWithMarkup
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-full print:px-0">
         {/* Printable Quote Document */}
-        <Card className="bg-white shadow-lg print:shadow-none print:border-none">
-          <div className="p-8 sm:p-12 print:p-8">
+        <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none">
+          <div className="p-8 sm:p-12 print:p-6 print:break-inside-avoid">
             {/* Header with Logo */}
-            <div className="mb-8 pb-8 border-b-2 border-gray-200">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
+            <div className="mb-6 pb-4 print:mb-4 print:pb-2 border-b-2 border-gray-200 print:break-inside-avoid">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:gap-2">
+                <div className="flex items-center gap-4 print:gap-2">
                   {loadingProfile ? (
-                    <div className="w-20 h-20 bg-gray-200 rounded-lg animate-pulse" />
+                    <div className="w-20 h-20 print:w-12 print:h-12 bg-gray-200 rounded-lg animate-pulse" />
                   ) : contractorProfile?.logo_url ? (
-                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 print:w-12 print:h-12 rounded-lg overflow-hidden border-2 border-gray-200 print:border-gray-300">
                       <Image
                         src={contractorProfile.logo_url}
                         alt={contractorProfile.company_name || "Company Logo"}
@@ -113,35 +113,35 @@ export function PersonalizedQuoteView({
                       />
                     </div>
                   ) : (
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                      <span className="text-2xl sm:text-3xl font-bold text-white">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 print:w-12 print:h-12 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+                      <span className="text-2xl sm:text-3xl print:text-lg font-bold text-white">
                         {(contractorProfile?.company_name || "C")[0].toUpperCase()}
                       </span>
                     </div>
                   )}
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <h1 className="text-2xl sm:text-3xl print:text-xl font-bold text-gray-900">
                       {contractorProfile?.company_name || "Quote"}
                     </h1>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm print:text-xs text-gray-600 mt-1">
                       {contractorProfile?.address || ""}
                     </p>
                     {contractorProfile?.phone_number && (
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm print:text-xs text-gray-600">
                         {contractorProfile.phone_number}
                       </p>
                     )}
                     {contractorProfile?.email && (
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm print:text-xs text-gray-600">
                         {contractorProfile.email}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">QUOTE</h2>
+                  <h2 className="text-xl sm:text-2xl print:text-lg font-bold text-gray-900 mb-2">QUOTE</h2>
                   <div className="inline-block">
-                    <Badge className={getStatusColor(job.status)}>
+                    <Badge className={`${getStatusColor(job.status)} print:text-xs`}>
                       {job.status}
                     </Badge>
                   </div>
@@ -150,42 +150,42 @@ export function PersonalizedQuoteView({
             </div>
 
             {/* Quote Details */}
-            <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="mb-6 print:mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-3 print:break-inside-avoid">
               <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h3 className="text-sm print:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 print:mb-1">
                   Bill To
                 </h3>
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-gray-900">{job.client_name}</p>
+                <div className="space-y-0.5 print:space-y-0">
+                  <p className="text-lg print:text-base font-semibold text-gray-900">{job.client_name}</p>
                   {job.client_address && (
-                    <p className="text-sm text-gray-600">{job.client_address}</p>
+                    <p className="text-sm print:text-xs text-gray-600">{job.client_address}</p>
                   )}
                   {job.client_email && (
-                    <p className="text-sm text-gray-600">{job.client_email}</p>
+                    <p className="text-sm print:text-xs text-gray-600">{job.client_email}</p>
                   )}
                   {job.client_phone && (
-                    <p className="text-sm text-gray-600">{job.client_phone}</p>
+                    <p className="text-sm print:text-xs text-gray-600">{job.client_phone}</p>
                   )}
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h3 className="text-sm print:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 print:mb-1">
                   Quote Details
                 </h3>
-                <div className="space-y-1">
-                  <p className="text-sm text-gray-600">
+                <div className="space-y-0.5 print:space-y-0">
+                  <p className="text-sm print:text-xs text-gray-600">
                     <span className="font-medium">Quote #:</span> {job.id}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm print:text-xs text-gray-600">
                     <span className="font-medium">Date:</span> {formatDate(job.created_at)}
                   </p>
                   {job.quote_expiration_date && (
-                    <p className="text-sm text-red-600">
+                    <p className="text-sm print:text-xs text-red-600">
                       <span className="font-medium">Valid Until:</span> {formatDate(job.quote_expiration_date)}
                     </p>
                   )}
                   {job.project_type && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm print:text-xs text-gray-600">
                       <span className="font-medium">Project:</span> {job.project_type}
                     </p>
                   )}
@@ -195,7 +195,7 @@ export function PersonalizedQuoteView({
 
             {/* Project Description */}
             {job.job_description && (
-              <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+              <div className="mb-6 print:mb-4 p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Project Description
                 </h3>
@@ -204,29 +204,29 @@ export function PersonalizedQuoteView({
             )}
 
             {/* Line Items */}
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            <div className="mb-6 print:mb-4 print:break-inside-avoid">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 print:mb-2">
                 Line Items
               </h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
+              <div className="border border-gray-200 rounded-lg overflow-hidden print:border-gray-300">
+                <table className="w-full print:text-sm">
+                  <thead className="bg-gray-50 print:bg-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Description
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Quantity
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Unit Price
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Total
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
                     {(job.items || []).map((item: any, index: number) => {
                       // Handle both JobItem interface and API response format
                       const customDescription = item.custom_description || item.description || "Line Item"
@@ -239,16 +239,16 @@ export function PersonalizedQuoteView({
                       const itemTotal = item.quantity * unitPriceWithMarkup
                       
                       return (
-                        <tr key={item.id || index} className="hover:bg-gray-50">
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-3">
+                        <tr key={item.id || index} className="hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
+                          <td className="px-3 py-3 print:px-2 print:py-2">
+                            <div className="flex items-center gap-2 print:gap-1">
                               {thumbnailUrl && (
-                                <div className="w-12 h-12 rounded border overflow-hidden bg-gray-100 flex-shrink-0">
+                                <div className="w-10 h-10 print:w-8 print:h-8 rounded border overflow-hidden bg-gray-100 flex-shrink-0 print:border-gray-300">
                                   <Image
                                     src={thumbnailUrl}
                                     alt={customDescription}
-                                    width={48}
-                                    height={48}
+                                    width={40}
+                                    height={40}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                       e.currentTarget.style.display = 'none'
@@ -257,24 +257,24 @@ export function PersonalizedQuoteView({
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-gray-900">
+                                <p className="font-medium text-gray-900 print:text-sm">
                                   {customDescription}
                                 </p>
                                 {(item.brand || item.brand) && (
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-gray-500 print:text-xs">
                                     {item.brand} {item.model || item.model}
                                   </p>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-right text-sm text-gray-600">
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs">
                             {item.quantity} {unitOfMeasure}
                           </td>
-                          <td className="px-4 py-4 text-right text-sm text-gray-600">
-                            {formatCurrency(unitPriceWithMarkup)}
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs">
+                            {formatCurrency(costPerUnit)}
                           </td>
-                          <td className="px-4 py-4 text-right font-semibold text-gray-900">
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right font-semibold text-gray-900 print:text-sm">
                             {formatCurrency(itemTotal)}
                           </td>
                         </tr>
@@ -286,8 +286,8 @@ export function PersonalizedQuoteView({
             </div>
 
             {/* Summary */}
-            <div className="mb-8">
-              <div className="ml-auto max-w-xs space-y-2">
+            <div className="mb-6 print:mb-4 print:break-inside-avoid">
+              <div className="ml-auto max-w-xs space-y-1 print:space-y-0.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="text-gray-900 font-medium">{formatCurrency(subtotalWithMarkup)}</span>
@@ -304,11 +304,11 @@ export function PersonalizedQuoteView({
             </div>
 
             {/* Signatures Section */}
-            <div className="mt-12 pt-8 border-t-2 border-gray-300">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div className="mt-8 print:mt-4 pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 print:gap-4">
                 {/* Contractor Signature */}
                 <div>
-                  <div className="h-24 border-b-2 border-gray-400 mb-2 flex items-center justify-center">
+                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center">
                     {job.signature?.signature_image_url ? (
                       <div className="flex items-center gap-2">
                         <Image
@@ -316,22 +316,22 @@ export function PersonalizedQuoteView({
                           alt="Contractor Signature"
                           width={120}
                           height={40}
-                          className="max-h-12 object-contain"
+                          className="max-h-10 print:max-h-8 object-contain"
                         />
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">
+                      <span className="text-xs print:text-xs text-gray-400 italic">
                         Contractor Signature
                       </span>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-gray-900">
+                  <div className="space-y-0.5 print:space-y-0">
+                    <p className="text-sm print:text-xs font-semibold text-gray-900">
                       {contractorProfile?.company_name || "Contractor"}
                     </p>
-                    <p className="text-xs text-gray-600">Authorized Signature</p>
+                    <p className="text-xs print:text-xs text-gray-600">Authorized Signature</p>
                     {job.signature?.signed_at && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs print:text-xs text-gray-500">
                         Signed: {formatDate(job.signature.signed_at)}
                       </p>
                     )}
@@ -340,7 +340,7 @@ export function PersonalizedQuoteView({
 
                 {/* Customer Signature */}
                 <div>
-                  <div className="h-24 border-b-2 border-gray-400 mb-2 flex items-center justify-center">
+                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center">
                     {job.signature?.signature_image_url ? (
                       <div className="flex items-center gap-2">
                         <Image
@@ -348,22 +348,22 @@ export function PersonalizedQuoteView({
                           alt="Customer Signature"
                           width={120}
                           height={40}
-                          className="max-h-12 object-contain"
+                          className="max-h-10 print:max-h-8 object-contain"
                         />
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">
+                      <span className="text-xs print:text-xs text-gray-400 italic">
                         Customer Signature
                       </span>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-gray-900">
+                  <div className="space-y-0.5 print:space-y-0">
+                    <p className="text-sm print:text-xs font-semibold text-gray-900">
                       {job.client_name}
                     </p>
-                    <p className="text-xs text-gray-600">Customer Signature</p>
+                    <p className="text-xs print:text-xs text-gray-600">Customer Signature</p>
                     {job.signature?.signed_at && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs print:text-xs text-gray-500">
                         Signed: {formatDate(job.signature.signed_at)}
                       </p>
                     )}
@@ -374,7 +374,7 @@ export function PersonalizedQuoteView({
 
             {/* Terms & Notes */}
             {(job.payment_terms || job.customer_notes) && (
-              <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="mt-6 print:mt-4 pt-6 print:pt-3 border-t border-gray-200 print:break-inside-avoid">
                 {job.payment_terms && (
                   <div className="mb-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">

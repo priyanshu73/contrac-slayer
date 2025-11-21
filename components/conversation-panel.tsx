@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect, useRef } from 'react'
 import { contractorAI } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Message {
   id: string
@@ -40,44 +41,50 @@ interface ConversationPanelProps {
 }
 
 export default function ConversationPanel({ lead, language }: ConversationPanelProps) {
+  const { getContractorAISpId } = useAuth()
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [spIdError, setSpIdError] = useState<string | null>(null)
 
   const title = language === 'en' ? 'Conversation' : 'Conversación'
   const placeholder = language === 'en' ? 'Type your message...' : 'Escribe tu mensaje...'
   const sendingText = language === 'en' ? 'Sending...' : 'Enviando...'
 
-  // Load messages when lead changes - DISABLED FOR NOW
-  // useEffect(() => {
-  //   if (lead) {
-  //     loadMessages(lead.id)
-  //   } else {
-  //     setMessages([])
-  //     setConversationId(null)
-  //   }
-  // }, [lead])
+  // Load messages when lead changes
+  useEffect(() => {
+    if (lead) {
+      loadMessages(lead.id)
+    } else {
+      setMessages([])
+      setConversationId(null)
+    }
+  }, [lead])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    scrollToBottom()
+    // Small delay to ensure DOM has updated before scrolling
+    const timer = setTimeout(() => {
+      scrollToBottom()
+    }, 50)
+    return () => clearTimeout(timer)
   }, [messages])
 
-  // Set up polling for real-time message updates - DISABLED FOR NOW
-  // useEffect(() => {
-  //   if (!conversationId) return
+  // Set up polling for real-time message updates
+  useEffect(() => {
+    if (!conversationId) return
 
-  //   const pollInterval = setInterval(() => {
-  //     if (lead) {
-  //       loadMessages(lead.id, false) // Don't show loading for polling updates
-  //     }
-  //   }, 5000) // Poll every 5 seconds for messages
+    const pollInterval = setInterval(() => {
+      if (lead) {
+        loadMessages(lead.id, false) // Don't show loading for polling updates
+      }
+    }, 5000) // Poll every 5 seconds for messages
 
-  //   return () => clearInterval(pollInterval)
-  // }, [conversationId, lead])
+    return () => clearInterval(pollInterval)
+  }, [conversationId, lead])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -86,10 +93,20 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
   const loadMessages = async (leadId: string, showLoading = true) => {
     try {
       if (showLoading) setLoading(true)
+      setSpIdError(null)
+      
+      // Get contractor AI service provider ID
+      const spId = getContractorAISpId()
+      if (!spId) {
+        setSpIdError('Service provider ID not found. Please contact support to link your account.')
+        setMessages([])
+        setConversationId(null)
+        return
+      }
       
       // Get conversation for this lead first
       const conversationsResponse = await contractorAI.getConversations({
-        // TODO: Add service provider ID filter when we have auth context
+        sp_id: spId.toString(),
         status: 'active'
       })
       
@@ -116,6 +133,9 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
           status: msg.status
         })) || []
         
+        // Ensure messages are sorted chronologically (oldest first, newest at bottom)
+        apiMessages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        
         setMessages(apiMessages)
       } else {
         // No conversation found, set empty state
@@ -126,35 +146,20 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
     } catch (error) {
       console.error('Failed to load messages from contractor-ai:', error)
       
-      // Fallback to mock data if API fails
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          sender_type: 'customer',
-          message_text: 'We need a plumber for next Tuesday morning',
-          timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-          status: 'received'
-        },
-        {
-          id: '2',
-          sender_type: 'service_provider',
-          message_text: 'I can help with that. What time works best?',
-          timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-          status: 'delivered'
-        },
-        {
-          id: '3',
-          sender_type: 'customer',
-          message_text: 'Between 8 AM and 12 PM would be ideal',
-          timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-          status: 'received'
+      if (error instanceof Error) {
+        if (error.message.includes('service provider ID required')) {
+          setSpIdError('Service provider access required. Please contact support to link your account.')
+        } else if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
+          setSpIdError(`Cannot connect to contractor-ai backend. Please check if the service is running. Error: ${error.message}`)
+        } else {
+          setSpIdError(`Failed to load conversations: ${error.message}`)
         }
-      ]
-
-      // Filter messages for this lead (mock behavior)
-      const leadMessages = leadId === '1' ? mockMessages : []
-      setMessages(leadMessages)
-      setConversationId(leadId) // Mock conversation ID
+      } else {
+        setSpIdError('Failed to connect to conversation service. Please try again.')
+      }
+      
+      setMessages([])
+      setConversationId(null)
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -179,6 +184,9 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
       }
 
       setMessages(prev => [...prev, tempMessage])
+      
+      // Scroll to bottom to show the new message
+      setTimeout(() => scrollToBottom(), 100)
 
       // Send message via contractor-ai API
       const response = await contractorAI.sendMessage(conversationId, messageText)
@@ -238,7 +246,7 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
 
   if (!lead) {
     return (
-      <div className="flex h-full flex-col items-center justify-center rounded-lg border border-border bg-card">
+      <div className="flex h-[calc(100vh-2rem)] max-h-[800px] min-h-[400px] flex-col items-center justify-center rounded-lg border border-border bg-card">
         <div className="text-center">
           <div className="mb-4 mx-auto w-16 h-16 bg-secondary rounded-full flex items-center justify-center">
             <Send className="h-8 w-8 text-muted-foreground" />
@@ -258,9 +266,9 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
   }
 
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-card h-full">
-      {/* Header */}
-      <div className="border-b border-border p-4">
+    <div className="flex flex-col rounded-lg border border-border bg-card h-[calc(100vh-2rem)] max-h-[800px] min-h-[400px]">
+      {/* Header - Fixed */}
+      <div className="border-b border-border p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
@@ -274,11 +282,15 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth min-h-0 max-h-full">
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+        ) : spIdError ? (
+          <div className="text-center py-8 text-destructive">
+            <p className="text-sm">{spIdError}</p>
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -332,8 +344,8 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="border-t border-border p-4">
+      {/* Input - Fixed */}
+      <div className="border-t border-border p-4 flex-shrink-0 bg-card">
         <div className="flex gap-2">
           <Button variant="ghost" size="icon">
             <Paperclip className="h-4 w-4" />
@@ -350,7 +362,7 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
             onClick={sendMessage}
             size="icon" 
             className="bg-primary hover:bg-primary/90"
-            disabled={!message.trim() || sending}
+            disabled={!message.trim() || sending || !!spIdError}
           >
             <Send className="h-4 w-4" />
           </Button>

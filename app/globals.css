@@ -155,3 +155,64 @@
 .animate-shimmer {
   animation: shimmer 2s infinite linear;
 }
+
+/* Print Styles */
+@media print {
+  /* Hide navbar and other UI elements */
+  nav,
+  header,
+  footer,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Remove background colors and shadows */
+  * {
+    background: white !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Optimize page layout */
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+
+  /* Prevent page breaks inside important sections */
+  .print\\:break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Remove unnecessary spacing */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Optimize card spacing for print */
+  .print\\:p-4 {
+    padding: 1rem !important;
+  }
+
+  /* Reduce margins */
+  .print\\:mb-2 {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .print\\:mb-4 {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Hide scrollbars and other UI chrome */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ensure images print properly */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}

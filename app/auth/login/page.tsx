@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/AuthContext"
+import { api } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login, refreshUser } = useAuth()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -27,7 +31,34 @@ export default function LoginPage() {
       await refreshUser()
       router.push("/dashboard")
     } catch (err: any) {
-      setError(err.message || "Invalid credentials")
+      const errorMessage = err.message || "Invalid credentials"
+      
+      // Check if error is about email verification
+      if (errorMessage.toLowerCase().includes("email not verified") || errorMessage.toLowerCase().includes("verify your email")) {
+        // Automatically send OTP when email is not verified
+        try {
+          await api.sendOtp(formData.email)
+          // Show toast with verify email option
+          toast({
+            title: "Email Not Verified",
+            description: "An OTP was sent to your email. Please verify your email to continue.",
+            variant: "default",
+            action: (
+              <ToastAction
+                altText="Verify Email"
+                onClick={() => router.push(`/auth/verify-otp?email=${encodeURIComponent(formData.email)}&fromLogin=true`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+              >
+                Verify Email
+              </ToastAction>
+            ),
+          })
+        } catch (otpErr: any) {
+          setError(otpErr.message || "Failed to send verification code")
+        }
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -55,10 +86,12 @@ export default function LoginPage() {
         {/* Content */}
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-3 bg-gradient-to-br from-blue-500/25 to-sky-500/25 backdrop-blur-md rounded-2xl p-4 inline-flex shadow-2xl border border-blue-300/30">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-sky-500 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-sky-500 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg p-2">
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="text-3xl font-bold text-white drop-shadow-2xl" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
               ContractPro
@@ -197,7 +230,12 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 space-y-3 text-center">
+              <p className="text-sm text-gray-600">
+                <a href="/auth/forgot-password" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+                  Forgot password?
+                </a>
+              </p>
               <p className="text-sm text-gray-600">
                 Don't have an account?{" "}
                 <a href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">

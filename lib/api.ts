@@ -2,8 +2,10 @@
  * API client layer for backend communication
  */
 
+import { User, ContractorProfile } from './types'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
-const CONTRACTOR_AI_API_URL = 'https://contractorai-0mlr.onrender.com/api'
+const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL || 'https://contractorai-0mlr.onrender.com/api'
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
@@ -28,7 +30,7 @@ class ApiClient {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      credentials: 'include', // Include cookies for auth
+      credentials: 'include',
     }
 
     try {
@@ -48,7 +50,6 @@ class ApiClient {
     }
   }
 
-  // Auth endpoints
   async signup(email: string, password: string, full_name: string) {
     return this.request('/auth/signup', {
       method: 'POST',
@@ -74,11 +75,42 @@ class ApiClient {
     })
   }
 
-  async getCurrentUser() {
-    return this.request('/auth/me')
+  async sendOtp(email: string) {
+    return this.request('/auth/sendotp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
   }
 
-  // Contractor profile endpoints
+  async verifyOtp(email: string, otp: string) {
+    return this.request('/auth/verifyotp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    })
+  }
+
+  async checkEmailVerification() {
+    return this.request<{ is_email_verified: boolean; email: string }>('/auth/check-email-verification')
+  }
+
+  async forgotPassword(email: string) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, new_password: newPassword }),
+    })
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>('/auth/me')
+  }
+
   async createContractorProfile(data: any) {
     return this.request('/contractors/profile', {
       method: 'POST',
@@ -86,8 +118,8 @@ class ApiClient {
     })
   }
 
-  async getMyProfile() {
-    return this.request('/contractors/profile')
+  async getMyProfile(): Promise<ContractorProfile> {
+    return this.request<ContractorProfile>('/contractors/profile')
   }
 
   async updateProfile(data: any) {
@@ -115,12 +147,10 @@ class ApiClient {
     return response.json()
   }
 
-  // Public contractor profile
   async getContractorProfile(contractorId: number) {
     return this.request(`/contractors/profile/${contractorId}`)
   }
 
-  // Lead/Quote request endpoints
   async submitQuoteRequest(contractorId: number, data: any, files?: File[]) {
     const formData = new FormData()
     formData.append('name', data.name)
@@ -169,7 +199,6 @@ class ApiClient {
     })
   }
 
-  // Jobs/Quotes endpoints
   async getMyJobs(status?: string, skip = 0, limit = 20) {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
@@ -197,7 +226,39 @@ class ApiClient {
     })
   }
 
-  // Client endpoints
+  async deleteJob(jobId: number) {
+    const url = `${this.baseURL}/jobs/${jobId}`
+    
+    const config: RequestInit = {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
+        throw new Error(error.detail || 'An error occurred')
+      }
+
+      // 204 No Content responses don't have a body
+      if (response.status === 204) {
+        return null
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
   async createClient(data: any) {
     return this.request('/clients', {
       method: 'POST',
@@ -224,7 +285,6 @@ class ApiClient {
     })
   }
 
-  // Material search endpoints
   async searchMaterials(query: string, zipCode?: string, maxResults = 10) {
     console.log(`🌐 API Client: Searching materials for "${query}"`)
     const startTime = Date.now()
@@ -271,7 +331,6 @@ class ContractorAIClient {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      // credentials: 'include', // Temporarily disable credentials for debugging
     }
 
     console.log(`🌐 ContractorAI API: Making request to ${url}`)
@@ -301,7 +360,6 @@ class ContractorAIClient {
     } catch (error) {
       console.error(`🌐 ContractorAI API: Request error for ${url}:`, error)
       if (error instanceof Error) {
-        // Add more specific error information
         if (error.message.includes('Failed to fetch')) {
           throw new Error(`Network error: Cannot connect to ${url}. Make sure the contractor-ai backend is running on the correct port.`)
         }
@@ -311,8 +369,8 @@ class ContractorAIClient {
     }
   }
 
-  // Lead Management APIs
   async getLeads(params?: {
+    sp_id?: string
     status?: string
     priority?: string
     service_type?: string
@@ -321,6 +379,7 @@ class ContractorAIClient {
     per_page?: number
   }) {
     const searchParams = new URLSearchParams()
+    if (params?.sp_id) searchParams.append('sp_id', params.sp_id)
     if (params?.status) searchParams.append('status', params.status)
     if (params?.priority) searchParams.append('priority', params.priority)
     if (params?.service_type) searchParams.append('service_type', params.service_type)
@@ -342,7 +401,6 @@ class ContractorAIClient {
     })
   }
 
-  // Conversation APIs
   async getConversations(params?: {
     sp_id?: string
     status?: string
@@ -376,7 +434,6 @@ class ContractorAIClient {
     })
   }
 
-  // Service Provider APIs
   async getServiceProvider(spId: string) {
     return this.request(`/service-providers/${spId}`)
   }
@@ -385,7 +442,6 @@ class ContractorAIClient {
     return this.request(`/service-providers/${spId}/stats?days=${days}`)
   }
 
-  // Health check
   async healthCheck() {
     return this.request('/health')
   }
@@ -393,4 +449,3 @@ class ContractorAIClient {
 
 export const api = new ApiClient(API_URL)
 export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)
-
