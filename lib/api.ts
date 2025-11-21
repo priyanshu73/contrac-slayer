@@ -2,6 +2,8 @@
  * API client layer for backend communication
  */
 
+import { User, ContractorProfile } from './types'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL || 'https://contractorai-0mlr.onrender.com/api'
 
@@ -73,8 +75,8 @@ class ApiClient {
     })
   }
 
-  async getCurrentUser() {
-    return this.request('/auth/me')
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>('/auth/me')
   }
 
   async createContractorProfile(data: any) {
@@ -84,8 +86,8 @@ class ApiClient {
     })
   }
 
-  async getMyProfile() {
-    return this.request('/contractors/profile')
+  async getMyProfile(): Promise<ContractorProfile> {
+    return this.request<ContractorProfile>('/contractors/profile')
   }
 
   async updateProfile(data: any) {

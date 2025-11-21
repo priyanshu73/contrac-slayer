@@ -3,18 +3,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
+import { User, ContractorProfile } from "@/lib/types"
 
-interface User {
-  id: number
-  email: string
-  full_name: string
-  is_contractor: boolean
-  contractor_profile?: any
+interface ExtendedUser extends User {
+  contractor_profile?: ContractorProfile
   contractor_ai_sp_id?: number | null
 }
 
 interface AuthContextType {
-  user: User | null
+  user: ExtendedUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -25,28 +22,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   const fetchUser = async () => {
     try {
       const userData = await api.getCurrentUser()
+      const extendedUser: ExtendedUser = { ...userData }
       
       // If user is a contractor, try to get their contractor profile to get SP ID
       if (userData.is_contractor) {
         try {
-          const profile = await api.getMyProfile()
-          userData.contractor_profile = profile
-          userData.contractor_ai_sp_id = profile.contractor_ai_sp_id
+          const profile = await api.getMyProfile() as ContractorProfile & { contractor_ai_sp_id?: number | null }
+          extendedUser.contractor_profile = profile
+          extendedUser.contractor_ai_sp_id = profile.contractor_ai_sp_id ?? null
         } catch (profileError) {
           // Profile might not exist yet, that's okay
           console.log('No contractor profile found or error fetching profile:', profileError)
-          userData.contractor_ai_sp_id = null
+          extendedUser.contractor_ai_sp_id = null
         }
       }
       
-      setUser(userData)
+      setUser(extendedUser)
     } catch (error) {
       setUser(null)
     } finally {
