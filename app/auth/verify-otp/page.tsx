@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,22 +20,26 @@ export default function VerifyOTPPage() {
   const [otp, setOtp] = useState("")
   const [email, setEmail] = useState("")
   const [fromLogin, setFromLogin] = useState(false)
+  const initialOtpSentRef = useRef<string | null>(null)
+
+  // Extract email and fromLogin from searchParams once
+  const emailParam = searchParams?.get("email") || ""
+  const fromLoginParam = searchParams?.get("fromLogin") === "true"
 
   useEffect(() => {
-    const emailParam = searchParams?.get("email")
-    const fromLoginParam = searchParams?.get("fromLogin") === "true"
-
     if (!emailParam) {
       router.push("/auth/signup")
       return
     }
 
+    // Set email and fromLogin state
     setEmail(emailParam)
     setFromLogin(fromLoginParam)
 
-    // Only auto-send OTP if coming from signup, not from login
+    // Only auto-send OTP if coming from signup, not from login, and haven't sent for this email yet
     // If from login, OTP was already sent, so just show the page
-    if (!fromLoginParam) {
+    if (!fromLoginParam && initialOtpSentRef.current !== emailParam) {
+      initialOtpSentRef.current = emailParam
       const sendInitialOtp = async () => {
         setIsSending(true)
         setError("")
@@ -46,17 +50,19 @@ export default function VerifyOTPPage() {
           setSuccess("OTP sent successfully! Check your email.")
         } catch (err: any) {
           setError(err.message || "Failed to send OTP")
+          // Reset ref on error so user can try again
+          initialOtpSentRef.current = null
         } finally {
           setIsSending(false)
         }
       }
 
       sendInitialOtp()
-    } else {
-      // From login - OTP was already sent, just show message
+    } else if (fromLoginParam && !success) {
+      // From login - OTP was already sent, just show message (only once)
       setSuccess("Please enter the OTP sent to your email.")
     }
-  }, [searchParams, router])
+  }, [emailParam, fromLoginParam, router, success])
 
   const sendOtp = async () => {
     if (!email) return
