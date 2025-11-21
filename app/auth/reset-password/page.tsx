@@ -30,6 +30,8 @@ export default function ResetPasswordPage() {
       return
     }
     setEmail(emailParam)
+    // Show success message when arriving from forgot password page
+    setSuccess("Password reset code sent! Please check your email.")
   }, [searchParams, router])
 
   const sendOtp = async () => {

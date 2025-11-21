@@ -6,12 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
-import { useToast } from "@/hooks/use-toast"
-import { ToastAction } from "@/components/ui/toast"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
@@ -23,23 +20,10 @@ export default function ForgotPasswordPage() {
 
     try {
       await api.forgotPassword(email)
-      toast({
-        title: "Password Reset Code Sent",
-        description: "An OTP was sent to your email. Please check your inbox.",
-        variant: "default",
-        action: (
-          <ToastAction
-            altText="Reset Password"
-            onClick={() => router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`)}
-            className="bg-blue-600 hover:bg-blue-700 text-white border-0"
-          >
-            Reset Password
-          </ToastAction>
-        ),
-      })
+      // Redirect directly to reset password page
+      router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`)
     } catch (err: any) {
       setError(err.message || "Failed to send password reset code")
-    } finally {
       setIsLoading(false)
     }
   }
