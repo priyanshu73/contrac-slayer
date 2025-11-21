@@ -286,8 +286,10 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   
-  // Markup control (removed from UI but kept for backend compatibility)
-  const [markupPercentage] = useState(0)
+  // Markup control - fetch from contractor profile
+  const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
+  const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
+  const [loadingMarkup, setLoadingMarkup] = useState(true)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
   
@@ -296,6 +298,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({})
   const [itemSearchResults, setItemSearchResults] = useState<Record<number, MaterialResult[]>>({})
   const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({})
+
+  // Fetch contractor profile to get default markup
+  useEffect(() => {
+    fetchContractorMarkup()
+  }, [])
 
   // Fetch lead data if leadId is provided
   useEffect(() => {
@@ -311,6 +318,25 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     }
   }, [initialData, quoteId])
 
+  const fetchContractorMarkup = async () => {
+    try {
+      setLoadingMarkup(true)
+      const profile = await api.getMyProfile() as any
+      if (profile?.default_markup_percentage !== undefined) {
+        setMarkupPercentage(parseFloat(profile.default_markup_percentage) || 20)
+      }
+      // Store tax rate for calculations
+      if (profile?.default_sales_tax_rate !== undefined) {
+        setTaxRate(parseFloat(profile.default_sales_tax_rate) || 8.25)
+      }
+    } catch (error) {
+      console.error("Failed to fetch contractor markup:", error)
+      // Keep defaults: 20% markup, 8.25% tax
+    } finally {
+      setLoadingMarkup(false)
+    }
+  }
+
   const loadQuoteData = () => {
     if (!initialData) return
 
@@ -319,6 +345,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     setClientEmail(initialData.client_email || "")
     setClientPhone(initialData.client_phone || "")
     setClientAddress(initialData.client_address || "")
+
+    // Load service description if available
+    if (initialData.job_description) {
+      setServiceDescription(initialData.job_description)
+    }
 
     // Convert job items to line items format
     if (initialData.items && initialData.items.length > 0) {
@@ -334,6 +365,12 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
       }))
       setItems(lineItems)
+      
+      // If editing and items have markup, use the first item's markup (assuming all items use same markup)
+      const firstItem = initialData.items[0]
+      if (firstItem?.markup_percentage !== undefined && firstItem.markup_percentage !== null) {
+        setMarkupPercentage(parseFloat(firstItem.markup_percentage) || 20)
+      }
     }
   }
 
@@ -510,7 +547,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 1, rate: 0 }])
+    setItems([...items, { description: "", quantity: 0, rate: 0 }])
   }
 
   const removeItem = (index: number) => {
@@ -553,7 +590,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     
     // Check if at least one line item has description and rate
     const validItems = items.filter(item => 
-      item.description.trim() && item.quantity > 0 && item.rate > 0
+      item.description.trim() && 
+      (item.quantity || 0) > 0 && 
+      (item.rate || 0) > 0
     )
     
     if (validItems.length === 0) {
@@ -579,7 +618,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     try {
       // Filter out empty items
       const validItems = items.filter(item => 
-        item.description.trim() && item.quantity > 0 && item.rate > 0
+        item.description.trim() && 
+        (item.quantity || 0) > 0 && 
+        (item.rate || 0) > 0
       )
       
       // Prepare job data
@@ -589,6 +630,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         client_phone: clientPhone.trim() || null,
         client_address: clientAddress.trim(),
         location_zip_code: extractZipCode(clientAddress),
+        job_description: serviceDescription.trim() || null,
         items: validItems.map(item => ({
           custom_description: item.description.trim(),
           quantity: item.quantity,
@@ -644,7 +686,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
 
   // Calculate base subtotal (without markup)
   const baseSubtotal = items.reduce((sum, item) => {
-    return sum + (item.quantity * item.rate)
+    return sum + ((item.quantity || 0) * (item.rate || 0))
   }, 0)
   
   // Calculate markup amount
@@ -653,8 +695,8 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   // Calculate subtotal with markup
   const subtotal = baseSubtotal + markupAmount
   
-  // Use 8% tax for now (should match backend calculation)
-  const tax = subtotal * 0.08
+  // Calculate tax using contractor's tax rate
+  const tax = subtotal * (taxRate / 100)
   const total = subtotal + tax
 
   return (
@@ -1225,9 +1267,13 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     <Input
                       id={`item-qty-${index}`}
                       type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                      min="0"
+                      value={item.quantity === 0 ? "" : item.quantity}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                      }}
+                      placeholder="0"
                       className="mt-1"
                     />
                   </div>
@@ -1252,8 +1298,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                       type="number"
                       min="0"
                       step="0.01"
-                      value={item.rate}
-                      onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                      value={item.rate === 0 ? "" : item.rate}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                      }}
                       placeholder="0.00"
                       className="mt-1"
                     />
@@ -1262,7 +1311,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 
                 {/* Total */}
                 <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
+                  <span className="text-sm font-medium">
+                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                  </span>
                 </div>
               </div>
               
@@ -1383,9 +1434,13 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                   <Input
                     id={`item-qty-${index}`}
                     type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 1)}
+                    min="0"
+                    value={item.quantity === 0 ? "" : item.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                    }}
+                    placeholder="0"
                     className="mt-1"
                   />
                 </div>
@@ -1414,8 +1469,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     type="number"
                     min="0"
                     step="0.01"
-                    value={item.rate}
-                    onChange={(e) => updateItem(index, "rate", Number.parseFloat(e.target.value) || 0)}
+                    value={item.rate === 0 ? "" : item.rate}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                    }}
                     placeholder="0.00"
                     className="mt-1"
                   />
@@ -1423,21 +1481,62 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 
                 {/* Total */}
                 <div className="col-span-1 flex items-end">
-                  <span className="text-sm font-medium">${(item.quantity * item.rate).toFixed(2)}</span>
+                  <span className="text-sm font-medium">
+                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
+        {/* Markup Settings */}
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <Label htmlFor="markup-percentage" className="text-sm font-medium">
+                Markup Percentage
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Applied to all line items. Default from your profile settings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="markup-percentage"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={markupPercentage}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0
+                  setMarkupPercentage(Math.max(0, Math.min(100, val)))
+                }}
+                className="w-24 text-right"
+                disabled={loadingMarkup}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
+        </div>
+
         {/* Totals */}
         <div className="mt-6 space-y-2 border-t border-border pt-4">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">Subtotal (before markup)</span>
+            <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
+            <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-border pt-2">
+            <span className="text-muted-foreground font-medium">Subtotal (with markup)</span>
             <span className="font-medium">${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Tax (8%)</span>
+            <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
             <span className="font-medium">${tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">

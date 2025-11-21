@@ -234,7 +234,9 @@ export function PersonalizedQuoteView({
                       const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
                       const markupPercentage = item.markup_percentage || item.markupPercentage || 0
                       const unitOfMeasure = item.unit_of_measure || item.unitOfMeasure || "each"
-                      const itemTotal = (item.quantity * costPerUnit) * (1 + markupPercentage / 100)
+                      // Calculate unit price with markup (what customer sees)
+                      const unitPriceWithMarkup = costPerUnit * (1 + markupPercentage / 100)
+                      const itemTotal = item.quantity * unitPriceWithMarkup
                       
                       return (
                         <tr key={item.id || index} className="hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
