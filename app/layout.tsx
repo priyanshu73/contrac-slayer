@@ -11,8 +11,8 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Contractor Admin Panel",
-  description: "Manage leads, jobs, invoices, and clients",
+  title: "ContractPro AI - AI-Powered CRM for Modern Contractors",
+  description: "Transform your contracting business with intelligent automation. Generate invoices instantly, capture every lead, and close more deals all powered by cutting edge AI technology.",
   generator: "v0.app",
 }
 

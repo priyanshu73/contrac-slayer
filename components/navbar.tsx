@@ -9,8 +9,8 @@ export function Navbar() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
 
-  // Don't show navbar on auth pages and public quote request pages
-  if (pathname?.startsWith("/auth") || pathname?.startsWith("/quote-request")) {
+  // Don't show navbar on auth pages, public quote request pages, or homepage
+  if (pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/quote-request")) {
     return null
   }
 
