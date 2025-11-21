@@ -135,9 +135,11 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <Button size="lg" className="text-base px-8 bg-primary text-primary-foreground hover:bg-primary/90">
-              Start Free Trial
-              <ArrowRight className="ml-2 h-5 w-5" />
+            <Button size="lg" className="text-base px-8 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+              <a href="https://cal.com/johnson-subedi/30min" target="_blank" rel="noopener noreferrer">
+                Schedule a Demo
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </a>
             </Button>
           </div>
 
