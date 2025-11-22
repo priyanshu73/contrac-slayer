@@ -48,7 +48,7 @@ interface UnifiedLead {
 }
 
 export function UnifiedLeads() {
-  const { getContractorAISpId } = useAuth()
+  const { user, getContractorAISpId } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -85,8 +85,14 @@ export function UnifiedLeads() {
   }, [selectedLeadId, filteredLeads, loading])
 
   useEffect(() => {
-    fetchAllLeads()
-  }, [])
+    // Only fetch leads if user has a contractor profile
+    // This prevents errors when user hasn't created profile yet
+    if (user?.contractor_profile) {
+      fetchAllLeads()
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
     filterLeads()
@@ -127,6 +133,10 @@ export function UnifiedLeads() {
 
   const fetchRequestLeads = async (): Promise<UnifiedLead[]> => {
     try {
+      // Only fetch if profile exists (should be checked before calling this)
+      if (!user?.contractor_profile) {
+        return []
+      }
       const data = await api.getMyLeads()
       return (data as any[]).map(lead => ({
         id: `request-${lead.id}`,
@@ -145,7 +155,11 @@ export function UnifiedLeads() {
         priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low'
       }))
     } catch (error) {
-      console.error('Failed to fetch request leads:', error)
+      // Silently handle errors - profile might not exist yet or other issues
+      // Don't log to console to avoid cluttering production logs
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to fetch request leads:', error)
+      }
       return []
     }
   }

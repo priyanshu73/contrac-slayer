@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface Lead {
   id: number
@@ -16,19 +17,30 @@ interface Lead {
 }
 
 export function RecentLeadsReal() {
+  const { user } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchLeads()
-  }, [])
+    // Only fetch leads if user has a contractor profile
+    // This prevents errors when user hasn't created profile yet
+    if (user?.contractor_profile) {
+      fetchLeads()
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
   const fetchLeads = async () => {
     try {
       const data = await api.getMyLeads(undefined, 0, 5) // Get only 5 most recent
       setLeads((data as Lead[]).slice(0, 3)) // Show top 3
     } catch (error) {
-      console.error("Failed to fetch leads:", error)
+      // Silently handle errors - profile might not exist yet or other issues
+      // Don't log to console to avoid cluttering production logs
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch leads:", error)
+      }
     } finally {
       setLoading(false)
     }
