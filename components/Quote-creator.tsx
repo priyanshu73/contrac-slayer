@@ -495,7 +495,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     setAiLoading(true)
     setAiResults([])
     try {
-      const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+      const base = process.env.NEXT_PUBLIC_API_URL
       const res = await fetch(`${base}/api/generate-lineitems`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
