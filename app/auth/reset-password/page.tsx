@@ -17,7 +17,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [email, setEmail] = useState("")
-  const [otp, setOtp] = useState("")
+  const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -44,6 +44,10 @@ export default function ResetPasswordPage() {
     try {
       await api.forgotPassword(email)
       setSuccess("Password reset code sent! Check your email.")
+      // Clear OTP boxes
+      setOtp(["", "", "", "", "", ""])
+      // Focus first input
+      document.getElementById("otp-0")?.focus()
     } catch (err: any) {
       setError(err.message || "Failed to send reset code")
     } finally {
@@ -56,7 +60,8 @@ export default function ResetPasswordPage() {
     setError("")
     setSuccess("")
 
-    if (!otp || otp.length !== 6) {
+    const otpString = otp.join("")
+    if (!otpString || otpString.length !== 6) {
       setError("Please enter a valid 6-digit OTP")
       return
     }
@@ -79,7 +84,8 @@ export default function ResetPasswordPage() {
     setIsLoading(true)
 
     try {
-      await api.resetPassword(email, otp, formData.newPassword)
+      const otpString = otp.join("")
+      await api.resetPassword(email, otpString, formData.newPassword)
       toast({
         title: "Password Reset Successful",
         description: "Your password has been reset. You can now log in with your new password.",
@@ -93,9 +99,43 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 6)
-    setOtp(value)
+  const handleOtpChange = (value: string, index: number) => {
+    if (/^\d?$/.test(value)) {
+      const updated = [...otp]
+      updated[index] = value
+      setOtp(updated)
+      // Auto-focus next input
+      if (value && index < otp.length - 1) {
+        const nextInput = document.getElementById(`otp-${index + 1}`)
+        nextInput?.focus()
+      }
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    // Handle backspace to go to previous input
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`)
+      prevInput?.focus()
+    }
+    // Handle paste
+    if (e.key === "v" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      navigator.clipboard.readText().then((text) => {
+        const digits = text.replace(/\D/g, "").slice(0, 6).split("")
+        const updated = [...otp]
+        digits.forEach((digit, idx) => {
+          if (index + idx < otp.length) {
+            updated[index + idx] = digit
+          }
+        })
+        setOtp(updated)
+        // Focus the last filled input or the last input
+        const lastFilledIndex = Math.min(index + digits.length - 1, otp.length - 1)
+        const lastInput = document.getElementById(`otp-${lastFilledIndex}`)
+        lastInput?.focus()
+      })
+    }
   }
 
   return (
@@ -151,19 +191,26 @@ export default function ResetPasswordPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="otp" className="text-gray-700 font-medium">Verification Code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="000000"
-                  value={otp}
-                  onChange={handleOtpChange}
-                  required
-                  maxLength={6}
-                  disabled={isLoading}
-                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-center text-2xl tracking-widest font-mono"
-                />
-                <p className="text-xs text-gray-500">Enter the 6-digit code sent to your email</p>
+                <Label className="text-gray-700 font-medium block text-center mb-4">Verification Code</Label>
+                <div className="flex justify-center gap-3 mb-4">
+                  {otp.map((digit, idx) => (
+                    <Input
+                      key={idx}
+                      id={`otp-${idx}`}
+                      type="text"
+                      inputMode="numeric"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(e.target.value, idx)}
+                      onKeyDown={(e) => handleKeyDown(e, idx)}
+                      required
+                      maxLength={1}
+                      disabled={isLoading}
+                      className="w-14 h-14 text-center text-2xl font-semibold rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      autoFocus={idx === 0}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 text-center">Enter the 6-digit code sent to your email</p>
               </div>
 
               <div className="space-y-2">
@@ -200,7 +247,7 @@ export default function ResetPasswordPage() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium text-base shadow-lg shadow-blue-500/30 transform hover:scale-[1.02] transition-all"
-                disabled={isLoading || otp.length !== 6}
+                disabled={isLoading || otp.join("").length !== 6}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">

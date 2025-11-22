@@ -2,6 +2,7 @@ import { StatsCardsReal } from "@/components/stats-cards-real"
 import { QuickActions } from "@/components/quick-actions"
 import { RecentLeadsReal } from "@/components/recent-leads-real"
 import { UpcomingJobs } from "@/components/upcoming-jobs"
+import { QuoteRequestLink } from "@/components/quote-request-link"
 
 export default function DashboardPage() {
   return (
@@ -14,6 +15,9 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <QuickActions />
+
+          {/* Quote Request Link */}
+          <QuoteRequestLink />
 
           {/* Recent Activity */}
           <div className="grid gap-6 md:grid-cols-2">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { api } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface Stats {
   new_leads: number
@@ -11,24 +12,35 @@ interface Stats {
 }
 
 export function StatsCardsReal() {
+  const { user } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    // Only fetch stats if user has a contractor profile
+    // This prevents errors when user hasn't created profile yet
+    if (user?.contractor_profile) {
+      fetchStats()
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
   const fetchStats = async () => {
     try {
       // Fetch leads to calculate stats
-      const leads = await api.getMyLeads()
+      const leads = await api.getMyLeads() as any[]
       const newLeads = leads.filter((l: any) => l.status.toLowerCase() === "new").length
       setStats({
         new_leads: newLeads,
         total_leads: leads.length,
       })
     } catch (error) {
-      console.error("Failed to fetch stats:", error)
+      // Silently handle errors - profile might not exist yet or other issues
+      // Don't log to console to avoid cluttering production logs
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch stats:", error)
+      }
     } finally {
       setLoading(false)
     }

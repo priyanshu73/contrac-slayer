@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { api } from "@/lib/api"
 import { User, ContractorProfile } from "@/lib/types"
 
@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
 
   const fetchUser = async () => {
     try {
@@ -32,14 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const extendedUser: ExtendedUser = { ...userData }
       
       // If user is a contractor, try to get their contractor profile to get SP ID
-      if (userData.is_contractor) {
+      // Skip fetching profile if we're on the profile setup page (profile doesn't exist yet)
+      if (userData.is_contractor && pathname !== "/auth/profile-setup") {
         try {
           const profile = await api.getMyProfile() as ContractorProfile & { contractor_ai_sp_id?: number | null }
           extendedUser.contractor_profile = profile
           extendedUser.contractor_ai_sp_id = profile.contractor_ai_sp_id ?? null
-        } catch (profileError) {
-          // Profile might not exist yet, that's okay
-          console.log('No contractor profile found or error fetching profile:', profileError)
+        } catch (profileError: any) {
+          // Profile might not exist yet, that's expected and okay
+          // Silently handle "not found" errors - they're expected when user hasn't created profile yet
+          const errorMessage = profileError?.message?.toLowerCase() || ""
+          if (errorMessage && !errorMessage.includes("not found") && !errorMessage.includes("contractor profile")) {
+            // Only log unexpected errors (and only in development)
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Unexpected error fetching contractor profile:', profileError)
+            }
+          }
           extendedUser.contractor_ai_sp_id = null
         }
       }
@@ -54,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchUser()
-  }, [])
+  }, [pathname])
 
   const login = async (email: string, password: string) => {
     await api.login(email, password)

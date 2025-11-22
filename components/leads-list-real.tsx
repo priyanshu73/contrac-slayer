@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { LeadsFilters } from "./leads-filters"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface Lead {
   id: number
@@ -24,6 +25,7 @@ interface Lead {
 }
 
 export function LeadsListReal() {
+  const { user } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,8 +33,14 @@ export function LeadsListReal() {
   const [activeFilter, setActiveFilter] = useState("all")
 
   useEffect(() => {
-    fetchLeads()
-  }, [])
+    // Only fetch leads if user has a contractor profile
+    // This prevents errors when user hasn't created profile yet
+    if (user?.contractor_profile) {
+      fetchLeads()
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
     filterLeads()
@@ -43,7 +51,11 @@ export function LeadsListReal() {
       const data = await api.getMyLeads()
       setLeads(data as Lead[])
     } catch (err: any) {
-      setError(err.message || "Failed to load leads")
+      // Silently handle errors - profile might not exist yet or other issues
+      // Don't log to console to avoid cluttering production logs
+      if (process.env.NODE_ENV === 'development') {
+        setError(err.message || "Failed to load leads")
+      }
     } finally {
       setLoading(false)
     }
