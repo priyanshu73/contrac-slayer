@@ -852,53 +852,16 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </CollapsibleTrigger>
                 {aiWorkingItems.length > 0 && selectedForInvoice.size > 0 && (
                   <div className="flex items-center gap-2">
-                    <Button 
-                      onClick={async () => {
-                        const selectedItems = aiWorkingItems.filter((_, idx) => selectedForInvoice.has(idx))
-                        try {
-                          const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
-                          const res = await fetch(`${base}/api/generate-invoice`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              items: selectedItems,
-                              client_name: clientName,
-                              client_email: clientEmail,
-                              client_phone: clientPhone,
-                              client_address: clientAddress,
-                              service_description: serviceDescription
-                            })
-                          })
-                          if (!res.ok) throw new Error(`Request failed ${res.status}`)
-                          const data = await res.json()
-                          console.log("Invoice generated:", data)
-                        } catch (e) {
-                          console.error("Error generating invoice:", e)
-                        }
-                      }}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 group relative overflow-hidden"
-                    >
-                      <span className="relative z-10 flex items-center gap-2">
-                        <svg className="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Generate Invoice
-                        <span className="ml-1 text-xs opacity-90">({selectedForInvoice.size})</span>
-                      </span>
-                      <div className="absolute inset-0 bg-primary/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                    </Button>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background hover:bg-muted transition-colors">
-                            <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 cursor-help">
+                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">BETA</span>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="text-sm">
-                            Selected items ({selectedForInvoice.size}) will be used by AI to generate a professional invoice with pricing, quantities, and client information.
+                            This feature is currently in beta. We're actively working on improving the invoice generation functionality. Thank you for your patience!
                           </p>
                         </TooltipContent>
                       </Tooltip>
