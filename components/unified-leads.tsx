@@ -328,35 +328,23 @@ export function UnifiedLeads() {
   
   const counts = getCounts()
 
-  if (loading) {
+  // Show full-screen loading only on initial load (when we have no leads yet)
+  if (loading && leads.length === 0) {
     return (
-      <div className="h-screen bg-background flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex-shrink-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" asChild className="md:hidden">
-                <a href="/">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </a>
-              </Button>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <MessageSquare className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50">
+        <div className="relative">
+          {/* Abstract spinning circles */}
+          <div className="relative w-20 h-20">
+            <div className="absolute inset-0 rounded-full border-4 border-blue-100"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+            <div className="absolute inset-2 rounded-full border-4 border-blue-50"></div>
+            <div className="absolute inset-2 rounded-full border-4 border-t-transparent border-r-blue-400 border-b-transparent border-l-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+            <div className="absolute inset-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             </div>
           </div>
-        </header>
-
-        <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden min-h-0">
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </main>
+          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">Loading...</p>
+        </div>
       </div>
     )
   }
@@ -470,7 +458,23 @@ export function UnifiedLeads() {
 
               {/* Leads List */}
               <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-                {filteredLeads.length === 0 && !error ? (
+                {loading && leads.length > 0 ? (
+                  // Skeleton loader for refreshing leads
+                  <div className="space-y-0">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="border-b border-border p-4 animate-pulse">
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-full bg-muted"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-muted rounded w-3/4"></div>
+                            <div className="h-3 bg-muted rounded w-1/2"></div>
+                            <div className="h-3 bg-muted rounded w-2/3"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredLeads.length === 0 && !error ? (
                   <div className="p-4 text-center text-muted-foreground">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                       <MessageSquare className="h-6 w-6" />
