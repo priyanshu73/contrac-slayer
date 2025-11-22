@@ -81,7 +81,12 @@ export default function LoginPage() {
         >
           {/* Darker overlay for better text readability */}
           <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/45 to-black/50"></div>
+          {/* Subtle fade transition to right */}
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-black/30 to-transparent"></div>
         </div>
+        
+        {/* Elegant divider line */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-px h-64 bg-gradient-to-b from-transparent via-white/40 to-transparent z-20"></div>
 
         {/* Content */}
         <div className="relative z-10 space-y-6">
@@ -134,6 +139,9 @@ export default function LoginPage() {
 
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        {/* Subtle fade-in from left edge */}
+        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-blue-50/80 via-blue-50/40 to-transparent pointer-events-none z-0"></div>
+        
         {/* Floating animated elements - More bubbles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* Small bubbles */}
