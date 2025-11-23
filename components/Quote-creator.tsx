@@ -159,10 +159,10 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
   const remainingUnits = COMMON_UNITS.filter(unit => !suggestedUnits.includes(unit.value))
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 w-full">
       {!isCustom ? (
         <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select unit..." />
           </SelectTrigger>
           <SelectContent>
@@ -196,18 +196,18 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
           </SelectContent>
         </Select>
       ) : (
-        <div className="flex gap-1">
+        <div className="flex gap-1 w-full">
           <Input
             value={customValue}
             onChange={(e) => handleCustomChange(e.target.value)}
             placeholder="Custom unit..."
-            className="flex-1"
+            className="flex-1 min-w-0"
           />
           <Button
             variant="ghost"
             size="sm"
             onClick={handleCustomClose}
-            className="px-2"
+            className="px-2 flex-shrink-0"
           >
             ×
           </Button>
@@ -468,10 +468,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const handleSelectMaterial = (index: number, material: MaterialResult) => {
     // Update the line item with selected material data
     const updatedItems = [...items]
+    const materialRate = parseFloat(material.estimated_cost) || updatedItems[index].rate
     updatedItems[index] = {
       ...updatedItems[index],
       description: material.name,
-      rate: parseFloat(material.estimated_cost) || updatedItems[index].rate,
+      rate: Math.round(materialRate * 100) / 100, // Round to 2 decimal places
       imageUrl: material.image_url,
       thumbnailUrl: material.thumbnail_url,
       brand: material.brand,
@@ -562,10 +563,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const handleSubstituteSelect = (substitute: any) => {
     if (substituteItemIndex !== null) {
       const updatedItems = [...items]
+      const substituteRate = parseFloat(substitute.estimated_cost) || 0
       updatedItems[substituteItemIndex] = {
         ...updatedItems[substituteItemIndex],
         description: substitute.name,
-        rate: parseFloat(substitute.estimated_cost),
+        rate: Math.round(substituteRate * 100) / 100, // Round to 2 decimal places
         imageUrl: substitute.image_url,
         thumbnailUrl: substitute.thumbnail_url,
         brand: substitute.brand,
@@ -1061,10 +1063,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
           zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
           onAddMaterial={(material) => {
             // Add material as new line item with image data and search results
+            const materialRate = parseFloat(material.estimated_cost) || 0
             setItems([...items, {
               description: material.name,
               quantity: parseInt(material.estimated_quantity) || 1,
-              rate: parseFloat(material.estimated_cost),
+              rate: Math.round(materialRate * 100) / 100, // Round to 2 decimal places
               imageUrl: material.image_url, // Use actual image URL from API
               thumbnailUrl: material.thumbnail_url, // Use actual thumbnail URL from API
               brand: material.brand,
@@ -1096,7 +1099,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
 
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="rounded-lg border border-border p-4 relative">
+            <div key={index} className="rounded-lg border border-border p-4 relative overflow-hidden">
               {/* Delete Button - Top Right */}
               <Button 
                 variant="ghost" 
@@ -1222,8 +1225,8 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </div>
                 
                 {/* Quantity, Unit, Rate Row */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
+                <div className="grid grid-cols-[80px_1fr_100px] sm:grid-cols-3 gap-2 sm:gap-3 mt-4">
+                  <div className="w-full">
                     <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
                       Qty
                     </Label>
@@ -1231,16 +1234,16 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                       id={`item-qty-${index}`}
                       type="number"
                       min="0"
-                      value={item.quantity === 0 ? "" : item.quantity}
+                      value={item.quantity === 0 ? "" : item.quantity.toString()}
                       onChange={(e) => {
                         const val = e.target.value
                         updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                       }}
                       placeholder="0"
-                      className="mt-1"
+                      className="mt-1 w-full text-base font-medium"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
                       Unit
                     </Label>
@@ -1252,7 +1255,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                       />
                     </div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
                       Rate
                     </Label>
@@ -1261,13 +1264,20 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                       type="number"
                       min="0"
                       step="0.01"
-                      value={item.rate === 0 ? "" : item.rate}
+                      value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
                       onChange={(e) => {
                         const val = e.target.value
                         updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
                       }}
+                      onBlur={(e) => {
+                        // Round to 2 decimal places on blur
+                        const val = parseFloat(e.target.value)
+                        if (!isNaN(val)) {
+                          updateItem(index, "rate", Math.round(val * 100) / 100)
+                        }
+                      }}
                       placeholder="0.00"
-                      className="mt-1"
+                      className="mt-1 w-full"
                     />
                   </div>
                 </div>
@@ -1281,18 +1291,18 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
               </div>
               
               {/* Desktop Layout */}
-              <div className="hidden sm:grid sm:grid-cols-12 gap-4">
+              <div className="hidden sm:grid sm:grid-cols-12 gap-3 lg:gap-4">
                 {/* Product Image Thumbnail */}
-                <div className="col-span-1 flex items-start">
+                <div className="col-span-1 flex items-start min-w-0">
                   <MaterialThumbnail
                     src={item.thumbnailUrl || item.imageUrl}
                     alt={item.description}
-                    className="w-12 h-12"
+                    className="w-12 h-12 flex-shrink-0"
                   />
                 </div>
                 
                 {/* Line Item Description */}
-                <div className="col-span-5 pr-8">
+                <div className="col-span-5 pr-4 lg:pr-8 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
                       Description
@@ -1390,7 +1400,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </div>
                 
                 {/* Quantity */}
-                <div className="col-span-1">
+                <div className="col-span-1 min-w-0 flex-shrink-0">
                   <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
                     Qty
                   </Label>
@@ -1398,18 +1408,19 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     id={`item-qty-${index}`}
                     type="number"
                     min="0"
-                    value={item.quantity === 0 ? "" : item.quantity}
+                    value={item.quantity === 0 ? "" : item.quantity.toString()}
                     onChange={(e) => {
                       const val = e.target.value
                       updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                     }}
                     placeholder="0"
-                    className="mt-1"
+                    className="mt-1 w-full text-base"
+                    style={{ minWidth: '60px' }}
                   />
                 </div>
                 
                 {/* Unit of Measure */}
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
                     Unit
                   </Label>
@@ -1423,7 +1434,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </div>
                 
                 {/* Rate */}
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
                     Rate
                   </Label>
@@ -1432,19 +1443,26 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     type="number"
                     min="0"
                     step="0.01"
-                    value={item.rate === 0 ? "" : item.rate}
+                    value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
                     onChange={(e) => {
                       const val = e.target.value
                       updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
                     }}
+                    onBlur={(e) => {
+                      // Round to 2 decimal places on blur
+                      const val = parseFloat(e.target.value)
+                      if (!isNaN(val)) {
+                        updateItem(index, "rate", Math.round(val * 100) / 100)
+                      }
+                    }}
                     placeholder="0.00"
-                    className="mt-1"
+                    className="mt-1 w-full"
                   />
                 </div>
                 
                 {/* Total */}
-                <div className="col-span-1 flex items-end">
-                  <span className="text-sm font-medium">
+                <div className="col-span-1 flex items-end min-w-0">
+                  <span className="text-sm font-medium whitespace-nowrap">
                     ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
                   </span>
                 </div>

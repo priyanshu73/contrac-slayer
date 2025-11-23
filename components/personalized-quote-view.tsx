@@ -272,7 +272,7 @@ export function PersonalizedQuoteView({
                             {item.quantity} {unitOfMeasure}
                           </td>
                           <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs">
-                            {formatCurrency(costPerUnit)}
+                            {formatCurrency(unitPriceWithMarkup)}
                           </td>
                           <td className="px-3 py-3 print:px-2 print:py-2 text-right font-semibold text-gray-900 print:text-sm">
                             {formatCurrency(itemTotal)}

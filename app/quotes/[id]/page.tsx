@@ -8,34 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
-
-interface JobItem {
-  id: number
-  custom_description: string
-  quantity: number
-  cost_per_unit: number
-  unit_of_measure: string
-  image_url?: string
-  thumbnail_url?: string
-  brand?: string
-  model?: string
-  is_taxable: boolean
-  markup_percentage: number
-}
-
-interface Job {
-  id: number
-  client_name: string
-  client_email: string
-  client_phone?: string
-  client_address: string
-  location_zip_code?: string
-  status: string
-  total_amount: number
-  created_at: string
-  updated_at: string
-  items: JobItem[]
-}
+import { Job } from "@/lib/types"
 
 export default function QuoteDetailPage() {
   const params = useParams()
