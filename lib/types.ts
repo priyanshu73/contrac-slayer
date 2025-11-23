@@ -532,6 +532,19 @@ export interface ErrorResponse {
 // FORM DATA TYPES (for customer-facing forms)
 // ============================================
 
+export interface MeasurementItem {
+  name?: string
+  type: 'dimensions' | 'square_footage' | 'linear_feet'
+  length?: number
+  width?: number
+  value?: number  // for square_footage or linear_feet
+  unit?: string   // default 'ft'
+}
+
+export interface Measurements {
+  items: MeasurementItem[]
+}
+
 export interface CustomerQuoteRequestForm {
   name: string
   email: string
@@ -539,6 +552,7 @@ export interface CustomerQuoteRequestForm {
   address: string
   projectType: string
   description: string
+  measurements?: Measurements
   selectedProducts?: number[]
   files?: File[]
 }

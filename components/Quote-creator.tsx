@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AIPricingSuggestions } from "@/components/ai-pricing-suggestions"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -266,7 +265,6 @@ interface QuoteCreatorProps {
 
 export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps) {
   const { toast } = useToast()
-  const [showAIPricing, setShowAIPricing] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResults, setAiResults] = useState<any[]>([])
@@ -760,7 +758,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         </div>
       </Card>
 
-      {/* AI Pricing Assistant */}
+      {/* AI Line Items Assistant */}
       <Card className="border-primary/20 bg-primary/5 p-6">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -769,9 +767,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
             </svg>
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold">AI Pricing Assistant</h2>
+            <h2 className="text-lg font-semibold">AI Line Items Assistant</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Get competitive pricing suggestions based on your line item description and local market rates
+              Generate detailed line items based on your project description
             </p>
             <div className="mt-4 space-y-3">
               <Textarea
@@ -786,20 +784,19 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 const tooShort = desc.length < 30 || wordCount < 6
                 return (
               <div className="flex gap-2 flex-wrap">
-                <Button onClick={() => setShowAIPricing(true)} disabled={!serviceDescription.trim()}>
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Get AI Pricing Suggestions
-                </Button>
-                <Button variant="outline" onClick={fetchAiItems} disabled={aiLoading || tooShort}>
+                <Button onClick={fetchAiItems} disabled={aiLoading || tooShort || !serviceDescription.trim()}>
                   {aiLoading ? (
                     <span className="inline-flex items-center gap-2">
                       <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
                       Getting AI Line Items...
                     </span>
                   ) : (
-                    "Get AI Line Items"
+                    <>
+                      <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Get AI Line Items
+                    </>
                   )}
                 </Button>
                 {tooShort && (
@@ -814,25 +811,6 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
           </div>
         </div>
       </Card>
-
-      {showAIPricing && serviceDescription && (
-        <AIPricingSuggestions
-          serviceDescription={serviceDescription}
-          onSelectPrice={(price) => {
-            // Add new line item with the AI suggestion
-            setItems([...items, {
-              description: serviceDescription,
-              quantity: 1,
-              rate: price
-            }])
-            setShowAIPricing(false)
-            toast({
-              title: "Item added",
-              description: `${serviceDescription ? `"${serviceDescription}"` : "Item"} has been added to your quote`,
-            })
-          }}
-        />
-      )}
 
       {/* AI Working Area */}
       {(aiLoading || aiResults.length > 0 || aiWorkingItems.length > 0) && (

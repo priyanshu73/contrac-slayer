@@ -151,7 +151,7 @@ class ApiClient {
     return this.request(`/contractors/profile/${contractorId}`)
   }
 
-  async submitQuoteRequest(contractorId: number, data: any, files?: File[]) {
+  async submitQuoteRequest(contractorId: number, data: any, files?: File[], measurements?: { items: any[] }) {
     const formData = new FormData()
     formData.append('name', data.name)
     formData.append('email', data.email)
@@ -159,6 +159,18 @@ class ApiClient {
     if (data.address) formData.append('address', data.address)
     if (data.project_type) formData.append('project_type', data.project_type)
     if (data.description) formData.append('description', data.description)
+    
+    // Add measurements as JSON string if provided and has items with data
+    // Only send if user has added at least one measurement entry (has type or other data)
+    if (measurements && measurements.items && measurements.items.length > 0) {
+      // Filter out completely empty entries (no type, no values, no name)
+      const validItems = measurements.items.filter(item => 
+        item.type || item.length || item.width || item.value || item.name
+      )
+      if (validItems.length > 0) {
+        formData.append('measurements', JSON.stringify({ items: validItems }))
+      }
+    }
     
     if (files) {
       files.forEach((file) => {
@@ -276,6 +288,10 @@ class ApiClient {
 
   async getClient(clientId: number) {
     return this.request(`/clients/${clientId}`)
+  }
+
+  async getClientDetails(clientId: number) {
+    return this.request(`/clients/${clientId}/details`)
   }
 
   async updateClient(clientId: number, data: any) {

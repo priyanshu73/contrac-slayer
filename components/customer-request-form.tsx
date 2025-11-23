@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Upload, X, Check } from "lucide-react"
 import Image from "next/image"
+import { MeasurementsInput } from "@/components/measurements-input"
+import { Measurements } from "@/lib/types"
 
 interface CustomerRequestFormProps {
   contractorId: number
@@ -25,6 +27,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
     project_type: "",
     description: "",
   })
+  const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -48,7 +51,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
 
     try {
       const { api } = await import("@/lib/api")
-      await api.submitQuoteRequest(contractorId, formData, uploadedFiles)
+      await api.submitQuoteRequest(contractorId, formData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")
@@ -117,7 +120,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 py-8 pb-24">
+    <div className="max-w-6xl mx-auto p-4 py-8 pb-24">
       {/* Contractor Card - Emphasized */}
       <Card className="mb-8 bg-white border-2 border-blue-100 shadow-xl">
         <div className="p-8">
@@ -233,7 +236,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
         </div>
       </Card>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">{error}</div>
           )}
@@ -321,10 +324,22 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
           </div>
         </Card>
 
-        {/* Photo Upload */}
+        {/* Measurements */}
         <Card className="p-6 bg-white shadow-md border border-gray-200">
           <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-gray-900">
             <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">3</span>
+            Measurements (Optional)
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Add measurements to help us provide a more accurate quote. You can add dimensions, square footage, or linear feet.
+          </p>
+          <MeasurementsInput value={measurements} onChange={setMeasurements} />
+        </Card>
+
+        {/* Photo Upload */}
+        <Card className="p-6 bg-white shadow-md border border-gray-200">
+          <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-gray-900">
+            <span className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">4</span>
             Request Photos (Optional)
           </h2>
           <p className="text-sm text-gray-600 mb-4">
