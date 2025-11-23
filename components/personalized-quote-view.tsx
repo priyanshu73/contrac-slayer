@@ -89,11 +89,11 @@ export function PersonalizedQuoteView({
   const taxAmount = total - subtotalWithMarkup
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-full print:px-0">
+    <div className="min-h-screen bg-gray-50 py-8 print:min-h-0 print:py-0 print:bg-white print:mt-0 print:pt-0">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
         {/* Printable Quote Document */}
-        <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none">
-          <div className="p-8 sm:p-12 print:p-6 print:break-inside-avoid">
+        <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">
+          <div className="p-8 sm:p-12 print:p-6 print:break-inside-avoid print:pt-6">
             {/* Header with Logo */}
             <div className="mb-6 pb-4 print:mb-4 print:pb-2 border-b-2 border-gray-200 print:break-inside-avoid">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:gap-2">
@@ -140,7 +140,7 @@ export function PersonalizedQuoteView({
                 </div>
                 <div className="text-right">
                   <h2 className="text-xl sm:text-2xl print:text-lg font-bold text-gray-900 mb-2">QUOTE</h2>
-                  <div className="inline-block">
+                  <div className="inline-block print:hidden">
                     <Badge className={`${getStatusColor(job.status)} print:text-xs`}>
                       {job.status}
                     </Badge>

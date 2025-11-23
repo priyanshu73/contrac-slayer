@@ -162,7 +162,20 @@
   nav,
   header,
   footer,
+  aside,
+  [data-sidebar],
+  [data-slot="sidebar"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-wrapper"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-inset"],
   .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Hide fixed position elements */
+  [style*="position: fixed"],
+  [class*="fixed"]:not([class*="print:"]) {
     display: none !important;
   }
 
@@ -186,9 +199,55 @@
   }
 
   /* Remove unnecessary spacing */
+  html,
   body {
-    margin: 0;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Fix for blank first page - remove min-height in print */
+  .print\\:min-h-0 {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* Ensure outer containers don't create page breaks */
+  body > * {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Hide layout components that might cause spacing */
+  [class*="AuthGuard"],
+  [class*="AuthProvider"] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ensure no top margin on first printable element */
+  body > * > *:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Force content to start at top of page */
+  body > *:first-child:not(nav):not(header):not(footer) {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    page-break-before: auto !important;
+  }
+
+  /* Remove margins from outer containers in print */
+  .print\\:m-0 {
+    margin: 0 !important;
+  }
+
+  /* Remove horizontal margins in print */
+  .print\\:mx-0 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 
   /* Optimize card spacing for print */
