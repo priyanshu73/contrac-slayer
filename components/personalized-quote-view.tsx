@@ -156,15 +156,17 @@ export function PersonalizedQuoteView({
                   Bill To
                 </h3>
                 <div className="space-y-0.5 print:space-y-0">
-                  <p className="text-lg print:text-base font-semibold text-gray-900">{job.client_name}</p>
-                  {job.client_address && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client_address}</p>
+                  <p className="text-lg print:text-base font-semibold text-gray-900">
+                    {job.client?.name || 'Unknown Client'}
+                  </p>
+                  {job.client?.address && (
+                    <p className="text-sm print:text-xs text-gray-600">{job.client.address}</p>
                   )}
-                  {job.client_email && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client_email}</p>
+                  {job.client?.email && (
+                    <p className="text-sm print:text-xs text-gray-600">{job.client.email}</p>
                   )}
-                  {job.client_phone && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client_phone}</p>
+                  {job.client?.phone && (
+                    <p className="text-sm print:text-xs text-gray-600">{job.client.phone}</p>
                   )}
                 </div>
               </div>

@@ -18,11 +18,18 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
+interface ClientInfo {
+  id: number
+  name: string
+  email: string
+  phone?: string
+  address?: string
+}
+
 interface Quote {
   id: number
-  client_name: string
-  client_email: string
-  client_address?: string
+  client_id?: number
+  client?: ClientInfo  // Client details populated from client_id
   status: string
   total_amount: number
   created_at: string
@@ -113,7 +120,7 @@ export default function QuotesPage() {
       await api.deleteJob(quoteToDelete.id)
       toast({
         title: "Quote deleted",
-        description: `Quote for ${quoteToDelete.client_name} has been deleted successfully.`,
+        description: `Quote for ${quoteToDelete.client?.name || 'client'} has been deleted successfully.`,
       })
       setDeleteDialogOpen(false)
       setQuoteToDelete(null)
@@ -243,18 +250,20 @@ export default function QuotesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
-                          {quote.client_name}
+                          {quote.client?.name || 'Unknown Client'}
                         </h3>
                         <Badge className={getStatusColor(quote.status)}>
                           {quote.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {quote.client_email}
-                      </p>
-                      {quote.client_address && (
+                      {quote.client?.email && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {quote.client.email}
+                        </p>
+                      )}
+                      {quote.client?.address && (
                         <p className="text-sm text-muted-foreground">
-                          {quote.client_address}
+                          {quote.client.address}
                         </p>
                       )}
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
@@ -309,7 +318,7 @@ export default function QuotesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Quote</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the quote for <strong>{quoteToDelete?.client_name}</strong>? 
+              Are you sure you want to delete the quote for <strong>{quoteToDelete?.client?.name || 'this client'}</strong>? 
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

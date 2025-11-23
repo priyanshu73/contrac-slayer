@@ -627,6 +627,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       
       // Prepare job data
       const jobData = {
+        lead_id: leadId ? parseInt(leadId) : null, // Link to original lead if creating from lead
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim() || null,

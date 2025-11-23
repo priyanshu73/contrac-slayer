@@ -190,17 +190,22 @@ export interface Client {
 // JOBS / QUOTES
 // ============================================
 
+export interface ClientInfo {
+  id: number
+  name: string
+  email: string
+  phone?: string
+  address?: string
+}
+
 export interface Job {
   id: number
   contractor_id: number
   client_id?: number
+  client?: ClientInfo  // Client details populated from client_id
   lead_id?: number
   job_number?: string
   title?: string
-  client_name: string
-  client_address?: string
-  client_email?: string
-  client_phone?: string
   job_description?: string
   project_type?: string
   location_zip_code?: string
