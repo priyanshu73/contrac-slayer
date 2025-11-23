@@ -361,7 +361,7 @@ export function PersonalizedQuoteView({
                   </div>
                   <div className="space-y-0.5 print:space-y-0">
                     <p className="text-sm print:text-xs font-semibold text-gray-900">
-                      {job.client_name}
+                      {job.client?.name || 'Unknown Client'}
                     </p>
                     <p className="text-xs print:text-xs text-gray-600">Customer Signature</p>
                     {job.signature?.signed_at && (
