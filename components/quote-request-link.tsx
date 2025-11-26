@@ -41,7 +41,7 @@ export function QuoteRequestLink() {
   }
 
   return (
-    <Card className="p-4 w-fit border-2 border-dashed border-blue-300 bg-gradient-to-br from-blue-50/50 to-sky-50/50">
+    <Card className="p-4 md:p-5 border-2 border-dashed border-blue-300 bg-gradient-to-br from-blue-50/50 to-sky-50/50 w-full sm:w-auto sm:max-w-2xl">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center shrink-0">
@@ -49,20 +49,20 @@ export function QuoteRequestLink() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-gray-800">Quote Request Form</h3>
             <p className="text-xs text-gray-600">Copy link to share with customers</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="rounded-md border border-dashed border-blue-300 bg-white/80 px-3 py-2 text-xs font-mono text-gray-700 whitespace-nowrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex-1 min-w-0 rounded-md border border-dashed border-blue-300 bg-white/80 px-3 py-2 text-xs font-mono text-gray-700 break-all sm:break-normal overflow-hidden">
             {quoteRequestUrl}
           </div>
           <Button
             onClick={handleCopy}
             variant="outline"
             size="sm"
-            className="shrink-0 border-blue-300 hover:bg-blue-50 hover:border-blue-400"
+            className="shrink-0 border-blue-300 hover:bg-blue-50 hover:border-blue-400 sm:w-auto w-full"
             title="Copy link"
           >
             {copied ? (
