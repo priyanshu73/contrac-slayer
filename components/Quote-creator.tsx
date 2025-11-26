@@ -158,10 +158,10 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
   const remainingUnits = COMMON_UNITS.filter(unit => !suggestedUnits.includes(unit.value))
 
   return (
-    <div className="space-y-1 w-full">
+    <div className="space-y-1 w-full min-w-0">
       {!isCustom ? (
         <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full min-w-0">
             <SelectValue placeholder="Select unit..." />
           </SelectTrigger>
           <SelectContent>
@@ -280,6 +280,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const [clientAddress, setClientAddress] = useState("")
   const [loadingLead, setLoadingLead] = useState(false)
   
+  // Additional details states
+  const [notes, setNotes] = useState("")
+  const [dueDate, setDueDate] = useState("")
+  const [paymentTerms, setPaymentTerms] = useState("")
+  
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -312,7 +317,52 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   // Load initial quote data if editing
   useEffect(() => {
     if (initialData && quoteId) {
-      loadQuoteData()
+      // Set client information - handle both nested client object and flat structure
+      const client = initialData.client
+      setClientName(client?.name || initialData.client_name || "")
+      setClientEmail(client?.email || initialData.client_email || "")
+      setClientPhone(client?.phone || initialData.client_phone || "")
+      setClientAddress(client?.address || initialData.client_address || "")
+
+      // Load service description if available
+      if (initialData.job_description) {
+        setServiceDescription(initialData.job_description)
+      }
+
+      // Load additional details
+      setNotes(initialData.customer_notes || "")
+      setPaymentTerms(initialData.payment_terms || "")
+      
+      // Handle due date or quote expiration date
+      const dateValue = initialData.due_date || initialData.quote_expiration_date
+      if (dateValue) {
+        const date = new Date(dateValue)
+        if (!isNaN(date.getTime())) {
+          setDueDate(date.toISOString().split('T')[0])
+        }
+      }
+
+      // Convert job items to line items format
+      if (initialData.items && initialData.items.length > 0) {
+        const lineItems = initialData.items.map((item: any) => ({
+          description: item.custom_description || item.description || "",
+          quantity: item.quantity || 1,
+          rate: item.cost_per_unit || item.rate || 0,
+          imageUrl: item.image_url || item.imageUrl,
+          thumbnailUrl: item.thumbnail_url || item.thumbnailUrl,
+          brand: item.brand,
+          model: item.model,
+          externalUrl: item.external_url || item.externalUrl,
+          unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
+        }))
+        setItems(lineItems)
+        
+        // If editing and items have markup, use the first item's markup
+        const firstItem = initialData.items[0]
+        if (firstItem?.markup_percentage !== undefined && firstItem.markup_percentage !== null) {
+          setMarkupPercentage(parseFloat(firstItem.markup_percentage) || 20)
+        }
+      }
     }
   }, [initialData, quoteId])
 
@@ -332,43 +382,6 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       // Keep defaults: 20% markup, 8.25% tax
     } finally {
       setLoadingMarkup(false)
-    }
-  }
-
-  const loadQuoteData = () => {
-    if (!initialData) return
-
-    // Set client information
-    setClientName(initialData.client_name || "")
-    setClientEmail(initialData.client_email || "")
-    setClientPhone(initialData.client_phone || "")
-    setClientAddress(initialData.client_address || "")
-
-    // Load service description if available
-    if (initialData.job_description) {
-      setServiceDescription(initialData.job_description)
-    }
-
-    // Convert job items to line items format
-    if (initialData.items && initialData.items.length > 0) {
-      const lineItems = initialData.items.map((item: any) => ({
-        description: item.custom_description || item.description || "",
-        quantity: item.quantity || 1,
-        rate: item.cost_per_unit || item.rate || 0,
-        imageUrl: item.image_url || item.imageUrl,
-        thumbnailUrl: item.thumbnail_url || item.thumbnailUrl,
-        brand: item.brand,
-        model: item.model,
-        externalUrl: item.external_url || item.externalUrl,
-        unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
-      }))
-      setItems(lineItems)
-      
-      // If editing and items have markup, use the first item's markup (assuming all items use same markup)
-      const firstItem = initialData.items[0]
-      if (firstItem?.markup_percentage !== undefined && firstItem.markup_percentage !== null) {
-        setMarkupPercentage(parseFloat(firstItem.markup_percentage) || 20)
-      }
     }
   }
 
@@ -632,6 +645,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         client_address: clientAddress.trim(),
         location_zip_code: extractZipCode(clientAddress),
         job_description: serviceDescription.trim() || null,
+        customer_notes: notes.trim() || null,
+        payment_terms: paymentTerms.trim() || null,
+        quote_expiration_date: dueDate || null,
         items: validItems.map(item => ({
           custom_description: item.description.trim(),
           quantity: item.quantity,
@@ -1203,10 +1219,22 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                   </div>
                 </div>
                 
-                {/* Quantity, Unit, Rate Row */}
-                <div className="grid grid-cols-[80px_1fr_100px] sm:grid-cols-3 gap-2 sm:gap-3 mt-4">
-                  <div className="w-full">
-                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
+                {/* Unit, Qty, Rate Row */}
+                <div className="flex items-end gap-3 mt-4">
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground">
+                      Unit
+                    </Label>
+                    <div className="mt-1">
+                      <UnitSelector
+                        value={item.unitOfMeasure || ""}
+                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                        description={item.description}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-16">
+                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground">
                       Qty
                     </Label>
                     <Input
@@ -1219,23 +1247,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                         updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                       }}
                       placeholder="0"
-                      className="mt-1 w-full text-base font-medium"
+                      className="mt-1 text-center"
                     />
                   </div>
-                  <div className="min-w-0">
-                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
-                      Unit
-                    </Label>
-                    <div className="mt-1">
-                      <UnitSelector
-                        value={item.unitOfMeasure || ""}
-                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                        description={item.description}
-                      />
-                    </div>
-                  </div>
-                  <div className="min-w-0">
-                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
+                  <div className="w-24">
+                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground">
                       Rate
                     </Label>
                     <Input
@@ -1249,201 +1265,190 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                         updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
                       }}
                       onBlur={(e) => {
-                        // Round to 2 decimal places on blur
                         const val = parseFloat(e.target.value)
                         if (!isNaN(val)) {
                           updateItem(index, "rate", Math.round(val * 100) / 100)
                         }
                       }}
                       placeholder="0.00"
-                      className="mt-1 w-full"
+                      className="mt-1"
                     />
                   </div>
-                </div>
-                
-                {/* Total */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium">
-                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
-                  </span>
+                  <div className="w-20 text-right pb-2">
+                    <span className="text-sm font-semibold">
+                      ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
               
               {/* Desktop Layout */}
-              <div className="hidden sm:grid sm:grid-cols-12 gap-3 lg:gap-4">
-                {/* Product Image Thumbnail */}
-                <div className="col-span-1 flex items-start min-w-0">
+              <div className="hidden sm:block">
+                {/* Description Row */}
+                <div className="flex gap-4 mb-4">
                   <MaterialThumbnail
                     src={item.thumbnailUrl || item.imageUrl}
                     alt={item.description}
-                    className="w-12 h-12 flex-shrink-0"
+                    className="w-14 h-14 flex-shrink-0"
                   />
-                </div>
-                
-                {/* Line Item Description */}
-                <div className="col-span-5 pr-4 lg:pr-8 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
-                      Description
-                    </Label>
-                    {searchingItemIndex !== index && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartSearch(index)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        Search
-                      </Button>
-                    )}
-                  </div>
-                  {searchingItemIndex === index ? (
-                    <div className="space-y-2 relative">
-                      <div className="relative">
-                        <Input
-                          type="search"
-                          value={itemSearchQueries[index] || ""}
-                          onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
-                          placeholder="Search for materials..."
-                          className="pr-20"
-                          autoFocus
-                        />
-                        {itemSearchLoading[index] && (
-                          <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                          </div>
-                        )}
+                  <div className="flex-1 min-w-0 pr-8">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium text-muted-foreground">
+                        Description
+                      </Label>
+                      {searchingItemIndex !== index && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleCancelSearch(index)}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
+                          onClick={() => handleStartSearch(index)}
+                          className="h-6 px-2 text-xs"
                         >
-                          Cancel
+                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Search
                         </Button>
-                      </div>
-                      {/* Search Results */}
-                      {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
-                        <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background absolute z-50 w-full shadow-lg mt-1">
-                          {itemSearchResults[index].map((material, matIndex) => (
-                            <Card
-                              key={matIndex}
-                              className="p-3 hover:border-primary transition-all cursor-pointer"
-                              onClick={() => handleSelectMaterial(index, material)}
-                            >
-                              <div className="flex gap-2">
-                                <MaterialThumbnail
-                                  src={material.thumbnail_url || material.image_url}
-                                  alt={material.name}
-                                  className="w-12 h-12 flex-shrink-0"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
-                                  <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-sm font-bold text-primary">
-                                      ${parseFloat(material.estimated_cost).toFixed(2)}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      per {material.unit_of_measure}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
                       )}
                     </div>
-                  ) : (
-                    <>
-                      <Textarea
-                        id={`item-desc-${index}`}
-                        value={item.description}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
-                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[60px] resize-none mt-1"
-                      />
-                      {item.brand && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {item.brand} {item.model && `- ${item.model}`}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-                
-                {/* Quantity */}
-                <div className="col-span-1 min-w-0 flex-shrink-0">
-                  <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium">
-                    Qty
-                  </Label>
-                  <Input
-                    id={`item-qty-${index}`}
-                    type="number"
-                    min="0"
-                    value={item.quantity === 0 ? "" : item.quantity.toString()}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                    }}
-                    placeholder="0"
-                    className="mt-1 w-full text-base"
-                    style={{ minWidth: '60px' }}
-                  />
-                </div>
-                
-                {/* Unit of Measure */}
-                <div className="col-span-2 min-w-0">
-                  <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium">
-                    Unit
-                  </Label>
-                  <div className="mt-1">
-                    <UnitSelector
-                      value={item.unitOfMeasure || ""}
-                      onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                      description={item.description}
-                    />
+                    {searchingItemIndex === index ? (
+                      <div className="space-y-2 relative">
+                        <div className="relative">
+                          <Input
+                            type="search"
+                            value={itemSearchQueries[index] || ""}
+                            onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
+                            placeholder="Search for materials..."
+                            className="pr-20"
+                            autoFocus
+                          />
+                          {itemSearchLoading[index] && (
+                            <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelSearch(index)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
+                          <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background absolute z-50 w-full shadow-lg mt-1">
+                            {itemSearchResults[index].map((material, matIndex) => (
+                              <Card
+                                key={matIndex}
+                                className="p-3 hover:border-primary transition-all cursor-pointer"
+                                onClick={() => handleSelectMaterial(index, material)}
+                              >
+                                <div className="flex gap-2">
+                                  <MaterialThumbnail
+                                    src={material.thumbnail_url || material.image_url}
+                                    alt={material.name}
+                                    className="w-12 h-12 flex-shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
+                                    <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-sm font-bold text-primary">
+                                        ${parseFloat(material.estimated_cost).toFixed(2)}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        per {material.unit_of_measure}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <Textarea
+                          id={`item-desc-${index}`}
+                          value={item.description}
+                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                          className="min-h-[50px] resize-none"
+                        />
+                        {item.brand && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.brand} {item.model && `- ${item.model}`}
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
                 
-                {/* Rate */}
-                <div className="col-span-2 min-w-0">
-                  <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium">
-                    Rate
-                  </Label>
-                  <Input
-                    id={`item-rate-${index}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
-                    }}
-                    onBlur={(e) => {
-                      // Round to 2 decimal places on blur
-                      const val = parseFloat(e.target.value)
-                      if (!isNaN(val)) {
-                        updateItem(index, "rate", Math.round(val * 100) / 100)
-                      }
-                    }}
-                    placeholder="0.00"
-                    className="mt-1 w-full"
-                  />
-                </div>
-                
-                {/* Total */}
-                <div className="col-span-1 flex items-end min-w-0">
-                  <span className="text-sm font-medium whitespace-nowrap">
-                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
-                  </span>
+                {/* Unit, Qty, Rate, Total Row */}
+                <div className="flex items-end gap-4 pl-[72px]">
+                  <div className="w-40 min-w-0">
+                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground">
+                      Unit
+                    </Label>
+                    <div className="mt-1">
+                      <UnitSelector
+                        value={item.unitOfMeasure || ""}
+                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                        description={item.description}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-20">
+                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground">
+                      Qty
+                    </Label>
+                    <Input
+                      id={`item-qty-${index}`}
+                      type="number"
+                      min="0"
+                      value={item.quantity === 0 ? "" : item.quantity.toString()}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                      }}
+                      placeholder="0"
+                      className="mt-1 text-center"
+                    />
+                  </div>
+                  <div className="w-28">
+                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground">
+                      Rate
+                    </Label>
+                    <Input
+                      id={`item-rate-${index}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value)
+                        if (!isNaN(val)) {
+                          updateItem(index, "rate", Math.round(val * 100) / 100)
+                        }
+                      }}
+                      placeholder="0.00"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex-1"></div>
+                  <div className="w-24 text-right pb-2">
+                    <span className="text-sm font-semibold">
+                      ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1468,12 +1473,18 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 min="0"
                 max="100"
                 step="0.1"
-                value={markupPercentage}
+                value={markupPercentage === 0 ? "" : markupPercentage}
                 onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0
-                  setMarkupPercentage(Math.max(0, Math.min(100, val)))
+                  const val = e.target.value
+                  if (val === "") {
+                    setMarkupPercentage(0)
+                  } else {
+                    const num = parseFloat(val) || 0
+                    setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                  }
                 }}
-                className="w-24 text-right"
+                placeholder="0"
+                className="w-20"
                 disabled={loadingMarkup}
               />
               <span className="text-sm text-muted-foreground">%</span>
@@ -1512,16 +1523,32 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" placeholder="Add any additional notes or terms..." className="min-h-[100px]" />
+            <Textarea 
+              id="notes" 
+              placeholder="Add any additional notes or terms..." 
+              className="min-h-[100px]"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="due-date">Due Date</Label>
-              <Input id="due-date" type="date" />
+              <Label htmlFor="due-date">Valid Until</Label>
+              <Input 
+                id="due-date" 
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment-terms">Payment Terms</Label>
-              <Input id="payment-terms" placeholder="Net 30" />
+              <Input 
+                id="payment-terms" 
+                placeholder="Net 30"
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+              />
             </div>
           </div>
         </div>
@@ -1568,20 +1595,22 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
             </>
           )}
         </Button>
-        <Button size="lg" variant="outline">
-          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-            />
-          </svg>
-          Preview
+        <Button size="lg" variant="outline" asChild>
+          <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              />
+            </svg>
+            Preview
+          </a>
         </Button>
         <Button size="lg" variant="outline" asChild>
-          <a href="/invoices">Cancel</a>
+          <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel</a>
         </Button>
       </div>
 

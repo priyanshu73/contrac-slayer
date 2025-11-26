@@ -99,6 +99,19 @@ export default function QuoteDetailPage() {
   }
 
   const formatDate = (dateString: string) => {
+    // Check if it's a date-only string (YYYY-MM-DD) to avoid timezone issues
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+    
+    if (isDateOnly) {
+      const [year, month, day] = dateString.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+    
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',

@@ -22,12 +22,21 @@ interface JobItem {
   markup_percentage: number
 }
 
+interface Client {
+  id: number
+  name: string
+  email: string
+  phone?: string
+  address?: string
+}
+
 interface Job {
   id: number
-  client_name: string
-  client_email: string
+  client?: Client
+  client_name?: string
+  client_email?: string
   client_phone?: string
-  client_address: string
+  client_address?: string
   location_zip_code?: string
   status: string
   total_amount: number
@@ -38,6 +47,8 @@ interface Job {
   project_type?: string
   payment_terms?: string
   customer_notes?: string
+  due_date?: string
+  quote_expiration_date?: string
 }
 
 export default function EditQuotePage() {
