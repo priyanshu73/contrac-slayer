@@ -224,6 +224,35 @@ class ApiClient {
     return this.request(`/jobs/${jobId}`)
   }
 
+  async getJobByPublicLink(publicLink: string) {
+    // Public endpoint - don't require authentication
+    const url = `${this.baseURL}/jobs/public/${publicLink}`
+    
+    const config: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Don't include credentials for public endpoint
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'An error occurred')
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
   async createJob(data: any) {
     return this.request('/jobs', {
       method: 'POST',
@@ -325,6 +354,68 @@ class ApiClient {
       console.error(`🌐 API Client: Request failed after ${duration}ms:`, error)
       throw error
     }
+  }
+
+  async signQuoteAsContractor(jobId: number, signatureData: {
+    signature_data: string
+    signer_name: string
+    signer_email?: string
+    accepted_terms: boolean
+    accepted_total_amount?: string
+    additional_notes?: string
+  }) {
+    return this.request(`/jobs/${jobId}/sign/contractor`, {
+      method: 'POST',
+      body: JSON.stringify(signatureData),
+    })
+  }
+
+  async signQuoteAsCustomer(jobId: number, signatureData: {
+    signature_data: string
+    signer_name: string
+    signer_email?: string
+    accepted_terms: boolean
+    accepted_total_amount?: string
+    additional_notes?: string
+  }) {
+    // Public endpoint - don't require authentication
+    const url = `${this.baseURL}/jobs/${jobId}/sign/customer`
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(signatureData),
+      // Don't include credentials for public endpoint
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'An error occurred')
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
+  async getQuoteSignature(jobId: number) {
+    return this.request(`/jobs/${jobId}/signature`)
+  }
+
+  async generateQuotePublicLink(jobId: number) {
+    const response = await this.request<{ public_link: string; public_url: string }>(`/jobs/${jobId}/generate-public-link`, {
+      method: 'POST',
+    })
+    return response.public_link
   }
 }
 

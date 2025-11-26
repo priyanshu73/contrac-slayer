@@ -75,7 +75,6 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-sm font-medium text-muted-foreground">Bill To:</h3>
             <p className="font-semibold">{invoice.client.name}</p>
             <p className="text-sm text-muted-foreground">{invoice.client.address}</p>
             <p className="text-sm text-muted-foreground">{invoice.client.email}</p>

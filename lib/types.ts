@@ -466,21 +466,46 @@ export interface Attachment {
 export interface Signature {
   id: number
   job_id: number
-  signature_data: string
-  signature_image_url?: string
-  signer_name: string
-  signer_email?: string
-  signer_ip_address?: string
+  
+  // Contractor Signature Data
+  contractor_signature_data?: string
+  contractor_signature_image_url?: string
+  contractor_signer_name?: string
+  contractor_signer_email?: string
+  contractor_signed_at?: string
+  
+  // Customer Signature Data
+  customer_signature_data?: string
+  customer_signature_image_url?: string
+  customer_signer_name?: string
+  customer_signer_email?: string
+  customer_signed_at?: string
+  
+  // Acceptance Details
   accepted_terms: boolean
   accepted_total_amount?: string
   quote_version?: number
-  signed_at: string
-  user_agent?: string
+  
+  // Verification
   is_verified: boolean
-  verification_token?: string
   verified_at?: string
+  
+  // Additional Terms
   additional_notes?: string
+  
+  // Timestamps
   created_at: string
+  updated_at: string
+  
+  // Legacy fields for backward compatibility
+  signature_data?: string
+  signature_image_url?: string
+  signer_name?: string
+  signer_email?: string
+  signer_ip_address?: string
+  signed_at?: string
+  user_agent?: string
+  verification_token?: string
 }
 
 export interface SignatureCreate {

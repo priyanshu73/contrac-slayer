@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import Image from "next/image"
 import { ContractorProfile, Job, JobItem, Signature } from "@/lib/types"
+import { SignatureCapture } from "@/components/signature-capture"
+import { QuotePublicLink } from "@/components/quote-public-link"
 
 interface PersonalizedQuoteViewProps {
   job: Job
@@ -14,6 +16,9 @@ interface PersonalizedQuoteViewProps {
   onEdit?: () => void
   onSendToClient?: () => void
   onCreateInvoice?: () => void
+  onSignatureUpdate?: () => void
+  isContractor?: boolean  // If true, hide customer signature button
+  isPublicView?: boolean  // If true, this is a public customer view
 }
 
 export function PersonalizedQuoteView({
@@ -22,13 +27,21 @@ export function PersonalizedQuoteView({
   onEdit,
   onSendToClient,
   onCreateInvoice,
+  onSignatureUpdate,
+  isContractor = false,
+  isPublicView = false,
 }: PersonalizedQuoteViewProps) {
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
+  const [showContractorSignature, setShowContractorSignature] = useState(false)
+  const [showCustomerSignature, setShowCustomerSignature] = useState(false)
+  const [signingInProgress, setSigningInProgress] = useState(false)
+  const [currentJob, setCurrentJob] = useState<Job>(job)
 
   useEffect(() => {
     fetchContractorProfile()
-  }, [])
+    fetchJobSignature()
+  }, [job.id])
 
   const fetchContractorProfile = async () => {
     try {
@@ -39,6 +52,71 @@ export function PersonalizedQuoteView({
       console.error("Failed to fetch contractor profile:", error)
     } finally {
       setLoadingProfile(false)
+    }
+  }
+
+  const fetchJobSignature = async () => {
+    try {
+      const signature = await api.getQuoteSignature(job.id)
+      setCurrentJob(prev => ({
+        ...prev,
+        signature: signature as Signature
+      }))
+    } catch (error) {
+      // Signature might not exist yet, that's okay
+      console.log("No signature found for this quote")
+    }
+  }
+
+  const handleContractorSignatureComplete = async (signatureData: string) => {
+    try {
+      setSigningInProgress(true)
+      const totalAmount = currentJob.total_amount?.toString() || "0"
+      await api.signQuoteAsContractor(job.id, {
+        signature_data: signatureData,
+        signer_name: contractorProfile?.company_name || "Contractor",
+        signer_email: contractorProfile?.email,
+        accepted_terms: true,
+        accepted_total_amount: totalAmount,
+      })
+      
+      // Refresh signature data
+      await fetchJobSignature()
+      setShowContractorSignature(false)
+      if (onSignatureUpdate) {
+        onSignatureUpdate()
+      }
+    } catch (error) {
+      console.error("Failed to sign as contractor:", error)
+      alert("Failed to save signature. Please try again.")
+    } finally {
+      setSigningInProgress(false)
+    }
+  }
+
+  const handleCustomerSignatureComplete = async (signatureData: string) => {
+    try {
+      setSigningInProgress(true)
+      const totalAmount = currentJob.total_amount?.toString() || "0"
+      await api.signQuoteAsCustomer(job.id, {
+        signature_data: signatureData,
+        signer_name: currentJob.client?.name || "Customer",
+        signer_email: currentJob.client?.email,
+        accepted_terms: true,
+        accepted_total_amount: totalAmount,
+      })
+      
+      // Refresh signature data
+      await fetchJobSignature()
+      setShowCustomerSignature(false)
+      if (onSignatureUpdate) {
+        onSignatureUpdate()
+      }
+    } catch (error) {
+      console.error("Failed to sign as customer:", error)
+      alert("Failed to save signature. Please try again.")
+    } finally {
+      setSigningInProgress(false)
     }
   }
 
@@ -69,17 +147,17 @@ export function PersonalizedQuoteView({
     }
   }
 
-  const total = job.total_amount || 0
+  const total = currentJob.total_amount || 0
 
   // Calculate breakdown - handle both interface and API response formats
-  const baseSubtotal = (job.items || []).reduce(
+  const baseSubtotal = (currentJob.items || []).reduce(
     (sum, item: any) => {
       const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
       return sum + (item.quantity * costPerUnit)
     },
     0
   )
-  const markupAmount = (job.items || []).reduce((sum, item: any) => {
+  const markupAmount = (currentJob.items || []).reduce((sum, item: any) => {
     const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
     const markupPercentage = item.markup_percentage || item.markupPercentage || 0
     const itemBase = item.quantity * costPerUnit
@@ -138,11 +216,11 @@ export function PersonalizedQuoteView({
                     )}
                   </div>
                 </div>
-                <div className="text-right">
+                  <div className="text-right">
                   <h2 className="text-xl sm:text-2xl print:text-lg font-bold text-gray-900 mb-2">QUOTE</h2>
                   <div className="inline-block print:hidden">
-                    <Badge className={`${getStatusColor(job.status)} print:text-xs`}>
-                      {job.status}
+                    <Badge className={`${getStatusColor(currentJob.status)} print:text-xs`}>
+                      {currentJob.status}
                     </Badge>
                   </div>
                 </div>
@@ -152,21 +230,18 @@ export function PersonalizedQuoteView({
             {/* Quote Details */}
             <div className="mb-6 print:mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-3 print:break-inside-avoid">
               <div>
-                <h3 className="text-sm print:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 print:mb-1">
-                  Bill To
-                </h3>
                 <div className="space-y-0.5 print:space-y-0">
                   <p className="text-lg print:text-base font-semibold text-gray-900">
-                    {job.client?.name || 'Unknown Client'}
+                    {currentJob.client?.name || 'Unknown Client'}
                   </p>
-                  {job.client?.address && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client.address}</p>
+                  {currentJob.client?.address && (
+                    <p className="text-sm print:text-xs text-gray-600">{currentJob.client.address}</p>
                   )}
-                  {job.client?.email && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client.email}</p>
+                  {currentJob.client?.email && (
+                    <p className="text-sm print:text-xs text-gray-600">{currentJob.client.email}</p>
                   )}
-                  {job.client?.phone && (
-                    <p className="text-sm print:text-xs text-gray-600">{job.client.phone}</p>
+                  {currentJob.client?.phone && (
+                    <p className="text-sm print:text-xs text-gray-600">{currentJob.client.phone}</p>
                   )}
                 </div>
               </div>
@@ -176,19 +251,19 @@ export function PersonalizedQuoteView({
                 </h3>
                 <div className="space-y-0.5 print:space-y-0">
                   <p className="text-sm print:text-xs text-gray-600">
-                    <span className="font-medium">Quote #:</span> {job.id}
+                    <span className="font-medium">Quote #:</span> {currentJob.id}
                   </p>
                   <p className="text-sm print:text-xs text-gray-600">
-                    <span className="font-medium">Date:</span> {formatDate(job.created_at)}
+                    <span className="font-medium">Date:</span> {formatDate(currentJob.created_at)}
                   </p>
-                  {job.quote_expiration_date && (
+                  {currentJob.quote_expiration_date && (
                     <p className="text-sm print:text-xs text-red-600">
-                      <span className="font-medium">Valid Until:</span> {formatDate(job.quote_expiration_date)}
+                      <span className="font-medium">Valid Until:</span> {formatDate(currentJob.quote_expiration_date)}
                     </p>
                   )}
-                  {job.project_type && (
+                  {currentJob.project_type && (
                     <p className="text-sm print:text-xs text-gray-600">
-                      <span className="font-medium">Project:</span> {job.project_type}
+                      <span className="font-medium">Project:</span> {currentJob.project_type}
                     </p>
                   )}
                 </div>
@@ -196,12 +271,12 @@ export function PersonalizedQuoteView({
             </div>
 
             {/* Project Description */}
-            {job.job_description && (
+            {currentJob.job_description && (
               <div className="mb-6 print:mb-4 p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Project Description
                 </h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{job.job_description}</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{currentJob.job_description}</p>
               </div>
             )}
 
@@ -229,7 +304,7 @@ export function PersonalizedQuoteView({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
-                    {(job.items || []).map((item: any, index: number) => {
+                    {(currentJob.items || []).map((item: any, index: number) => {
                       // Handle both JobItem interface and API response format
                       const customDescription = item.custom_description || item.description || "Line Item"
                       const thumbnailUrl = item.thumbnail_url || item.thumbnailUrl
@@ -310,11 +385,11 @@ export function PersonalizedQuoteView({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 print:gap-4">
                 {/* Contractor Signature */}
                 <div>
-                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center">
-                    {job.signature?.signature_image_url ? (
+                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center relative">
+                    {currentJob.signature?.contractor_signature_data || currentJob.signature?.contractor_signature_image_url ? (
                       <div className="flex items-center gap-2">
                         <Image
-                          src={job.signature.signature_image_url}
+                          src={currentJob.signature.contractor_signature_image_url || `data:image/png;base64,${currentJob.signature.contractor_signature_data}`}
                           alt="Contractor Signature"
                           width={120}
                           height={40}
@@ -326,15 +401,26 @@ export function PersonalizedQuoteView({
                         Contractor Signature
                       </span>
                     )}
+                    {showActions && !currentJob.signature?.contractor_signed_at && isContractor && !isPublicView && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute bottom-2 right-2 print:hidden"
+                        onClick={() => setShowContractorSignature(true)}
+                        disabled={signingInProgress}
+                      >
+                        Sign
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-0.5 print:space-y-0">
                     <p className="text-sm print:text-xs font-semibold text-gray-900">
                       {contractorProfile?.company_name || "Contractor"}
                     </p>
                     <p className="text-xs print:text-xs text-gray-600">Authorized Signature</p>
-                    {job.signature?.signed_at && (
+                    {currentJob.signature?.contractor_signed_at && (
                       <p className="text-xs print:text-xs text-gray-500">
-                        Signed: {formatDate(job.signature.signed_at)}
+                        Signed: {formatDate(currentJob.signature.contractor_signed_at)}
                       </p>
                     )}
                   </div>
@@ -342,11 +428,11 @@ export function PersonalizedQuoteView({
 
                 {/* Customer Signature */}
                 <div>
-                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center">
-                    {job.signature?.signature_image_url ? (
+                  <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center relative">
+                    {currentJob.signature?.customer_signature_data || currentJob.signature?.customer_signature_image_url ? (
                       <div className="flex items-center gap-2">
                         <Image
-                          src={job.signature.signature_image_url}
+                          src={currentJob.signature.customer_signature_image_url || `data:image/png;base64,${currentJob.signature.customer_signature_data}`}
                           alt="Customer Signature"
                           width={120}
                           height={40}
@@ -358,15 +444,26 @@ export function PersonalizedQuoteView({
                         Customer Signature
                       </span>
                     )}
+                    {showActions && !currentJob.signature?.customer_signed_at && !isContractor && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute bottom-2 right-2 print:hidden"
+                        onClick={() => setShowCustomerSignature(true)}
+                        disabled={signingInProgress}
+                      >
+                        Sign
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-0.5 print:space-y-0">
                     <p className="text-sm print:text-xs font-semibold text-gray-900">
-                      {job.client?.name || 'Unknown Client'}
+                      {currentJob.client?.name || 'Unknown Client'}
                     </p>
                     <p className="text-xs print:text-xs text-gray-600">Customer Signature</p>
-                    {job.signature?.signed_at && (
+                    {currentJob.signature?.customer_signed_at && (
                       <p className="text-xs print:text-xs text-gray-500">
-                        Signed: {formatDate(job.signature.signed_at)}
+                        Signed: {formatDate(currentJob.signature.customer_signed_at)}
                       </p>
                     )}
                   </div>
@@ -375,22 +472,22 @@ export function PersonalizedQuoteView({
             </div>
 
             {/* Terms & Notes */}
-            {(job.payment_terms || job.customer_notes) && (
+            {(currentJob.payment_terms || currentJob.customer_notes) && (
               <div className="mt-6 print:mt-4 pt-6 print:pt-3 border-t border-gray-200 print:break-inside-avoid">
-                {job.payment_terms && (
+                {currentJob.payment_terms && (
                   <div className="mb-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
                       Payment Terms
                     </h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{job.payment_terms}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{currentJob.payment_terms}</p>
                   </div>
                 )}
-                {job.customer_notes && (
+                {currentJob.customer_notes && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
                       Notes
                     </h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{job.customer_notes}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{currentJob.customer_notes}</p>
                   </div>
                 )}
               </div>
@@ -398,27 +495,61 @@ export function PersonalizedQuoteView({
           </div>
         </Card>
 
-        {/* Actions - Only show if not printed */}
-        {showActions && (
+        {/* Signature Capture Modals */}
+        {showContractorSignature && (
+          <SignatureCapture
+            customerName={contractorProfile?.company_name || "Contractor"}
+            onComplete={handleContractorSignatureComplete}
+            onClose={() => setShowContractorSignature(false)}
+          />
+        )}
+
+        {showCustomerSignature && (
+          <SignatureCapture
+            customerName={currentJob.client?.name || "Customer"}
+            onComplete={handleCustomerSignatureComplete}
+            onClose={() => setShowCustomerSignature(false)}
+          />
+        )}
+
+        {/* Public Link for Contractors */}
+        {isContractor && !isPublicView && (
+          <div className="mt-8 print:hidden">
+            <QuotePublicLink 
+              jobId={currentJob.id} 
+              currentPublicLink={currentJob.quote_public_link}
+              onLinkGenerated={(link) => {
+                setCurrentJob(prev => prev ? { ...prev, quote_public_link: link } : prev)
+              }}
+            />
+          </div>
+        )}
+
+        {/* Actions - Only show if not printed and not public view */}
+        {showActions && !isPublicView && (
           <div className="mt-8 flex flex-wrap gap-3 print:hidden">
-            <Button size="lg" onClick={onSendToClient}>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Send to Client
-            </Button>
-            <Button size="lg" variant="outline" onClick={onEdit}>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit Quote
-            </Button>
-            <Button size="lg" variant="outline" onClick={onCreateInvoice}>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Create Invoice
-            </Button>
+            {isContractor && (
+              <>
+                <Button size="lg" onClick={onSendToClient}>
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Send to Client
+                </Button>
+                <Button size="lg" variant="outline" onClick={onEdit}>
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Quote
+                </Button>
+                <Button size="lg" variant="outline" onClick={onCreateInvoice}>
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Create Invoice
+                </Button>
+              </>
+            )}
             <Button
               size="lg"
               variant="outline"

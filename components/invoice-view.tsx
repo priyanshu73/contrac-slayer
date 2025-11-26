@@ -109,7 +109,6 @@ export function InvoiceView({
 
           {/* Client Info */}
           <div>
-            <h3 className="mb-2 text-sm font-medium text-muted-foreground">Bill To:</h3>
             <p className="font-semibold">{invoice.client.name}</p>
             {invoice.client.address && (
               <p className="text-sm text-muted-foreground">{invoice.client.address}</p>
