@@ -5,14 +5,16 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface QuotePublicLinkProps {
   jobId: number
   currentPublicLink?: string
   onLinkGenerated?: (link: string) => void
+  contractorHasSigned?: boolean
 }
 
-export function QuotePublicLink({ jobId, currentPublicLink, onLinkGenerated }: QuotePublicLinkProps) {
+export function QuotePublicLink({ jobId, currentPublicLink, onLinkGenerated, contractorHasSigned = true }: QuotePublicLinkProps) {
   const { toast } = useToast()
   const [copied, setCopied] = useState(false)
   const [publicLink, setPublicLink] = useState<string | null>(currentPublicLink || null)
@@ -88,13 +90,24 @@ export function QuotePublicLink({ jobId, currentPublicLink, onLinkGenerated }: Q
             <p className="text-sm text-gray-600">
               Generate a public link to share this quote with your customer. They can view and sign the quote without logging in.
             </p>
-            <Button 
-              onClick={generatePublicLink} 
-              disabled={generating}
-              className="w-full"
-            >
-              {generating ? "Generating..." : "Generate Public Link"}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-full">
+                  <Button 
+                    onClick={generatePublicLink} 
+                    disabled={generating || !contractorHasSigned}
+                    className="w-full"
+                  >
+                    {generating ? "Generating..." : "Generate Public Link"}
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!contractorHasSigned && (
+                <TooltipContent>
+                  <p>Please sign the quote first before generating a public link.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
           </div>
         ) : (
           <div className="space-y-3">

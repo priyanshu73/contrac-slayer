@@ -198,11 +198,22 @@ export interface ClientInfo {
   address?: string
 }
 
+export interface ContractorInfo {
+  id: number
+  company_name: string
+  email: string
+  phone_number?: string
+  address?: string
+  logo_url?: string
+  website_url?: string
+}
+
 export interface Job {
   id: number
   contractor_id: number
   client_id?: number
   client?: ClientInfo  // Client details populated from client_id
+  contractor?: ContractorInfo  // Contractor details populated for public views
   lead_id?: number
   job_number?: string
   title?: string

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import Image from "next/image"
-import { ContractorProfile, Job, JobItem, Signature, JobStatus } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { QuotePublicLink } from "@/components/quote-public-link"
 
@@ -38,16 +38,42 @@ export function PersonalizedQuoteView({
   const [signingInProgress, setSigningInProgress] = useState(false)
   const [currentJob, setCurrentJob] = useState<Job>(job)
 
+  // Sync currentJob with job prop when it changes
   useEffect(() => {
-    // For public customer views, avoid hitting authenticated endpoints
+    setCurrentJob(job)
+  }, [job])
+
+  useEffect(() => {
+    // For public customer views, use contractor info from job if available
     if (isPublicView || !isContractor) {
+      if (job.contractor) {
+        // Convert ContractorInfo to ContractorProfile format for compatibility
+        const contractorFromJob: ContractorProfile = {
+          id: job.contractor.id,
+          user_id: 0, // Not needed for display
+          company_name: job.contractor.company_name,
+          email: job.contractor.email,
+          phone_number: job.contractor.phone_number,
+          address: job.contractor.address,
+          logo_url: job.contractor.logo_url,
+          website_url: job.contractor.website_url,
+          default_markup_percentage: 0,
+          default_sales_tax_rate: 0,
+          low_tier_markup: 0,
+          mid_tier_markup: 0,
+          high_tier_markup: 0,
+          default_labor_rate_per_hour: 0,
+          created_at: "",
+        }
+        setContractorProfile(contractorFromJob)
+      }
       setLoadingProfile(false)
       return
     }
 
     fetchContractorProfile()
     fetchJobSignature()
-  }, [job.id, isContractor, isPublicView])
+  }, [job.id, job.contractor, isContractor, isPublicView])
 
   const fetchContractorProfile = async () => {
     try {
@@ -239,11 +265,13 @@ export function PersonalizedQuoteView({
                 </div>
                   <div className="text-right">
                   <h2 className="text-xl sm:text-2xl print:text-lg font-bold text-gray-900 mb-2">QUOTE</h2>
-                  <div className="inline-block print:hidden">
-                    <Badge className={`${getStatusColor(currentJob.status)} print:text-xs`}>
-                      {currentJob.status}
-                    </Badge>
-                  </div>
+                  {(!currentJob.signature?.contractor_signed_at || currentJob.status.toString().toUpperCase() !== 'DRAFT') && (
+                    <div className="inline-block print:hidden">
+                      <Badge className={`${getStatusColor(currentJob.status)} print:text-xs`}>
+                        {currentJob.status}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -409,13 +437,48 @@ export function PersonalizedQuoteView({
                   <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center relative">
                     {currentJob.signature?.contractor_signature_data || currentJob.signature?.contractor_signature_image_url ? (
                       <div className="flex items-center gap-2">
-                        <Image
-                          src={currentJob.signature.contractor_signature_image_url || `data:image/png;base64,${currentJob.signature.contractor_signature_data}`}
-                          alt="Contractor Signature"
-                          width={120}
-                          height={40}
-                          className="max-h-10 print:max-h-8 object-contain"
-                        />
+                        {(() => {
+                          const signatureData = currentJob.signature.contractor_signature_image_url || currentJob.signature.contractor_signature_data || ''
+                          // Check if it's already a data URL or if it's plain text (typed signature)
+                          const isDataUrl = signatureData.startsWith('data:image') || signatureData.startsWith('data:')
+                          const isPlainText = !isDataUrl && !signatureData.includes(',') && !signatureData.startsWith('http')
+                          
+                          if (isPlainText) {
+                            // Typed signature - display as text
+                            return (
+                              <span className="text-sm font-serif text-gray-900">
+                                {signatureData}
+                              </span>
+                            )
+                          } else {
+                            // Image signature - use data URL directly or construct it
+                            const imageSrc = currentJob.signature.contractor_signature_image_url || 
+                              (isDataUrl ? signatureData : `data:image/png;base64,${signatureData}`)
+                            
+                            // Use regular img tag for data URLs (Next.js Image doesn't handle them well)
+                            // Use Image component for HTTP URLs (Cloudinary, etc.)
+                            if (imageSrc.startsWith('data:')) {
+                              return (
+                                <img
+                                  src={imageSrc}
+                                  alt="Contractor Signature"
+                                  className="max-h-10 print:max-h-8 object-contain"
+                                  style={{ maxWidth: '120px' }}
+                                />
+                              )
+                            } else {
+                              return (
+                                <Image
+                                  src={imageSrc}
+                                  alt="Contractor Signature"
+                                  width={120}
+                                  height={40}
+                                  className="max-h-10 print:max-h-8 object-contain"
+                                />
+                              )
+                            }
+                          }
+                        })()}
                       </div>
                     ) : (
                       <span className="text-xs print:text-xs text-gray-400 italic">
@@ -456,13 +519,48 @@ export function PersonalizedQuoteView({
                   <div className="h-20 print:h-16 border-b-2 border-gray-400 print:border-gray-500 mb-2 flex items-center justify-center relative">
                     {currentJob.signature?.customer_signature_data || currentJob.signature?.customer_signature_image_url ? (
                       <div className="flex items-center gap-2">
-                        <Image
-                          src={currentJob.signature.customer_signature_image_url || `data:image/png;base64,${currentJob.signature.customer_signature_data}`}
-                          alt="Customer Signature"
-                          width={120}
-                          height={40}
-                          className="max-h-10 print:max-h-8 object-contain"
-                        />
+                        {(() => {
+                          const signatureData = currentJob.signature.customer_signature_image_url || currentJob.signature.customer_signature_data || ''
+                          // Check if it's already a data URL or if it's plain text (typed signature)
+                          const isDataUrl = signatureData.startsWith('data:image') || signatureData.startsWith('data:')
+                          const isPlainText = !isDataUrl && !signatureData.includes(',') && !signatureData.startsWith('http')
+                          
+                          if (isPlainText) {
+                            // Typed signature - display as text
+                            return (
+                              <span className="text-sm font-serif text-gray-900">
+                                {signatureData}
+                              </span>
+                            )
+                          } else {
+                            // Image signature - use data URL directly or construct it
+                            const imageSrc = currentJob.signature.customer_signature_image_url || 
+                              (isDataUrl ? signatureData : `data:image/png;base64,${signatureData}`)
+                            
+                            // Use regular img tag for data URLs (Next.js Image doesn't handle them well)
+                            // Use Image component for HTTP URLs (Cloudinary, etc.)
+                            if (imageSrc.startsWith('data:')) {
+                              return (
+                                <img
+                                  src={imageSrc}
+                                  alt="Customer Signature"
+                                  className="max-h-10 print:max-h-8 object-contain"
+                                  style={{ maxWidth: '120px' }}
+                                />
+                              )
+                            } else {
+                              return (
+                                <Image
+                                  src={imageSrc}
+                                  alt="Customer Signature"
+                                  width={120}
+                                  height={40}
+                                  className="max-h-10 print:max-h-8 object-contain"
+                                />
+                              )
+                            }
+                          }
+                        })()}
                       </div>
                     ) : (
                       <span className="text-xs print:text-xs text-gray-400 italic">
@@ -546,6 +644,7 @@ export function PersonalizedQuoteView({
             <QuotePublicLink 
               jobId={currentJob.id} 
               currentPublicLink={currentJob.quote_public_link}
+              contractorHasSigned={!!currentJob.signature?.contractor_signed_at}
               onLinkGenerated={(link) => {
                 setCurrentJob(prev => prev ? { ...prev, quote_public_link: link } : prev)
               }}
