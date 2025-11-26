@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import Image from "next/image"
-import { ContractorProfile, Job, JobItem, Signature } from "@/lib/types"
+import { ContractorProfile, Job, JobItem, Signature, JobStatus } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { QuotePublicLink } from "@/components/quote-public-link"
 
@@ -39,9 +39,15 @@ export function PersonalizedQuoteView({
   const [currentJob, setCurrentJob] = useState<Job>(job)
 
   useEffect(() => {
+    // For public customer views, avoid hitting authenticated endpoints
+    if (isPublicView || !isContractor) {
+      setLoadingProfile(false)
+      return
+    }
+
     fetchContractorProfile()
     fetchJobSignature()
-  }, [job.id])
+  }, [job.id, isContractor, isPublicView])
 
   const fetchContractorProfile = async () => {
     try {
@@ -72,7 +78,7 @@ export function PersonalizedQuoteView({
     try {
       setSigningInProgress(true)
       const totalAmount = currentJob.total_amount?.toString() || "0"
-      await api.signQuoteAsContractor(job.id, {
+      const signatureResponse = await api.signQuoteAsContractor(job.id, {
         signature_data: signatureData,
         signer_name: contractorProfile?.company_name || "Contractor",
         signer_email: contractorProfile?.email,
@@ -80,8 +86,12 @@ export function PersonalizedQuoteView({
         accepted_total_amount: totalAmount,
       })
       
-      // Refresh signature data
-      await fetchJobSignature()
+      // Update local job with new signature and keep status in sync
+      setCurrentJob(prev => ({
+        ...(prev as Job),
+        signature: signatureResponse as Signature,
+      }))
+
       setShowContractorSignature(false)
       if (onSignatureUpdate) {
         onSignatureUpdate()
@@ -98,7 +108,7 @@ export function PersonalizedQuoteView({
     try {
       setSigningInProgress(true)
       const totalAmount = currentJob.total_amount?.toString() || "0"
-      await api.signQuoteAsCustomer(job.id, {
+      const signatureResponse = await api.signQuoteAsCustomer(job.id, {
         signature_data: signatureData,
         signer_name: currentJob.client?.name || "Customer",
         signer_email: currentJob.client?.email,
@@ -106,8 +116,19 @@ export function PersonalizedQuoteView({
         accepted_total_amount: totalAmount,
       })
       
-      // Refresh signature data
-      await fetchJobSignature()
+      // Update local job with new signature and mark as accepted
+      setCurrentJob(prev => ({
+        ...(prev as Job),
+        signature: signatureResponse as Signature,
+        status: JobStatus.ACCEPTED,
+        accepted_total_amount: Number(
+          (signatureResponse as Signature).accepted_total_amount ||
+          prev.accepted_total_amount ||
+          prev.total_amount ||
+          0
+        ),
+      }))
+
       setShowCustomerSignature(false)
       if (onSignatureUpdate) {
         onSignatureUpdate()
@@ -401,7 +422,11 @@ export function PersonalizedQuoteView({
                         Contractor Signature
                       </span>
                     )}
-                    {showActions && !currentJob.signature?.contractor_signed_at && isContractor && !isPublicView && (
+                    {showActions &&
+                      !currentJob.signature?.contractor_signed_at &&
+                      isContractor &&
+                      !isPublicView &&
+                      !['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status.toString().toUpperCase()) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -444,7 +469,10 @@ export function PersonalizedQuoteView({
                         Customer Signature
                       </span>
                     )}
-                    {showActions && !currentJob.signature?.customer_signed_at && !isContractor && (
+                    {showActions &&
+                      !currentJob.signature?.customer_signed_at &&
+                      !isContractor &&
+                      !['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status.toString().toUpperCase()) && (
                       <Button
                         size="sm"
                         variant="outline"

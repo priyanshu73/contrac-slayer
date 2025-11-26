@@ -378,33 +378,11 @@ class ApiClient {
     accepted_total_amount?: string
     additional_notes?: string
   }) {
-    // Public endpoint - don't require authentication
-    const url = `${this.baseURL}/jobs/${jobId}/sign/customer`
-    
-    const config: RequestInit = {
+    // Public endpoint but safe to use standard request helper (credentials included)
+    return this.request(`/jobs/${jobId}/sign/customer`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(signatureData),
-      // Don't include credentials for public endpoint
-    }
-
-    try {
-      const response = await fetch(url, config)
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'An error occurred')
-      }
-
-      return response.json()
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error
-      }
-      throw new Error('Network error')
-    }
+    })
   }
 
   async getQuoteSignature(jobId: number) {

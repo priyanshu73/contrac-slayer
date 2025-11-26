@@ -9,13 +9,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname?.startsWith("/auth") ||
+    pathname?.startsWith("/quote-request") ||
+    // Public customer views for quotes and invoices (no auth required)
+    pathname?.startsWith("/quotes/") ||
+    pathname?.startsWith("/invoices/")
+
   useEffect(() => {
     // Don't redirect on auth pages, public pages, or landing page
-    if (
-      pathname === "/" ||
-      pathname?.startsWith("/auth") ||
-      pathname?.startsWith("/quote-request")
-    ) {
+    if (isPublicRoute) {
       return
     }
 
@@ -52,12 +56,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Show content if authenticated or on public pages
-  if (
-    user ||
-    pathname === "/" ||
-    pathname?.startsWith("/auth") ||
-    pathname?.startsWith("/quote-request")
-  ) {
+  if (user || isPublicRoute) {
     return <>{children}</>
   }
 
