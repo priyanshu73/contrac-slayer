@@ -275,15 +275,15 @@ export function UnifiedLeads() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "NEW":
-        return "bg-blue-500/10 text-blue-500"
+        return "bg-blue-500/15 text-blue-600"
       case "CONTACTED":
-        return "bg-yellow-500/10 text-yellow-600"
+        return "bg-amber-500/15 text-amber-600"
       case "QUOTED":
-        return "bg-purple-500/10 text-purple-600"
+        return "bg-purple-500/15 text-purple-600"
       case "CONVERTED":
-        return "bg-green-500/10 text-green-600"
+        return "bg-emerald-500/15 text-emerald-600"
       case "LOST":
-        return "bg-red-500/10 text-red-600"
+        return "bg-red-500/15 text-red-600"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -497,40 +497,41 @@ export function UnifiedLeads() {
                     <div
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
-                      className={`cursor-pointer border-b border-border p-4 transition-colors hover:bg-secondary ${
-                        selectedLeadId === lead.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
+                      className={`cursor-pointer border-b border-border p-4 transition-all hover:bg-muted/50 ${
+                        selectedLeadId === lead.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <span className="text-sm font-semibold">{lead.name.charAt(0)}</span>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
+                          <span className="text-sm font-bold">{lead.name.charAt(0).toUpperCase()}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
+                          {/* Top row: Name + Status */}
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
                             <h3 className="font-semibold text-sm truncate">{lead.name}</h3>
-                            <div className="flex items-center gap-1">
-                              {getPriorityBadge(lead.priority)}
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
-                              >
-                                {lead.type === 'call' ? '📞' : '📝'}
-                              </Badge>
-                            </div>
+                            <span className={`text-xs rounded-full px-2.5 py-1 font-semibold ${getStatusColor(lead.status)}`}>
+                              {lead.status}
+                            </span>
                           </div>
                           
-                          <p className="text-xs text-muted-foreground mb-1 truncate">
+                          {/* Project type */}
+                          <p className="text-xs text-muted-foreground mb-2 truncate">
                             {lead.project_type || lead.service_type || "General inquiry"}
                           </p>
                           
-                          {lead.phone && (
-                            <p className="text-xs text-muted-foreground mb-1 truncate">{lead.phone}</p>
-                          )}
-                          
+                          {/* Bottom row: Phone + Type + Time */}
                           <div className="flex items-center justify-between">
-                            <span className={`text-xs rounded-full px-2 py-0.5 font-medium ${getStatusColor(lead.status)}`}>
-                              {lead.status}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              {lead.phone && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Phone className="h-3 w-3" />
+                                  {lead.phone}
+                                </span>
+                              )}
+                              <span className={`text-xs ${lead.type === 'call' ? 'text-blue-500' : 'text-teal-500'}`}>
+                                {lead.type === 'call' ? '📞' : '📝'}
+                              </span>
+                            </div>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(lead.created_at)}
                             </span>
@@ -590,55 +591,54 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "NEW":
-        return "bg-blue-500/10 text-blue-500"
+        return "bg-blue-500/10 text-blue-600 border-blue-200"
       case "CONTACTED":
-        return "bg-yellow-500/10 text-yellow-600"
+        return "bg-amber-500/10 text-amber-600 border-amber-200"
       case "QUOTED":
-        return "bg-purple-500/10 text-purple-600"
+        return "bg-purple-500/10 text-purple-600 border-purple-200"
       case "CONVERTED":
-        return "bg-green-500/10 text-green-600"
+        return "bg-emerald-500/10 text-emerald-600 border-emerald-200"
       case "LOST":
-        return "bg-red-500/10 text-red-600"
+        return "bg-red-500/10 text-red-600 border-red-200"
       default:
         return "bg-muted text-muted-foreground"
     }
   }
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden">
+    <Card className="h-full flex flex-col overflow-hidden border-0 shadow-lg">
       {/* Header */}
-      <div className="p-6 border-b flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="p-6 border-b bg-gradient-to-r from-muted/30 to-transparent flex-shrink-0">
+        <div className="flex items-start gap-4">
           {/* Back button for mobile */}
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={onClose}
-            className="lg:hidden shrink-0"
+            className="lg:hidden shrink-0 -ml-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="text-lg font-semibold">{lead.name.charAt(0)}</span>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md">
+            <span className="text-xl font-bold">{lead.name.charAt(0).toUpperCase()}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-semibold truncate">{lead.name}</h2>
-              <Badge 
-                variant="outline" 
-                className={lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}
-              >
-                {lead.type === 'call' ? '📞 Call' : '📝 Request'}
-              </Badge>
+              <h2 className="text-xl font-bold truncate">{lead.name}</h2>
             </div>
-            <p className="text-sm text-muted-foreground truncate">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getStatusColor(lead.status)}`}>
+                {lead.status}
+              </span>
+              <span className={`text-xs px-2 py-1 rounded-full ${lead.type === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-teal-50 text-teal-600'}`}>
+                {lead.type === 'call' ? '📞 Phone Call' : '📝 Quote Request'}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2 truncate">
               {lead.project_type || lead.service_type || "General inquiry"}
             </p>
           </div>
-          <Badge className={getStatusColor(lead.status)}>
-            {lead.status}
-          </Badge>
         </div>
       </div>
 
@@ -647,47 +647,85 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         {/* Left Side - Lead Details */}
         <div className="flex-1 overflow-y-auto space-y-6 p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
           {/* Contact Information */}
-          <div>
-            <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-3">
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
               Contact Information
             </h3>
-            <div className="space-y-3">
+            <div className="grid gap-2">
               {lead.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{lead.phone}</span>
-                  <Button size="sm" variant="outline" asChild className="ml-auto">
-                    <a href={`tel:${lead.phone}`}>Call</a>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium">{lead.phone}</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" asChild className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={`tel:${lead.phone}`}>
+                      <Phone className="h-4 w-4 mr-1" />
+                      Call
+                    </a>
                   </Button>
                 </div>
               )}
               {lead.email && (
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${lead.email}`} className="text-sm hover:underline">{lead.email}</a>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <a href={`mailto:${lead.email}`} className="text-sm font-medium hover:underline">{lead.email}</a>
+                    </div>
+                  </div>
                 </div>
               )}
               {lead.address && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{lead.address}</span>
+                <div className="flex items-center p-3 rounded-xl bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600">
+                      <MapPin className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Address</p>
+                      <p className="text-sm font-medium">{lead.address}</p>
+                    </div>
+                  </div>
                 </div>
               )}
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{formatTime(lead.created_at)}</span>
+              <div className="flex items-center p-3 rounded-xl bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Created</p>
+                    <p className="text-sm font-medium">{formatTime(lead.created_at)}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Project Description */}
           {lead.description && (
-            <div>
-              <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
                 {lead.type === 'call' ? 'AI Summary' : 'Project Description'}
               </h3>
-              <div className={`p-4 rounded-lg ${lead.type === 'call' ? 'bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500' : 'bg-muted/50'}`}>
-                <p className="text-sm whitespace-pre-wrap">{lead.description}</p>
+              <div className={`p-4 rounded-xl ${lead.type === 'call' ? 'bg-gradient-to-r from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-blue-950/10 border border-blue-100 dark:border-blue-900' : 'bg-muted/40 border border-border'}`}>
+                {lead.type === 'call' && (
+                  <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 dark:text-blue-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                      ✨ AI Generated
+                    </span>
+                  </div>
+                )}
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{lead.description}</p>
               </div>
             </div>
           )}
@@ -844,60 +882,66 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       </div>
 
       {/* Action Buttons */}
-      <div className="p-6 border-t bg-muted/20 flex-shrink-0">
-        <div className="flex flex-wrap gap-3">
+      <div className="p-6 border-t bg-gradient-to-t from-muted/40 to-transparent flex-shrink-0">
+        <div className="flex flex-wrap gap-2">
           {lead.phone && (
-            <Button variant="default" asChild className="flex-1">
+            <Button variant="default" asChild className="flex-1 h-11 shadow-sm">
               <a href={`tel:${lead.phone}`}>
                 <Phone className="mr-2 h-4 w-4" />
-                Call Customer
+                Call Now
               </a>
             </Button>
           )}
           {/* Check if lead has been quoted and has a valid job ID */}
           {(lead.status === 'QUOTED' || lead.converted_to_job_id) && lead.converted_to_job_id ? (
-            <Button variant="outline" asChild className="flex-1">
+            <Button variant="secondary" asChild className="flex-1 h-11">
               <a href={`/quotes/${lead.converted_to_job_id}`}>
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 View Quote
               </a>
             </Button>
           ) : (
-            <Button variant="outline" asChild className="flex-1">
+            <Button variant="secondary" asChild className="flex-1 h-11">
               <a href={
                 lead.type === 'request' 
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
                   : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}`
               }>
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
                 Create Quote
               </a>
             </Button>
           )}
-          {lead.status === 'NEW' && (
-            <Button 
-              variant="outline"
-              onClick={() => {
-                // Mark as contacted logic would go here
-                console.log('Mark as contacted:', lead.id)
-              }}
-              className="flex-1"
-            >
-              Mark Contacted
-            </Button>
-          )}
         </div>
         
+        {lead.status === 'NEW' && (
+          <Button 
+            variant="outline"
+            onClick={() => {
+              console.log('Mark as contacted:', lead.id)
+            }}
+            className="w-full mt-2 h-10"
+          >
+            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Mark as Contacted
+          </Button>
+        )}
+        
         {lead.type === 'request' && (
-          <div className="mt-3">
-            <Button variant="ghost" asChild className="w-full">
-              <a href={`/leads/${lead.id.replace('request-', '')}`}>
-                View Full Details →
-              </a>
-            </Button>
-          </div>
+          <Button variant="ghost" asChild className="w-full mt-2 text-muted-foreground hover:text-foreground">
+            <a href={`/leads/${lead.id.replace('request-', '')}`}>
+              View Full Details
+              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </Button>
         )}
       </div>
     </Card>

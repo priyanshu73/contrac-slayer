@@ -65,17 +65,19 @@ export default function QuotesPage() {
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
       case "DRAFT":
-        return "bg-gray-500/10 text-gray-500"
+        return "bg-amber-500/15 text-amber-600"
       case "SENT":
-        return "bg-blue-500/10 text-blue-500"
+        return "bg-blue-500/15 text-blue-600"
       case "VIEWED":
-        return "bg-purple-500/10 text-purple-500"
+        return "bg-purple-500/15 text-purple-600"
       case "ACCEPTED":
-        return "bg-green-500/10 text-green-500"
+        return "bg-emerald-500/15 text-emerald-600"
       case "REJECTED":
-        return "bg-red-500/10 text-red-500"
+        return "bg-red-500/15 text-red-600"
+      case "IN_PROGRESS":
+        return "bg-sky-500/15 text-sky-600"
       case "COMPLETED":
-        return "bg-emerald-500/10 text-emerald-500"
+        return "bg-teal-500/15 text-teal-600"
       default:
         return "bg-muted text-muted-foreground"
     }

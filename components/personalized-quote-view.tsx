@@ -198,12 +198,13 @@ export function PersonalizedQuoteView({
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'draft': return 'bg-gray-500/10 text-gray-500'
-      case 'sent': return 'bg-blue-500/10 text-blue-500'
-      case 'viewed': return 'bg-purple-500/10 text-purple-500'
-      case 'accepted': return 'bg-green-500/10 text-green-500'
-      case 'rejected': return 'bg-red-500/10 text-red-500'
-      case 'completed': return 'bg-emerald-500/10 text-emerald-500'
+      case 'draft': return 'bg-amber-500/15 text-amber-600'
+      case 'sent': return 'bg-blue-500/15 text-blue-600'
+      case 'viewed': return 'bg-purple-500/15 text-purple-600'
+      case 'accepted': return 'bg-emerald-500/15 text-emerald-600'
+      case 'rejected': return 'bg-red-500/15 text-red-600'
+      case 'in_progress': return 'bg-sky-500/15 text-sky-600'
+      case 'completed': return 'bg-teal-500/15 text-teal-600'
       default: return 'bg-muted text-muted-foreground'
     }
   }
@@ -279,7 +280,7 @@ export function PersonalizedQuoteView({
                 </div>
                   <div className="text-right">
                   <h2 className="text-xl sm:text-2xl print:text-lg font-bold text-gray-900 mb-2">QUOTE</h2>
-                  {(!currentJob.signature?.contractor_signed_at || currentJob.status.toString().toUpperCase() !== 'DRAFT') && (
+                  {!isPublicView && (!currentJob.signature?.contractor_signed_at || currentJob.status.toString().toUpperCase() !== 'DRAFT') && (
                     <div className="inline-block print:hidden">
                       <Badge className={`${getStatusColor(currentJob.status)} print:text-xs`}>
                         {currentJob.status}

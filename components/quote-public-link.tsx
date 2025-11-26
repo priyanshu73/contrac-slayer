@@ -31,12 +31,13 @@ export function QuotePublicLink({ jobId, currentPublicLink, onLinkGenerated, con
       setGenerating(true)
       const link = await api.generateQuotePublicLink(jobId)
       setPublicLink(link)
+      
       if (onLinkGenerated) {
         onLinkGenerated(link)
       }
       toast({
         title: "Public Link Generated!",
-        description: "You can now share this link with your customer.",
+        description: "Quote is now ready to share with your customer.",
       })
     } catch (error: any) {
       toast({
