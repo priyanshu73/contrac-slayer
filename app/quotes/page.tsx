@@ -6,6 +6,13 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -16,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { api } from "@/lib/api"
 
 interface ClientInfo {
@@ -39,6 +47,7 @@ interface Quote {
 export default function QuotesPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const isMobile = useIsMobile()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined)
@@ -142,55 +151,96 @@ export default function QuotesPage() {
 
   const counts = getCounts()
 
+  const getFilterLabel = (filter: string | undefined) => {
+    if (filter === undefined) return "All"
+    return filter.charAt(0) + filter.slice(1).toLowerCase()
+  }
+
+  const getFilterCount = (filter: string | undefined) => {
+    if (filter === undefined) return counts.all
+    const key = filter.toLowerCase() as keyof typeof counts
+    return counts[key] || 0
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-6">
       <main className="container mx-auto px-4 py-6">
         {/* Filters */}
         <Card className="mb-6 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={activeFilter === undefined ? "default" : "outline"}
-                onClick={() => setActiveFilter(undefined)}
-                size="sm"
-              >
-                All
-                <Badge variant="secondary" className="ml-2">
-                  {counts.all}
-                </Badge>
-              </Button>
-              <Button
-                variant={activeFilter === "DRAFT" ? "default" : "outline"}
-                onClick={() => setActiveFilter("DRAFT")}
-                size="sm"
-              >
-                Draft
-                <Badge variant="secondary" className="ml-2">
-                  {counts.draft}
-                </Badge>
-              </Button>
-              <Button
-                variant={activeFilter === "SENT" ? "default" : "outline"}
-                onClick={() => setActiveFilter("SENT")}
-                size="sm"
-              >
-                Sent
-                <Badge variant="secondary" className="ml-2">
-                  {counts.sent}
-                </Badge>
-              </Button>
-              <Button
-                variant={activeFilter === "ACCEPTED" ? "default" : "outline"}
-                onClick={() => setActiveFilter("ACCEPTED")}
-                size="sm"
-              >
-                Accepted
-                <Badge variant="secondary" className="ml-2">
-                  {counts.accepted}
-                </Badge>
-              </Button>
-            </div>
-            <Button asChild>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Mobile: Dropdown, Desktop: Buttons */}
+            {isMobile ? (
+              <div className="flex items-center gap-2">
+                <Select
+                  value={activeFilter || "all"}
+                  onValueChange={(value) => setActiveFilter(value === "all" ? undefined : value)}
+                >
+                  <SelectTrigger className="flex-1 min-w-0">
+                    <SelectValue>
+                      {getFilterLabel(activeFilter)} ({getFilterCount(activeFilter)})
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      All <span className="ml-2 text-muted-foreground">({counts.all})</span>
+                    </SelectItem>
+                    <SelectItem value="DRAFT">
+                      Draft <span className="ml-2 text-muted-foreground">({counts.draft})</span>
+                    </SelectItem>
+                    <SelectItem value="SENT">
+                      Sent <span className="ml-2 text-muted-foreground">({counts.sent})</span>
+                    </SelectItem>
+                    <SelectItem value="ACCEPTED">
+                      Accepted <span className="ml-2 text-muted-foreground">({counts.accepted})</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={activeFilter === undefined ? "default" : "outline"}
+                  onClick={() => setActiveFilter(undefined)}
+                  size="sm"
+                >
+                  All
+                  <Badge variant="secondary" className="ml-2">
+                    {counts.all}
+                  </Badge>
+                </Button>
+                <Button
+                  variant={activeFilter === "DRAFT" ? "default" : "outline"}
+                  onClick={() => setActiveFilter("DRAFT")}
+                  size="sm"
+                >
+                  Draft
+                  <Badge variant="secondary" className="ml-2">
+                    {counts.draft}
+                  </Badge>
+                </Button>
+                <Button
+                  variant={activeFilter === "SENT" ? "default" : "outline"}
+                  onClick={() => setActiveFilter("SENT")}
+                  size="sm"
+                >
+                  Sent
+                  <Badge variant="secondary" className="ml-2">
+                    {counts.sent}
+                  </Badge>
+                </Button>
+                <Button
+                  variant={activeFilter === "ACCEPTED" ? "default" : "outline"}
+                  onClick={() => setActiveFilter("ACCEPTED")}
+                  size="sm"
+                >
+                  Accepted
+                  <Badge variant="secondary" className="ml-2">
+                    {counts.accepted}
+                  </Badge>
+                </Button>
+              </div>
+            )}
+            <Button asChild className="w-full sm:w-auto">
               <a href="/quotes/new">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -9,6 +9,7 @@ import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { QuotePublicLink } from "@/components/quote-public-link"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface PersonalizedQuoteViewProps {
   job: Job
@@ -31,6 +32,7 @@ export function PersonalizedQuoteView({
   isContractor = false,
   isPublicView = false,
 }: PersonalizedQuoteViewProps) {
+  const isMobile = useIsMobile()
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [showContractorSignature, setShowContractorSignature] = useState(false)
@@ -349,20 +351,20 @@ export function PersonalizedQuoteView({
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 print:mb-2">
                 Line Items
               </h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden print:border-gray-300">
-                <table className="w-full print:text-sm">
+              <div className="border border-gray-200 rounded-lg overflow-hidden print:border-gray-300 overflow-x-auto">
+                <table className="w-full print:text-sm min-w-[600px] md:min-w-0">
                   <thead className="bg-gray-50 print:bg-gray-100">
                     <tr>
                       <th className="px-3 py-2 print:px-2 print:py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Description
                       </th>
-                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Quantity
                       </th>
-                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Unit Price
                       </th>
-                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Total
                       </th>
                     </tr>
@@ -383,7 +385,7 @@ export function PersonalizedQuoteView({
                         <tr key={item.id || index} className="hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
                           <td className="px-3 py-3 print:px-2 print:py-2">
                             <div className="flex items-center gap-2 print:gap-1">
-                              {thumbnailUrl && (
+                              {thumbnailUrl && !isMobile && (
                                 <div className="w-10 h-10 print:w-8 print:h-8 rounded border overflow-hidden bg-gray-100 flex-shrink-0 print:border-gray-300">
                                   <Image
                                     src={thumbnailUrl}
@@ -397,8 +399,8 @@ export function PersonalizedQuoteView({
                                   />
                                 </div>
                               )}
-                              <div>
-                                <p className="font-medium text-gray-900 print:text-sm">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-gray-900 print:text-sm break-words">
                                   {customDescription}
                                 </p>
                                 {(item.brand || item.brand) && (
@@ -409,13 +411,13 @@ export function PersonalizedQuoteView({
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs">
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs whitespace-nowrap">
                             {item.quantity} {unitOfMeasure}
                           </td>
-                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs">
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right text-sm text-gray-600 print:text-xs whitespace-nowrap">
                             {formatCurrency(unitPriceWithMarkup)}
                           </td>
-                          <td className="px-3 py-3 print:px-2 print:py-2 text-right font-semibold text-gray-900 print:text-sm">
+                          <td className="px-3 py-3 print:px-2 print:py-2 text-right font-semibold text-gray-900 print:text-sm whitespace-nowrap">
                             {formatCurrency(itemTotal)}
                           </td>
                         </tr>

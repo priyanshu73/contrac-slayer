@@ -6,9 +6,11 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, contractorAI } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle } from "lucide-react"
 
 // Unified lead interface that combines both systems
 interface UnifiedLead {
@@ -55,12 +57,14 @@ export function UnifiedLeads() {
   const { user, getContractorAISpId } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isMobile = useIsMobile()
   
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [hasUserClearedSelection, setHasUserClearedSelection] = useState(false)
   
   // Filters - Initialize from URL params
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'calls'>('all')
@@ -81,12 +85,12 @@ export function UnifiedLeads() {
     }
   }, [searchParams])
 
-  // Auto-select first lead if none selected and we have leads
+  // Auto-select first lead if none selected and we have leads (only on desktop, not mobile)
   useEffect(() => {
-    if (!selectedLeadId && filteredLeads.length > 0 && !loading) {
+    if (!selectedLeadId && filteredLeads.length > 0 && !loading && !isMobile && !hasUserClearedSelection) {
       setSelectedLeadId(filteredLeads[0].id)
     }
-  }, [selectedLeadId, filteredLeads, loading])
+  }, [selectedLeadId, filteredLeads, loading, isMobile, hasUserClearedSelection])
 
   useEffect(() => {
     // Only fetch leads if user has a contractor profile
@@ -300,19 +304,20 @@ export function UnifiedLeads() {
     return `${Math.floor(diffInHours / 24)} days ago`
   }
 
-  const getPriorityBadge = (priority?: string) => {
-    if (!priority) return null
+  const getQuoteRequestWarning = (lead: UnifiedLead) => {
+    // Show warning if quote request hasn't been sent
+    // A quote has been sent if status is QUOTED or if there's a converted_to_job_id
+    const hasQuoteBeenSent = lead.status === 'QUOTED' || lead.converted_to_job_id
     
-    switch (priority) {
-      case 'urgent':
-        return <Badge variant="destructive">Urgent</Badge>
-      case 'high':
-        return <Badge variant="destructive">High Priority</Badge>
-      case 'medium':
-        return <Badge className="bg-yellow-500/10 text-yellow-600">Medium</Badge>
-      default:
-        return null
+    if (!hasQuoteBeenSent) {
+      return (
+        <div title="Quote request hasn't been sent">
+          <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+        </div>
+      )
     }
+    
+    return null
   }
 
 
@@ -356,99 +361,98 @@ export function UnifiedLeads() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex flex-col overflow-hidden pb-16 md:pb-0">
       {/* Header */}
       <header className="flex-shrink-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild className="md:hidden">
-              <a href="/">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </a>
-            </Button>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <MessageSquare className="h-6 w-6" />
+        <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-3 md:px-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Back to list button on mobile when lead is selected */}
+            {selectedLead ? (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  setSelectedLeadId(null)
+                  setHasUserClearedSelection(true)
+                }}
+                className="lg:hidden h-8 w-8"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" asChild className="md:hidden h-8 w-8">
+                <a href="/">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </a>
+              </Button>
+            )}
+            {/* Mobile: Dropdown filter - always visible */}
+            <div className="md:hidden">
+              <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
+                <SelectTrigger className="h-8 w-auto border-none bg-transparent p-0 text-sm font-semibold text-muted-foreground shadow-none focus:ring-0 hover:bg-transparent">
+                  <SelectValue>
+                    {activeTab === 'all' ? `All ${counts.all}` : activeTab === 'requests' ? `Requests ${counts.requests}` : `Calls ${counts.calls}`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All {counts.all}</SelectItem>
+                  <SelectItem value="requests">Requests {counts.requests}</SelectItem>
+                  <SelectItem value="calls">Calls {counts.calls}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <h2 className="text-medium font-semibold text-muted-foreground">{counts.all} active leads</h2>
+            {/* Desktop: Filter buttons - always visible */}
+            <div className="hidden md:flex gap-1">
+              <Button
+                variant={activeTab === 'all' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('all')}
+                className="text-xs md:text-sm h-8 md:h-9"
+              >
+                All <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.all}</span>
+              </Button>
+              <Button
+                variant={activeTab === 'requests' ? 'default' : 'ghost'}
+                size="sm" 
+                onClick={() => setActiveTab('requests')}
+                className="text-xs md:text-sm h-8 md:h-9"
+              >
+                Requests <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.requests}</span>
+              </Button>
+              <Button
+                variant={activeTab === 'calls' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('calls')}
+                className="text-xs md:text-sm h-8 md:h-9"
+              >
+                Calls <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.calls}</span>
+              </Button>
             </div>
           </div>
-          <Button asChild>
+          {/* New button - always visible */}
+          <Button asChild size="sm" className="h-8 md:h-10">
             <a href="/quote-request/new">New</a>
           </Button>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
+      <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-6 overflow-hidden min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-6 h-full">
           {/* Left Panel - Leads List */}
           <div className={`lg:col-span-2 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
             <Card className="h-full flex flex-col overflow-hidden">
-              {/* Tab Navigation */}
-              <div className="p-4 border-b flex-shrink-0">
-                <div className="flex gap-1 mb-4">
-                  <Button
-                    variant={activeTab === 'all' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveTab('all')}
-                    className="flex-1"
-                  >
-                    All <span className="ml-2 text-xs">{counts.all}</span>
-                  </Button>
-                  <Button
-                    variant={activeTab === 'requests' ? 'default' : 'ghost'}
-                    size="sm" 
-                    onClick={() => setActiveTab('requests')}
-                    className="flex-1"
-                  >
-                    Requests <span className="ml-2 text-xs">{counts.requests}</span>
-                  </Button>
-                  <Button
-                    variant={activeTab === 'calls' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveTab('calls')}
-                    className="flex-1"
-                  >
-                    Calls <span className="ml-2 text-xs">{counts.calls}</span>
-                  </Button>
-                </div>
-
-                {/* Search and Filters */}
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search leads..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2 flex-wrap">
-                    {[
-                      { id: 'all', label: 'All', count: counts.all },
-                      { id: 'NEW', label: 'New', count: counts.new },
-                      { id: 'CONTACTED', label: 'Contacted', count: counts.contacted },
-                      { id: 'QUOTED', label: 'Quoted', count: counts.quoted },
-                      { id: 'CONVERTED', label: 'Converted', count: counts.converted },
-                    ].map((filter) => (
-                      <Button
-                        key={filter.id}
-                        variant={statusFilter === filter.id ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setStatusFilter(filter.id)}
-                        className="shrink-0 text-xs"
-                      >
-                        {filter.label}
-                        <span className="ml-1 rounded-full bg-background/20 px-1.5 py-0.5 text-xs">
-                          {filter.count}
-                        </span>
-                      </Button>
-                    ))}
-                  </div>
+              {/* Search */}
+              <div className="p-2 md:p-4 border-b flex-shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search leads..."
+                    className="pl-8 md:pl-10 h-8 md:h-10 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -496,43 +500,45 @@ export function UnifiedLeads() {
                   filteredLeads.map((lead) => (
                     <div
                       key={lead.id}
-                      onClick={() => setSelectedLeadId(lead.id)}
-                      className={`cursor-pointer border-b border-border p-4 transition-all hover:bg-muted/50 ${
-                        selectedLeadId === lead.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                      onClick={() => {
+                        setSelectedLeadId(lead.id)
+                        setHasUserClearedSelection(false)
+                      }}
+                      className={`cursor-pointer border-b border-border p-2.5 md:p-4 transition-colors hover:bg-secondary ${
+                        selectedLeadId === lead.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
-                          <span className="text-sm font-bold">{lead.name.charAt(0).toUpperCase()}</span>
+                      <div className="flex items-start gap-2 md:gap-3">
+                        <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <span className="text-xs md:text-sm font-semibold">{lead.name.charAt(0)}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          {/* Top row: Name + Status */}
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <h3 className="font-semibold text-sm truncate">{lead.name}</h3>
-                            <span className={`text-xs rounded-full px-2.5 py-1 font-semibold ${getStatusColor(lead.status)}`}>
-                              {lead.status}
-                            </span>
+                          <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
+                            <h3 className="font-semibold text-xs md:text-sm truncate flex-1 min-w-0">{lead.name}</h3>
+                            {getQuoteRequestWarning(lead)}
+                            <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] md:text-xs px-1 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
+                              >
+                                {lead.type === 'call' ? '📞' : '📝'}
+                              </Badge>
+                            </div>
                           </div>
                           
-                          {/* Project type */}
-                          <p className="text-xs text-muted-foreground mb-2 truncate">
+                          <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">
                             {lead.project_type || lead.service_type || "General inquiry"}
                           </p>
                           
-                          {/* Bottom row: Phone + Type + Time */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {lead.phone && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Phone className="h-3 w-3" />
-                                  {lead.phone}
-                                </span>
-                              )}
-                              <span className={`text-xs ${lead.type === 'call' ? 'text-blue-500' : 'text-teal-500'}`}>
-                                {lead.type === 'call' ? '📞' : '📝'}
-                              </span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
+                          {lead.phone && (
+                            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{lead.phone}</p>
+                          )}
+                          
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`text-[10px] md:text-xs rounded-full px-1.5 md:px-2 py-0.5 font-medium ${getStatusColor(lead.status)}`}>
+                              {lead.status}
+                            </span>
+                            <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
                               {formatTime(lead.created_at)}
                             </span>
                           </div>
@@ -550,7 +556,10 @@ export function UnifiedLeads() {
             {selectedLead ? (
               <LeadDetailsPanel 
                 lead={selectedLead} 
-                onClose={() => setSelectedLeadId(null)}
+                onClose={() => {
+                  setSelectedLeadId(null)
+                  setHasUserClearedSelection(true)
+                }}
                 onRefresh={fetchAllLeads}
               />
             ) : (
@@ -608,124 +617,87 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   return (
     <Card className="h-full flex flex-col overflow-hidden border-0 shadow-lg">
       {/* Header */}
-      <div className="p-6 border-b bg-gradient-to-r from-muted/30 to-transparent flex-shrink-0">
-        <div className="flex items-start gap-4">
+      <div className="p-3 md:p-6 border-b flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-4">
           {/* Back button for mobile */}
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={onClose}
-            className="lg:hidden shrink-0 -ml-2"
+            className="lg:hidden shrink-0 h-8 w-8"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md">
-            <span className="text-xl font-bold">{lead.name.charAt(0).toUpperCase()}</span>
+          <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="text-base md:text-lg font-semibold">{lead.name.charAt(0)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold truncate">{lead.name}</h2>
+            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
+              <h2 className="text-base md:text-xl font-semibold truncate">{lead.name}</h2>
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] md:text-xs px-1.5 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
+              >
+                {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+              </Badge>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getStatusColor(lead.status)}`}>
-                {lead.status}
-              </span>
-              <span className={`text-xs px-2 py-1 rounded-full ${lead.type === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-teal-50 text-teal-600'}`}>
-                {lead.type === 'call' ? '📞 Phone Call' : '📝 Quote Request'}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2 truncate">
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
               {lead.project_type || lead.service_type || "General inquiry"}
             </p>
           </div>
+          <Badge className={`${getStatusColor(lead.status)} text-[10px] md:text-xs px-2 md:px-3`}>
+            {lead.status}
+          </Badge>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
+      <div className="flex-1 flex gap-3 md:gap-6 overflow-hidden min-h-0">
         {/* Left Side - Lead Details */}
-        <div className="flex-1 overflow-y-auto space-y-6 p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+        <div className="flex-1 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
           {/* Contact Information */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+          <div>
+            <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
               Contact Information
             </h3>
-            <div className="grid gap-2">
+            <div className="space-y-2 md:space-y-3">
               {lead.phone && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Phone</p>
-                      <p className="text-sm font-medium">{lead.phone}</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="ghost" asChild className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <a href={`tel:${lead.phone}`}>
-                      <Phone className="h-4 w-4 mr-1" />
-                      Call
-                    </a>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
+                  <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
+                    <a href={`tel:${lead.phone}`}>Call</a>
                   </Button>
                 </div>
               )}
               {lead.email && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Email</p>
-                      <a href={`mailto:${lead.email}`} className="text-sm font-medium hover:underline">{lead.email}</a>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                  <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
                 </div>
               )}
               {lead.address && (
-                <div className="flex items-center p-3 rounded-xl bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600">
-                      <MapPin className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Address</p>
-                      <p className="text-sm font-medium">{lead.address}</p>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
                 </div>
               )}
-              <div className="flex items-center p-3 rounded-xl bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Created</p>
-                    <p className="text-sm font-medium">{formatTime(lead.created_at)}</p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 md:gap-3">
+                <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
               </div>
             </div>
           </div>
 
           {/* Project Description */}
           {lead.description && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+            <div>
+              <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
                 {lead.type === 'call' ? 'AI Summary' : 'Project Description'}
               </h3>
-              <div className={`p-4 rounded-xl ${lead.type === 'call' ? 'bg-gradient-to-r from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-blue-950/10 border border-blue-100 dark:border-blue-900' : 'bg-muted/40 border border-border'}`}>
-                {lead.type === 'call' && (
-                  <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 dark:text-blue-400">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                      ✨ AI Generated
-                    </span>
-                  </div>
-                )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{lead.description}</p>
+              <div className={`p-2.5 md:p-4 rounded-lg ${lead.type === 'call' ? 'bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500' : 'bg-muted/50'}`}>
+                <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
               </div>
             </div>
           )}
@@ -882,28 +854,29 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       </div>
 
       {/* Action Buttons */}
-      <div className="p-6 border-t bg-gradient-to-t from-muted/40 to-transparent flex-shrink-0">
-        <div className="flex flex-wrap gap-2">
+      <div className="p-3 md:p-6 border-t bg-muted/20 flex-shrink-0">
+        <div className="flex flex-wrap gap-2 md:gap-3">
           {lead.phone && (
-            <Button variant="default" asChild className="flex-1 h-11 shadow-sm">
+            <Button variant="default" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={`tel:${lead.phone}`}>
-                <Phone className="mr-2 h-4 w-4" />
-                Call Now
+                <Phone className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+                Call Customer
               </a>
             </Button>
           )}
           {/* Check if lead has been quoted and has a valid job ID */}
           {(lead.status === 'QUOTED' || lead.converted_to_job_id) && lead.converted_to_job_id ? (
-            <Button variant="secondary" asChild className="flex-1 h-11">
+            <Button variant="outline" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={`/quotes/${lead.converted_to_job_id}`}>
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
                 View Quote
               </a>
             </Button>
           ) : (
-            <Button variant="secondary" asChild className="flex-1 h-11">
+            <Button variant="outline" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={
                 lead.type === 'request' 
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
@@ -934,14 +907,13 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         )}
         
         {lead.type === 'request' && (
-          <Button variant="ghost" asChild className="w-full mt-2 text-muted-foreground hover:text-foreground">
-            <a href={`/leads/${lead.id.replace('request-', '')}`}>
-              View Full Details
-              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </Button>
+          <div className="mt-2 md:mt-3">
+            <Button variant="ghost" asChild className="w-full h-8 md:h-10 text-xs md:text-sm">
+              <a href={`/leads/${lead.id.replace('request-', '')}`}>
+                View Full Details →
+              </a>
+            </Button>
+          </div>
         )}
       </div>
     </Card>
