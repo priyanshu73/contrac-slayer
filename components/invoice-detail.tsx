@@ -103,22 +103,26 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
       <Card className="p-6">
         <h3 className="mb-4 text-lg font-semibold">Items</h3>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[600px] md:min-w-0">
             <thead>
               <tr className="border-b border-border text-left text-sm text-muted-foreground">
                 <th className="pb-3 font-medium">Description</th>
-                <th className="pb-3 text-center font-medium">Qty</th>
-                <th className="pb-3 text-right font-medium">Rate</th>
-                <th className="pb-3 text-right font-medium">Amount</th>
+                <th className="pb-3 text-center font-medium whitespace-nowrap">Qty</th>
+                <th className="pb-3 text-right font-medium whitespace-nowrap">Rate</th>
+                <th className="pb-3 text-right font-medium whitespace-nowrap">Amount</th>
               </tr>
             </thead>
             <tbody>
-              {invoice.items.map((item, index) => (
+              {invoice.items.map((item: any, index: number) => (
                 <tr key={index} className="border-b border-border last:border-0">
-                  <td className="py-3">{item.description}</td>
-                  <td className="py-3 text-center">{item.quantity}</td>
-                  <td className="py-3 text-right">${item.rate.toFixed(2)}</td>
-                  <td className="py-3 text-right font-medium">${item.amount.toFixed(2)}</td>
+                  <td className="py-3 pr-4">
+                    <div className="min-w-0">
+                      <p className="break-words">{item.description}</p>
+                    </div>
+                  </td>
+                  <td className="py-3 text-center whitespace-nowrap">{item.quantity}</td>
+                  <td className="py-3 text-right whitespace-nowrap">${item.rate.toFixed(2)}</td>
+                  <td className="py-3 text-right font-medium whitespace-nowrap">${item.amount.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

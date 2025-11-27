@@ -161,7 +161,7 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
     <div className="space-y-1 w-full min-w-0">
       {!isCustom ? (
         <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger className="w-full min-w-0">
+          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-auto">
             <SelectValue placeholder="Select unit..." />
           </SelectTrigger>
           <SelectContent>
@@ -717,7 +717,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const total = subtotal + tax
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6">
       {/* Client Information */}
       <Card className="p-6" id="material-search">
         <div className="flex items-center justify-between mb-4">
@@ -937,102 +937,217 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                   <div className="max-h-96 overflow-y-auto p-3 custom-scrollbar">
                     <div className="space-y-2">
                       {aiWorkingItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3 border rounded p-3 hover:bg-gray-50 transition-colors bg-white">
-                  {/* Selection Toggle */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => {
-                            setSelectedForInvoice(prev => {
-                              const next = new Set(prev)
-                              if (next.has(idx)) {
-                                next.delete(idx)
-                              } else {
-                                next.add(idx)
-                              }
-                              return next
-                            })
-                          }}
-                          className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all ${
-                            selectedForInvoice.has(idx)
-                              ? "bg-green-500 border-green-600"
-                              : "bg-white border-gray-300 hover:border-green-400"
-                          }`}
-                        >
-                          {selectedForInvoice.has(idx) && (
-                            <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                        <div key={idx} className="border rounded p-3 hover:bg-gray-50 transition-colors bg-white">
+                          {/* Mobile Layout */}
+                          <div className="block sm:hidden space-y-3">
+                            <div className="flex items-start gap-3">
+                              {/* Selection Toggle */}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedForInvoice(prev => {
+                                          const next = new Set(prev)
+                                          if (next.has(idx)) {
+                                            next.delete(idx)
+                                          } else {
+                                            next.add(idx)
+                                          }
+                                          return next
+                                        })
+                                      }}
+                                      className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all mt-1 ${
+                                        selectedForInvoice.has(idx)
+                                          ? "bg-green-500 border-green-600"
+                                          : "bg-white border-gray-300 hover:border-green-400"
+                                      }`}
+                                    >
+                                      {selectedForInvoice.has(idx) && (
+                                        <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
 
-                  <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-16 h-16 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium line-clamp-2">{item.description}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Qty: {item.quantity} {item.unitOfMeasure || "each"} • 
-                      {item.packSize && item.packSize > 1 && item.packPrice ? (
-                        <span> ${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
-                      ) : (
-                        <span> ${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
-                      )}
-                      {item.brand && ` • ${item.brand}`}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            className="h-9 w-9 p-0"
-                            onClick={() => {
-                              setItems(prev => [...prev, item])
-                              toast({
-                                title: "Item added",
-                                description: `${item.description || "Item"} has been added to your quote`,
-                              })
-                            }}
-                          >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Add to main quote items</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const el = document.getElementById("ai-material-search")
-                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }}>
-                      Substitute
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => {
-                      // Remove item and reindex selections
-                      setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
-                      setSelectedForInvoice(prev => {
-                        const reindexed = new Set<number>()
-                        Array.from(prev).forEach(oldIdx => {
-                          if (oldIdx < idx) reindexed.add(oldIdx)
-                          else if (oldIdx > idx) reindexed.add(oldIdx - 1)
-                        })
-                        return reindexed
-                      })
-                    }}>
-                      Remove
-                    </Button>
-                  </div>
+                              <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-16 h-16 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm mb-1">{item.description}</div>
+                                <div className="text-xs text-muted-foreground space-y-0.5">
+                                  <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
+                                  <div>
+                                    {item.packSize && item.packSize > 1 && item.packPrice ? (
+                                      <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
+                                    ) : (
+                                      <span>${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
+                                    )}
+                                  </div>
+                                  {item.brand && <div>{item.brand}</div>}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost"
+                                      className="h-8 flex-1 min-w-[100px]"
+                                      onClick={() => {
+                                        setItems(prev => [...prev, item])
+                                        toast({
+                                          title: "Item added",
+                                          description: `${item.description || "Item"} has been added to your quote`,
+                                        })
+                                      }}
+                                    >
+                                      <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                      </svg>
+                                      Add
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Add to main quote items</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 flex-1 min-w-[100px]"
+                                onClick={() => {
+                                  const el = document.getElementById("ai-material-search")
+                                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+                                }}
+                              >
+                                Substitute
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="h-8 flex-1 min-w-[100px]"
+                                onClick={() => {
+                                  setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
+                                  setSelectedForInvoice(prev => {
+                                    const reindexed = new Set<number>()
+                                    Array.from(prev).forEach(oldIdx => {
+                                      if (oldIdx < idx) reindexed.add(oldIdx)
+                                      else if (oldIdx > idx) reindexed.add(oldIdx - 1)
+                                    })
+                                    return reindexed
+                                  })
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Desktop Layout */}
+                          <div className="hidden sm:flex items-center gap-3">
+                            {/* Selection Toggle */}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedForInvoice(prev => {
+                                        const next = new Set(prev)
+                                        if (next.has(idx)) {
+                                          next.delete(idx)
+                                        } else {
+                                          next.add(idx)
+                                        }
+                                        return next
+                                      })
+                                    }}
+                                    className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all ${
+                                      selectedForInvoice.has(idx)
+                                        ? "bg-green-500 border-green-600"
+                                        : "bg-white border-gray-300 hover:border-green-400"
+                                    }`}
+                                  >
+                                    {selectedForInvoice.has(idx) && (
+                                      <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-16 h-16 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium line-clamp-2">{item.description}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Qty: {item.quantity} {item.unitOfMeasure || "each"} • 
+                                {item.packSize && item.packSize > 1 && item.packPrice ? (
+                                  <span> ${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
+                                ) : (
+                                  <span> ${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
+                                )}
+                                {item.brand && ` • ${item.brand}`}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost"
+                                      className="h-9 w-9 p-0"
+                                      onClick={() => {
+                                        setItems(prev => [...prev, item])
+                                        toast({
+                                          title: "Item added",
+                                          description: `${item.description || "Item"} has been added to your quote`,
+                                        })
+                                      }}
+                                    >
+                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                      </svg>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Add to main quote items</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <Button size="sm" variant="outline" onClick={() => {
+                                const el = document.getElementById("ai-material-search")
+                                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+                              }}>
+                                Substitute
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => {
+                                setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
+                                setSelectedForInvoice(prev => {
+                                  const reindexed = new Set<number>()
+                                  Array.from(prev).forEach(oldIdx => {
+                                    if (oldIdx < idx) reindexed.add(oldIdx)
+                                    else if (oldIdx > idx) reindexed.add(oldIdx - 1)
+                                  })
+                                  return reindexed
+                                })
+                              }}>
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1081,28 +1196,39 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
 
 
       {/* Line Items */}
-      <Card className="p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Line Items</h2>
-          <Button variant="outline" size="sm" onClick={addItem}>
-            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <Card className="p-4 sm:p-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Line Items</h2>
+          <Button variant="outline" size="sm" onClick={addItem} className="h-8 text-xs">
+            <svg className="mr-1.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add Item
           </Button>
         </div>
 
-        <div className="space-y-4">
+        {/* Table Header - Desktop */}
+        <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
+          <div></div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
+          <div></div>
+        </div>
+
+        <div className="space-y-1">
           {items.map((item, index) => (
-            <div key={index} className="rounded-lg border border-border p-4 relative overflow-hidden">
-              {/* Delete Button - Top Right */}
+            <div key={index} className="rounded-md border border-border p-2.5 relative overflow-hidden bg-card hover:bg-muted/30 transition-colors">
+              {/* Delete Button - Mobile: Top Right */}
               <Button 
                 variant="ghost" 
                 size="icon" 
                 onClick={() => removeItem(index)}
-                className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                className="absolute top-1.5 right-1.5 sm:hidden h-7 w-7 text-muted-foreground hover:text-destructive opacity-60 hover:opacity-100"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -1113,48 +1239,40 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
               </Button>
 
               {/* Mobile Layout */}
-              <div className="block sm:hidden space-y-4">
-                {/* Image and Description */}
-                <div className="flex gap-3 pr-10">
-                  <MaterialThumbnail
-                    src={item.thumbnailUrl || item.imageUrl}
-                    alt={item.description}
-                    className="w-12 h-12 flex-shrink-0"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium">
-                        Description
-                      </Label>
-                      {searchingItemIndex !== index && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleStartSearch(index)}
-                          className="h-6 px-2 text-xs"
-                        >
-                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                          Search
-                        </Button>
-                      )}
-                    </div>
+              <div className="block sm:hidden space-y-3">
+                {/* Description */}
+                <div className="pr-9">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    {searchingItemIndex !== index && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartSearch(index)}
+                        className="h-7 px-2 text-xs shrink-0"
+                      >
+                        <svg className="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search
+                      </Button>
+                    )}
+                  </div>
+                  <div>
                     {searchingItemIndex === index ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div className="relative">
                           <Input
                             type="search"
                             value={itemSearchQueries[index] || ""}
                             onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
                             placeholder="Search for materials..."
-                            className="pr-10"
+                            className="pr-9 h-8 text-sm"
                             autoFocus
                           />
                           {itemSearchLoading[index] && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                           )}
                           <Button
@@ -1162,34 +1280,34 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                             variant="ghost"
                             size="sm"
                             onClick={() => handleCancelSearch(index)}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-1.5"
                           >
                             Cancel
                           </Button>
                         </div>
                         {/* Search Results */}
                         {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
-                          <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
+                          <div className="max-h-48 overflow-y-auto space-y-1.5 border rounded-md p-1.5 bg-background">
                             {itemSearchResults[index].map((material, matIndex) => (
                               <Card
                                 key={matIndex}
-                                className="p-3 hover:border-primary transition-all cursor-pointer"
+                                className="p-2 hover:border-primary transition-all cursor-pointer"
                                 onClick={() => handleSelectMaterial(index, material)}
                               >
                                 <div className="flex gap-2">
                                   <MaterialThumbnail
                                     src={material.thumbnail_url || material.image_url}
                                     alt={material.name}
-                                    className="w-12 h-12 flex-shrink-0"
+                                    className="w-10 h-10 flex-shrink-0 rounded"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
-                                    <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-sm font-bold text-primary">
+                                    <h4 className="font-medium text-xs line-clamp-1">{material.name}</h4>
+                                    <p className="text-[10px] text-muted-foreground line-clamp-1">{material.description}</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <span className="text-xs font-semibold text-primary">
                                         ${parseFloat(material.estimated_cost).toFixed(2)}
                                       </span>
-                                      <span className="text-xs text-muted-foreground">
+                                      <span className="text-[10px] text-muted-foreground">
                                         per {material.unit_of_measure}
                                       </span>
                                     </div>
@@ -1206,11 +1324,23 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                           id={`item-desc-${index}`}
                           value={item.description}
                           onChange={(e) => updateItem(index, "description", e.target.value)}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement
+                            target.style.height = 'auto'
+                            target.style.height = `${Math.min(target.scrollHeight, 150)}px`
+                          }}
+                          ref={(textarea) => {
+                            if (textarea) {
+                              textarea.style.height = 'auto'
+                              textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`
+                            }
+                          }}
                           placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                          className="min-h-[60px] resize-none mt-1"
+                          className="min-h-[60px] max-h-[150px] resize-none mt-1 text-sm"
+                          rows={2}
                         />
                         {item.brand && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
                             {item.brand} {item.model && `- ${item.model}`}
                           </p>
                         )}
@@ -1220,22 +1350,20 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </div>
                 
                 {/* Unit, Qty, Rate Row */}
-                <div className="flex items-end gap-3 mt-4">
-                  <div className="flex-1 min-w-0">
-                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground">
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="col-span-2">
+                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
                       Unit
                     </Label>
-                    <div className="mt-1">
-                      <UnitSelector
-                        value={item.unitOfMeasure || ""}
-                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                        description={item.description}
-                      />
-                    </div>
+                    <UnitSelector
+                      value={item.unitOfMeasure || ""}
+                      onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                      description={item.description}
+                    />
                   </div>
-                  <div className="w-16">
-                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground">
-                      Qty
+                  <div>
+                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Quantity
                     </Label>
                     <Input
                       id={`item-qty-${index}`}
@@ -1247,11 +1375,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                         updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                       }}
                       placeholder="0"
-                      className="mt-1 text-center"
+                      className="h-9 text-center text-sm"
                     />
                   </div>
-                  <div className="w-24">
-                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground">
+                  <div>
+                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
                       Rate
                     </Label>
                     <Input
@@ -1271,10 +1399,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                         }
                       }}
                       placeholder="0.00"
-                      className="mt-1"
+                      className="h-9 text-sm"
                     />
                   </div>
-                  <div className="w-20 text-right pb-2">
+                  <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-xs text-muted-foreground">Total</span>
                     <span className="text-sm font-semibold">
                       ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
                     </span>
@@ -1282,173 +1411,192 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 </div>
               </div>
               
-              {/* Desktop Layout */}
-              <div className="hidden sm:block">
-                {/* Description Row */}
-                <div className="flex gap-4 mb-4">
+              {/* Desktop Layout - Table Style */}
+              <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_50px] gap-3 items-start">
+                {/* Image */}
+                <div className="pt-1">
                   <MaterialThumbnail
                     src={item.thumbnailUrl || item.imageUrl}
                     alt={item.description}
-                    className="w-14 h-14 flex-shrink-0"
+                    className="w-10 h-10 flex-shrink-0 rounded"
                   />
-                  <div className="flex-1 min-w-0 pr-8">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Label htmlFor={`item-desc-${index}`} className="text-xs font-medium text-muted-foreground">
-                        Description
-                      </Label>
+                </div>
+                
+                {/* Description */}
+                <div className="min-w-0 pr-2">
+                  {searchingItemIndex === index ? (
+                    <div className="space-y-1.5 relative">
+                      <div className="relative">
+                        <Input
+                          type="search"
+                          value={itemSearchQueries[index] || ""}
+                          onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
+                          placeholder="Search for materials..."
+                          className="pr-20 h-8 text-sm"
+                          autoFocus
+                        />
+                        {itemSearchLoading[index] && (
+                          <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelSearch(index)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-1.5"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 border rounded-md p-1.5 bg-background absolute z-50 w-full shadow-lg mt-1">
+                          {itemSearchResults[index].map((material, matIndex) => (
+                            <Card
+                              key={matIndex}
+                              className="p-2 hover:border-primary transition-all cursor-pointer"
+                              onClick={() => handleSelectMaterial(index, material)}
+                            >
+                              <div className="flex gap-2">
+                                <MaterialThumbnail
+                                  src={material.thumbnail_url || material.image_url}
+                                  alt={material.name}
+                                  className="w-10 h-10 flex-shrink-0 rounded"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-xs line-clamp-1">{material.name}</h4>
+                                  <p className="text-[10px] text-muted-foreground line-clamp-1">{material.description}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-xs font-semibold text-primary">
+                                      ${parseFloat(material.estimated_cost).toFixed(2)}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      per {material.unit_of_measure}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      <Textarea
+                        id={`item-desc-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${Math.min(target.scrollHeight, 200)}px`
+                        }}
+                        ref={(textarea) => {
+                          if (textarea) {
+                            textarea.style.height = 'auto'
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+                          }
+                        }}
+                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                        className="min-h-[40px] max-h-[200px] text-sm flex-1 resize-none overflow-y-auto"
+                        rows={1}
+                      />
                       {searchingItemIndex !== index && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => handleStartSearch(index)}
-                          className="h-6 px-2 text-xs"
+                          className="h-8 px-2 text-xs shrink-0 mt-1"
                         >
-                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                           </svg>
-                          Search
                         </Button>
                       )}
                     </div>
-                    {searchingItemIndex === index ? (
-                      <div className="space-y-2 relative">
-                        <div className="relative">
-                          <Input
-                            type="search"
-                            value={itemSearchQueries[index] || ""}
-                            onChange={(e) => setItemSearchQueries(prev => ({ ...prev, [index]: e.target.value }))}
-                            placeholder="Search for materials..."
-                            className="pr-20"
-                            autoFocus
-                          />
-                          {itemSearchLoading[index] && (
-                            <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCancelSearch(index)}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                        {itemSearchResults[index] && itemSearchResults[index].length > 0 && (
-                          <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background absolute z-50 w-full shadow-lg mt-1">
-                            {itemSearchResults[index].map((material, matIndex) => (
-                              <Card
-                                key={matIndex}
-                                className="p-3 hover:border-primary transition-all cursor-pointer"
-                                onClick={() => handleSelectMaterial(index, material)}
-                              >
-                                <div className="flex gap-2">
-                                  <MaterialThumbnail
-                                    src={material.thumbnail_url || material.image_url}
-                                    alt={material.name}
-                                    className="w-12 h-12 flex-shrink-0"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-sm line-clamp-1">{material.name}</h4>
-                                    <p className="text-xs text-muted-foreground line-clamp-1">{material.description}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-sm font-bold text-primary">
-                                        ${parseFloat(material.estimated_cost).toFixed(2)}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        per {material.unit_of_measure}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <Textarea
-                          id={`item-desc-${index}`}
-                          value={item.description}
-                          onChange={(e) => updateItem(index, "description", e.target.value)}
-                          placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                          className="min-h-[50px] resize-none"
-                        />
-                        {item.brand && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {item.brand} {item.model && `- ${item.model}`}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  )}
+                  {item.brand && !searchingItemIndex && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      {item.brand} {item.model && `- ${item.model}`}
+                    </p>
+                  )}
                 </div>
                 
-                {/* Unit, Qty, Rate, Total Row */}
-                <div className="flex items-end gap-4 pl-[72px]">
-                  <div className="w-40 min-w-0">
-                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground">
-                      Unit
-                    </Label>
-                    <div className="mt-1">
-                      <UnitSelector
-                        value={item.unitOfMeasure || ""}
-                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                        description={item.description}
+                {/* Unit */}
+                <div className="pt-1">
+                  <UnitSelector
+                    value={item.unitOfMeasure || ""}
+                    onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                    description={item.description}
+                  />
+                </div>
+                
+                {/* Qty */}
+                <div className="pt-1">
+                  <Input
+                    id={`item-qty-${index}`}
+                    type="number"
+                    min="0"
+                    value={item.quantity === 0 ? "" : item.quantity.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                    }}
+                    placeholder="0"
+                    className="h-8 text-center text-sm"
+                  />
+                </div>
+                
+                {/* Rate */}
+                <div className="pt-1">
+                  <Input
+                    id={`item-rate-${index}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                    }}
+                    onBlur={(e) => {
+                      const val = parseFloat(e.target.value)
+                      if (!isNaN(val)) {
+                        updateItem(index, "rate", Math.round(val * 100) / 100)
+                      }
+                    }}
+                    placeholder="0.00"
+                    className="h-8 text-sm text-right"
+                  />
+                </div>
+                
+                {/* Total */}
+                <div className="text-right pt-1">
+                  <span className="text-sm font-semibold">
+                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                  </span>
+                </div>
+                
+                {/* Delete Button */}
+                <div className="flex justify-center pt-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => removeItem(index)}
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-60 hover:opacity-100"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                       />
-                    </div>
-                  </div>
-                  <div className="w-20">
-                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground">
-                      Qty
-                    </Label>
-                    <Input
-                      id={`item-qty-${index}`}
-                      type="number"
-                      min="0"
-                      value={item.quantity === 0 ? "" : item.quantity.toString()}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                      }}
-                      placeholder="0"
-                      className="mt-1 text-center"
-                    />
-                  </div>
-                  <div className="w-28">
-                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground">
-                      Rate
-                    </Label>
-                    <Input
-                      id={`item-rate-${index}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
-                      }}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value)
-                        if (!isNaN(val)) {
-                          updateItem(index, "rate", Math.round(val * 100) / 100)
-                        }
-                      }}
-                      placeholder="0.00"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="flex-1"></div>
-                  <div className="w-24 text-right pb-2">
-                    <span className="text-sm font-semibold">
-                      ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
-                    </span>
-                  </div>
+                    </svg>
+                  </Button>
                 </div>
               </div>
             </div>

@@ -30,7 +30,7 @@ export default function NewQuotePage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
+      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
         <QuoteCreator leadId={leadId} />
       </main>
     </div>
