@@ -462,6 +462,7 @@ class ContractorAIClient {
     days?: number
     page?: number
     per_page?: number
+    lightweight?: boolean
   }) {
     const searchParams = new URLSearchParams()
     if (params?.sp_id) searchParams.append('sp_id', params.sp_id)
@@ -471,6 +472,7 @@ class ContractorAIClient {
     if (params?.days) searchParams.append('days', params.days.toString())
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+    if (params?.lightweight) searchParams.append('lightweight', 'true')
 
     return this.request(`/leads?${searchParams.toString()}`)
   }

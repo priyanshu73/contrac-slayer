@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -47,6 +47,7 @@ interface UnifiedLead {
   summary_confirmed?: boolean
   appointment_link_sent?: boolean
   media_uploaded?: boolean
+  _needsFullLoad?: boolean // Internal flag for lazy loading
   
   // Request-specific data
   attachments?: Array<{ id: number }>
@@ -62,9 +63,11 @@ export function UnifiedLeads() {
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCallLeads, setLoadingCallLeads] = useState(false)
   const [error, setError] = useState("")
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [hasUserClearedSelection, setHasUserClearedSelection] = useState(false)
+  const [leadDetailsCache, setLeadDetailsCache] = useState<Map<string, UnifiedLead>>(new Map())
   
   // Filters - Initialize from URL params
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'calls'>('all')
@@ -121,21 +124,26 @@ export function UnifiedLeads() {
       setLoading(true)
       setError("")
       
-      const [requestLeads, callLeads] = await Promise.all([
-        fetchRequestLeads(),
-        fetchCallLeads()
-      ])
+      // Stage 1: Load request leads first (fast, from ContractorBackend)
+      const requestLeads = await fetchRequestLeads()
+      setLeads(requestLeads)
+      setLoading(false) // Show request leads immediately
       
+      // Stage 2: Load call leads in lightweight mode (without transcripts)
+      setLoadingCallLeads(true)
+      const callLeads = await fetchCallLeads(true) // lightweight = true
+      
+      // Combine and sort
       const combined = [...requestLeads, ...callLeads]
-      // Sort by most recent first
       combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       
       setLeads(combined)
+      setLoadingCallLeads(false)
     } catch (err: any) {
       console.error('Failed to fetch leads:', err)
       setError(err.message || "Failed to load leads")
-    } finally {
       setLoading(false)
+      setLoadingCallLeads(false)
     }
   }
 
@@ -174,25 +182,18 @@ export function UnifiedLeads() {
     }
   }
 
-  const fetchCallLeads = async (): Promise<UnifiedLead[]> => {
+  const fetchCallLeads = async (lightweight = false): Promise<UnifiedLead[]> => {
     try {
       const spId = getContractorAISpId()
       if (!spId) return []
 
       const response = await contractorAI.getLeads({
         sp_id: spId.toString(),
-        per_page: 1000
+        per_page: 1000,
+        lightweight: lightweight
       })
 
       const transformedLeads = ((response as any).leads || []).map((lead: any) => {
-        console.log('🔄 Processing call lead:', {
-          id: lead.id,
-          name: lead.name,
-          transcript_length: lead.transcript_text?.length || 0,
-          has_transcript: !!lead.transcript_text,
-          summary_length: lead.summary_text?.length || 0
-        })
-        
         return {
           id: `call-${lead.id}`,
           name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
@@ -201,27 +202,75 @@ export function UnifiedLeads() {
           priority: lead.priority,
           phone: lead.phone_number,
           service_type: lead.service_type,
-          description: lead.summary_text,
+          description: lead.summary_text, // May be null in lightweight mode
           created_at: lead.last_contact_date,
           last_contact_date: lead.last_contact_date,
           conversation_count: lead.conversation_count || 0,
           last_message_preview: lead.last_message_preview,
-          transcript_text: lead.transcript_text,
-          summary_text: lead.summary_text,
+          transcript_text: lead.transcript_text, // Will be null in lightweight mode
+          summary_text: lead.summary_text, // Will be null in lightweight mode
           summary_confirmed: lead.summary_confirmed,
           appointment_link_sent: lead.appointment_link_sent,
           media_uploaded: lead.media_uploaded,
-          address: lead.location
+          address: lead.location,
+          _needsFullLoad: lightweight && !lead.summary_text // Flag to indicate we need to load full details
         }
       })
       
-      console.log('✅ Transformed call leads with transcripts:', transformedLeads.filter((lead: UnifiedLead) => lead.transcript_text).length)
       return transformedLeads
     } catch (error) {
       console.error('Failed to fetch call leads:', error)
       return []
     }
   }
+
+  // Load full lead details (with transcripts) when needed
+  const loadFullLeadDetails = useCallback(async (leadId: string): Promise<UnifiedLead | null> => {
+    // Check cache first
+    if (leadDetailsCache.has(leadId)) {
+      return leadDetailsCache.get(leadId)!
+    }
+
+    // Extract the numeric ID from the lead ID (e.g., "call-123" -> "123")
+    const numericId = leadId.replace('call-', '')
+    
+    try {
+      const response = await contractorAI.getLead(numericId)
+      const lead = response as any
+      
+      const fullLead: UnifiedLead = {
+        id: `call-${lead.id}`,
+        name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
+        type: 'call' as const,
+        status: normalizeCallStatus(lead.status),
+        priority: lead.priority,
+        phone: lead.phone_number,
+        service_type: lead.service_type,
+        description: lead.summary_text,
+        created_at: lead.last_contact_date,
+        last_contact_date: lead.last_contact_date,
+        conversation_count: lead.conversation_count || 0,
+        last_message_preview: lead.last_message_preview,
+        transcript_text: lead.transcript_text,
+        summary_text: lead.summary_text,
+        summary_confirmed: lead.summary_confirmed,
+        appointment_link_sent: lead.appointment_link_sent,
+        media_uploaded: lead.media_uploaded,
+        address: lead.location
+      }
+      
+      // Cache the full lead details
+      setLeadDetailsCache(prev => new Map(prev).set(leadId, fullLead))
+      
+      // Update the lead in the leads array
+      setLeads(prev => prev.map(l => l.id === leadId ? fullLead : l))
+      
+      return fullLead
+    } catch (error) {
+      console.error('Failed to load full lead details:', error)
+      return null
+    }
+  }, [leadDetailsCache])
 
   // Normalize call statuses to match request statuses
   const normalizeCallStatus = (callStatus: string): string => {
@@ -321,7 +370,35 @@ export function UnifiedLeads() {
   }
 
 
-  const selectedLead = leads.find(lead => lead.id === selectedLeadId)
+  const [selectedLead, setSelectedLead] = useState<UnifiedLead | undefined>(undefined)
+  const [loadingFullLeadDetails, setLoadingFullLeadDetails] = useState(false)
+
+  // Load full lead details when a lead is selected
+  useEffect(() => {
+    if (selectedLeadId) {
+      const lead = leads.find(l => l.id === selectedLeadId)
+      if (lead) {
+        // If it's a call lead and needs full details, load them
+        if (lead.type === 'call' && (lead as any)._needsFullLoad) {
+          setLoadingFullLeadDetails(true)
+          loadFullLeadDetails(selectedLeadId).then(fullLead => {
+            if (fullLead) {
+              setSelectedLead(fullLead)
+            } else {
+              setSelectedLead(lead)
+            }
+            setLoadingFullLeadDetails(false)
+          })
+        } else {
+          setSelectedLead(lead)
+        }
+      } else {
+        setSelectedLead(undefined)
+      }
+    } else {
+      setSelectedLead(undefined)
+    }
+  }, [selectedLeadId, leads, loadFullLeadDetails])
   
   // Debug selected lead transcript
   useEffect(() => {
@@ -354,7 +431,7 @@ export function UnifiedLeads() {
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             </div>
           </div>
-          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">Loading...</p>
+          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">Loading request leads...</p>
         </div>
       </div>
     )
@@ -468,22 +545,80 @@ export function UnifiedLeads() {
 
               {/* Leads List */}
               <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-                {loading && leads.length > 0 ? (
-                  // Skeleton loader for refreshing leads
-                  <div className="space-y-0">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="border-b border-border p-4 animate-pulse">
-                        <div className="flex items-start gap-3">
-                          <div className="h-10 w-10 rounded-full bg-muted"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-muted rounded w-3/4"></div>
-                            <div className="h-3 bg-muted rounded w-1/2"></div>
-                            <div className="h-3 bg-muted rounded w-2/3"></div>
+                {loadingCallLeads && leads.length > 0 ? (
+                  // Show existing leads with skeleton for loading call leads
+                  <>
+                    {filteredLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        onClick={() => {
+                          setSelectedLeadId(lead.id)
+                          setHasUserClearedSelection(false)
+                        }}
+                        className={`cursor-pointer border-b border-border p-2.5 md:p-4 transition-colors hover:bg-secondary ${
+                          selectedLeadId === lead.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-2 md:gap-3">
+                          <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <span className="text-xs md:text-sm font-semibold">{lead.name.charAt(0)}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
+                              <h3 className="font-semibold text-xs md:text-sm truncate flex-1 min-w-0">{lead.name}</h3>
+                              {getQuoteRequestWarning(lead)}
+                              <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-[10px] md:text-xs px-1 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
+                                >
+                                  {lead.type === 'call' ? '📞' : '📝'}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">
+                              {lead.project_type || lead.service_type || "General inquiry"}
+                            </p>
+                            
+                            {lead.phone && (
+                              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{lead.phone}</p>
+                            )}
+                            
+                            <div className="flex items-center justify-between gap-1">
+                              <span className={`text-[10px] md:text-xs rounded-full px-1.5 md:px-2 py-0.5 font-medium ${getStatusColor(lead.status)}`}>
+                                {lead.status}
+                              </span>
+                              <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
+                                {formatTime(lead.created_at)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
-                  </div>
+                    {/* Skeleton for loading call leads */}
+                    <div className="space-y-0">
+                      <div className="border-b border-border p-3 bg-muted/30">
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          <p className="text-xs text-muted-foreground">Loading call leads...</p>
+                        </div>
+                      </div>
+                      {[...Array(3)].map((_, i) => (
+                        <div key={`skeleton-${i}`} className="border-b border-border p-4 animate-pulse">
+                          <div className="flex items-start gap-3">
+                            <div className="h-10 w-10 rounded-full bg-muted"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-muted rounded w-3/4"></div>
+                              <div className="h-3 bg-muted rounded w-1/2"></div>
+                              <div className="h-3 bg-muted rounded w-2/3"></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : filteredLeads.length === 0 && !error ? (
                   <div className="p-4 text-center text-muted-foreground">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -552,8 +687,15 @@ export function UnifiedLeads() {
           </div>
 
           {/* Right Panel - Lead Details */}
-          <div className={`lg:col-span-3 ${selectedLead ? 'block' : 'hidden lg:block'} h-full min-h-0`}>
-            {selectedLead ? (
+          <div className={`lg:col-span-3 ${selectedLead || loadingFullLeadDetails ? 'block' : 'hidden lg:block'} h-full min-h-0`}>
+            {loadingFullLeadDetails ? (
+              <Card className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-sm text-muted-foreground">Loading full details...</p>
+                </div>
+              </Card>
+            ) : selectedLead ? (
               <LeadDetailsPanel 
                 lead={selectedLead} 
                 onClose={() => {
@@ -1036,8 +1178,21 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 
   if (loading) {
     return (
-      <div className="p-4 flex justify-center">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      <div className="p-4 space-y-3">
+        {/* Loading indicator with description */}
+        <div className="flex items-center justify-center gap-2 py-4">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground">Loading conversation messages...</p>
+        </div>
+        {/* Skeleton messages */}
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+            <div className="max-w-xs rounded-lg px-3 py-2 bg-muted animate-pulse">
+              <div className="h-4 bg-muted-foreground/20 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-muted-foreground/20 rounded w-24"></div>
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
