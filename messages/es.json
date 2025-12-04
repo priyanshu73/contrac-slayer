@@ -1,0 +1,152 @@
+{
+  "navigation": {
+    "dashboard": "Panel de Control",
+    "leads": "Prospectos",
+    "quotes": "Cotizaciones",
+    "clients": "Clientes",
+    "invoices": "Facturas",
+    "calendar": "Calendario",
+    "settings": "Configuración"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "loading": "Cargando...",
+    "search": "Buscar",
+    "actions": "Acciones",
+    "close": "Cerrar",
+    "submit": "Enviar",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "continue": "Continuar",
+    "back": "Regresar",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse",
+    "logout": "Cerrar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "forgotPassword": "¿Olvidó su contraseña?",
+    "resetPassword": "Restablecer Contraseña",
+    "signInWithEmail": "Iniciar sesión con correo",
+    "createAccount": "Crear Cuenta",
+    "alreadyHaveAccount": "¿Ya tiene una cuenta?",
+    "dontHaveAccount": "¿No tiene una cuenta?",
+    "fullName": "Nombre Completo",
+    "companyName": "Nombre de la Empresa"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "welcome": "Bienvenido de nuevo",
+    "quickActions": "Acciones Rápidas",
+    "recentLeads": "Prospectos Recientes",
+    "upcomingJobs": "Trabajos Próximos",
+    "viewAll": "Ver Todo",
+    "stats": {
+      "newLeads": "Nuevos Prospectos",
+      "totalLeads": "Total de Prospectos",
+      "activeJobs": "Trabajos Activos",
+      "revenue": "Ingresos",
+      "awaitingContact": "Esperando contacto",
+      "allTime": "Todo el tiempo",
+      "comingSoon": "Próximamente"
+    },
+    "actions": {
+      "newLead": "Nuevo Prospecto",
+      "scheduleJob": "Programar Trabajo",
+      "createQuote": "Crear Cotización",
+      "addClient": "Agregar Cliente"
+    },
+    "quoteRequest": {
+      "title": "Formulario de Solicitud de Cotización",
+      "description": "Copie el enlace para compartir con clientes",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "linkCopied": "¡Enlace Copiado!",
+      "linkCopiedDesc": "El enlace de solicitud de cotización ha sido copiado al portapapeles.",
+      "copyFailed": "Error al copiar",
+      "copyFailedDesc": "Por favor intente nuevamente o copie manualmente."
+    },
+    "jobs": {
+      "noJobs": "No hay trabajos programados próximamente"
+    },
+    "time": {
+      "justNow": "Hace un momento",
+      "hoursAgo": "Hace {count} horas",
+      "dayAgo": "Hace 1 día",
+      "daysAgo": "Hace {count} días"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "business": "Empresa",
+    "integrations": "Integraciones",
+    "notifications": "Notificaciones",
+    "language": "Idioma",
+    "businessInfo": "Información de la Empresa",
+    "pricingRates": "Precios y Tarifas",
+    "companyLogo": "Logo de la Empresa",
+    "selectLanguage": "Seleccionar Idioma",
+    "currentLanguage": "Idioma Actual",
+    "changeLanguage": "Cambiar Idioma",
+    "companyName": "Nombre de la Empresa",
+    "businessEmail": "Correo Empresarial",
+    "phoneNumber": "Número de Teléfono",
+    "website": "Sitio Web",
+    "businessAddress": "Dirección de la Empresa",
+    "defaultZipCode": "Código Postal Predeterminado",
+    "defaultLaborRate": "Tarifa de Mano de Obra Predeterminada ($/hora)",
+    "salesTaxRate": "Tasa de Impuesto sobre Ventas (%)",
+    "defaultMarkup": "Margen Predeterminado (%)",
+    "quoteTierMarkups": "Márgenes por Nivel de Cotización",
+    "lowTier": "Nivel Bajo (%)",
+    "midTier": "Nivel Medio (%)",
+    "highTier": "Nivel Alto (%)",
+    "saveChanges": "Guardar Cambios",
+    "uploadNewLogo": "Subir Nuevo Logo",
+    "chooseFile": "Seleccionar Archivo",
+    "uploadLogo": "Subir Logo",
+    "uploading": "Subiendo...",
+    "saving": "Guardando...",
+    "currentLogo": "Logo actual",
+    "newLogoSelected": "Nuevo logo seleccionado",
+    "clickToChange": "Haga clic abajo para cambiar",
+    "reminderSettings": "Configuración de Recordatorios",
+    "jobReminderTime": "Tiempo de Recordatorio de Trabajo",
+    "jobReminderTimeDesc": "Horas antes del trabajo para enviar recordatorio",
+    "invoiceReminderDays": "Días de Recordatorio de Factura",
+    "invoiceReminderDaysDesc": "Días antes de la fecha de vencimiento para enviar recordatorio",
+    "chooseLanguageDesc": "Elija su idioma preferido para la interfaz de la aplicación.",
+    "accountActions": "Acciones de Cuenta",
+    "signOutDesc": "Cerrar sesión en su cuenta. Necesitará iniciar sesión nuevamente para acceder a su panel de control.",
+    "changing": "Cambiando..."
+  },
+  "forms": {
+    "required": "Requerido",
+    "optional": "Opcional",
+    "pleaseEnter": "Por favor ingrese {field}",
+    "invalidEmail": "Dirección de correo electrónico inválida",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden"
+  },
+  "messages": {
+    "success": "¡Éxito!",
+    "error": "¡Error!",
+    "saved": "Cambios guardados exitosamente",
+    "deleted": "Elemento eliminado exitosamente",
+    "created": "Elemento creado exitosamente",
+    "updated": "Elemento actualizado exitosamente"
+  },
+  "metadata": {
+    "title": "ContractPro AI - CRM con IA para Contratistas Modernos",
+    "description": "Transforme su negocio de construcción con automatización inteligente. Genere facturas al instante, capture cada prospecto y cierre más negocios, todo impulsado por tecnología de inteligencia artificial de vanguardia."
+  }
+}

@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // If user is a contractor, try to get their contractor profile to get SP ID
       // Skip fetching profile if we're on the profile setup page (profile doesn't exist yet)
-      if (userData.is_contractor && pathname !== "/auth/profile-setup") {
+      if (userData.is_contractor && !pathname.match(/\/auth\/profile-setup$/)) {
         try {
           const profile = await api.getMyProfile() as ContractorProfile & { contractor_ai_sp_id?: number | null }
           extendedUser.contractor_profile = profile
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Continue with logout even if API call fails
     }
     setUser(null)
-    router.push("/auth/login")
+    // Redirect to login with current locale
+    router.push("/en/auth/login")
   }
 
   const refreshUser = async () => {

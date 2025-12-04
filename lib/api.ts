@@ -129,6 +129,13 @@ class ApiClient {
     })
   }
 
+  async updateLanguagePreference(locale: string) {
+    return this.request('/contractors/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ preferred_language: locale }),
+    })
+  }
+
   async uploadLogo(file: File) {
     const formData = new FormData()
     formData.append('file', file)

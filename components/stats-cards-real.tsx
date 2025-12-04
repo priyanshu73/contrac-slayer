@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
+import { useTranslations } from "next-intl"
 
 interface Stats {
   new_leads: number
@@ -13,6 +14,7 @@ interface Stats {
 
 export function StatsCardsReal() {
   const { user } = useAuth()
+  const t = useTranslations('dashboard.stats')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -48,9 +50,9 @@ export function StatsCardsReal() {
 
   const displayStats = [
     {
-      label: "New Leads",
+      label: t('newLeads'),
       value: stats?.new_leads.toString() || "0",
-      change: "Awaiting contact",
+      change: t('awaitingContact'),
       trend: "neutral" as const,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,9 +61,9 @@ export function StatsCardsReal() {
       ),
     },
     {
-      label: "Total Leads",
+      label: t('totalLeads'),
       value: stats?.total_leads.toString() || "0",
-      change: "All time",
+      change: t('allTime'),
       trend: "neutral" as const,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,9 +72,9 @@ export function StatsCardsReal() {
       ),
     },
     {
-      label: "Active Jobs",
+      label: t('activeJobs'),
       value: "0",
-      change: "Coming soon",
+      change: t('comingSoon'),
       trend: "neutral" as const,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,9 +83,9 @@ export function StatsCardsReal() {
       ),
     },
     {
-      label: "Revenue",
+      label: t('revenue'),
       value: "$0",
-      change: "Coming soon",
+      change: t('comingSoon'),
       trend: "neutral" as const,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

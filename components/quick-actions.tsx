@@ -1,19 +1,27 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useTranslations, useLocale } from "next-intl"
+import Link from "next/link"
 
 export function QuickActions() {
+  const tActions = useTranslations('dashboard.actions')
+  const tDashboard = useTranslations('dashboard')
+  const locale = useLocale()
+  
   const actions = [
     {
-      label: "New Lead",
+      label: tActions('newLead'),
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       ),
-      href: "/leads/new",
+      href: `/${locale}/leads/new`,
     },
     {
-      label: "Schedule Job",
+      label: tActions('scheduleJob'),
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -24,10 +32,10 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: "/calendar/new",
+      href: `/${locale}/calendar/new`,
     },
     {
-      label: "Create Quote",
+      label: tActions('createQuote'),
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -38,10 +46,10 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: "/quotes/new",
+      href: `/${locale}/quotes/new`,
     },
     {
-      label: "Add Client",
+      label: tActions('addClient'),
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -52,22 +60,22 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: "/clients/new",
+      href: `/${locale}/clients/new`,
     },
   ]
 
   return (
     <Card className="p-5">
-      <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
+      <h2 className="mb-4 text-lg font-semibold">{tDashboard('quickActions')}</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {actions.map((action) => (
           <Button key={action.label} variant="outline" className="h-auto flex-col gap-2 py-4 bg-transparent hover:bg-transparent hover:text-foreground hover:scale-101 hover:shadow-lg transition-all duration-300" asChild>
-            <a href={action.href}>
+            <Link href={action.href}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 {action.icon}
               </div>
               <span className="text-sm font-medium">{action.label}</span>
-            </a>
+            </Link>
           </Button>
         ))}
       </div>

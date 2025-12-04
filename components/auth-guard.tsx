@@ -11,11 +11,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const isPublicRoute =
     pathname === "/" ||
-    pathname?.startsWith("/auth") ||
-    pathname?.startsWith("/quote-request") ||
+    pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.
+    pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
+    pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
+    pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
-    pathname?.startsWith("/quotes/") ||
-    pathname?.startsWith("/invoices/")
+    pathname?.match(/^\/[a-z]{2}\/quotes\//) || // Matches /en/quotes/, /es/quotes/, etc.
+    pathname?.startsWith("/quotes/") || // Legacy non-i18n routes
+    pathname?.match(/^\/[a-z]{2}\/invoices\//) || // Matches /en/invoices/, /es/invoices/, etc.
+    pathname?.startsWith("/invoices/") // Legacy non-i18n routes
 
   useEffect(() => {
     // Don't redirect on auth pages, public pages, or landing page

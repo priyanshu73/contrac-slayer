@@ -1,0 +1,152 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "quotes": "Quotes",
+    "clients": "Clients",
+    "invoices": "Invoices",
+    "calendar": "Calendar",
+    "settings": "Settings"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading...",
+    "search": "Search",
+    "actions": "Actions",
+    "close": "Close",
+    "submit": "Submit",
+    "next": "Next",
+    "previous": "Previous",
+    "continue": "Continue",
+    "back": "Back",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "signInWithEmail": "Sign in with Email",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "fullName": "Full Name",
+    "companyName": "Company Name"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back",
+    "quickActions": "Quick Actions",
+    "recentLeads": "Recent Leads",
+    "upcomingJobs": "Upcoming Jobs",
+    "viewAll": "View All",
+    "stats": {
+      "newLeads": "New Leads",
+      "totalLeads": "Total Leads",
+      "activeJobs": "Active Jobs",
+      "revenue": "Revenue",
+      "awaitingContact": "Awaiting contact",
+      "allTime": "All time",
+      "comingSoon": "Coming soon"
+    },
+    "actions": {
+      "newLead": "New Lead",
+      "scheduleJob": "Schedule Job",
+      "createQuote": "Create Quote",
+      "addClient": "Add Client"
+    },
+    "quoteRequest": {
+      "title": "Quote Request Form",
+      "description": "Copy link to share with customers",
+      "copy": "Copy",
+      "copied": "Copied",
+      "linkCopied": "Link Copied!",
+      "linkCopiedDesc": "Quote request link has been copied to your clipboard.",
+      "copyFailed": "Failed to copy",
+      "copyFailedDesc": "Please try again or copy manually."
+    },
+    "jobs": {
+      "noJobs": "No upcoming jobs scheduled"
+    },
+    "time": {
+      "justNow": "Just now",
+      "hoursAgo": "{count} hours ago",
+      "dayAgo": "1 day ago",
+      "daysAgo": "{count} days ago"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "business": "Business",
+    "integrations": "Integrations",
+    "notifications": "Notifications",
+    "language": "Language",
+    "businessInfo": "Business Information",
+    "pricingRates": "Pricing & Rates",
+    "companyLogo": "Company Logo",
+    "selectLanguage": "Select Language",
+    "currentLanguage": "Current Language",
+    "changeLanguage": "Change Language",
+    "companyName": "Company Name",
+    "businessEmail": "Business Email",
+    "phoneNumber": "Phone Number",
+    "website": "Website",
+    "businessAddress": "Business Address",
+    "defaultZipCode": "Default ZIP Code",
+    "defaultLaborRate": "Default Labor Rate ($/hour)",
+    "salesTaxRate": "Sales Tax Rate (%)",
+    "defaultMarkup": "Default Markup (%)",
+    "quoteTierMarkups": "Quote Tier Markups",
+    "lowTier": "Low Tier (%)",
+    "midTier": "Mid Tier (%)",
+    "highTier": "High Tier (%)",
+    "saveChanges": "Save Changes",
+    "uploadNewLogo": "Upload New Logo",
+    "chooseFile": "Choose File",
+    "uploadLogo": "Upload Logo",
+    "uploading": "Uploading...",
+    "saving": "Saving...",
+    "currentLogo": "Current logo",
+    "newLogoSelected": "New logo selected",
+    "clickToChange": "Click below to change",
+    "reminderSettings": "Reminder Settings",
+    "jobReminderTime": "Job Reminder Time",
+    "jobReminderTimeDesc": "Hours before job to send reminder",
+    "invoiceReminderDays": "Invoice Reminder Days",
+    "invoiceReminderDaysDesc": "Days before due date to send reminder",
+    "chooseLanguageDesc": "Choose your preferred language for the application interface.",
+    "accountActions": "Account Actions",
+    "signOutDesc": "Sign out of your account. You will need to log in again to access your dashboard.",
+    "changing": "Changing..."
+  },
+  "forms": {
+    "required": "Required",
+    "optional": "Optional",
+    "pleaseEnter": "Please enter {field}",
+    "invalidEmail": "Invalid email address",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordsDoNotMatch": "Passwords do not match"
+  },
+  "messages": {
+    "success": "Success!",
+    "error": "Error!",
+    "saved": "Changes saved successfully",
+    "deleted": "Item deleted successfully",
+    "created": "Item created successfully",
+    "updated": "Item updated successfully"
+  },
+  "metadata": {
+    "title": "ContractPro AI - AI-Powered CRM for Modern Contractors",
+    "description": "Transform your contracting business with intelligent automation. Generate invoices instantly, capture every lead, and close more deals all powered by cutting edge AI technology."
+  }
+}
