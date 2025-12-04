@@ -796,57 +796,113 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex gap-3 md:gap-6 overflow-hidden min-h-0">
-        {/* Left Side - Lead Details */}
-        <div className="flex-1 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-          {/* Contact Information */}
-          <div>
-            <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-              Contact Information
-            </h3>
-            <div className="space-y-2 md:space-y-3">
-              {lead.phone && (
-                <div className="flex items-center gap-2 md:gap-3">
-                  <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
-                  <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
-                    <a href={`tel:${lead.phone}`}>Call</a>
-                  </Button>
-                </div>
-              )}
-              {lead.email && (
-                <div className="flex items-center gap-2 md:gap-3">
-                  <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                  <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
-                </div>
-              )}
-              {lead.address && (
-                <div className="flex items-center gap-2 md:gap-3">
-                  <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 md:gap-3">
-                <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
+        {lead.type === 'call' ? (
+          <>
+            {/* Middle - Conversation History (for call leads) */}
+            <div className="flex-1 border-r bg-muted/10 hidden lg:flex lg:flex-col min-h-0">
+              <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                  Conversation History
+                </h3>
+                <p className="text-[10px] md:text-xs text-muted-foreground">Live chat messages</p>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+                <ConversationMessages phoneNumber={lead.phone || ''} />
               </div>
             </div>
-          </div>
 
-          {/* Project Description */}
-          {lead.description && (
-            <div>
-              <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                {lead.type === 'call' ? 'AI Summary' : 'Project Description'}
-              </h3>
-              <div className={`p-2.5 md:p-4 rounded-lg ${lead.type === 'call' ? 'bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500' : 'bg-muted/50'}`}>
-                <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
+            {/* Right Side - Lead Details (for call leads) */}
+            <div className="w-80 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+              {/* Contact Information */}
+              <div>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                  Contact Information
+                </h3>
+                <div className="space-y-2 md:space-y-3">
+                  {lead.phone && (
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                      <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
+                      <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
+                        <a href={`tel:${lead.phone}`}>Call</a>
+                      </Button>
+                    </div>
+                  )}
+                  {lead.email && (
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                      <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
+                    </div>
+                  )}
+                  {lead.address && (
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                      <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Call-specific content */}
-          {lead.type === 'call' && (
-            <>
+              {/* AI Summary */}
+              {lead.description && (
+                <div>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                    AI Summary
+                  </h3>
+                  <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Automated Actions */}
+              <div>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                  Automated Actions
+                </h3>
+                <div className="space-y-2">
+                  {lead.summary_confirmed ? (
+                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
+                      ✅ Summary confirmed
+                    </div>
+                  ) : (
+                    <div className="text-xs text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+                      ⏳ Summary pending confirmation
+                    </div>
+                  )}
+                  
+                  {lead.appointment_link_sent ? (
+                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
+                      ✅ Appointment link sent
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                      📅 Appointment link not sent
+                    </div>
+                  )}
+                  
+                  {lead.media_uploaded ? (
+                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
+                      ✅ Media uploaded
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                      📎 No media uploaded
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Full Transcript (Collapsible) */}
+              {lead.transcript_text && (
+                <TranscriptSection transcript={lead.transcript_text} />
+              )}
+
               {/* Mobile Conversation View */}
               <div className="lg:hidden">
                 <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
@@ -856,140 +912,79 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   <ConversationMessages phoneNumber={lead.phone || ''} />
                 </Card>
               </div>
+            </div>
+          </>
+        ) : (
+          /* Left Side - Lead Details (for request leads) */
+          <div className="flex-1 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+            {/* Contact Information */}
+            <div>
+              <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                Contact Information
+              </h3>
+              <div className="space-y-2 md:space-y-3">
+                {lead.phone && (
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
+                    <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
+                      <a href={`tel:${lead.phone}`}>Call</a>
+                    </Button>
+                  </div>
+                )}
+                {lead.email && (
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                    <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
+                  </div>
+                )}
+                {lead.address && (
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
+                </div>
+              </div>
+            </div>
 
-              {/* Mobile Automated Messages */}
-              <div className="lg:hidden">
-                <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                  Automated Actions
+            {/* Project Description */}
+            {lead.description && (
+              <div>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                  Project Description
                 </h3>
-                <div className="space-y-2">
-                  {lead.summary_confirmed ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Summary confirmed
-                    </div>
-                  ) : (
-                    <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                      ⏳ Summary pending confirmation
-                    </div>
-                  )}
-                  
-                  {lead.appointment_link_sent ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Appointment link sent
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📅 Appointment link not sent
-                    </div>
-                  )}
-                  
-                  {lead.media_uploaded ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Media uploaded
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📎 No media uploaded
-                    </div>
-                  )}
+                <div className="p-2.5 md:p-4 rounded-lg bg-muted/50">
+                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
                 </div>
               </div>
+            )}
 
-              {/* Mobile Full Transcript */}
-              {lead.transcript_text && (
-                <div className="lg:hidden">
-                  <TranscriptSection transcript={lead.transcript_text} />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Request-specific content */}
-          {lead.type === 'request' && (
-            <>
-              {/* Estimated Value */}
-              {lead.estimated_value && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    Estimated Value
-                  </h3>
-                  <div className="text-2xl font-bold text-primary">
-                    ${lead.estimated_value.toLocaleString()}
-                  </div>
-                </div>
-              )}
-
-              {/* Attachments */}
-              {lead.attachments && lead.attachments.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    Attachments
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    📎 {lead.attachments.length} file{lead.attachments.length > 1 ? 's' : ''} attached
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Right Side - Conversation & Messages (for call leads) */}
-        {lead.type === 'call' && (
-          <div className="w-80 border-l bg-muted/10 hidden lg:flex lg:flex-col min-h-0">
-            {/* Conversation Area */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="p-4 border-b bg-background flex-shrink-0">
-                <h3 className="font-semibold text-sm">Conversation History</h3>
-                <p className="text-xs text-muted-foreground mt-1">Live chat messages</p>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-                <ConversationMessages phoneNumber={lead.phone || ''} />
-              </div>
-            </div>
-
-            {/* Automated Messages Section */}
-            <div className="border-t bg-background flex-shrink-0">
-              <div className="p-4">
-                <h4 className="font-semibold text-sm mb-2">Automated Actions</h4>
-                <div className="space-y-2">
-                  {lead.summary_confirmed ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Summary confirmed
-                    </div>
-                  ) : (
-                    <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                      ⏳ Summary pending confirmation
-                    </div>
-                  )}
-                  
-                  {lead.appointment_link_sent ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Appointment link sent
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📅 Appointment link not sent
-                    </div>
-                  )}
-                  
-                  {lead.media_uploaded ? (
-                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      ✅ Media uploaded
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📎 No media uploaded
-                    </div>
-                  )}
+            {/* Request-specific content */}
+            {lead.estimated_value && (
+              <div>
+                <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                  Estimated Value
+                </h3>
+                <div className="text-2xl font-bold text-primary">
+                  ${lead.estimated_value.toLocaleString()}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Full Transcript (Collapsible) */}
-            {lead.transcript_text && (
-              <TranscriptSection transcript={lead.transcript_text} />
+            {/* Attachments */}
+            {lead.attachments && lead.attachments.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                  Attachments
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  📎 {lead.attachments.length} file{lead.attachments.length > 1 ? 's' : ''} attached
+                </div>
+              </div>
             )}
           </div>
         )}
