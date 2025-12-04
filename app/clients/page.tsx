@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ClientsHeader } from "@/components/clients-header"
 import { ClientsSearch } from "@/components/clients-search"
 import { ClientsList } from "@/components/clients-list"
+import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 
 export default function ClientsPage() {
@@ -29,11 +29,22 @@ export default function ClientsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <ClientsHeader totalCount={clients.length} loading={loading} />
 
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
         <div className="space-y-4">
-          <ClientsSearch />
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <ClientsSearch />
+            </div>
+            <Button size="sm" asChild>
+              <a href="/clients/new">
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Client
+              </a>
+            </Button>
+          </div>
           <ClientsList clients={clients} loading={loading} />
         </div>
       </main>

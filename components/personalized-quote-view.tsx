@@ -301,7 +301,28 @@ export function PersonalizedQuoteView({
                     {currentJob.client?.name || 'Unknown Client'}
                   </p>
                   {currentJob.client?.address && (
-                    <p className="text-sm print:text-xs text-gray-600">{currentJob.client.address}</p>
+                    <div className="flex items-center gap-2 print:block">
+                      <p className="text-sm print:text-xs text-gray-600 flex-1">{currentJob.client.address}</p>
+                      {!isPublicView && (
+                        <Button variant="ghost" size="sm" asChild className="h-7 px-2 print:hidden">
+                          <a
+                            href={`https://maps.google.com/?q=${encodeURIComponent(currentJob.client.address)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                              />
+                            </svg>
+                            <span className="ml-1 text-xs">Directions</span>
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   )}
                   {currentJob.client?.email && (
                     <p className="text-sm print:text-xs text-gray-600">{currentJob.client.email}</p>
@@ -686,12 +707,14 @@ export function PersonalizedQuoteView({
                   </svg>
                   Edit Quote
                 </Button>
+                {/* Commented out - might use in the future
                 <Button size="lg" variant="outline" onClick={onCreateInvoice}>
                   <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Create Invoice
                 </Button>
+                */}
               </>
             )}
             <Button
