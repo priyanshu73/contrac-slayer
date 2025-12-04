@@ -5,10 +5,12 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 
 export function QuoteRequestLink() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const t = useTranslations('dashboard.quoteRequest')
   const [copied, setCopied] = useState(false)
 
   // Get contractor ID from profile
@@ -23,14 +25,14 @@ export function QuoteRequestLink() {
       await navigator.clipboard.writeText(quoteRequestUrl)
       setCopied(true)
       toast({
-        title: "Link Copied!",
-        description: "Quote request link has been copied to your clipboard.",
+        title: t('linkCopied'),
+        description: t('linkCopiedDesc'),
       })
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       toast({
-        title: "Failed to copy",
-        description: "Please try again or copy manually.",
+        title: t('copyFailed'),
+        description: t('copyFailedDesc'),
         variant: "destructive",
       })
     }
@@ -50,8 +52,8 @@ export function QuoteRequestLink() {
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-800">Quote Request Form</h3>
-            <p className="text-xs text-gray-600">Copy link to share with customers</p>
+            <h3 className="text-base font-semibold text-gray-800">{t('title')}</h3>
+            <p className="text-xs text-gray-600">{t('description')}</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -70,14 +72,14 @@ export function QuoteRequestLink() {
                 <svg className="h-4 w-4 text-green-600 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-xs text-green-600">Copied</span>
+                <span className="text-xs text-green-600">{t('copied')}</span>
               </>
             ) : (
               <>
                 <svg className="h-4 w-4 text-blue-600 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                <span className="text-xs text-blue-600">Copy</span>
+                <span className="text-xs text-blue-600">{t('copy')}</span>
               </>
             )}
           </Button>

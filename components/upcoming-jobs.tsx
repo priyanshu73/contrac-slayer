@@ -1,15 +1,21 @@
+"use client"
+
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useTranslations, useLocale } from "next-intl"
+import Link from "next/link"
 
 export function UpcomingJobs() {
+  const t = useTranslations('dashboard')
+  const locale = useLocale()
   const jobs: any[] = []
 
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Upcoming Jobs</h2>
+        <h2 className="text-lg font-semibold">{t('upcomingJobs')}</h2>
         <Button variant="ghost" size="sm" asChild>
-          <a href="/calendar">View All</a>
+          <Link href={`/${locale}/calendar`}>{t('viewAll')}</Link>
         </Button>
       </div>
       {jobs.length === 0 ? (
@@ -24,7 +30,7 @@ export function UpcomingJobs() {
               />
             </svg>
           </div>
-          <p className="text-sm text-muted-foreground">No upcoming jobs scheduled</p>
+          <p className="text-sm text-muted-foreground">{t('jobs.noJobs')}</p>
         </div>
       ) : (
         <div className="space-y-3">

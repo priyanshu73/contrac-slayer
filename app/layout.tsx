@@ -2,10 +2,6 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { AuthProvider } from "@/contexts/AuthContext"
-import { AuthGuard } from "@/components/auth-guard"
-import { Navbar } from "@/components/navbar"
-import { EmailVerificationBanner } from "@/components/email-verification-banner"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -17,25 +13,25 @@ export const metadata: Metadata = {
   description: "Transform your contracting business with intelligent automation. Generate invoices instantly, capture every lead, and close more deals all powered by cutting edge AI technology.",
   generator: "v0.app",
   icons: {
-    icon: "/images/favicon.ico",
+    icon: "/favicon.ico",
+  },
+  alternates: {
+    languages: {
+      'en': '/en',
+      'es': '/es',
+    },
   },
 }
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html>
       <body className={`font-sans antialiased`}>
-        <AuthProvider>
-          <AuthGuard>
-            <Navbar />
-            <EmailVerificationBanner />
-            {children}
-          </AuthGuard>
-        </AuthProvider>
+        {children}
         <Toaster />
         <Analytics />
       </body>

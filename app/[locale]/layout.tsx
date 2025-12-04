@@ -1,0 +1,45 @@
+import type React from "react"
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { AuthProvider } from "@/contexts/AuthContext"
+import { LanguageProvider } from "@/contexts/LanguageContext"
+import { AuthGuard } from "@/components/auth-guard"
+import { Navbar } from "@/components/navbar"
+import { EmailVerificationBanner } from "@/components/email-verification-banner"
+import { generateMetadata } from './metadata'
+
+export { generateMetadata }
+
+const locales = ['en', 'es'] as const;
+
+export default async function LocaleLayout({
+  children,
+  params
+}: {
+  children: React.ReactNode;
+  params: { locale: string };
+}) {
+  const { locale } = await params;
+  
+  // Validate that the incoming `locale` parameter is valid
+  if (!locales.includes(locale as any)) {
+    notFound();
+  }
+  
+  const messages = await getMessages({ locale });
+
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <AuthProvider>
+        <LanguageProvider>
+          <AuthGuard>
+            <Navbar />
+            <EmailVerificationBanner />
+            {children}
+          </AuthGuard>
+        </LanguageProvider>
+      </AuthProvider>
+    </NextIntlClientProvider>
+  );
+}

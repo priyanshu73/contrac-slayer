@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
+import { useTranslations, useLocale } from "next-intl"
+import Link from "next/link"
 
 interface Lead {
   id: number
@@ -18,6 +20,9 @@ interface Lead {
 
 export function RecentLeadsReal() {
   const { user } = useAuth()
+  const t = useTranslations('dashboard')
+  const tTime = useTranslations('dashboard.time')
+  const locale = useLocale()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -64,17 +69,17 @@ export function RecentLeadsReal() {
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours} hours ago`
-    if (diffInHours < 48) return "1 day ago"
-    return `${Math.floor(diffInHours / 24)} days ago`
+    if (diffInHours < 1) return tTime('justNow')
+    if (diffInHours < 24) return tTime('hoursAgo', { count: diffInHours })
+    if (diffInHours < 48) return tTime('dayAgo')
+    return tTime('daysAgo', { count: Math.floor(diffInHours / 24) })
   }
 
   if (loading) {
     return (
       <Card className="p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recent Leads</h2>
+          <h2 className="text-lg font-semibold">{t('recentLeads')}</h2>
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -91,9 +96,9 @@ export function RecentLeadsReal() {
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Recent Leads</h2>
+        <h2 className="text-lg font-semibold">{t('recentLeads')}</h2>
         <Button variant="ghost" size="sm" asChild>
-          <a href="/leads">View All</a>
+          <Link href={`/${locale}/leads`}>{t('viewAll')}</Link>
         </Button>
       </div>
       {leads.length === 0 ? (
@@ -103,9 +108,9 @@ export function RecentLeadsReal() {
       ) : (
         <div className="space-y-3">
           {leads.map((lead) => (
-            <a 
+            <Link 
               key={lead.id} 
-              href={`/leads/${lead.id}`}
+              href={`/${locale}/leads/${lead.id}`}
               className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 hover:border-primary/50 transition-all cursor-pointer group"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
@@ -136,7 +141,7 @@ export function RecentLeadsReal() {
                   </div>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       )}

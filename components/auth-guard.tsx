@@ -3,19 +3,25 @@
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLocale } from "next-intl"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const locale = useLocale()
 
   const isPublicRoute =
     pathname === "/" ||
-    pathname?.startsWith("/auth") ||
-    pathname?.startsWith("/quote-request") ||
+    pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.
+    pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
+    pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
+    pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
-    pathname?.startsWith("/quotes/") ||
-    pathname?.startsWith("/invoices/")
+    pathname?.match(/^\/[a-z]{2}\/quotes\//) || // Matches /en/quotes/, /es/quotes/, etc.
+    pathname?.startsWith("/quotes/") || // Legacy non-i18n routes
+    pathname?.match(/^\/[a-z]{2}\/invoices\//) || // Matches /en/invoices/, /es/invoices/, etc.
+    pathname?.startsWith("/invoices/") // Legacy non-i18n routes
 
   useEffect(() => {
     // Don't redirect on auth pages, public pages, or landing page
@@ -25,12 +31,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Redirect to login if not authenticated
     if (!loading && !user) {
-      router.push("/auth/login")
+      router.push(`/${locale}/auth/login`)
     }
 
     // Redirect to profile setup if user doesn't have a profile
-    if (!loading && user && !user.contractor_profile && pathname !== "/auth/profile-setup") {
-      router.push("/auth/profile-setup")
+    if (!loading && user && !user.contractor_profile && pathname !== `/${locale}/auth/profile-setup`) {
+      router.push(`/${locale}/auth/profile-setup`)
     }
   }, [user, loading, router, pathname])
 

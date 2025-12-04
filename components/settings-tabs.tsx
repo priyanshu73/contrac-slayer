@@ -11,10 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/lib/api"
 import { ContractorProfile } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
+import { LanguageSelector } from "@/components/language-selector"
+import { useTranslations } from "next-intl"
 import Image from "next/image"
+import { LogOut } from "lucide-react"
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
+  const t = useTranslations('settings')
+  const tAuth = useTranslations('auth')
+  const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -147,10 +153,11 @@ export function SettingsTabs() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-        <TabsTrigger value="business">Business</TabsTrigger>
-        <TabsTrigger value="integrations">Integrations</TabsTrigger>
-        <TabsTrigger value="notifications">Notifications</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsTrigger value="business">{t('business')}</TabsTrigger>
+        <TabsTrigger value="integrations">{t('integrations')}</TabsTrigger>
+        <TabsTrigger value="notifications">{t('notifications')}</TabsTrigger>
+        <TabsTrigger value="language">{t('language')}</TabsTrigger>
       </TabsList>
 
       {/* Success/Error Messages */}
@@ -169,7 +176,7 @@ export function SettingsTabs() {
       <TabsContent value="business" className="space-y-6">
         {/* Logo Section */}
         <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Company Logo</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('companyLogo')}</h2>
           <div className="space-y-4">
             {logoPreview && (
               <div className="flex items-center gap-4">
@@ -182,10 +189,10 @@ export function SettingsTabs() {
                   />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">Current logo</p>
+                  <p className="text-sm text-muted-foreground">{t('currentLogo')}</p>
                   {profile?.logo_url && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {logoFile ? "New logo selected" : "Click below to change"}
+                      {logoFile ? t('newLogoSelected') : t('clickToChange')}
                     </p>
                   )}
                 </div>
@@ -193,7 +200,7 @@ export function SettingsTabs() {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="logo-upload">Upload New Logo</Label>
+              <Label htmlFor="logo-upload">{t('uploadNewLogo')}</Label>
               <input
                 ref={fileInputRef}
                 id="logo-upload"
@@ -209,7 +216,7 @@ export function SettingsTabs() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSaving}
                 >
-                  Choose File
+                  {t('chooseFile')}
                 </Button>
                 {logoFile && (
                   <Button
@@ -217,7 +224,7 @@ export function SettingsTabs() {
                     onClick={handleUploadLogo}
                     disabled={isSaving}
                   >
-                    {isSaving ? "Uploading..." : "Upload Logo"}
+                    {isSaving ? t('uploading') : t('uploadLogo')}
                   </Button>
                 )}
               </div>
@@ -229,11 +236,11 @@ export function SettingsTabs() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Business Information</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('businessInfo')}</h2>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="business-name">Company Name *</Label>
+                <Label htmlFor="business-name">{t('companyName')} *</Label>
                 <Input
                   id="business-name"
                   placeholder="Your Company Name"
@@ -243,7 +250,7 @@ export function SettingsTabs() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business-email">Business Email *</Label>
+                <Label htmlFor="business-email">{t('businessEmail')} *</Label>
                 <Input
                   id="business-email"
                   type="email"
@@ -256,7 +263,7 @@ export function SettingsTabs() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="business-phone">Phone Number</Label>
+                <Label htmlFor="business-phone">{t('phoneNumber')}</Label>
                 <Input
                   id="business-phone"
                   placeholder="(555) 123-4567"
@@ -266,7 +273,7 @@ export function SettingsTabs() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business-website">Website</Label>
+                <Label htmlFor="business-website">{t('website')}</Label>
                 <Input
                   id="business-website"
                   placeholder="https://yourcompany.com"
@@ -278,7 +285,7 @@ export function SettingsTabs() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="business-address">Business Address</Label>
+                <Label htmlFor="business-address">{t('businessAddress')}</Label>
                 <Input
                   id="business-address"
                   placeholder="123 Main Street, City, State ZIP"
@@ -288,7 +295,7 @@ export function SettingsTabs() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="default-zip">Default ZIP Code</Label>
+                <Label htmlFor="default-zip">{t('defaultZipCode')}</Label>
                 <Input
                   id="default-zip"
                   placeholder="90210"
@@ -301,10 +308,10 @@ export function SettingsTabs() {
           </div>
           <div className="mt-6 flex gap-2">
             <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? t('saving') : t('saveChanges')}
             </Button>
             <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
           </div>
         </Card>
@@ -413,10 +420,10 @@ export function SettingsTabs() {
           </div>
           <div className="mt-6 flex gap-2">
             <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? t('saving') : t('saveChanges')}
             </Button>
             <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
           </div>
         </Card>
@@ -638,37 +645,57 @@ export function SettingsTabs() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Reminder Settings</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('reminderSettings')}</h2>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="job-reminder-time">Job Reminder Time</Label>
+              <Label htmlFor="job-reminder-time">{t('jobReminderTime')}</Label>
               <Input id="job-reminder-time" type="number" placeholder="24" defaultValue="24" />
-              <p className="text-sm text-muted-foreground">Hours before job to send reminder</p>
+              <p className="text-sm text-muted-foreground">{t('jobReminderTimeDesc')}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invoice-reminder-days">Invoice Reminder Days</Label>
+              <Label htmlFor="invoice-reminder-days">{t('invoiceReminderDays')}</Label>
               <Input id="invoice-reminder-days" type="number" placeholder="7" defaultValue="7" />
-              <p className="text-sm text-muted-foreground">Days before due date to send reminder</p>
+              <p className="text-sm text-muted-foreground">{t('invoiceReminderDaysDesc')}</p>
             </div>
           </div>
           <div className="mt-6 flex gap-2">
-            <Button>Save Changes</Button>
-            <Button variant="outline">Cancel</Button>
+            <Button>{t('saveChanges')}</Button>
+            <Button variant="outline">{tCommon('cancel')}</Button>
+          </div>
+        </Card>
+      </TabsContent>
+
+      {/* Language Settings */}
+      <TabsContent value="language" className="space-y-6">
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">{t('language')}</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            {t('chooseLanguageDesc')}
+          </p>
+          <div className="max-w-sm">
+            <LanguageSelector />
           </div>
         </Card>
       </TabsContent>
       </Tabs>
 
       {/* Account Actions */}
-      <Card className="p-6 border-destructive/20">
-        <h2 className="mb-4 text-lg font-semibold">Account Actions</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Sign out of your account. You will need to log in again to access your dashboard.
-        </p>
-        <Button onClick={logout} variant="destructive">
-          Logout
-        </Button>
-      </Card>
+        <div className="space-y-4">
+          <div>
+            <h2 className="mb-2 text-lg font-semibold">{t('accountActions')}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t('signOutDesc')}
+            </p>
+          </div>
+          <Button 
+            onClick={logout} 
+            variant="outline"
+            className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {tAuth('logout')}
+          </Button>
+        </div>
     </div>
   )
 }
