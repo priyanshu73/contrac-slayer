@@ -13,13 +13,14 @@ import { ContractorProfile } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
-const tAuth = useTranslations('auth')
 import Image from "next/image"
+import { LogOut } from "lucide-react"
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
   const t = useTranslations('settings')
   const tAuth = useTranslations('auth')
+  const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -310,7 +311,7 @@ export function SettingsTabs() {
               {isSaving ? t('saving') : t('saveChanges')}
             </Button>
             <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              {t('cancel')}
+              {tCommon('cancel')}
             </Button>
           </div>
         </Card>
@@ -422,7 +423,7 @@ export function SettingsTabs() {
               {isSaving ? t('saving') : t('saveChanges')}
             </Button>
             <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              {t('cancel')}
+              {tCommon('cancel')}
             </Button>
           </div>
         </Card>
@@ -659,7 +660,7 @@ export function SettingsTabs() {
           </div>
           <div className="mt-6 flex gap-2">
             <Button>{t('saveChanges')}</Button>
-            <Button variant="outline">{t('cancel')}</Button>
+            <Button variant="outline">{tCommon('cancel')}</Button>
           </div>
         </Card>
       </TabsContent>
@@ -679,15 +680,22 @@ export function SettingsTabs() {
       </Tabs>
 
       {/* Account Actions */}
-      <Card className="p-6 border-destructive/20">
-        <h2 className="mb-4 text-lg font-semibold">{t('accountActions')}</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          {t('signOutDesc')}
-        </p>
-        <Button onClick={logout} variant="destructive">
-          {tAuth('logout')}
-        </Button>
-      </Card>
+        <div className="space-y-4">
+          <div>
+            <h2 className="mb-2 text-lg font-semibold">{t('accountActions')}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t('signOutDesc')}
+            </p>
+          </div>
+          <Button 
+            onClick={logout} 
+            variant="outline"
+            className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {tAuth('logout')}
+          </Button>
+        </div>
     </div>
   )
 }
