@@ -13,6 +13,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const isPublicRoute =
     pathname === "/" ||
+    pathname?.match(/^\/[a-z]{2}$/) || // Matches /en, /es (homepage with locale)
     pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.
     pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
     pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
@@ -38,7 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!loading && user && !user.contractor_profile && pathname !== `/${locale}/auth/profile-setup`) {
       router.push(`/${locale}/auth/profile-setup`)
     }
-  }, [user, loading, router, pathname])
+  }, [user, loading, router, pathname, locale])
 
   // Show loading state
   if (loading) {
