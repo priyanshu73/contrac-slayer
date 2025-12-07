@@ -21,7 +21,13 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const fetchLead = async () => {
     try {
       setLoading(true)
-      const data = await api.getLead(parseInt(leadId))
+      // Validate leadId before parsing
+      if (!leadId || isNaN(Number(leadId))) {
+        setError("Invalid lead ID")
+        return
+      }
+      const leadIdNum = parseInt(leadId, 10)
+      const data = await api.getLead(leadIdNum)
       setLead(data as Lead)
     } catch (err: any) {
       setError(err.message || "Failed to load lead")

@@ -386,11 +386,11 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   }
 
   const fetchLeadData = async () => {
-    if (!leadId) return
+    if (!leadId || isNaN(Number(leadId))) return
     
     try {
       setLoadingLead(true)
-      const data = await api.getLead(parseInt(leadId))
+      const data = await api.getLead(parseInt(leadId, 10))
       const lead = data as Lead
       
       // Auto-fill client information
@@ -638,7 +638,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       
       // Prepare job data
       const jobData = {
-        lead_id: leadId ? parseInt(leadId) : null, // Link to original lead if creating from lead
+        lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null, // Link to original lead if creating from lead
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim() || null,
