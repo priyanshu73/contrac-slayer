@@ -169,7 +169,7 @@
   [data-slot="sidebar-wrapper"],
   [data-slot="sidebar-gap"],
   [data-slot="sidebar-inset"],
-  .print\\:hidden {
+  [class*="print:hidden"] {
     display: none !important;
   }
 
@@ -193,7 +193,7 @@
   }
 
   /* Prevent page breaks inside important sections */
-  .print\\:break-inside-avoid {
+  [class*="print:break-inside-avoid"] {
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -208,7 +208,7 @@
   }
 
   /* Fix for blank first page - remove min-height in print */
-  .print\\:min-h-0 {
+  [class*="print:min-h-0"] {
     min-height: 0 !important;
     height: auto !important;
   }
@@ -240,27 +240,27 @@
   }
 
   /* Remove margins from outer containers in print */
-  .print\\:m-0 {
+  [class*="print:m-0"] {
     margin: 0 !important;
   }
 
   /* Remove horizontal margins in print */
-  .print\\:mx-0 {
+  [class*="print:mx-0"] {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
 
   /* Optimize card spacing for print */
-  .print\\:p-4 {
+  [class*="print:p-4"] {
     padding: 1rem !important;
   }
 
   /* Reduce margins */
-  .print\\:mb-2 {
+  [class*="print:mb-2"] {
     margin-bottom: 0.5rem !important;
   }
 
-  .print\\:mb-4 {
+  [class*="print:mb-4"] {
     margin-bottom: 1rem !important;
   }
 
