@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { useState, useEffect } from 'react'
 import { contractorAI } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslations } from 'next-intl'
 
 interface Lead {
   id: string
@@ -33,6 +34,8 @@ interface LeadInboxProps {
 
 export default function LeadInbox({ selectedLead, onSelectLead, language }: LeadInboxProps) {
   const { getContractorAISpId } = useAuth()
+  const t = useTranslations('search')
+  const tFilters = useTranslations('filters')
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -40,7 +43,7 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
   const [spIdError, setSpIdError] = useState<string | null>(null)
 
   const title = language === 'en' ? 'Lead Inbox' : 'Bandeja de Entrada'
-  const searchPlaceholder = language === 'en' ? 'Search leads...' : 'Buscar clientes...'
+  const searchPlaceholder = t('searchLeads')
 
   // Load leads from contractor-ai API
   useEffect(() => {
@@ -198,7 +201,7 @@ export default function LeadInbox({ selectedLead, onSelectLead, language }: Lead
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
-                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                {tFilters(status as any)}
               </button>
             ))}
           </div>

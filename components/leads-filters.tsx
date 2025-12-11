@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useTranslations } from "next-intl"
 
 interface LeadsFiltersProps {
   activeFilter: string
@@ -17,13 +18,15 @@ interface LeadsFiltersProps {
 }
 
 export function LeadsFilters({ activeFilter, onFilterChange, counts }: LeadsFiltersProps) {
+  const t = useTranslations('filters')
+  
   const filters = [
-    { id: "all", label: "All", count: counts.all },
-    { id: "NEW", label: "New", count: counts.new },
-    { id: "CONTACTED", label: "Contacted", count: counts.contacted },
-    { id: "QUOTED", label: "Quoted", count: counts.quoted },
-    { id: "CONVERTED", label: "Converted", count: counts.converted },
-    { id: "LOST", label: "Lost", count: counts.lost },
+    { id: "all", label: t('all'), count: counts.all },
+    { id: "NEW", label: t('new'), count: counts.new },
+    { id: "CONTACTED", label: t('contacted'), count: counts.contacted },
+    { id: "QUOTED", label: t('quoted'), count: counts.quoted },
+    { id: "CONVERTED", label: t('converted'), count: counts.converted },
+    { id: "LOST", label: t('lost'), count: counts.lost },
   ]
 
   return (

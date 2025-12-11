@@ -3,15 +3,17 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useTranslations } from "next-intl"
 
 export function InvoicesFilters() {
+  const t = useTranslations('filters')
   const [activeFilter, setActiveFilter] = useState("all")
 
   const filters = [
-    { id: "all", label: "All" },
-    { id: "pending", label: "Pending" },
-    { id: "paid", label: "Paid" },
-    { id: "overdue", label: "Overdue" },
+    { id: "all", label: t('all') },
+    { id: "pending", label: t('pending') },
+    { id: "paid", label: t('paid') },
+    { id: "overdue", label: t('overdue') },
   ]
 
   return (

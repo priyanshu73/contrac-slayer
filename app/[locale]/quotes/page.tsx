@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { api } from "@/lib/api"
+import { useTranslations } from "next-intl"
 
 interface ClientInfo {
   id: number
@@ -48,6 +49,7 @@ export default function QuotesPage() {
   const router = useRouter()
   const { toast } = useToast()
   const isMobile = useIsMobile()
+  const t = useTranslations('filters')
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined)
@@ -152,8 +154,9 @@ export default function QuotesPage() {
   const counts = getCounts()
 
   const getFilterLabel = (filter: string | undefined) => {
-    if (filter === undefined) return "All"
-    return filter.charAt(0) + filter.slice(1).toLowerCase()
+    if (filter === undefined) return t('all')
+    const filterKey = filter.toLowerCase() as keyof typeof t
+    return t(filterKey as any) || filter.charAt(0) + filter.slice(1).toLowerCase()
   }
 
   const getFilterCount = (filter: string | undefined) => {
@@ -182,16 +185,16 @@ export default function QuotesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">
-                      All <span className="ml-2 text-muted-foreground">({counts.all})</span>
+                      {t('all')} <span className="ml-2 text-muted-foreground">({counts.all})</span>
                     </SelectItem>
                     <SelectItem value="DRAFT">
-                      Draft <span className="ml-2 text-muted-foreground">({counts.draft})</span>
+                      {t('draft')} <span className="ml-2 text-muted-foreground">({counts.draft})</span>
                     </SelectItem>
                     <SelectItem value="SENT">
-                      Sent <span className="ml-2 text-muted-foreground">({counts.sent})</span>
+                      {t('sent')} <span className="ml-2 text-muted-foreground">({counts.sent})</span>
                     </SelectItem>
                     <SelectItem value="ACCEPTED">
-                      Accepted <span className="ml-2 text-muted-foreground">({counts.accepted})</span>
+                      {t('accepted')} <span className="ml-2 text-muted-foreground">({counts.accepted})</span>
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -203,7 +206,7 @@ export default function QuotesPage() {
                   onClick={() => setActiveFilter(undefined)}
                   size="sm"
                 >
-                  All
+                  {t('all')}
                   <Badge variant="secondary" className="ml-2">
                     {counts.all}
                   </Badge>
@@ -213,7 +216,7 @@ export default function QuotesPage() {
                   onClick={() => setActiveFilter("DRAFT")}
                   size="sm"
                 >
-                  Draft
+                  {t('draft')}
                   <Badge variant="secondary" className="ml-2">
                     {counts.draft}
                   </Badge>
@@ -223,7 +226,7 @@ export default function QuotesPage() {
                   onClick={() => setActiveFilter("SENT")}
                   size="sm"
                 >
-                  Sent
+                  {t('sent')}
                   <Badge variant="secondary" className="ml-2">
                     {counts.sent}
                   </Badge>
@@ -233,7 +236,7 @@ export default function QuotesPage() {
                   onClick={() => setActiveFilter("ACCEPTED")}
                   size="sm"
                 >
-                  Accepted
+                  {t('accepted')}
                   <Badge variant="secondary" className="ml-2">
                     {counts.accepted}
                   </Badge>

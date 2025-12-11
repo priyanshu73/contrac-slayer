@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, contractorAI } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useTranslations } from "next-intl"
 import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle } from "lucide-react"
 
 // Unified lead interface that combines both systems
@@ -59,6 +60,8 @@ export function UnifiedLeads() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isMobile = useIsMobile()
+  const t = useTranslations('search')
+  const tFilters = useTranslations('filters')
   
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
@@ -470,11 +473,11 @@ export function UnifiedLeads() {
               <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
                 <SelectTrigger className="h-8 w-auto border-none bg-transparent p-0 text-sm font-semibold text-muted-foreground shadow-none focus:ring-0 hover:bg-transparent">
                   <SelectValue>
-                    {activeTab === 'all' ? `All ${counts.all}` : activeTab === 'requests' ? `Requests ${counts.requests}` : `Calls ${counts.calls}`}
+                    {activeTab === 'all' ? `${tFilters('all')} ${counts.all}` : activeTab === 'requests' ? `Requests ${counts.requests}` : `Calls ${counts.calls}`}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All {counts.all}</SelectItem>
+                  <SelectItem value="all">{tFilters('all')} {counts.all}</SelectItem>
                   <SelectItem value="requests">Requests {counts.requests}</SelectItem>
                   <SelectItem value="calls">Calls {counts.calls}</SelectItem>
                 </SelectContent>
@@ -488,7 +491,7 @@ export function UnifiedLeads() {
                 onClick={() => setActiveTab('all')}
                 className="text-xs md:text-sm h-8 md:h-9"
               >
-                All <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.all}</span>
+                {tFilters('all')} <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.all}</span>
               </Button>
               <Button
                 variant={activeTab === 'requests' ? 'default' : 'ghost'}
@@ -525,7 +528,7 @@ export function UnifiedLeads() {
                 <div className="relative">
                   <Search className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search leads..."
+                    placeholder={t('searchLeads')}
                     className="pl-8 md:pl-10 h-8 md:h-10 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
