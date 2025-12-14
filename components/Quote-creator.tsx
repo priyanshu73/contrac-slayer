@@ -18,7 +18,7 @@ import Image from "next/image"
 interface LineItem {
   description: string
   quantity: number
-  rate: number
+  rate: number | string
   imageUrl?: string
   thumbnailUrl?: string
   brand?: string
@@ -116,6 +116,21 @@ function getSuggestedUnits(description: string): string[] {
   }
   
   return ['each', 'sq ft', 'cu ft', 'lb', 'hour']
+}
+
+function sanitizeDecimalInput(value: string): string {
+  // Allow only digits and a single dot. Keep intermediate states like "" or "." while typing.
+  const cleaned = value.replace(/[^\d.]/g, "")
+  const parts = cleaned.split(".")
+  if (parts.length <= 1) return cleaned
+  const decimal = parts.slice(1).join("").slice(0, 2) // max 2 decimals
+  return `${parts[0]}.${decimal}`
+}
+
+function getRateNumber(rate: LineItem["rate"]): number {
+  if (typeof rate === "number") return rate
+  const n = Number.parseFloat(rate)
+  return Number.isFinite(n) ? n : 0
 }
 
 // Unit Selector Component
@@ -577,7 +592,10 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   const handleSelectMaterial = (index: number, material: MaterialResult) => {
     // Update the line item with selected material data
     const updatedItems = [...items]
-    const materialRate = parseFloat(material.estimated_cost) || updatedItems[index].rate
+    const parsedMaterialRate = Number.parseFloat(material.estimated_cost)
+    const materialRate = Number.isFinite(parsedMaterialRate) && parsedMaterialRate > 0
+      ? parsedMaterialRate
+      : getRateNumber(updatedItems[index].rate)
     updatedItems[index] = {
       ...updatedItems[index],
       description: material.name,
@@ -657,7 +675,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 0, rate: 0 }])
+    setItems([...items, { description: "", quantity: 0, rate: "" }])
   }
 
   const removeItem = (index: number) => {
@@ -703,7 +721,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
     const validItems = items.filter(item => 
       item.description.trim() && 
       (item.quantity || 0) > 0 && 
-      (item.rate || 0) > 0
+      getRateNumber(item.rate) > 0
     )
     
     if (validItems.length === 0) {
@@ -731,7 +749,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       const validItems = items.filter(item => 
         item.description.trim() && 
         (item.quantity || 0) > 0 && 
-        (item.rate || 0) > 0
+        getRateNumber(item.rate) > 0
       )
       
       // Prepare job data
@@ -749,7 +767,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
         items: validItems.map(item => ({
           custom_description: item.description.trim(),
           quantity: item.quantity,
-          cost_per_unit: item.rate,
+          cost_per_unit: getRateNumber(item.rate),
           image_url: item.imageUrl || null,
           thumbnail_url: item.thumbnailUrl || null,
           brand: item.brand || null,
@@ -801,7 +819,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
 
   // Calculate base subtotal (without markup)
   const baseSubtotal = items.reduce((sum, item) => {
-    return sum + ((item.quantity || 0) * (item.rate || 0))
+    return sum + ((item.quantity || 0) * getRateNumber(item.rate))
   }, 0)
   
   // Calculate markup amount
@@ -1085,7 +1103,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                                     <div className="font-medium text-sm mb-1">{item.description}</div>
                                     <div className="text-xs text-muted-foreground space-y-0.5">
                                       <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
-                                      <div>${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</div>
+                                      <div>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</div>
                                       {item.brand && <div>{item.brand}</div>}
                                     </div>
                                   </div>
@@ -1226,19 +1244,20 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                     </Label>
                     <Input
                       id={`item-rate-${index}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
+                      type="text"
+                      inputMode="decimal"
+                      pattern="^[0-9]*[.]?[0-9]*$"
+                      value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
                       onChange={(e) => {
-                        const val = e.target.value
-                        updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                        const val = sanitizeDecimalInput(e.target.value)
+                        updateItem(index, "rate", val)
                       }}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value)
-                        if (!isNaN(val)) {
-                          updateItem(index, "rate", Math.round(val * 100) / 100)
-                        }
+                      onBlur={() => {
+                        const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
+                        if (!s || s === ".") return
+                        const n = Number.parseFloat(s)
+                        if (!Number.isFinite(n)) return
+                        updateItem(index, "rate", Math.round(n * 100) / 100)
                       }}
                       placeholder="0.00"
                       className="h-9 text-sm"
@@ -1247,7 +1266,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                   <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
                     <span className="text-xs text-muted-foreground">Total</span>
                     <span className="text-sm font-semibold">
-                      ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                      ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -1321,19 +1340,20 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 <div className="pt-1">
                   <Input
                     id={`item-rate-${index}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.rate === 0 ? "" : (typeof item.rate === 'number' ? item.rate.toFixed(2) : item.rate)}
+                    type="text"
+                    inputMode="decimal"
+                    pattern="^[0-9]*[.]?[0-9]*$"
+                    value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
                     onChange={(e) => {
-                      const val = e.target.value
-                      updateItem(index, "rate", val === "" ? 0 : Number.parseFloat(val) || 0)
+                      const val = sanitizeDecimalInput(e.target.value)
+                      updateItem(index, "rate", val)
                     }}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value)
-                      if (!isNaN(val)) {
-                        updateItem(index, "rate", Math.round(val * 100) / 100)
-                      }
+                    onBlur={() => {
+                      const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
+                      if (!s || s === ".") return
+                      const n = Number.parseFloat(s)
+                      if (!Number.isFinite(n)) return
+                      updateItem(index, "rate", Math.round(n * 100) / 100)
                     }}
                     placeholder="0.00"
                     className="h-8 text-sm text-right"
@@ -1343,7 +1363,7 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                 {/* Total */}
                 <div className="text-right pt-1">
                   <span className="text-sm font-semibold">
-                    ${(((item.quantity || 0) * (item.rate || 0)) * (1 + markupPercentage / 100)).toFixed(2)}
+                    ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
                   </span>
                 </div>
                 
@@ -1741,9 +1761,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                                       <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
                                       <div>
                                         {item.packSize && item.packSize > 1 && item.packPrice ? (
-                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
+                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${getRateNumber(item.rate).toFixed(2)}/each)</span>
                                         ) : (
-                                          <span>${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
+                                          <span>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</span>
                                         )}
                                       </div>
                                       {item.brand && <div>{item.brand}</div>}
@@ -1854,9 +1874,9 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
                                       <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
                                       <div>
                                         {item.packSize && item.packSize > 1 && item.packPrice ? (
-                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${item.rate.toFixed(2)}/each)</span>
+                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${getRateNumber(item.rate).toFixed(2)}/each)</span>
                                         ) : (
-                                          <span>${item.rate.toFixed(2)}/{item.unitOfMeasure || "each"}</span>
+                                          <span>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</span>
                                         )}
                                       </div>
                                       {item.brand && <div>{item.brand}</div>}
