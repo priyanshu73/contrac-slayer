@@ -17,6 +17,7 @@ interface Lead {
   location?: string
   summary_text?: string
   transcript_text?: string
+  formatted_transcript_text?: string
   last_message_preview?: string
   last_contact_date: string
   conversation_count: number

@@ -44,6 +44,7 @@ interface UnifiedLead {
   conversation_count?: number
   last_message_preview?: string
   transcript_text?: string
+  formatted_transcript_text?: string
   summary_text?: string
   summary_confirmed?: boolean
   appointment_link_sent?: boolean
@@ -211,6 +212,7 @@ export function UnifiedLeads() {
           conversation_count: lead.conversation_count || 0,
           last_message_preview: lead.last_message_preview,
           transcript_text: lead.transcript_text, // Will be null in lightweight mode
+          formatted_transcript_text: lead.formatted_transcript_text, // Will be null in lightweight mode
           summary_text: lead.summary_text, // Will be null in lightweight mode
           summary_confirmed: lead.summary_confirmed,
           appointment_link_sent: lead.appointment_link_sent,
@@ -255,6 +257,7 @@ export function UnifiedLeads() {
         conversation_count: lead.conversation_count || 0,
         last_message_preview: lead.last_message_preview,
         transcript_text: lead.transcript_text,
+        formatted_transcript_text: lead.formatted_transcript_text,
         summary_text: lead.summary_text,
         summary_confirmed: lead.summary_confirmed,
         appointment_link_sent: lead.appointment_link_sent,
@@ -409,8 +412,9 @@ export function UnifiedLeads() {
       console.log('🎯 Selected call lead transcript info:', {
         leadId: selectedLead.id,
         name: selectedLead.name,
-        hasTranscript: !!selectedLead.transcript_text,
-        transcriptLength: selectedLead.transcript_text?.length || 0,
+        hasTranscript: !!(selectedLead.formatted_transcript_text || selectedLead.transcript_text),
+        transcriptLength: (selectedLead.formatted_transcript_text || selectedLead.transcript_text)?.length || 0,
+        hasFormattedTranscript: !!selectedLead.formatted_transcript_text,
         hasSummary: !!selectedLead.summary_text,
         summaryLength: selectedLead.summary_text?.length || 0
       })
@@ -902,8 +906,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
 
               {/* Full Transcript (Collapsible) */}
-              {lead.transcript_text && (
-                <TranscriptSection transcript={lead.transcript_text} />
+              {(lead.formatted_transcript_text || lead.transcript_text) && (
+                <TranscriptSection 
+                  transcript={(lead.formatted_transcript_text || lead.transcript_text) || ''} 
+                  isFormatted={!!lead.formatted_transcript_text}
+                />
               )}
 
               {/* Mobile Conversation View */}
@@ -1264,10 +1271,44 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 // Transcript Section Component (for sidebar)
 interface TranscriptSectionProps {
   transcript: string
+  isFormatted?: boolean
 }
 
-function TranscriptSection({ transcript }: TranscriptSectionProps) {
+function TranscriptSection({ transcript, isFormatted = false }: TranscriptSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // Function to render formatted transcript as conversation
+  const renderFormattedTranscript = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim())
+    
+    return lines.map((line, index) => {
+      const [speaker, ...messageParts] = line.split(':')
+      const message = messageParts.join(':').trim()
+      
+      if (!message || !speaker) {
+        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
+      }
+      
+      const isContractor = speaker.trim().toLowerCase().includes('contractor')
+      
+      return (
+        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
+            isContractor 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted text-foreground'
+          }`}>
+            <div className="text-xs opacity-70 mb-1 font-medium">
+              {speaker.trim()}
+            </div>
+            <div className="text-sm">
+              {message}
+            </div>
+          </div>
+        </div>
+      )
+    })
+  }
 
   return (
     <div className="border-t bg-background">
@@ -1276,7 +1317,14 @@ function TranscriptSection({ transcript }: TranscriptSectionProps) {
         className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Full Transcript</span>
+          <span className="text-sm font-medium">
+            {isFormatted ? 'Call Conversation' : 'Full Transcript'}
+          </span>
+          {isFormatted && (
+            <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
+              Formatted
+            </span>
+          )}
         </div>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -1288,9 +1336,22 @@ function TranscriptSection({ transcript }: TranscriptSectionProps) {
       {isExpanded && (
         <div className="px-4 pb-4">
           <div className="bg-muted/30 p-3 rounded-lg max-h-60 overflow-y-auto">
-            <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
-              {transcript}
-            </pre>
+            {isFormatted ? (
+              <div className="space-y-2">
+                {renderFormattedTranscript(transcript)}
+              </div>
+            ) : (
+              <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
+                {transcript}
+              </pre>
+            )}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            {isFormatted ? (
+              <span>✨ AI-formatted conversation thread</span>
+            ) : (
+              <span>📝 Raw transcript from phone conversation</span>
+            )}
           </div>
         </div>
       )}
@@ -1301,6 +1362,7 @@ function TranscriptSection({ transcript }: TranscriptSectionProps) {
 // Transcript Toggle Section Component (for main area)
 interface TranscriptToggleSectionProps {
   transcript?: string
+  formattedTranscript?: string
   leadId: string
   hasSummary: boolean
   messageCount: number
@@ -1309,15 +1371,53 @@ interface TranscriptToggleSectionProps {
 
 function TranscriptToggleSection({ 
   transcript, 
+  formattedTranscript,
   leadId, 
   hasSummary, 
   messageCount, 
   onRefresh 
 }: TranscriptToggleSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Use formatted transcript if available, fall back to raw transcript
+  const displayTranscript = formattedTranscript || transcript
+  const isFormatted = !!formattedTranscript
+  
+  // Function to render formatted transcript as conversation
+  const renderFormattedTranscript = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim())
+    
+    return lines.map((line, index) => {
+      const [speaker, ...messageParts] = line.split(':')
+      const message = messageParts.join(':').trim()
+      
+      if (!message || !speaker) {
+        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
+      }
+      
+      const isContractor = speaker.trim().toLowerCase().includes('contractor')
+      
+      return (
+        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
+            isContractor 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted text-foreground'
+          }`}>
+            <div className="text-xs opacity-70 mb-1 font-medium">
+              {speaker.trim()}
+            </div>
+            <div className="text-sm">
+              {message}
+            </div>
+          </div>
+        </div>
+      )
+    })
+  }
 
   // If no transcript, show minimal collapsed state only
-  if (!transcript) {
+  if (!displayTranscript) {
     return (
       <div className="py-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1340,11 +1440,16 @@ function TranscriptToggleSection({
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-            Transcript
+            {isFormatted ? 'Call Conversation' : 'Transcript'}
           </h3>
           <Badge variant="secondary" className="text-xs">
-            {transcript.length} chars
+            {displayTranscript.length} chars
           </Badge>
+          {isFormatted && (
+            <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
+              Formatted
+            </span>
+          )}
         </div>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -1356,13 +1461,19 @@ function TranscriptToggleSection({
       {isExpanded && (
         <div className="mt-2">
           <div className="bg-muted/20 p-4 rounded-lg max-h-80 overflow-y-auto">
-            <pre className="text-sm whitespace-pre-wrap font-sans text-foreground leading-relaxed">
-              {transcript}
-            </pre>
+            {isFormatted ? (
+              <div className="space-y-2">
+                {renderFormattedTranscript(displayTranscript)}
+              </div>
+            ) : (
+              <pre className="text-sm whitespace-pre-wrap font-sans text-foreground leading-relaxed">
+                {displayTranscript}
+              </pre>
+            )}
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <MessageSquare className="h-3 w-3" />
-            <span>Auto-generated from phone conversation</span>
+            <span>{isFormatted ? '✨ AI-formatted conversation thread' : '📝 Auto-generated from phone conversation'}</span>
           </div>
         </div>
       )}
