@@ -14,11 +14,11 @@ import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
 
 interface CustomerRequestFormProps {
-  contractorId: number
+  contractorUuid: string
   contractor: any
 }
 
-export function CustomerRequestForm({ contractorId, contractor }: CustomerRequestFormProps) {
+export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -51,7 +51,7 @@ export function CustomerRequestForm({ contractorId, contractor }: CustomerReques
 
     try {
       const { api } = await import("@/lib/api")
-      await api.submitQuoteRequest(contractorId, formData, uploadedFiles, measurements)
+      await api.submitQuoteRequest(contractorUuid, formData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")

@@ -158,7 +158,11 @@ class ApiClient {
     return this.request(`/contractors/profile/${contractorId}`)
   }
 
-  async submitQuoteRequest(contractorId: number, data: any, files?: File[], measurements?: { items: any[] }) {
+  async getContractorProfileByUuid(contractorUuid: string) {
+    return this.request(`/contractors/profile/uuid/${contractorUuid}`)
+  }
+
+  async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
     const formData = new FormData()
     formData.append('name', data.name)
     formData.append('email', data.email)
@@ -185,7 +189,7 @@ class ApiClient {
       })
     }
 
-    return fetch(`${this.baseURL}/contractors/${contractorId}/quote-request`, {
+    return fetch(`${this.baseURL}/contractors/${contractorUuid}/quote-request`, {
       method: 'POST',
       body: formData,
       credentials: 'include',

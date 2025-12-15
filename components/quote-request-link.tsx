@@ -13,10 +13,10 @@ export function QuoteRequestLink() {
   const t = useTranslations('dashboard.quoteRequest')
   const [copied, setCopied] = useState(false)
 
-  // Get contractor ID from profile
-  const contractorId = user?.contractor_profile?.id
+  // Get contractor UUID from profile
+  const contractorUuid = user?.contractor_profile?.uuid
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '')
-  const quoteRequestUrl = contractorId ? `${frontendUrl}/quote-request/${contractorId}` : ""
+  const quoteRequestUrl = contractorUuid ? `${frontendUrl}/quote-request/${contractorUuid}` : ""
 
   const handleCopy = async () => {
     if (!quoteRequestUrl) return
@@ -38,7 +38,7 @@ export function QuoteRequestLink() {
     }
   }
 
-  if (!contractorId) {
+  if (!contractorUuid) {
     return null
   }
 

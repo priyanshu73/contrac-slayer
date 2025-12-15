@@ -9,7 +9,7 @@ import Image from "next/image"
 
 export default function PublicQuoteRequestPage() {
   const params = useParams()
-  const contractorId = parseInt(params.contractorId as string)
+  const contractorUuid = params.contractorId as string
   const [contractor, setContractor] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
@@ -17,7 +17,7 @@ export default function PublicQuoteRequestPage() {
   useEffect(() => {
     const fetchContractor = async () => {
       try {
-        const profile = await api.getContractorProfile(contractorId)
+        const profile = await api.getContractorProfileByUuid(contractorUuid)
         setContractor(profile)
       } catch (err: any) {
         setError("Contractor not found")
@@ -26,10 +26,10 @@ export default function PublicQuoteRequestPage() {
       }
     }
 
-    if (contractorId) {
+    if (contractorUuid) {
       fetchContractor()
     }
-  }, [contractorId])
+  }, [contractorUuid])
 
   if (isLoading) {
     return (
@@ -141,7 +141,7 @@ export default function PublicQuoteRequestPage() {
       </div>
 
       {/* Form Section */}
-      <CustomerRequestForm contractor={contractor} contractorId={contractorId} />
+      <CustomerRequestForm contractor={contractor} contractorUuid={contractorUuid} />
     </div>
   )
 }
