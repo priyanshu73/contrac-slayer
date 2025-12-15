@@ -285,10 +285,10 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
           <p className="text-sm text-gray-600 mb-4">
             Adding measurements helps us provide more accurate estimates. You can add rooms, areas, or specific items that need work.
           </p>
-           <MeasurementsInput
-             value={measurements}
-             onChange={setMeasurements}
-           />
+          <MeasurementsInput
+            measurements={measurements}
+            onMeasurementsChange={setMeasurements}
+          />
         </Card>
 
         {/* Photo Upload */}

@@ -103,6 +103,7 @@ export interface User {
 
 export interface ContractorProfile {
   id: number
+  uuid: string
   user_id: number
   company_name: string
   address?: string

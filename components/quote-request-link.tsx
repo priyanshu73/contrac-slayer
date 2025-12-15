@@ -17,7 +17,7 @@ export function QuoteRequestLink() {
   const contractorUuid = user?.contractor_profile?.uuid
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const quoteRequestUrl = contractorUuid ? `${frontendUrl}/quote-request/${contractorUuid}` : ""
-
+  
   const handleCopy = async () => {
     if (!quoteRequestUrl) return
 
