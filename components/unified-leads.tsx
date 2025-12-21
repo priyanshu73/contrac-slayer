@@ -137,8 +137,25 @@ export function UnifiedLeads() {
       setLoadingCallLeads(true)
       const callLeads = await fetchCallLeads(true) // lightweight = true
       
+      // Combine and deduplicate by phone number (normalize for comparison)
+      const normalizePhone = (phone: string | undefined) => {
+        if (!phone) return ''
+        return phone.replace(/\D/g, '') // Remove all non-digits
+      }
+      
+      // Deduplicate call leads by normalized phone number
+      const seenCallPhones = new Set<string>()
+      const uniqueCallLeads = callLeads.filter(lead => {
+        const normalized = normalizePhone(lead.phone)
+        if (!normalized || seenCallPhones.has(normalized)) {
+          return false
+        }
+        seenCallPhones.add(normalized)
+        return true
+      })
+      
       // Combine and sort
-      const combined = [...requestLeads, ...callLeads]
+      const combined = [...requestLeads, ...uniqueCallLeads]
       combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       
       setLeads(combined)
@@ -867,51 +884,28 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 </div>
               )}
 
-              {/* Automated Actions */}
-              <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  Automated Actions
-                </h3>
-                <div className="space-y-2">
-                  {lead.summary_confirmed ? (
-                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
-                      ✅ Summary confirmed
+              {/* Lead Transcript Verification Banner */}
+              {(lead.transcript_text || lead.formatted_transcript_text) && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2 mb-2">
+                  <div className="text-xs text-green-700 dark:text-green-400">
+                    ✅ <strong>Transcript Isolation Verified:</strong> This lead ({lead.name}, {lead.phone}) has its own transcript data
+                    <div className="mt-1 text-[10px] opacity-75">
+                      Lead ID: {lead.id} | 
+                      Has Formatted: {!!lead.formatted_transcript_text ? 'Yes' : 'No'} | 
+                      Has Raw: {!!lead.transcript_text ? 'Yes' : 'No'}
                     </div>
-                  ) : (
-                    <div className="text-xs text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
-                      ⏳ Summary pending confirmation
-                    </div>
-                  )}
-                  
-                  {lead.appointment_link_sent ? (
-                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
-                      ✅ Appointment link sent
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📅 Appointment link not sent
-                    </div>
-                  )}
-                  
-                  {lead.media_uploaded ? (
-                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 p-2 rounded">
-                      ✅ Media uploaded
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      📎 No media uploaded
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-
-              {/* Full Transcript (Collapsible) */}
-              {(lead.formatted_transcript_text || lead.transcript_text) && (
-                <TranscriptSection 
-                  transcript={(lead.formatted_transcript_text || lead.transcript_text) || ''} 
-                  isFormatted={!!lead.formatted_transcript_text}
-                />
               )}
+
+
+
+              {/* Call History with Transcripts */}
+              <CallHistorySection 
+                key={`call-history-${lead.phone}-${lead.id}`} 
+                phoneNumber={lead.phone || ''} 
+                currentLeadId={lead.id} 
+              />
 
               {/* Mobile Conversation View */}
               <div className="lg:hidden">
@@ -1264,6 +1258,371 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Call History Section Component
+interface CallHistorySectionProps {
+  phoneNumber: string
+  currentLeadId: string
+}
+
+interface CallHistoryItem {
+  id: string
+  created_at: string
+  transcript_text?: string
+  formatted_transcript_text?: string
+  summary_text?: string
+  phone_number?: string // Added for verification that transcript belongs to correct phone
+}
+
+function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionProps) {
+  const { getContractorAISpId } = useAuth()
+  const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([])
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showRawTranscript, setShowRawTranscript] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
+
+  const loadCallHistory = useCallback(async () => {
+    try {
+      setLoading(true)
+      
+      const spId = getContractorAISpId()
+      if (!spId || !phoneNumber) {
+        console.log('🔍 Missing spId or phoneNumber:', { spId, phoneNumber })
+        setCallHistory([])
+        setLoading(false)
+        return
+      }
+
+      console.log('🔍 Loading call history ONLY for phone:', phoneNumber, 'SP:', spId)
+
+      // Fetch leads filtered by this specific phone number ONLY
+      const response = await contractorAI.getLeads({
+        sp_id: spId.toString(),
+        phone_number: phoneNumber, // This ensures we ONLY get leads for this phone number
+        per_page: 1000
+      })
+
+      console.log('📞 Call history API response for phone', phoneNumber, ':', response)
+
+      // Additional safety check: Ensure all returned leads match the requested phone number
+      const historyItems: CallHistoryItem[] = ((response as any).leads || [])
+        .filter((lead: any) => {
+          // Normalize phone numbers for comparison to handle formatting differences
+          const normalizePhone = (phone: string) => phone.replace(/\D/g, '')
+          const leadPhoneNormalized = normalizePhone(lead.phone_number || '')
+          const requestedPhoneNormalized = normalizePhone(phoneNumber)
+          
+          const matches = leadPhoneNormalized === requestedPhoneNormalized
+          if (!matches) {
+            console.warn('⚠️ FILTERING OUT lead with mismatched phone:', {
+              leadId: lead.id,
+              leadPhone: lead.phone_number,
+              leadPhoneNormalized,
+              requestedPhone: phoneNumber,
+              requestedPhoneNormalized,
+              matches
+            })
+          }
+          return matches
+        })
+        .map((lead: any) => {
+          console.log('📋 Processing lead for call history:', {
+            id: lead.id,
+            phone: lead.phone_number,
+            requestedPhone: phoneNumber,
+            hasTranscript: !!(lead.transcript_text || lead.formatted_transcript_text),
+            transcriptLength: (lead.transcript_text || '').length,
+            formattedTranscriptLength: (lead.formatted_transcript_text || '').length
+          })
+          
+          return {
+            id: lead.id.toString(),
+            created_at: lead.last_contact_date || lead.created_at,
+            transcript_text: lead.transcript_text,
+            formatted_transcript_text: lead.formatted_transcript_text,
+            summary_text: lead.summary_text,
+            phone_number: lead.phone_number // Keep phone number for verification
+          }
+        })
+        .filter((item: CallHistoryItem) => {
+          const hasTranscript = !!(item.transcript_text || item.formatted_transcript_text)
+          if (!hasTranscript) {
+            console.log('⏭️ Skipping item without transcript:', item.id)
+          } else {
+            console.log('✅ Including item with transcript:', {
+              id: item.id,
+              phone: (item as any).phone_number,
+              transcriptLength: (item.transcript_text || '').length,
+              formattedLength: (item.formatted_transcript_text || '').length
+            })
+          }
+          return hasTranscript
+        })
+        .sort((a: CallHistoryItem, b: CallHistoryItem) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+
+      console.log('✅ Final call history items for phone', phoneNumber, ':', historyItems.map(item => ({ 
+        id: item.id, 
+        created_at: item.created_at,
+        phone: (item as any).phone_number,
+        hasTranscript: !!(item.transcript_text || item.formatted_transcript_text)
+      })))
+      
+      // Ensure we only have transcripts for the requested phone number
+      if (historyItems.length > 0) {
+        console.log('🎯 Successfully loaded', historyItems.length, 'transcript(s) for phone:', phoneNumber)
+      } else {
+        console.log('⚠️ No transcripts found for phone:', phoneNumber)
+      }
+      
+      setCallHistory(historyItems)
+      
+      // Auto-select the current lead if it exists in history
+      const currentNumericId = currentLeadId.replace('call-', '')
+      if (historyItems.some(item => item.id === currentNumericId)) {
+        setSelectedCallId(currentNumericId)
+        console.log('🎯 Auto-selected current lead:', currentNumericId)
+      } else if (historyItems.length > 0) {
+        setSelectedCallId(historyItems[0].id)
+        console.log('🎯 Auto-selected first item:', historyItems[0].id)
+      }
+    } catch (error) {
+      console.error('❌ Failed to load call history for phone', phoneNumber, ':', error)
+      setCallHistory([])
+    } finally {
+      setLoading(false)
+    }
+  }, [phoneNumber, currentLeadId, getContractorAISpId])
+
+  useEffect(() => {
+    // Detect phone number change and clear state to prevent transcript mixing
+    if (phoneNumber !== lastPhoneNumber) {
+      console.log('📞 PHONE NUMBER CHANGED - Clearing transcript data to prevent mixing')
+      console.log('  Previous phone:', lastPhoneNumber)
+      console.log('  New phone:', phoneNumber)
+      
+      // Clear ALL transcript-related state to ensure clean slate
+      setCallHistory([])
+      setSelectedCallId(null)
+      setShowRawTranscript(false)
+      setIsExpanded(false)
+      setLastPhoneNumber(phoneNumber)
+      
+      console.log('✅ Transcript state cleared for phone number change')
+    }
+    
+    if (phoneNumber) {
+      console.log('🔄 Loading call history for phone:', phoneNumber)
+      loadCallHistory()
+    } else {
+      setLoading(false)
+    }
+  }, [phoneNumber, loadCallHistory, lastPhoneNumber])
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return {
+      date: date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      full: date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }
+  }
+
+  const renderFormattedTranscript = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim())
+    
+    return lines.map((line, index) => {
+      const [speaker, ...messageParts] = line.split(':')
+      const message = messageParts.join(':').trim()
+      
+      if (!message || !speaker) {
+        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
+      }
+      
+      const isContractor = speaker.trim().toLowerCase().includes('contractor')
+      
+      return (
+        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
+            isContractor 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted text-foreground'
+          }`}>
+            <div className="text-xs opacity-70 mb-1 font-medium">
+              {speaker.trim()}
+            </div>
+            <div className="text-sm">
+              {message}
+            </div>
+          </div>
+        </div>
+      )
+    })
+  }
+
+  const selectedCall = callHistory.find(item => item.id === selectedCallId)
+  const hasTranscript = selectedCall && (selectedCall.transcript_text || selectedCall.formatted_transcript_text)
+
+  if (loading) {
+    return (
+      <div className="border-t bg-background">
+        <div className="p-4 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+          <span className="ml-2 text-sm text-muted-foreground">Loading call history...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (callHistory.length === 0) {
+    return (
+      <div className="border-t bg-background">
+        <div className="p-4 text-center text-muted-foreground">
+          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No call transcripts available</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-t bg-background">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Call History & Transcripts</span>
+          <Badge variant="secondary" className="text-xs">
+            {callHistory.length} {callHistory.length === 1 ? 'call' : 'calls'}
+          </Badge>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4">
+          {/* Call History List */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Select Call
+            </h4>
+            <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+              {callHistory.map((call) => {
+                const dateTime = formatDateTime(call.created_at)
+                const isSelected = selectedCallId === call.id
+                const hasFormatted = !!call.formatted_transcript_text
+                const hasRaw = !!call.transcript_text
+                
+                return (
+                  <button
+                    key={call.id}
+                    onClick={() => setSelectedCallId(call.id)}
+                    className={`w-full text-left p-2 rounded transition-colors ${
+                      isSelected 
+                        ? 'bg-primary/10 border border-primary' 
+                        : 'hover:bg-muted/50 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate">{dateTime.full}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {hasFormatted && hasRaw ? 'Formatted + Raw' : hasFormatted ? 'Formatted' : hasRaw ? 'Raw' : 'No transcript'}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="ml-2 h-2 w-2 rounded-full bg-primary shrink-0"></div>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Selected Call Transcript */}
+          {selectedCall && hasTranscript && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Transcript for {phoneNumber}
+                </h4>
+                {selectedCall.formatted_transcript_text && selectedCall.transcript_text && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={!showRawTranscript ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowRawTranscript(false)}
+                      className="h-7 text-xs"
+                    >
+                      Formatted
+                    </Button>
+                    <Button
+                      variant={showRawTranscript ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowRawTranscript(true)}
+                      className="h-7 text-xs"
+                    >
+                      Raw
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Safety verification banner */}
+              {selectedCall.phone_number && selectedCall.phone_number !== phoneNumber && (
+                <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                  ⚠️ WARNING: Transcript phone mismatch! Expected: {phoneNumber}, Got: {selectedCall.phone_number}
+                </div>
+              )}
+              
+              <div className="bg-muted/30 p-3 rounded-lg max-h-96 overflow-y-auto">
+                {showRawTranscript && selectedCall.transcript_text ? (
+                  <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
+                    {selectedCall.transcript_text}
+                  </pre>
+                ) : selectedCall.formatted_transcript_text ? (
+                  <div className="space-y-2">
+                    {renderFormattedTranscript(selectedCall.formatted_transcript_text)}
+                  </div>
+                ) : selectedCall.transcript_text ? (
+                  <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
+                    {selectedCall.transcript_text}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No transcript available</p>
+                )}
+              </div>
+              
+              <div className="mt-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  {showRawTranscript ? (
+                    <span>📝 Raw transcript from phone conversation with {phoneNumber}</span>
+                  ) : selectedCall.formatted_transcript_text ? (
+                    <span>✨ AI-formatted conversation thread with {phoneNumber}</span>
+                  ) : (
+                    <span>📝 Raw transcript from phone conversation with {phoneNumber}</span>
+                  )}
+                </div>
+                <div className="mt-1 text-[10px] opacity-75">
+                  Call ID: {selectedCall.id} | Lead Phone: {selectedCall.phone_number || 'N/A'}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

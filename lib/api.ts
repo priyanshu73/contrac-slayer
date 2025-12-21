@@ -5,7 +5,7 @@
 import { User, ContractorProfile } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
-const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL || 'https://contractorai-0mlr.onrender.com/api'
+const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL 
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
@@ -474,6 +474,7 @@ class ContractorAIClient {
     page?: number
     per_page?: number
     lightweight?: boolean
+    phone_number?: string
   }) {
     const searchParams = new URLSearchParams()
     if (params?.sp_id) searchParams.append('sp_id', params.sp_id)
@@ -484,6 +485,7 @@ class ContractorAIClient {
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
     if (params?.lightweight) searchParams.append('lightweight', 'true')
+    if (params?.phone_number) searchParams.append('phone_number', params.phone_number)
 
     return this.request(`/leads?${searchParams.toString()}`)
   }
@@ -545,5 +547,6 @@ class ContractorAIClient {
   }
 }
 
-export const api = new ApiClient(API_URL)
-export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)
+export const api = new ApiClient(API_URL ?? '')
+export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL ?? '')
+
