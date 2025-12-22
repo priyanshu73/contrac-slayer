@@ -301,7 +301,8 @@ function DayTimeline({
 
 export default function CalendarPage() {
   const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
+  const [bookingsLoading, setBookingsLoading] = useState(true)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [error, setError] = useState<string>("")
   const [notice, setNotice] = useState<string>("")
   const [copied, setCopied] = useState(false)
@@ -309,6 +310,8 @@ export default function CalendarPage() {
   const [profile, setProfile] = useState<any>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [activeAvailabilityId, setActiveAvailabilityId] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<"calendar" | "availability">("calendar")
+  const [hasLoadedAvailability, setHasLoadedAvailability] = useState(false)
 
   const [month, setMonth] = useState<Date>(() => {
     const now = new Date()
@@ -333,7 +336,8 @@ export default function CalendarPage() {
   }, [])
 
   const timeZoneOptions = useMemo(() => {
-    const fallback = [
+    // Keep this list small for performance; include current/browsers tz even if not in the list.
+    const base = [
       "America/New_York",
       "America/Chicago",
       "America/Denver",
@@ -344,11 +348,10 @@ export default function CalendarPage() {
       "Europe/Paris",
       "Asia/Kolkata",
       "Asia/Kathmandu",
+      "Asia/Macau",
       "Asia/Tokyo",
       "Australia/Sydney",
     ]
-    const supported = (Intl as any).supportedValuesOf?.("timeZone")
-    const base = Array.isArray(supported) && supported.length ? (supported as string[]) : fallback
     const set = new Set(base)
     const extra: string[] = []
     if (timeZone && !set.has(timeZone)) extra.push(timeZone)
@@ -464,6 +467,7 @@ export default function CalendarPage() {
   }
 
   const refreshSingleAvailability = async () => {
+    setAvailabilityLoading(true)
     const res = await api.getSingleAvailability()
     const data = (res as any)?.data ?? null
     const availability = data?.availability ?? data
@@ -473,51 +477,29 @@ export default function CalendarPage() {
       setTimeZoneSource("neetocal")
     }
     if (availability) applyAvailabilityToForm(availability)
+    setHasLoadedAvailability(true)
+    setAvailabilityLoading(false)
     return availability
-  }
-
-  const refreshTimeZone = async () => {
-    try {
-      const res = await api.getAvailabilityTimeZone()
-      const tz = (res as any)?.data?.time_zone as string | undefined
-      if (tz && typeof tz === "string" && tz.trim()) {
-        setTimeZone(tz.trim())
-        setTimeZoneSource("neetocal")
-      } else if (browserTz) {
-        setTimeZone((prev) => (prev ? prev : browserTz))
-        setTimeZoneSource("browser")
-      }
-    } catch {
-      if (browserTz) {
-        setTimeZone((prev) => (prev ? prev : browserTz))
-        setTimeZoneSource("browser")
-      }
-    }
   }
 
   const load = async () => {
     setError("")
     setNotice("")
-    setLoading(true)
+    setBookingsLoading(true)
     try {
-      const p = await api.getMyProfile()
+      // Fetch profile + bookings in parallel for faster first paint.
+      const [p, res] = await Promise.all([
+        api.getMyProfile(),
+        api.getNeetoBookings({ page_size: 200, type: "upcoming" }),
+      ])
       setProfile(p)
-
-      const res = await api.getNeetoBookings({ page_size: 200, type: "upcoming" })
       const data = (res as any)?.data ?? res
       const list = Array.isArray(data) ? data : (data?.bookings ?? data?.data ?? [])
       setBookings(Array.isArray(list) ? list : [])
-
-      try {
-        await refreshTimeZone()
-        await refreshSingleAvailability()
-      } catch {
-        // keep calendar usable even if availability fetch fails
-      }
     } catch (e: any) {
       setError(e?.message || "Failed to load calendar")
     } finally {
-      setLoading(false)
+      setBookingsLoading(false)
     }
   }
 
@@ -525,6 +507,16 @@ export default function CalendarPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Lazy-load availability only when the user opens the tab.
+  useEffect(() => {
+    if (activeTab !== "availability") return
+    if (hasLoadedAvailability) return
+    refreshSingleAvailability().catch(() => {
+      // keep page usable even if availability fetch fails
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, hasLoadedAvailability])
 
   const onSaveAvailability = async () => {
     setError("")
@@ -643,7 +635,7 @@ export default function CalendarPage() {
           ) : null}
         </div>
 
-        <Tabs defaultValue="calendar" className="mt-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-6">
           <div className="flex items-center justify-between gap-3">
             <TabsList>
               <TabsTrigger value="calendar">Calendar</TabsTrigger>
@@ -653,7 +645,7 @@ export default function CalendarPage() {
 
           <TabsContent value="calendar" className="mt-6">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-              {loading ? (
+              {bookingsLoading ? (
                 <Card className="p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="space-y-2">
@@ -688,7 +680,7 @@ export default function CalendarPage() {
               )}
 
           <div className="space-y-6 lg:sticky lg:top-24 self-start">
-            {loading ? (
+            {bookingsLoading ? (
               <Card className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-2">
@@ -726,7 +718,7 @@ export default function CalendarPage() {
                     {selectedDayBookings.length === 0 ? "No bookings." : `${selectedDayBookings.length} booking(s).`}
                   </div>
                 </div>
-                  <Button variant="outline" onClick={load} disabled={loading}>
+                  <Button variant="outline" onClick={load} disabled={bookingsLoading}>
                     Refresh
                   </Button>
               </div>
@@ -794,10 +786,10 @@ export default function CalendarPage() {
                   <div className="text-sm text-muted-foreground">Set when you are typically available for meetings</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={refreshSingleAvailability} disabled={loading}>
+                  <Button type="button" variant="outline" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
                     Reload
                   </Button>
-                  <Button type="button" onClick={onSaveAvailability} disabled={savingAvailability || !profile?.email}>
+                  <Button type="button" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
                   {savingAvailability ? "Saving…" : "Save"}
                 </Button>
                 </div>

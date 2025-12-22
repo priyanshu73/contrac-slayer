@@ -164,17 +164,26 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
 
             {/* Minimal schedule CTA (only if calendar link exists) */}
             {contractor?.calendar_link ? (
-              <div className="mt-3">
+              <div className="mt-4">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      <CalendarDays className="h-4 w-4 mr-2 text-gray-600" />
-                      Schedule a call
-                    </Button>
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900">Want to talk it through?</div>
+                          <div className="text-sm text-gray-600">
+                            Book a quick call with <span className="font-medium">{contractor.company_name}</span>.
+                          </div>
+                        </div>
+                        <Button className="w-full sm:w-auto px-5" size="lg">
+                          <CalendarDays className="h-5 w-5 mr-2" />
+                          Schedule a call
+                        </Button>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Optional, but recommended for complex projects.
+                      </div>
+                    </div>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-5xl p-0 overflow-hidden">
                     <DialogHeader className="p-4 pb-0">
@@ -388,11 +397,37 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
         </Card>
 
         {/* Submit */}
-        <div className="flex justify-center pt-6">
+        <div className="flex flex-col items-stretch gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          {contractor?.calendar_link ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" className="w-full sm:w-auto">
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Schedule a call instead
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-5xl p-0 overflow-hidden">
+                <DialogHeader className="p-4 pb-0">
+                  <DialogTitle>Schedule a call</DialogTitle>
+                </DialogHeader>
+                <div className="p-4 pt-2">
+                  <iframe
+                    src={contractor.calendar_link}
+                    title="NeetoCal scheduling"
+                    className="w-full h-[70vh] rounded-md border"
+                    style={{ border: "none" }}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <div />
+          )}
+
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium text-lg w-full md:w-auto"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium text-lg w-full sm:w-auto"
           >
             {isSubmitting ? "Submitting..." : "Submit Quote Request"}
           </Button>
