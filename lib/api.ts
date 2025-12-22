@@ -5,7 +5,7 @@
 import { User, ContractorProfile } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
-const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL 
+const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
@@ -16,6 +16,22 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL
+  }
+
+  private formatApiErrorDetail(detail: unknown): string {
+    if (!detail) return 'An error occurred'
+    if (typeof detail === 'string') return detail
+    if (typeof detail === 'object') {
+      const maybe = detail as Record<string, any>
+      if (typeof maybe.message === 'string') return maybe.message
+      if (typeof maybe.error === 'string') return maybe.error
+      try {
+        return JSON.stringify(detail)
+      } catch {
+        return 'An error occurred'
+      }
+    }
+    return String(detail)
   }
 
   private async request<T>(
@@ -37,8 +53,14 @@ class ApiClient {
       const response = await fetch(url, config)
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'An error occurred')
+        let parsed: any = null
+        try {
+          parsed = await response.json()
+        } catch {
+          // ignore
+        }
+        const detail = parsed?.detail ?? parsed?.message ?? parsed?.error
+        throw new Error(this.formatApiErrorDetail(detail))
       }
 
       return response.json()
@@ -148,7 +170,7 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.detail || 'Failed to upload logo')
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload logo')
     }
 
     return response.json()
@@ -252,7 +274,7 @@ class ApiClient {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.detail || 'An error occurred')
+        throw new Error(this.formatApiErrorDetail(error?.detail))
       }
 
       return response.json()
@@ -294,7 +316,7 @@ class ApiClient {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
-        throw new Error(error.detail || 'An error occurred')
+        throw new Error(this.formatApiErrorDetail(error?.detail))
       }
 
       // 204 No Content responses don't have a body
@@ -405,6 +427,102 @@ class ApiClient {
       method: 'POST',
     })
     return response.public_link
+  }
+
+  // =========================
+  // NeetoCal (proxied via backend)
+  // =========================
+  async getNeetoBookings(params?: {
+    // preferred (matches NeetoCal docs)
+    page_size?: number
+    page_number?: number
+    type?: string
+    host_email?: string
+    client_email?: string
+    sorting_order?: string
+    // legacy
+    take?: number
+    cursor?: string
+    status?: string
+    team_member_email?: string
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
+    if (params?.page_number) searchParams.append('page_number', params.page_number.toString())
+    if (params?.type) searchParams.append('type', params.type)
+    if (params?.host_email) searchParams.append('host_email', params.host_email)
+    if (params?.client_email) searchParams.append('client_email', params.client_email)
+    if (params?.sorting_order) searchParams.append('sorting_order', params.sorting_order)
+
+    if (params?.take) searchParams.append('take', params.take.toString())
+    if (params?.cursor) searchParams.append('cursor', params.cursor)
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.team_member_email) searchParams.append('team_member_email', params.team_member_email)
+    const qs = searchParams.toString()
+    return this.request(`/neetocal/bookings${qs ? `?${qs}` : ''}`)
+  }
+
+  async getNeetoAvailabilities(team_member_email?: string) {
+    const searchParams = new URLSearchParams()
+    if (team_member_email) searchParams.append('team_member_email', team_member_email)
+    const qs = searchParams.toString()
+    return this.request(`/neetocal/availabilities${qs ? `?${qs}` : ''}`)
+  }
+
+  async createNeetoAvailability(payload: any) {
+    return this.request(`/neetocal/availabilities`, {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
+    })
+  }
+
+  // Clean endpoint alias (backend proxies to NeetoCal)
+  async createAvailability(payload: any) {
+    return this.request(`/availabilities`, {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
+    })
+  }
+
+  async getAvailabilities() {
+    return this.request(`/availabilities`)
+  }
+
+  async getSingleAvailability() {
+    return this.request(`/availability`)
+  }
+
+  async getAvailabilityTimeZone() {
+    return this.request(`/availability/timezone`)
+  }
+
+  async upsertSingleAvailability(payload: any) {
+    return this.request(`/availability`, {
+      method: 'PUT',
+      body: JSON.stringify({ payload }),
+    })
+  }
+
+  async updateNeetoAvailability(availability_sid: string, payload: any) {
+    return this.request(`/neetocal/availabilities/${availability_sid}`, {
+      method: 'PUT',
+      body: JSON.stringify({ payload }),
+    })
+  }
+
+  async getNeetoAvailableSlots(params?: {
+    meeting_sid?: string
+    meeting_slug?: string
+    date?: string
+    timezone?: string
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.meeting_sid) searchParams.append('meeting_sid', params.meeting_sid)
+    if (params?.meeting_slug) searchParams.append('meeting_slug', params.meeting_slug)
+    if (params?.date) searchParams.append('date', params.date)
+    if (params?.timezone) searchParams.append('timezone', params.timezone)
+    const qs = searchParams.toString()
+    return this.request(`/neetocal/available-slots${qs ? `?${qs}` : ''}`)
   }
 }
 
@@ -547,6 +665,5 @@ class ContractorAIClient {
   }
 }
 
-export const api = new ApiClient(API_URL ?? '')
-export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL ?? '')
-
+export const api = new ApiClient(API_URL!)
+export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL!)

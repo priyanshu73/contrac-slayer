@@ -66,6 +66,9 @@ export default function PublicQuoteRequestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Intentionally minimal header (contractor info is shown inside the form) */}
+
+      {/* Form Section */}
       <CustomerRequestForm contractor={contractor} contractorUuid={contractorUuid} />
     </div>
   )

@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Upload, X, Check } from "lucide-react"
+import { Upload, X, Check, CalendarDays } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface CustomerRequestFormProps {
   contractorUuid: string
@@ -160,6 +161,37 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
               <span>•</span>
               <span>2-4hr response</span>
             </div>
+
+            {/* Minimal schedule CTA (only if calendar link exists) */}
+            {contractor?.calendar_link ? (
+              <div className="mt-3">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-gray-700 hover:bg-gray-100"
+                    >
+                      <CalendarDays className="h-4 w-4 mr-2 text-gray-600" />
+                      Schedule a call
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-5xl p-0 overflow-hidden">
+                    <DialogHeader className="p-4 pb-0">
+                      <DialogTitle>Schedule a call</DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 pt-2">
+                      <iframe
+                        src={contractor.calendar_link}
+                        title="NeetoCal scheduling"
+                        className="w-full h-[70vh] rounded-md border"
+                        style={{ border: "none" }}
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null}
           </div>
         </div>
         
