@@ -118,6 +118,7 @@ export interface ContractorProfile {
   default_zip_code?: string
   logo_url?: string
   website_url?: string
+  calendar_link?: string
   created_at: string
   updated_at?: string
 }
