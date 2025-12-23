@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -75,14 +76,28 @@ function dateKeyLocal(d: Date) {
 }
 
 function bookingStartDate(b: Booking): Date | null {
-  const raw = b?.start_time || b?.start_at || b?.start || b?.scheduled_at
+  // NeetoCal list-bookings returns `starts_at` (and sometimes `starts_at_for_client`)
+  const raw =
+    b?.starts_at ||
+    b?.starts_at_for_client ||
+    b?.start_time ||
+    b?.start_at ||
+    b?.start ||
+    b?.scheduled_at
   if (!raw) return null
   const dt = new Date(raw)
   return Number.isNaN(dt.getTime()) ? null : dt
 }
 
 function bookingTitle(b: Booking) {
-  return b?.title || b?.event_name || b?.meeting_name || "Booking"
+  return (
+    b?.meeting?.name ||
+    b?.title ||
+    b?.event_name ||
+    b?.meeting_name ||
+    b?.name ||
+    "Booking"
+  )
 }
 
 function bookingTimeLabel(b: Booking) {
@@ -91,8 +106,25 @@ function bookingTimeLabel(b: Booking) {
   return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 }
 
+function bookingDateTimeRangeLabel(b: Booking) {
+  const s = bookingStartDate(b)
+  if (!s) return ""
+  const e = bookingEndDate(b)
+  const date = s.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+  const startTime = s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  if (!e) return `${date} • ${startTime}`
+  const endTime = e.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  return `${date} • ${startTime} – ${endTime}`
+}
+
 function bookingEndDate(b: Booking): Date | null {
-  const raw = b?.end_time || b?.end_at || b?.end
+  // NeetoCal list-bookings returns `ends_at` (and sometimes `ends_at_for_client`)
+  const raw =
+    b?.ends_at ||
+    b?.ends_at_for_client ||
+    b?.end_time ||
+    b?.end_at ||
+    b?.end
   if (!raw) return null
   const dt = new Date(raw)
   return Number.isNaN(dt.getTime()) ? null : dt
@@ -221,9 +253,11 @@ function DayPill({
 function DayTimeline({
   day,
   bookings,
+  onBookingClick,
 }: {
   day: Date
   bookings: Booking[]
+  onBookingClick?: (b: Booking) => void
 }) {
   const startHour = 6
   const endHour = 20
@@ -282,13 +316,20 @@ function DayTimeline({
               <div key={idx} className="absolute left-[72px] right-2" style={{ top }}>
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-indigo-600" />
-                  <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => onBookingClick?.(b)}
+                    className={cn(
+                      "min-w-0 w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm text-left transition",
+                      onBookingClick ? "hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30" : ""
+                    )}
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div className="truncate text-sm font-medium text-slate-900">{bookingTitle(b)}</div>
                       <div className="whitespace-nowrap text-xs text-slate-500 tabular-nums">{bookingTimeLabel(b)}</div>
                     </div>
                     {b?.status ? <div className="mt-1 text-xs text-slate-500">{String(b.status)}</div> : null}
-                  </div>
+                  </button>
                 </div>
               </div>
             )
@@ -306,6 +347,8 @@ export default function CalendarPage() {
   const [error, setError] = useState<string>("")
   const [notice, setNotice] = useState<string>("")
   const [copied, setCopied] = useState(false)
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null)
 
   const [profile, setProfile] = useState<any>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -487,11 +530,9 @@ export default function CalendarPage() {
     setNotice("")
     setBookingsLoading(true)
     try {
-      // Fetch profile + bookings in parallel for faster first paint.
-      const [p, res] = await Promise.all([
-        api.getMyProfile(),
-        api.getNeetoBookings({ page_size: 200, type: "upcoming" }),
-      ])
+      // Load profile first so we can explicitly scope bookings to this team member.
+      const p = await api.getMyProfile()
+      const res = await api.getNeetoBookings({ page_size: 200, type: "upcoming", host_email: p?.email })
       setProfile(p)
       const data = (res as any)?.data ?? res
       const list = Array.isArray(data) ? data : (data?.bookings ?? data?.data ?? [])
@@ -610,6 +651,21 @@ export default function CalendarPage() {
     }
   }
 
+  const copyText = async (text: string | undefined, label: string) => {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ description: `${label} copied.` })
+    } catch {
+      toast({ description: `Could not copy ${label.toLowerCase()}.`, variant: "destructive" as any })
+    }
+  }
+
+  const openBooking = (b: Booking) => {
+    setActiveBooking(b)
+    setBookingDialogOpen(true)
+  }
+
   useEffect(() => {
     if (!copied) return
     const t = window.setTimeout(() => setCopied(false), 1200)
@@ -619,6 +675,121 @@ export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
+        <Dialog
+          open={bookingDialogOpen}
+          onOpenChange={(open) => {
+            setBookingDialogOpen(open)
+            if (!open) setActiveBooking(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="truncate">{activeBooking ? bookingTitle(activeBooking) : "Booking"}</DialogTitle>
+              <DialogDescription>
+                {activeBooking ? bookingDateTimeRangeLabel(activeBooking) : null}
+              </DialogDescription>
+            </DialogHeader>
+
+            {activeBooking ? (
+              <div className="space-y-4">
+                <div className="rounded-md border p-3">
+                  <div className="text-sm font-medium">Client</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {activeBooking?.name ? <span className="text-foreground">{String(activeBooking.name)}</span> : "—"}
+                    {activeBooking?.email ? <span className="ml-2">({String(activeBooking.email)})</span> : null}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="text-xs text-muted-foreground">
+                      Status: <span className="text-foreground">{String(activeBooking?.status || "—")}</span>
+                    </div>
+                    {activeBooking?.time_zone ? (
+                      <div className="text-xs text-muted-foreground">
+                        Time zone: <span className="text-foreground">{String(activeBooking.time_zone)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Join link</div>
+                  {(() => {
+                    const joinUrl =
+                      activeBooking?.room_url ||
+                      activeBooking?.spot_details ||
+                      activeBooking?.client_booking_url ||
+                      activeBooking?.admin_booking_url
+                    return joinUrl ? (
+                      <div className="flex items-center gap-2">
+                        <Input value={joinUrl} readOnly className="text-xs" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyText(joinUrl, "Join link")}
+                          aria-label="Copy join link"
+                        >
+                          <CopyIcon className="h-4 w-4" />
+                        </Button>
+                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open join link">
+                          <a href={joinUrl} target="_blank" rel="noreferrer">
+                            <ExternalLinkIcon className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">No join link available.</div>
+                    )
+                  })()}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Booking links</div>
+                  <div className="grid gap-2">
+                    {activeBooking?.client_booking_url ? (
+                      <div className="flex items-center gap-2">
+                        <Input value={String(activeBooking.client_booking_url)} readOnly className="text-xs" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyText(String(activeBooking.client_booking_url), "Client booking URL")}
+                          aria-label="Copy client booking URL"
+                        >
+                          <CopyIcon className="h-4 w-4" />
+                        </Button>
+                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open client booking URL">
+                          <a href={String(activeBooking.client_booking_url)} target="_blank" rel="noreferrer">
+                            <ExternalLinkIcon className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    ) : null}
+                    {activeBooking?.admin_booking_url ? (
+                      <div className="flex items-center gap-2">
+                        <Input value={String(activeBooking.admin_booking_url)} readOnly className="text-xs" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyText(String(activeBooking.admin_booking_url), "Admin booking URL")}
+                          aria-label="Copy admin booking URL"
+                        >
+                          <CopyIcon className="h-4 w-4" />
+                        </Button>
+                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open admin booking URL">
+                          <a href={String(activeBooking.admin_booking_url)} target="_blank" rel="noreferrer">
+                            <ExternalLinkIcon className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
         <div className="space-y-4">
           {error ? (
             <Alert variant="destructive">
@@ -731,7 +902,13 @@ export default function CalendarPage() {
                     <div className="text-sm text-muted-foreground">Nothing scheduled.</div>
                   ) : (
                     selectedDayBookings.map((b, idx) => (
-                      <div key={idx} className="rounded-md border p-3">
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => openBooking(b)}
+                        className="w-full rounded-md border p-3 text-left transition hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                        aria-label={`Open booking details for ${bookingTitle(b)}`}
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="font-medium truncate">{bookingTitle(b)}</div>
@@ -739,7 +916,7 @@ export default function CalendarPage() {
                           </div>
                           <div className="text-xs text-muted-foreground whitespace-nowrap">{b?.status || ""}</div>
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
@@ -780,24 +957,101 @@ export default function CalendarPage() {
 
           <TabsContent value="availability" className="mt-6">
             <Card className="p-6 md:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="text-xl font-semibold">Weekly hours</div>
-                  <div className="text-sm text-muted-foreground">Set when you are typically available for meetings</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
-                    Reload
-                  </Button>
-                  <Button type="button" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
-                  {savingAvailability ? "Saving…" : "Save"}
-                </Button>
-                </div>
-              </div>
+              {availabilityLoading || !hasLoadedAvailability ? (
+                <>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 space-y-2">
+                      <Skeleton className="h-7 w-40" />
+                      <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-10 w-20" />
+                      <Skeleton className="h-10 w-20" />
+                    </div>
+                  </div>
 
-              <Separator className="my-6" />
+                  <Separator className="my-6" />
 
-              <div className="grid gap-6">
+                  <div className="grid gap-6">
+                    <div className="rounded-2xl border p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-40" />
+                          <Skeleton className="h-4 w-56" />
+                        </div>
+                        <Skeleton className="h-10 w-20" />
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {Array.from({ length: 7 }).map((_, i) => (
+                          <Skeleton key={i} className="h-9 w-9 rounded-full" />
+                        ))}
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-2">
+                          <Skeleton className="h-4 w-12" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Skeleton className="h-4 w-12" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-3 w-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border">
+                      {Array.from({ length: 7 }).map((_, idx) => (
+                        <div key={idx} className={cn("p-4 md:p-5", idx > 0 ? "border-t" : "")}>
+                          <div className="flex items-start gap-4">
+                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                            <div className="min-w-0 flex-1 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Skeleton className="h-5 w-24" />
+                                <Skeleton className="h-9 w-9 rounded-md" />
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <Skeleton className="h-10 w-[160px]" />
+                                  <Skeleton className="h-4 w-4" />
+                                  <Skeleton className="h-10 w-[160px]" />
+                                  <Skeleton className="h-9 w-9 rounded-md" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-xl font-semibold">Weekly hours</div>
+                      <div className="text-sm text-muted-foreground">Set when you are typically available for meetings</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
+                        Reload
+                      </Button>
+                      <Button type="button" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
+                      {savingAvailability ? "Saving…" : "Save"}
+                    </Button>
+                    </div>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  <div className="grid gap-6">
                 <div className="rounded-2xl border p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -1019,6 +1273,8 @@ export default function CalendarPage() {
                   )}
                 </div>
               </div>
+                </>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
