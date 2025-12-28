@@ -529,15 +529,25 @@ class ApiClient {
 class ContractorAIClient {
   private baseURL: string
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL
+  constructor(baseURL: string | undefined) {
+    if (!baseURL) {
+      throw new Error('Contractor AI API URL is not configured. Please set NEXT_PUBLIC_CONTRACTOR_AI_API_URL environment variable.')
+    }
+    // Normalize baseURL: remove trailing slashes
+    this.baseURL = baseURL.replace(/\/+$/, '')
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
+    if (!this.baseURL) {
+      throw new Error('Contractor AI API URL is not configured')
+    }
+    
+    // Ensure endpoint starts with / and combine with baseURL
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const url = `${this.baseURL}${normalizedEndpoint}`
     
     const config: RequestInit = {
       ...options,
@@ -666,4 +676,4 @@ class ContractorAIClient {
 }
 
 export const api = new ApiClient(API_URL!)
-export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL!)
+export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)

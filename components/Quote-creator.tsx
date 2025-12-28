@@ -11,8 +11,9 @@ import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useToast } from "@/hooks/use-toast"
-import { api } from "@/lib/api"
+import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client } from "@/lib/types"
+import { useAuth } from "@/contexts/AuthContext"
 import Image from "next/image"
 
 interface LineItem {
@@ -274,11 +275,14 @@ function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string;
 
 interface QuoteCreatorProps {
   leadId?: string | null
+  callLeadId?: string | null
+  phone?: string | null
   quoteId?: string | null
   initialData?: any // Job/Quote data for editing
 }
 
-export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
+  const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
@@ -341,6 +345,17 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       fetchLeadData()
     }
   }, [leadId])
+
+  // Fetch call lead data if callLeadId is provided
+  // Also handle phone parameter if provided without callLeadId (fallback)
+  useEffect(() => {
+    if (callLeadId) {
+      fetchCallLeadData()
+    } else if (phone) {
+      // If only phone is provided without callLeadId, just set the phone
+      setClientPhone(phone)
+    }
+  }, [callLeadId, phone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Match clients when name, email, or phone changes
   useEffect(() => {
@@ -518,6 +533,38 @@ export function QuoteCreator({ leadId, quoteId, initialData }: QuoteCreatorProps
       }
     } catch (error) {
       console.error("Failed to fetch lead data:", error)
+    } finally {
+      setLoadingLead(false)
+    }
+  }
+
+  const fetchCallLeadData = async () => {
+    if (!callLeadId) return
+    
+    try {
+      setLoadingLead(true)
+      const data = await contractorAI.getLead(callLeadId)
+      const lead = data as any
+      
+      // Reset selected client when loading from call lead
+      setSelectedClientId(null)
+      
+      // Auto-fill client information from call lead
+      setClientName(lead.name || `Customer ${lead.phone_number?.slice(-4) || ''}`)
+      setClientEmail(lead.email || "")
+      setClientPhone(lead.phone_number || phone || "")
+      setClientAddress(lead.location || "")
+      
+      // Pre-fill service description if available (use summary_text from call lead)
+      if (lead.summary_text) {
+        setServiceDescription(lead.summary_text)
+      }
+    } catch (error) {
+      console.error("Failed to fetch call lead data:", error)
+      // If fetching fails but phone is provided, at least set the phone number
+      if (phone) {
+        setClientPhone(phone)
+      }
     } finally {
       setLoadingLead(false)
     }

@@ -12,7 +12,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
 
   useEffect(() => {
     fetchLead()
@@ -363,7 +363,16 @@ export function LeadDetail({ leadId }: { leadId: string }) {
               return (
                 <button
                   key={attachment.id}
-                  onClick={() => isImage || isVideo ? setSelectedImage(attachment.public_url || attachment.file_path) : window.open(attachment.public_url || attachment.file_path, '_blank')}
+                  onClick={() => {
+                    if (isImage || isVideo) {
+                      setSelectedMedia({
+                        url: attachment.public_url || attachment.file_path,
+                        type: isVideo ? 'video' : 'image'
+                      })
+                    } else {
+                      window.open(attachment.public_url || attachment.file_path, '_blank')
+                    }
+                  }}
                   className="group relative aspect-video overflow-hidden rounded-lg border-2 border-border transition-all hover:border-primary hover:shadow-md"
                 >
                   {isImage || isVideo ? (
@@ -495,21 +504,47 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         </div>
       </Card>
 
-      {/* Full-screen image viewer modal */}
-      {selectedImage && (
+      {/* Full-screen media viewer modal */}
+      {selectedMedia && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setSelectedMedia(null)}
         >
           <button
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
-            onClick={() => setSelectedImage(null)}
+            className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSelectedMedia(null)
+            }}
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <img src={selectedImage || "/placeholder.svg"} alt="Full size" className="max-h-full max-w-full rounded-lg" />
+          <div 
+            className="max-h-full max-w-full rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {selectedMedia.type === 'video' ? (
+              <video
+                src={selectedMedia.url}
+                controls
+                autoPlay
+                className="max-h-[90vh] max-w-full rounded-lg"
+                onError={(e) => {
+                  console.error('Video playback error:', e)
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img 
+                src={selectedMedia.url || "/placeholder.svg"} 
+                alt="Full size" 
+                className="max-h-full max-w-full rounded-lg" 
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
