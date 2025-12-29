@@ -22,6 +22,7 @@ export enum LeadSource {
   PHONE_CALL = "PHONE_CALL",
   EMAIL = "EMAIL",
   SOCIAL_MEDIA = "SOCIAL_MEDIA",
+  CONSOLIDATED = "CONSOLIDATED",
   OTHER = "OTHER",
 }
 

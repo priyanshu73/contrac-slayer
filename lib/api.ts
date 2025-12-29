@@ -389,6 +389,33 @@ class ApiClient {
     }
   }
 
+  async generateEstimate(data: {
+    description: string
+    project_type?: string
+    measurements?: any
+    lead_id?: number
+    location_zip_code?: string
+    labor_rate_per_hour?: number
+    markup_percentage?: number
+  }) {
+    console.log(`🤖 API Client: Generating AI estimate`)
+    const startTime = Date.now()
+    
+    try {
+      const result = await this.request('/generate-estimate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      const duration = Date.now() - startTime
+      console.log(`🤖 API Client: Estimate generated in ${duration}ms`)
+      return result
+    } catch (error) {
+      const duration = Date.now() - startTime
+      console.error(`🤖 API Client: Estimate generation failed after ${duration}ms:`, error)
+      throw error
+    }
+  }
+
   async signQuoteAsContractor(jobId: number, signatureData: {
     signature_data: string
     signer_name: string
