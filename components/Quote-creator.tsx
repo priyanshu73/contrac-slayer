@@ -11,9 +11,9 @@ import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useToast } from "@/hooks/use-toast"
-import { api, contractorAI } from "@/lib/api"
-import { Lead, ContractorProfile, Client } from "@/lib/types"
-import { useAuth } from "@/contexts/AuthContext"
+import { api } from "@/lib/api"
+import { Lead, ContractorProfile, Client, Measurements } from "@/lib/types"
+import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
 
 interface LineItem {
@@ -30,6 +30,9 @@ interface LineItem {
   packSize?: number // Number of pieces per pack
   packPrice?: number // Total price for the pack
   sourceParsedItem?: any // Reference to the parsed item this match came from
+  confidence?: "low" | "medium" | "high" // Confidence level from AI estimate
+  productSource?: string // Product source (e.g., "Home Depot")
+  category?: string // Category: materials | labor | equipment | disposal
 }
 
 interface MaterialResult {
@@ -232,8 +235,109 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
   )
 }
 
-// Material Thumbnail Component with proper fallback handling
-function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string; className?: string }) {
+// Get colorful abstract icon based on item description/category
+function getItemIcon(description: string, category?: string, index: number = 0) {
+  const desc = description.toLowerCase()
+  const cat = category?.toLowerCase() || ""
+  
+  // Icon set with 5 different colorful abstract designs
+  const icons = [
+    // Icon 1: Blue gradient with tools
+    <svg key="icon1" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3B82F6" stopOpacity="1" />
+          <stop offset="100%" stopColor="#8B5CF6" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="12" fill="url(#grad1)" />
+      <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="white" fillOpacity="0.3" />
+      <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
+      <path d="M35 50 L45 50 M55 50 L65 50 M50 40 L50 60" stroke="white" strokeWidth="2" strokeOpacity="0.6" />
+    </svg>,
+    
+    // Icon 2: Orange/Red gradient with construction
+    <svg key="icon2" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#F59E0B" stopOpacity="1" />
+          <stop offset="100%" stopColor="#EF4444" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="12" fill="url(#grad2)" />
+      <rect x="25" y="30" width="50" height="40" rx="4" fill="white" fillOpacity="0.25" />
+      <rect x="30" y="35" width="15" height="15" rx="2" fill="white" fillOpacity="0.4" />
+      <rect x="55" y="35" width="15" height="15" rx="2" fill="white" fillOpacity="0.4" />
+      <path d="M40 55 L60 55" stroke="white" strokeWidth="3" strokeOpacity="0.5" />
+    </svg>,
+    
+    // Icon 3: Green gradient with geometric shapes
+    <svg key="icon3" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#10B981" stopOpacity="1" />
+          <stop offset="100%" stopColor="#059669" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="12" fill="url(#grad3)" />
+      <circle cx="35" cy="35" r="12" fill="white" fillOpacity="0.3" />
+      <circle cx="65" cy="35" r="12" fill="white" fillOpacity="0.3" />
+      <path d="M35 47 L65 47 L50 65 Z" fill="white" fillOpacity="0.4" />
+    </svg>,
+    
+    // Icon 4: Purple/Pink gradient with abstract design
+    <svg key="icon4" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#A855F7" stopOpacity="1" />
+          <stop offset="100%" stopColor="#EC4899" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="12" fill="url(#grad4)" />
+      <path d="M30 50 Q50 30, 70 50 T30 50" fill="white" fillOpacity="0.2" />
+      <circle cx="40" cy="45" r="6" fill="white" fillOpacity="0.5" />
+      <circle cx="60" cy="55" r="6" fill="white" fillOpacity="0.5" />
+      <path d="M50 30 L50 70 M30 50 L70 50" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+    </svg>,
+    
+    // Icon 5: Teal/Cyan gradient with modern design
+    <svg key="icon5" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#06B6D4" stopOpacity="1" />
+          <stop offset="100%" stopColor="#0891B2" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="12" fill="url(#grad5)" />
+      <rect x="30" y="30" width="40" height="40" rx="8" fill="white" fillOpacity="0.2" transform="rotate(45 50 50)" />
+      <circle cx="50" cy="50" r="15" fill="none" stroke="white" strokeWidth="3" strokeOpacity="0.4" />
+      <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
+    </svg>
+  ]
+  
+  // Select icon based on category or description keywords
+  if (cat.includes("material") || desc.includes("paver") || desc.includes("stone") || desc.includes("brick")) {
+    return icons[0] // Blue gradient
+  } else if (cat.includes("labor") || desc.includes("install") || desc.includes("work") || desc.includes("service")) {
+    return icons[1] // Orange/Red gradient
+  } else if (cat.includes("equipment") || desc.includes("tool") || desc.includes("machine")) {
+    return icons[2] // Green gradient
+  } else if (cat.includes("disposal") || desc.includes("waste") || desc.includes("remove")) {
+    return icons[3] // Purple/Pink gradient
+  } else {
+    // Use index-based rotation for variety
+    return icons[index % icons.length]
+  }
+}
+
+// Material Thumbnail Component with colorful fallback icons
+function MaterialThumbnail({ src, alt, className, category, index }: { 
+  src?: string; 
+  alt: string; 
+  className?: string;
+  category?: string;
+  index?: number;
+}) {
   const [imageError, setImageError] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
 
@@ -245,10 +349,8 @@ function MaterialThumbnail({ src, alt, className }: { src?: string; alt: string;
 
   if (!src || imageError) {
     return (
-      <div className={`flex items-center justify-center bg-muted border border-border rounded-md ${className}`}>
-        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
+      <div className={`flex items-center justify-center border border-border rounded-md overflow-hidden ${className}`}>
+        {getItemIcon(alt, category, index || 0)}
       </div>
     )
   }
@@ -285,13 +387,14 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
+  const [projectType, setProjectType] = useState("")
+  const [projectTitle, setProjectTitle] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiResults, setAiResults] = useState<any[]>([])
-  const [aiWorkingItems, setAiWorkingItems] = useState<LineItem[]>([])
-  const [selectedForInvoice, setSelectedForInvoice] = useState<Set<number>>(new Set())
-  const [isAiItemsOpen, setIsAiItemsOpen] = useState(true)
-  const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
   const [items, setItems] = useState<LineItem[]>([])
+  const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
+  const [assumptions, setAssumptions] = useState<string[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
+  const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
   
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -316,9 +419,10 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   
-  // Markup control - fetch from contractor profile
+  // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
+  const [laborRatePerHour, setLaborRatePerHour] = useState<number>(75) // Default $75/hr, will be updated from profile
   const [loadingMarkup, setLoadingMarkup] = useState(true)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
@@ -369,21 +473,20 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       return
     }
 
-    const nameLower = clientName.trim().toLowerCase()
-    const emailLower = clientEmail.trim().toLowerCase()
     const phoneClean = clientPhone.replace(/\D/g, '') // Remove non-digits
 
-    if (nameLower.length >= 2 || emailLower.length >= 3 || phoneClean.length >= 7) {
+    // Only match on phone number, and require at least 7 digits
+    if (phoneClean.length >= 7) {
       allClients.forEach(client => {
-        const clientNameLower = (client.name || '').toLowerCase()
-        const clientEmailLower = (client.email || '').toLowerCase()
         const clientPhoneClean = (client.phone || '').replace(/\D/g, '')
 
-        const nameMatch = nameLower.length >= 2 && clientNameLower.includes(nameLower)
-        const emailMatch = emailLower.length >= 3 && clientEmailLower.includes(emailLower)
-        const phoneMatch = phoneClean.length >= 7 && clientPhoneClean.includes(phoneClean)
+        // Phone match: check if the entered phone contains the client's phone or vice versa
+        // This handles cases like "5551234" matching "555-123-4567"
+        const phoneMatch = phoneClean.length >= 7 && clientPhoneClean.length >= 7 && (
+          clientPhoneClean.includes(phoneClean) || phoneClean.includes(clientPhoneClean)
+        )
 
-        if (nameMatch || emailMatch || phoneMatch) {
+        if (phoneMatch) {
           // Avoid duplicates
           if (!matches.find(m => m.id === client.id)) {
             matches.push(client)
@@ -393,8 +496,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     }
 
     setMatchingClients(matches)
-    setShowClientSuggestions(matches.length > 0 && (nameLower.length >= 2 || emailLower.length >= 3 || phoneClean.length >= 7))
-  }, [clientName, clientEmail, clientPhone, allClients, selectedClientId])
+    setShowClientSuggestions(matches.length > 0 && phoneClean.length >= 7)
+  }, [clientPhone, allClients, selectedClientId])
 
   // Load initial quote data if editing
   useEffect(() => {
@@ -408,6 +511,15 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       setClientEmail(client?.email || initialData.client_email || "")
       setClientPhone(client?.phone || initialData.client_phone || "")
       setClientAddress(client?.address || initialData.client_address || "")
+
+      // Load project type and title if available
+      if (initialData.project_type) {
+        setProjectType(initialData.project_type)
+        setProjectTitle(initialData.project_type)
+      }
+      if (initialData.title) {
+        setProjectTitle(initialData.title)
+      }
 
       // Load service description if available
       if (initialData.job_description) {
@@ -462,9 +574,13 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       if (profile?.default_sales_tax_rate !== undefined) {
         setTaxRate(parseFloat(profile.default_sales_tax_rate) || 8.25)
       }
+      // Store labor rate for calculations
+      if (profile?.default_labor_rate_per_hour !== undefined) {
+        setLaborRatePerHour(parseFloat(profile.default_labor_rate_per_hour) || 75)
+      }
     } catch (error) {
       console.error("Failed to fetch contractor markup:", error)
-      // Keep defaults: 20% markup, 8.25% tax
+      // Keep defaults: 20% markup, 8.25% tax, $75/hr labor
     } finally {
       setLoadingMarkup(false)
     }
@@ -530,6 +646,18 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       // Pre-fill service description if available
       if (lead.description) {
         setServiceDescription(lead.description)
+      }
+      
+      // Pre-fill project type if available
+      if (lead.project_type) {
+        setProjectType(lead.project_type)
+        // Use project_type as title
+        setProjectTitle(lead.project_type)
+      }
+      
+      // Extract measurements from lead
+      if (lead.measurements) {
+        setMeasurements(lead.measurements as Measurements)
       }
     } catch (error) {
       console.error("Failed to fetch lead data:", error)
@@ -666,56 +794,74 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     })
   }
 
-  const fetchAiItems = async () => {
-    setAiLoading(true)
-    setAiResults([])
-    try {
-      const base = process.env.NEXT_PUBLIC_API_URL
-      const res = await fetch(`${base}/generate-lineitems`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: serviceDescription, catalog_version: "v1" })
+  const fetchAiEstimate = async () => {
+    if (!serviceDescription.trim()) {
+      toast({
+        title: "Description required",
+        description: "Please enter a project description to generate an estimate",
+        variant: "destructive",
       })
-      if (!res.ok) throw new Error(`Request failed ${res.status}`)
-      const data = await res.json()
-      const parsed = data?.parsed_items || []
-      setAiResults(parsed)
-      // Convert ALL AI matches to working items (not added to main items yet)
-      const working: LineItem[] = []
-      for (const pi of parsed) {
-        const matches = Array.isArray(pi.matches) ? pi.matches : []
-        if (matches.length === 0) continue
-        
-        // Add all matches for this parsed item
-        for (const match of matches) {
-          // Calculate per-piece price: divide pack price by pack_size if available
-          const packPrice = Number(match.price_unit) || 0
-          const packSize = match.pack_size ? Number(match.pack_size) : null
-          
-          // If packSize exists and > 1, calculate per-piece price; otherwise use packPrice as-is
-          const perPiecePrice = (packSize && packSize > 1) ? packPrice / packSize : packPrice
-          
-          working.push({
-            description: match.name,
-            quantity: pi.parsed_object?.quantity || 1,
-            rate: perPiecePrice, // Always store per-piece price
-            imageUrl: match.image,
-            thumbnailUrl: match.image,
-            brand: match.vendor || pi.parsed_object?.brand || undefined,
-            model: undefined,
-            unitOfMeasure: match.unit || pi.parsed_object?.unit || "each",
-            searchResults: [match],
-            packSize: (packSize && packSize > 1) ? packSize : undefined,
-            packPrice: (packPrice > 0 && packSize && packSize > 1) ? packPrice : undefined,
-            sourceParsedItem: pi.parsed_object // Keep reference to which parsed item this came from
-          })
-        }
-      }
-      setAiWorkingItems(working)
-      // Auto-select all items initially
-      setSelectedForInvoice(new Set(working.map((_, idx) => idx)))
-    } catch (e) {
-      console.error(e)
+      return
+    }
+    
+    setAiLoading(true)
+    try {
+      const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
+      // Send measurements if available (either from lead or manually entered)
+      // Backend will use lead measurements if lead_id provided and no manual measurements
+      const response = await api.generateEstimate({
+        description: serviceDescription,
+        project_type: projectType || undefined,
+        measurements: measurements.items.length > 0 ? measurements : undefined,
+        lead_id: leadId ? parseInt(leadId, 10) : undefined,
+        location_zip_code: zipCode,
+        labor_rate_per_hour: laborRatePerHour, // Send labor rate from form
+        markup_percentage: markupPercentage, // Send markup from form
+      }) as any
+      
+      // Log for debugging
+      console.log("📐 Estimate generation request:", {
+        description: serviceDescription.substring(0, 50) + "...",
+        project_type: projectType,
+        has_measurements: measurements.items.length > 0,
+        measurements_count: measurements.items.length,
+        lead_id: leadId,
+      })
+      
+      // Convert response line items to LineItem format
+      const newItems: LineItem[] = (response.line_items || []).map((item: any, idx: number) => ({
+        description: item.description,
+        quantity: item.quantity || 1,
+        rate: item.rate || 0,
+        imageUrl: item.image_url,
+        thumbnailUrl: item.image_url,
+        brand: item.brand,
+        model: item.model,
+        externalUrl: item.external_url,
+        unitOfMeasure: item.unit || "each",
+        confidence: item.confidence,
+        productSource: item.product_source,
+        category: item.category, // Include category for icon selection
+      }))
+      
+      // Auto-fill line items directly
+      setItems(newItems)
+      
+      // Store assumptions and warnings
+      setAssumptions(response.assumptions || [])
+      setWarnings(response.warnings || [])
+      
+      toast({
+        title: "Estimate generated",
+        description: `Generated ${newItems.length} line items with AI`,
+      })
+    } catch (error: any) {
+      console.error("Failed to generate estimate:", error)
+      toast({
+        title: "Estimate generation failed",
+        description: error.message || "Failed to generate estimate. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setAiLoading(false)
     }
@@ -999,6 +1145,18 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
             )}
           </Card>
 
+          {/* Measurements Input */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Project Measurements (Optional)</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Adding measurements helps generate more accurate estimates. Measurements can come from the lead or be entered manually.
+            </p>
+            <MeasurementsInput
+              value={measurements}
+              onChange={setMeasurements}
+            />
+          </Card>
+
           {/* Material Search */}
           <div className="space-y-3">
             <MaterialSearchWidget
@@ -1056,8 +1214,23 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                 <CollapsibleContent>
                   <div className="p-4 border-t bg-background">
                     <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
+                          Project Type (Optional)
+                        </Label>
+                        <Input
+                          id="project-type-mobile"
+                          placeholder="e.g., Patio Installation, Deck Construction"
+                          value={projectType}
+                          onChange={(e) => {
+                            setProjectType(e.target.value)
+                            setProjectTitle(e.target.value)
+                          }}
+                          className="bg-background"
+                        />
+                      </div>
                       <Textarea
-                        placeholder="Describe the item or service (e.g., materials, labor, installation, etc.)"
+                        placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
                         value={serviceDescription}
                         onChange={(e) => setServiceDescription(e.target.value)}
                         className="min-h-[80px] bg-background"
@@ -1068,119 +1241,67 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                         const tooShort = desc.length < 30 || wordCount < 6
                         return (
                       <div className="flex gap-2 flex-wrap">
-                        <Button onClick={fetchAiItems} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                           {aiLoading ? (
                             <span className="inline-flex items-center gap-2">
                               <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
-                              Getting AI Line Items...
+                              Generating AI Estimate...
                             </span>
                           ) : (
                             <>
                               <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                               </svg>
-                              Get AI Line Items
+                              Generate AI Estimate
                             </>
                           )}
                         </Button>
                         {tooShort && (
                           <p className="text-xs text-muted-foreground w-full">
-                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
+                            Please add at least 30 characters and 6 words for better results.
                           </p>
                         )}
                       </div>
                         )
                       })()}
+                      
+                      {/* Display Measurements if available */}
+                      {measurements.items && measurements.items.length > 0 && (
+                        <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <h4 className="text-sm font-medium">Measurements</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {measurements.items.map((item, idx) => (
+                              <div key={idx} className="text-xs text-muted-foreground">
+                                {item.type === "dimensions" && item.length && item.width && (
+                                  <span>
+                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
+                                  </span>
+                                )}
+                                {item.type === "square_footage" && item.value && (
+                                  <span>
+                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
+                                  </span>
+                                )}
+                                {item.type === "linear_feet" && item.value && (
+                                  <span>
+                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CollapsibleContent>
               </div>
             </Collapsible>
-
-            {/* Mobile AI Working Area */}
-            {(aiLoading || aiResults.length > 0 || aiWorkingItems.length > 0) && (
-              <div className="mt-4">
-                <Collapsible open={isAiItemsOpen} onOpenChange={setIsAiItemsOpen}>
-                  <div className="border rounded-lg overflow-hidden">
-                    <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-sm">AI Line Items - Working Area</h3>
-                          {aiWorkingItems.length > 0 && (
-                            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                              {aiWorkingItems.length}
-                            </span>
-                          )}
-                        </div>
-                        <svg 
-                          className={`h-4 w-4 transition-transform text-muted-foreground ${isAiItemsOpen ? 'rotate-180' : ''}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="p-4 border-t bg-background space-y-4">
-                        {aiLoading && (
-                          <div className="flex flex-col items-center justify-center gap-3 py-6">
-                            <div className="relative">
-                              <div className="h-12 w-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <svg className="h-6 w-6 text-primary animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm font-semibold text-primary">Analyzing your project...</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {aiWorkingItems.length > 0 && (
-                          <div className="space-y-2 max-h-96 overflow-y-auto">
-                            {aiWorkingItems.map((item, idx) => (
-                              <div key={idx} className="border rounded p-3 bg-card">
-                                <div className="flex items-start gap-3">
-                                  <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-12 h-12 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm mb-1">{item.description}</div>
-                                    <div className="text-xs text-muted-foreground space-y-0.5">
-                                      <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
-                                      <div>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</div>
-                                      {item.brand && <div>{item.brand}</div>}
-                                    </div>
-                                  </div>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setItems(prev => [...prev, item])
-                                      toast({
-                                        title: "Item added",
-                                        description: `${item.description || "Item"} has been added to your quote`,
-                                      })
-                                    }}
-                                  >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              </div>
-            )}
           </div>
 
           {/* Line Items */}
@@ -1253,6 +1374,22 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                     <p className="text-[10px] text-muted-foreground mt-1">
                       {item.brand} {item.model && `- ${item.model}`}
                     </p>
+                  )}
+                  {item.confidence && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        item.confidence === "high" ? "bg-green-100 text-green-700" :
+                        item.confidence === "medium" ? "bg-yellow-100 text-yellow-700" :
+                        "bg-orange-100 text-orange-700"
+                      }`}>
+                        {item.confidence} confidence
+                      </span>
+                      {item.productSource && (
+                        <span className="text-[10px] text-muted-foreground">
+                          • {item.productSource}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 
@@ -1327,6 +1464,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                     src={item.thumbnailUrl || item.imageUrl}
                     alt={item.description}
                     className="w-10 h-10 flex-shrink-0 rounded"
+                    category={item.category}
+                    index={index}
                   />
                 </div>
                 
@@ -1608,35 +1747,108 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                 </svg>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-semibold">AI Line Items Assistant</h2>
+                <h2 className="text-lg font-semibold">AI Estimate Generator</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Generate detailed line items based on your project description
+                  Generate detailed line items with AI-powered estimation
                 </p>
                 <div className="mt-4 space-y-3">
+                  <div>
+                    <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1.5 block">
+                      Project Type (Optional)
+                    </Label>
+                    <Input
+                      id="project-type-desktop"
+                      placeholder="e.g., Patio Installation, Deck Construction"
+                      value={projectType}
+                      onChange={(e) => {
+                        setProjectType(e.target.value)
+                        setProjectTitle(e.target.value)
+                      }}
+                      className="bg-background"
+                    />
+                  </div>
                   <Textarea
-                    placeholder="Describe the item or service (e.g., materials, labor, installation, etc.)"
+                    placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
                     value={serviceDescription}
                     onChange={(e) => setServiceDescription(e.target.value)}
                     className="min-h-[80px] bg-background"
                   />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="markup-ai-desktop" className="text-sm font-medium mb-1.5 block">
+                        Markup Percentage
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="markup-ai-desktop"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={markupPercentage === 0 ? "" : markupPercentage}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val === "") {
+                              setMarkupPercentage(0)
+                            } else {
+                              const num = parseFloat(val) || 0
+                              setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                            }
+                          }}
+                          placeholder="20"
+                          className="bg-background"
+                          disabled={loadingMarkup}
+                        />
+                        <span className="text-sm text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1.5 block">
+                        Labor Rate (per hour)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">$</span>
+                        <Input
+                          id="labor-rate-ai-desktop"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={laborRatePerHour === 0 ? "" : laborRatePerHour}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val === "") {
+                              setLaborRatePerHour(0)
+                            } else {
+                              const num = parseFloat(val) || 0
+                              setLaborRatePerHour(Math.max(0, num))
+                            }
+                          }}
+                          placeholder="75.00"
+                          className="bg-background"
+                          disabled={loadingMarkup}
+                        />
+                        <span className="text-sm text-muted-foreground">/hr</span>
+                      </div>
+                    </div>
+                  </div>
                   {(() => {
                     const desc = serviceDescription.trim()
                     const wordCount = desc ? desc.split(/\s+/).length : 0
                     const tooShort = desc.length < 30 || wordCount < 6
                     return (
                   <div className="flex gap-2 flex-wrap">
-                    <Button onClick={fetchAiItems} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                    <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                       {aiLoading ? (
                         <span className="inline-flex items-center gap-2">
                           <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
-                          Getting AI Line Items...
+                          Generating AI Estimate...
                         </span>
                       ) : (
                         <>
                           <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
-                          Get AI Line Items
+                          Generate AI Estimate
                         </>
                       )}
                     </Button>
@@ -1648,354 +1860,83 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   </div>
                     )
                   })()}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* AI Working Area */}
-          {(aiLoading || aiResults.length > 0 || aiWorkingItems.length > 0) && (
-            <Card className="p-6 sticky top-6">
-              <Collapsible open={isAiItemsOpen} onOpenChange={setIsAiItemsOpen}>
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <CollapsibleTrigger asChild>
-                      <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
-                        <h2 className="text-lg font-semibold">AI Line Items - Working Area</h2>
-                        <svg 
-                          className={`h-5 w-5 transition-transform ${isAiItemsOpen ? 'rotate-180' : ''}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </CollapsibleTrigger>
-                    {aiWorkingItems.length > 0 && selectedForInvoice.size > 0 && (
-                      <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 cursor-help">
-                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">BETA</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="text-sm">
-                                This feature is currently in beta. We're actively working on improving the invoice generation functionality. Thank you for your patience!
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Review and manage AI-suggested items. Select items to include in invoice generation.
-                  </p>
                   
-                  {/* Search Bar */}
-                  <div id="ai-material-search" className="mb-6">
-                    <MaterialSearchWidget
-                      zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
-                      onAddMaterial={(material) => {
-                        const packPrice = parseFloat(material.estimated_cost) || 0
-                        const packSize = 1 // Default if not available
-                        const perPiecePrice = packPrice
-                        const newIdx = aiWorkingItems.length
-                        setAiWorkingItems(prev => [...prev, {
-                          description: material.name,
-                          quantity: parseInt(material.estimated_quantity) || 1,
-                          rate: perPiecePrice,
-                          imageUrl: material.image_url,
-                          thumbnailUrl: material.thumbnail_url,
-                          brand: material.brand,
-                          model: material.model,
-                          externalUrl: material.url,
-                          unitOfMeasure: material.unit_of_measure,
-                          searchResults: material.searchResults,
-                          packSize: packSize > 1 ? packSize : undefined,
-                          packPrice: packPrice > 0 ? packPrice : undefined
-                        }])
-                        setSelectedForInvoice(prev => new Set([...prev, newIdx]))
-                        toast({
-                          title: "Item added",
-                          description: `${material.name || "Item"} has been added to AI working area`,
-                        })
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <CollapsibleContent>
-                  {aiLoading && (
-                    <div className="space-y-4 mb-6 py-6">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <div className="relative">
-                          <div className="h-16 w-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <svg className="h-8 w-8 text-primary animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-lg font-semibold text-primary">Analyzing your project description...</p>
-                          <p className="text-sm text-muted-foreground mt-1">Finding the best matching materials from our catalog</p>
-                        </div>
+                  {/* Display Measurements if available */}
+                  {measurements.items && measurements.items.length > 0 && (
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <h4 className="text-sm font-medium">Measurements</h4>
                       </div>
                       <div className="space-y-2">
-                        {[0,1,2].map((i) => (
-                          <div key={i} className="animate-pulse rounded-lg border border-primary/10 bg-primary/5 p-4">
-                            <div className="h-5 w-56 bg-primary/20 rounded mb-2" />
-                            <div className="h-4 w-72 bg-primary/10 rounded" />
+                        {measurements.items.map((item, idx) => (
+                          <div key={idx} className="text-xs text-muted-foreground">
+                            {item.type === "dimensions" && item.length && item.width && (
+                              <span>
+                                {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
+                              </span>
+                            )}
+                            {item.type === "square_footage" && item.value && (
+                              <span>
+                                {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
+                              </span>
+                            )}
+                            {item.type === "linear_feet" && item.value && (
+                              <span>
+                                {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          </Card>
 
-                  {/* AI Working Items List */}
-                  {aiWorkingItems.length > 0 && (
-                    <div className="mb-6 border rounded-lg overflow-hidden bg-gray-50/50">
-                      <div className="max-h-96 overflow-y-auto p-3 custom-scrollbar">
-                        <div className="space-y-2">
-                          {aiWorkingItems.map((item, idx) => (
-                            <div key={idx} className="border rounded p-3 hover:bg-gray-50 transition-colors bg-white">
-                              {/* Mobile Layout */}
-                              <div className="block sm:hidden space-y-3">
-                                <div className="flex items-start gap-3">
-                                  {/* Selection Toggle */}
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          onClick={() => {
-                                            setSelectedForInvoice(prev => {
-                                              const next = new Set(prev)
-                                              if (next.has(idx)) {
-                                                next.delete(idx)
-                                              } else {
-                                                next.add(idx)
-                                              }
-                                              return next
-                                            })
-                                          }}
-                                          className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all mt-1 ${
-                                            selectedForInvoice.has(idx)
-                                              ? "bg-green-500 border-green-600"
-                                              : "bg-white border-gray-300 hover:border-green-400"
-                                          }`}
-                                        >
-                                          {selectedForInvoice.has(idx) && (
-                                            <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                          )}
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-
-                                  <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-16 h-16 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm mb-1">{item.description}</div>
-                                    <div className="text-xs text-muted-foreground space-y-0.5">
-                                      <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
-                                      <div>
-                                        {item.packSize && item.packSize > 1 && item.packPrice ? (
-                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${getRateNumber(item.rate).toFixed(2)}/each)</span>
-                                        ) : (
-                                          <span>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</span>
-                                        )}
-                                      </div>
-                                      {item.brand && <div>{item.brand}</div>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="sm" 
-                                          variant="ghost"
-                                          className="h-8 flex-1 min-w-[100px]"
-                                          onClick={() => {
-                                            setItems(prev => [...prev, item])
-                                            toast({
-                                              title: "Item added",
-                                              description: `${item.description || "Item"} has been added to your quote`,
-                                            })
-                                          }}
-                                        >
-                                          <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                          </svg>
-                                          Add
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Add to main quote items</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 flex-1 min-w-[100px]"
-                                    onClick={() => {
-                                      const el = document.getElementById("ai-material-search")
-                                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-                                    }}
-                                  >
-                                    Substitute
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="destructive" 
-                                    className="h-8 flex-1 min-w-[100px]"
-                                    onClick={() => {
-                                      setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
-                                      setSelectedForInvoice(prev => {
-                                        const reindexed = new Set<number>()
-                                        Array.from(prev).forEach(oldIdx => {
-                                          if (oldIdx < idx) reindexed.add(oldIdx)
-                                          else if (oldIdx > idx) reindexed.add(oldIdx - 1)
-                                        })
-                                        return reindexed
-                                      })
-                                    }}
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Desktop Layout - Vertical for sidebar */}
-                              <div className="hidden sm:block">
-                                <div className="flex items-start gap-3 mb-2">
-                                  {/* Selection Toggle */}
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          onClick={() => {
-                                            setSelectedForInvoice(prev => {
-                                              const next = new Set(prev)
-                                              if (next.has(idx)) {
-                                                next.delete(idx)
-                                              } else {
-                                                next.add(idx)
-                                              }
-                                              return next
-                                            })
-                                          }}
-                                          className={`flex-shrink-0 w-6 h-6 rounded border-2 transition-all mt-1 ${
-                                            selectedForInvoice.has(idx)
-                                              ? "bg-green-500 border-green-600"
-                                              : "bg-white border-gray-300 hover:border-green-400"
-                                          }`}
-                                        >
-                                          {selectedForInvoice.has(idx) && (
-                                            <svg className="w-full h-full text-white p-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                          )}
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>{selectedForInvoice.has(idx) ? "Deselect from invoice" : "Select for invoice generation"}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-
-                                  <MaterialThumbnail src={item.imageUrl} alt={item.description} className="w-12 h-12 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm line-clamp-2 mb-1">{item.description}</div>
-                                    <div className="text-xs text-muted-foreground space-y-0.5">
-                                      <div>Qty: {item.quantity} {item.unitOfMeasure || "each"}</div>
-                                      <div>
-                                        {item.packSize && item.packSize > 1 && item.packPrice ? (
-                                          <span>${item.packPrice.toFixed(2)}/{item.packSize} {item.unitOfMeasure || "piece"} (${getRateNumber(item.rate).toFixed(2)}/each)</span>
-                                        ) : (
-                                          <span>${getRateNumber(item.rate).toFixed(2)}/{item.unitOfMeasure || "each"}</span>
-                                        )}
-                                      </div>
-                                      {item.brand && <div>{item.brand}</div>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 pt-2 border-t border-border">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="sm" 
-                                          variant="ghost"
-                                          className="h-8 flex-1"
-                                          onClick={() => {
-                                            setItems(prev => [...prev, item])
-                                            toast({
-                                              title: "Item added",
-                                              description: `${item.description || "Item"} has been added to your quote`,
-                                            })
-                                          }}
-                                        >
-                                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                          </svg>
-                                          Add
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Add to main quote items</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 flex-1"
-                                    onClick={() => {
-                                      const el = document.getElementById("ai-material-search")
-                                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-                                    }}
-                                  >
-                                    Substitute
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="destructive" 
-                                    className="h-8 flex-1"
-                                    onClick={() => {
-                                      setAiWorkingItems(prev => prev.filter((_, i) => i !== idx))
-                                      setSelectedForInvoice(prev => {
-                                        const reindexed = new Set<number>()
-                                        Array.from(prev).forEach(oldIdx => {
-                                          if (oldIdx < idx) reindexed.add(oldIdx)
-                                          else if (oldIdx > idx) reindexed.add(oldIdx - 1)
-                                        })
-                                        return reindexed
-                                      })
-                                    }}
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+          {/* Assumptions and Warnings Display */}
+          {(assumptions.length > 0 || warnings.length > 0) && (
+            <Card className="p-6 sticky top-6">
+              {assumptions.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    Assumptions
+                  </h3>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {assumptions.map((assumption, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span>
+                        <span>{assumption}</span>
+                      </li>
+                    ))}
+                  </ul>
                     </div>
                   )}
-                </CollapsibleContent>
-              </Collapsible>
+              {warnings.length > 0 && (
+                                      <div>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-amber-600">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                          </svg>
+                    Warnings
+                  </h3>
+                  <ul className="space-y-1 text-sm text-amber-700">
+                    {warnings.map((warning, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-amber-600 mt-1">•</span>
+                        <span>{warning}</span>
+                      </li>
+                    ))}
+                  </ul>
+                    </div>
+                  )}
             </Card>
           )}
         </div>
