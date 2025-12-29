@@ -13,6 +13,29 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations } from "next-intl"
 import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle } from "lucide-react"
 
+// Utility function to normalize phone numbers to E.164 format (+1XXXXXXXXXX)
+const normalizePhoneToE164 = (phone: string | undefined | null): string => {
+  if (!phone) return ''
+  
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '')
+  
+  // Handle US numbers - convert to +1XXXXXXXXXX format
+  if (digits.length === 10) {
+    // 10 digits: assume US number, add +1
+    return `+1${digits}`
+  } else if (digits.length === 11 && digits.startsWith('1')) {
+    // 11 digits starting with 1: US number with country code
+    return `+${digits}`
+  } else if (phone.startsWith('+')) {
+    // Already in E.164 format
+    return phone
+  }
+  
+  // Return original if can't normalize (shouldn't happen for US numbers)
+  return phone
+}
+
 // Unified lead interface that combines both systems
 interface UnifiedLead {
   id: string
@@ -53,6 +76,11 @@ interface UnifiedLead {
   
   // Request-specific data
   attachments?: Array<{ id: number }>
+  
+  // Consolidation tracking
+  contractor_ai_call_lead_id?: number // Reference to consolidated call lead in contractor-ai
+  _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
+  
   source?: string
 }
 
@@ -140,16 +168,44 @@ export function UnifiedLeads() {
       // Combine and deduplicate by phone number (normalize for comparison)
       const normalizePhone = (phone: string | undefined) => {
         if (!phone) return ''
-        return phone.replace(/\D/g, '') // Remove all non-digits
+        // Remove all non-digits and handle +1 prefix
+        const digits = phone.replace(/\D/g, '')
+        // If it starts with 1 and has 11 digits, remove the leading 1
+        if (digits.length === 11 && digits.startsWith('1')) {
+          return digits.substring(1)
+        }
+        return digits
       }
       
-      // Deduplicate call leads by normalized phone number
+      // Get phone numbers from consolidated request leads (those with contractor_ai_call_lead_id)
+      // Normalize to E.164 format for consistent comparison
+      const consolidatedPhoneNumbers = new Set<string>()
+      requestLeads.forEach(lead => {
+        if ((lead as any).contractor_ai_call_lead_id && lead.phone) {
+          const normalized = normalizePhoneToE164(lead.phone)
+          if (normalized) {
+            consolidatedPhoneNumbers.add(normalized)
+          }
+        }
+      })
+      
+      // Filter out call leads that match consolidated request leads by phone number
+      // Also deduplicate call leads by normalized phone number (E.164 format)
       const seenCallPhones = new Set<string>()
       const uniqueCallLeads = callLeads.filter(lead => {
-        const normalized = normalizePhone(lead.phone)
-        if (!normalized || seenCallPhones.has(normalized)) {
+        const normalized = normalizePhoneToE164(lead.phone)
+        if (!normalized) return false
+        
+        // Skip if this phone number is already consolidated in a request lead
+        if (consolidatedPhoneNumbers.has(normalized)) {
           return false
         }
+        
+        // Skip if we've already seen this phone number in call leads
+        if (seenCallPhones.has(normalized)) {
+          return false
+        }
+        
         seenCallPhones.add(normalized)
         return true
       })
@@ -191,7 +247,10 @@ export function UnifiedLeads() {
         created_at: lead.created_at,
         attachments: lead.attachments,
         source: lead.source,
-        priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low'
+        priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low',
+        // Consolidation tracking - if this lead was consolidated with a call lead
+        contractor_ai_call_lead_id: lead.contractor_ai_call_lead_id,
+        _needsCallDataLoad: !!lead.contractor_ai_call_lead_id // Flag to load call data from contractor-ai
       }))
     } catch (error) {
       // Silently handle errors - profile might not exist yet or other issues
@@ -214,30 +273,32 @@ export function UnifiedLeads() {
         lightweight: lightweight
       })
 
-      const transformedLeads = ((response as any).leads || []).map((lead: any) => {
-        return {
-          id: `call-${lead.id}`,
-          name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
-          type: 'call' as const,
-          status: normalizeCallStatus(lead.status),
-          priority: lead.priority,
-          phone: lead.phone_number,
-          service_type: lead.service_type,
-          description: lead.summary_text, // May be null in lightweight mode
-          created_at: lead.last_contact_date,
-          last_contact_date: lead.last_contact_date,
-          conversation_count: lead.conversation_count || 0,
-          last_message_preview: lead.last_message_preview,
-          transcript_text: lead.transcript_text, // Will be null in lightweight mode
-          formatted_transcript_text: lead.formatted_transcript_text, // Will be null in lightweight mode
-          summary_text: lead.summary_text, // Will be null in lightweight mode
-          summary_confirmed: lead.summary_confirmed,
-          appointment_link_sent: lead.appointment_link_sent,
-          media_uploaded: lead.media_uploaded,
-          address: lead.location,
-          _needsFullLoad: lightweight && !lead.summary_text // Flag to indicate we need to load full details
-        }
-      })
+      const transformedLeads = ((response as any).leads || [])
+        .filter((lead: any) => !lead.is_consolidated) // Hide consolidated call leads
+        .map((lead: any) => {
+          return {
+            id: `call-${lead.id}`,
+            name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
+            type: 'call' as const,
+            status: normalizeCallStatus(lead.status),
+            priority: lead.priority,
+            phone: lead.phone_number,
+            service_type: lead.service_type,
+            description: lead.summary_text, // May be null in lightweight mode
+            created_at: lead.last_contact_date,
+            last_contact_date: lead.last_contact_date,
+            conversation_count: lead.conversation_count || 0,
+            last_message_preview: lead.last_message_preview,
+            transcript_text: lead.transcript_text, // Will be null in lightweight mode
+            formatted_transcript_text: lead.formatted_transcript_text, // Will be null in lightweight mode
+            summary_text: lead.summary_text, // Will be null in lightweight mode
+            summary_confirmed: lead.summary_confirmed,
+            appointment_link_sent: lead.appointment_link_sent,
+            media_uploaded: lead.media_uploaded,
+            address: lead.location,
+            _needsFullLoad: lightweight && !lead.summary_text // Flag to indicate we need to load full details
+          }
+        })
       
       return transformedLeads
     } catch (error) {
@@ -253,8 +314,87 @@ export function UnifiedLeads() {
       return leadDetailsCache.get(leadId)!
     }
 
+    // Check if this is a consolidated lead (request lead with call data)
+    const currentLead = leads.find(l => l.id === leadId)
+    
+    // If it's a request lead
+    if (currentLead?.type === 'request') {
+      // Check if it's a consolidated lead (has contractor_ai_call_lead_id)
+      if ((currentLead as any).contractor_ai_call_lead_id) {
+        // This is a consolidated lead - fetch call data from contractor-ai
+        const callLeadId = (currentLead as any).contractor_ai_call_lead_id
+        // Ensure we have a valid numeric ID
+        if (!callLeadId || isNaN(Number(callLeadId))) {
+          console.error('Invalid contractor_ai_call_lead_id:', callLeadId)
+          return currentLead
+        }
+        try {
+          const response = await contractorAI.getLead(String(callLeadId))
+          const callLead = response as any
+          
+          // Merge request lead data with call lead data
+          // Keep BOTH: description from quote request AND summary_text from call lead
+          // IMPORTANT: description = quote request form data, summary_text = call lead AI summary
+          const fullLead: UnifiedLead = {
+            ...currentLead,
+            // Add call interaction data from contractor-ai
+            transcript_text: callLead.transcript_text,
+            formatted_transcript_text: callLead.formatted_transcript_text,
+            summary_text: callLead.summary_text, // AI summary from call - DO NOT mix with description
+            // Keep description ONLY from quote request (project description from form)
+            // Do NOT use call lead summary_text as fallback - they are separate pieces of information
+            description: currentLead.description, // Quote request description stays separate
+            conversation_count: callLead.conversation_count || 0,
+            last_message_preview: callLead.last_message_preview,
+            summary_confirmed: callLead.summary_confirmed,
+            appointment_link_sent: callLead.appointment_link_sent,
+            media_uploaded: callLead.media_uploaded,
+            // Use call lead's service_type if available, otherwise keep request lead's project_type
+            service_type: callLead.service_type || currentLead.project_type,
+            // Preserve email and address from quote request (more complete than call lead)
+            // But also merge in any missing data from call lead
+            email: currentLead.email || callLead.email,
+            address: currentLead.address || callLead.location || callLead.address,
+            // Preserve name from quote request (more accurate) but fallback to call lead
+            name: currentLead.name || callLead.name || currentLead.name
+          }
+          
+          // Cache the full lead details
+          setLeadDetailsCache(prev => new Map(prev).set(leadId, fullLead))
+          
+          // Update the lead in the leads array
+          setLeads(prev => prev.map(l => l.id === leadId ? fullLead : l))
+          
+          return fullLead
+        } catch (error: any) {
+          console.error('Failed to fetch call data for consolidated lead:', error)
+          // If it's a network error, log it but don't break the UI
+          if (error?.message?.includes('Network error') || error?.message?.includes('Failed to fetch')) {
+            console.warn('Contractor-ai API is not available. Showing lead without call data.')
+          }
+          // Return the current lead without call data - it will still work, just without transcript/summary
+          return currentLead
+        }
+      } else {
+        // Regular request lead (not consolidated) - no need to fetch from contractor-ai
+        return currentLead
+      }
+    }
+
+    // Only fetch from contractor-ai if it's a call lead
+    if (currentLead?.type !== 'call') {
+      // Unknown lead type or not found - return as is
+      return currentLead || null
+    }
+
     // Extract the numeric ID from the lead ID (e.g., "call-123" -> "123")
     const numericId = leadId.replace('call-', '')
+    
+    // Validate that we have a numeric ID
+    if (!numericId || isNaN(Number(numericId))) {
+      console.error('Invalid call lead ID:', leadId)
+      return currentLead || null
+    }
     
     try {
       const response = await contractorAI.getLead(numericId)
@@ -293,7 +433,7 @@ export function UnifiedLeads() {
       console.error('Failed to load full lead details:', error)
       return null
     }
-  }, [leadDetailsCache])
+  }, [leads, leadDetailsCache, contractorAI])
 
   // Normalize call statuses to match request statuses
   const normalizeCallStatus = (callStatus: string): string => {
@@ -412,7 +552,22 @@ export function UnifiedLeads() {
             }
             setLoadingFullLeadDetails(false)
           })
-        } else {
+        } 
+        // If it's a consolidated lead (request lead with call data), always load call data
+        // This ensures we show both quote request info AND call lead info (transcripts, summary, etc.)
+        else if (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id) {
+          setLoadingFullLeadDetails(true)
+          loadFullLeadDetails(selectedLeadId).then(fullLead => {
+            if (fullLead) {
+              setSelectedLead(fullLead)
+            } else {
+              // If loading failed, still show the lead (it will have quote request data)
+              setSelectedLead(lead)
+            }
+            setLoadingFullLeadDetails(false)
+          })
+        } 
+        else {
           setSelectedLead(lead)
         }
       } else {
@@ -540,9 +695,9 @@ export function UnifiedLeads() {
       </header>
 
       <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-6 overflow-hidden min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-6 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-6 h-full">
           {/* Left Panel - Leads List */}
-          <div className={`lg:col-span-2 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
+          <div className={`lg:col-span-1 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
             <Card className="h-full flex flex-col overflow-hidden">
               {/* Search */}
               <div className="p-2 md:p-4 border-b flex-shrink-0">
@@ -801,12 +956,21 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
               <h2 className="text-base md:text-xl font-semibold truncate">{lead.name}</h2>
-              <Badge 
-                variant="outline" 
-                className={`text-[10px] md:text-xs px-1.5 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
-              >
-                {lead.type === 'call' ? '📞 Call' : '📝 Request'}
-              </Badge>
+              {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id ? (
+                <Badge 
+                  variant="outline" 
+                  className="text-[10px] md:text-xs px-1.5 md:px-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                >
+                  📞📝 Consolidated
+                </Badge>
+              ) : (
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] md:text-xs px-1.5 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
+                >
+                  {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                </Badge>
+              )}
             </div>
             <p className="text-xs md:text-sm text-muted-foreground truncate">
               {lead.project_type || lead.service_type || "General inquiry"}
@@ -820,9 +984,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex gap-3 md:gap-6 overflow-hidden min-h-0">
-        {lead.type === 'call' ? (
+        {/* Show call lead layout for both call leads AND consolidated leads (request leads with call data) */}
+        {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
           <>
-            {/* Middle - Conversation History (for call leads) */}
+            {/* Middle - Conversation History (for call leads and consolidated leads) */}
             <div className="flex-1 border-r bg-muted/10 hidden lg:flex lg:flex-col min-h-0">
               <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
@@ -832,11 +997,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
               
               <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-                <ConversationMessages phoneNumber={lead.phone || ''} />
+                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
               </div>
             </div>
 
-            {/* Right Side - Lead Details (for call leads) */}
+            {/* Right Side - Lead Details (for call leads and consolidated leads) */}
             <div className="w-80 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
               {/* Contact Information */}
               <div>
@@ -872,38 +1037,78 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 </div>
               </div>
 
-              {/* AI Summary */}
-              {lead.description && (
+              {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
+              {lead.summary_text && (
                 <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                    AI Summary
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                    <span>AI Summary</span>
+                    {(lead as any).contractor_ai_call_lead_id && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        From Call
+                      </Badge>
+                    )}
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.summary_text}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Project Description from quote request (for consolidated leads) */}
+              {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
+                <div>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                    <span>Project Description</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                      From Quote Request
+                    </Badge>
+                  </h3>
+                  <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
                     <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
                   </div>
                 </div>
               )}
 
-              {/* Lead Transcript Verification Banner */}
-              {(lead.transcript_text || lead.formatted_transcript_text) && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2 mb-2">
-                  <div className="text-xs text-green-700 dark:text-green-400">
-                    ✅ <strong>Transcript Isolation Verified:</strong> This lead ({lead.name}, {lead.phone}) has its own transcript data
-                    <div className="mt-1 text-[10px] opacity-75">
-                      Lead ID: {lead.id} | 
-                      Has Formatted: {!!lead.formatted_transcript_text ? 'Yes' : 'No'} | 
-                      Has Raw: {!!lead.transcript_text ? 'Yes' : 'No'}
-                    </div>
+              {/* Project Description for call-only leads (fallback) */}
+              {lead.description && lead.type === 'call' && !lead.summary_text && (
+                <div>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                    Project Description
+                  </h3>
+                  <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
                   </div>
                 </div>
               )}
 
+              {/* Request-specific content (for consolidated leads) */}
+              {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && lead.estimated_value && (
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                    Estimated Value
+                  </h3>
+                  <div className="text-2xl font-bold text-primary">
+                    ${lead.estimated_value.toLocaleString()}
+                  </div>
+                </div>
+              )}
 
+              {/* Attachments (for consolidated leads) */}
+              {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && lead.attachments && lead.attachments.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                    Attachments
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    📎 {lead.attachments.length} file{lead.attachments.length > 1 ? 's' : ''} attached
+                  </div>
+                </div>
+              )}
 
               {/* Call History with Transcripts */}
               <CallHistorySection 
                 key={`call-history-${lead.phone}-${lead.id}`} 
-                phoneNumber={lead.phone || ''} 
+                phoneNumber={normalizePhoneToE164(lead.phone)} 
                 currentLeadId={lead.id} 
               />
 
@@ -913,7 +1118,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   Conversation History
                 </h3>
                 <Card className="max-h-64 overflow-hidden">
-                  <ConversationMessages phoneNumber={lead.phone || ''} />
+                  <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
                 </Card>
               </div>
             </div>
@@ -955,11 +1160,33 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
             </div>
 
-            {/* Project Description */}
+            {/* AI Summary from contractor-ai (for consolidated leads) */}
+            {lead.summary_text && (
+              <div>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <span>AI Summary</span>
+                  {(lead as any).contractor_ai_call_lead_id && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      From Call
+                    </Badge>
+                  )}
+                </h3>
+                <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
+                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.summary_text}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Project Description from quote request */}
             {lead.description && (
               <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  Project Description
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <span>Project Description</span>
+                  {lead.type === 'request' && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                      From Quote Request
+                    </Badge>
+                  )}
                 </h3>
                 <div className="p-2.5 md:p-4 rounded-lg bg-muted/50">
                   <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
@@ -990,13 +1217,34 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 </div>
               </div>
             )}
+
+            {/* Call History with Transcripts (for consolidated leads) */}
+            {(lead as any).contractor_ai_call_lead_id && lead.phone && (
+              <>
+                <CallHistorySection 
+                  key={`call-history-consolidated-${lead.phone}-${lead.id}`} 
+                  phoneNumber={normalizePhoneToE164(lead.phone)} 
+                  currentLeadId={lead.id} 
+                />
+
+                {/* Mobile Conversation View (for consolidated leads) */}
+                <div className="lg:hidden">
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                    Conversation History
+                  </h3>
+                  <Card className="max-h-64 overflow-hidden">
+                    <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
+                  </Card>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
 
       {/* Action Buttons */}
       <div className="p-3 md:p-6 border-t bg-muted/20 flex-shrink-0">
-        <div className="flex flex-wrap gap-2 md:gap-3">
+        <div className="flex gap-2 md:gap-3">
           {lead.phone && (
             <Button variant="default" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={`tel:${lead.phone}`}>
@@ -1021,7 +1269,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               <a href={
                 lead.type === 'request' 
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
-                  : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}`
+                  : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
               }>
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1030,22 +1278,21 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </a>
             </Button>
           )}
+          {lead.status === 'NEW' && (
+            <Button 
+              variant="outline"
+              onClick={() => {
+                console.log('Mark as contacted:', lead.id)
+              }}
+              className="flex-1 h-9 md:h-10 text-xs md:text-sm"
+            >
+              <svg className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Mark as Contacted
+            </Button>
+          )}
         </div>
-        
-        {lead.status === 'NEW' && (
-          <Button 
-            variant="outline"
-            onClick={() => {
-              console.log('Mark as contacted:', lead.id)
-            }}
-            className="w-full mt-2 h-10"
-          >
-            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Mark as Contacted
-          </Button>
-        )}
         
         {lead.type === 'request' && (
           <div className="mt-2 md:mt-3">
@@ -1074,8 +1321,10 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 
   useEffect(() => {
     if (phoneNumber) {
+      console.log('💬 ConversationMessages: Phone number received:', phoneNumber)
       loadMessages()
     } else {
+      console.log('💬 ConversationMessages: No phone number provided')
       setLoading(false)
       setMessages([])
     }
@@ -1108,17 +1357,13 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
       
       console.log('📞 Conversations response:', conversationsResponse)
       
-      // Normalize phone number for comparison (remove formatting)
-      const normalizePhone = (phone: string) => {
-        return phone.replace(/\D/g, '') // Remove all non-digits
-      }
-      
-      const normalizedTargetPhone = normalizePhone(phoneNumber)
+      // Normalize phone numbers to E.164 format for comparison
+      const normalizedTargetPhone = normalizePhoneToE164(phoneNumber)
       
       // Find conversation by matching customer phone number
       const conversation = (conversationsResponse as any).conversations?.find((conv: any) => {
         const customerPhone = conv.customer?.phone_number || ''
-        const normalizedCustomerPhone = normalizePhone(customerPhone)
+        const normalizedCustomerPhone = normalizePhoneToE164(customerPhone)
         const matches = normalizedCustomerPhone === normalizedTargetPhone
         
         console.log('🔍 Comparing:', {
@@ -1282,9 +1527,12 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([])
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showRawTranscript, setShowRawTranscript] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
+
+  useEffect(() => {
+    console.log('📞 CallHistorySection: Phone number received:', phoneNumber, 'Lead ID:', currentLeadId)
+  }, [phoneNumber, currentLeadId])
 
   const loadCallHistory = useCallback(async () => {
     try {
@@ -1298,33 +1546,36 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
         return
       }
 
-      console.log('🔍 Loading call history ONLY for phone:', phoneNumber, 'SP:', spId)
+      // Normalize phone number to E.164 format before API call
+      const normalizedPhone = normalizePhoneToE164(phoneNumber)
+      console.log('🔍 Loading call history ONLY for phone:', phoneNumber, '-> Normalized:', normalizedPhone, 'SP:', spId)
 
-      // Fetch leads filtered by this specific phone number ONLY
+      // Fetch leads filtered by this specific phone number ONLY (using E.164 format)
       const response = await contractorAI.getLeads({
         sp_id: spId.toString(),
-        phone_number: phoneNumber, // This ensures we ONLY get leads for this phone number
+        phone_number: normalizedPhone, // Use normalized E.164 format
         per_page: 1000
       })
 
-      console.log('📞 Call history API response for phone', phoneNumber, ':', response)
+      console.log('📞 Call history API response for phone', normalizedPhone, ':', response)
 
+      // Normalize requested phone number to E.164 format
+      const normalizedRequestedPhone = normalizePhoneToE164(phoneNumber)
+      
       // Additional safety check: Ensure all returned leads match the requested phone number
       const historyItems: CallHistoryItem[] = ((response as any).leads || [])
         .filter((lead: any) => {
-          // Normalize phone numbers for comparison to handle formatting differences
-          const normalizePhone = (phone: string) => phone.replace(/\D/g, '')
-          const leadPhoneNormalized = normalizePhone(lead.phone_number || '')
-          const requestedPhoneNormalized = normalizePhone(phoneNumber)
+          // Normalize phone numbers to E.164 format for comparison
+          const leadPhoneNormalized = normalizePhoneToE164(lead.phone_number || '')
+          const matches = leadPhoneNormalized === normalizedRequestedPhone
           
-          const matches = leadPhoneNormalized === requestedPhoneNormalized
           if (!matches) {
             console.warn('⚠️ FILTERING OUT lead with mismatched phone:', {
               leadId: lead.id,
               leadPhone: lead.phone_number,
               leadPhoneNormalized,
               requestedPhone: phoneNumber,
-              requestedPhoneNormalized,
+              requestedPhoneNormalized: normalizedRequestedPhone,
               matches
             })
           }
@@ -1410,7 +1661,6 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       // Clear ALL transcript-related state to ensure clean slate
       setCallHistory([])
       setSelectedCallId(null)
-      setShowRawTranscript(false)
       setIsExpanded(false)
       setLastPhoneNumber(phoneNumber)
       
@@ -1498,7 +1748,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
         className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Call History & Transcripts</span>
+          <span className="text-sm font-semibold">Call History & Transcripts</span>
           <Badge variant="secondary" className="text-xs">
             {callHistory.length} {callHistory.length === 1 ? 'call' : 'calls'}
           </Badge>
@@ -1512,87 +1762,44 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
-          {/* Call History List */}
+          {/* Call History Dropdown */}
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-              Select Call
-            </h4>
-            <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
-              {callHistory.map((call) => {
-                const dateTime = formatDateTime(call.created_at)
-                const isSelected = selectedCallId === call.id
-                const hasFormatted = !!call.formatted_transcript_text
-                const hasRaw = !!call.transcript_text
-                
-                return (
-                  <button
-                    key={call.id}
-                    onClick={() => setSelectedCallId(call.id)}
-                    className={`w-full text-left p-2 rounded transition-colors ${
-                      isSelected 
-                        ? 'bg-primary/10 border border-primary' 
-                        : 'hover:bg-muted/50 border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium truncate">{dateTime.full}</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {hasFormatted && hasRaw ? 'Formatted + Raw' : hasFormatted ? 'Formatted' : hasRaw ? 'Raw' : 'No transcript'}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="ml-2 h-2 w-2 rounded-full bg-primary shrink-0"></div>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+            <Select
+              value={selectedCallId || undefined}
+              onValueChange={(value) => setSelectedCallId(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {selectedCallId ? (() => {
+                    const selected = callHistory.find(call => call.id === selectedCallId)
+                    return selected ? formatDateTime(selected.created_at).full : 'Select a call'
+                  })() : 'Select a call'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {callHistory.map((call) => {
+                  const dateTime = formatDateTime(call.created_at)
+                  return (
+                    <SelectItem key={call.id} value={call.id}>
+                      {dateTime.full}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Selected Call Transcript */}
           {selectedCall && hasTranscript && (
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Transcript for {phoneNumber}
+                  Transcript
                 </h4>
-                {selectedCall.formatted_transcript_text && selectedCall.transcript_text && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={!showRawTranscript ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowRawTranscript(false)}
-                      className="h-7 text-xs"
-                    >
-                      Formatted
-                    </Button>
-                    <Button
-                      variant={showRawTranscript ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowRawTranscript(true)}
-                      className="h-7 text-xs"
-                    >
-                      Raw
-                    </Button>
-                  </div>
-                )}
               </div>
               
-              {/* Safety verification banner */}
-              {selectedCall.phone_number && selectedCall.phone_number !== phoneNumber && (
-                <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
-                  ⚠️ WARNING: Transcript phone mismatch! Expected: {phoneNumber}, Got: {selectedCall.phone_number}
-                </div>
-              )}
-              
               <div className="bg-muted/30 p-3 rounded-lg max-h-96 overflow-y-auto">
-                {showRawTranscript && selectedCall.transcript_text ? (
-                  <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
-                    {selectedCall.transcript_text}
-                  </pre>
-                ) : selectedCall.formatted_transcript_text ? (
+                {selectedCall.formatted_transcript_text ? (
                   <div className="space-y-2">
                     {renderFormattedTranscript(selectedCall.formatted_transcript_text)}
                   </div>
@@ -1605,7 +1812,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                 )}
               </div>
               
-              <div className="mt-2 text-xs text-muted-foreground">
+              {/* <div className="mt-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   {showRawTranscript ? (
                     <span>📝 Raw transcript from phone conversation with {phoneNumber}</span>
@@ -1618,7 +1825,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                 <div className="mt-1 text-[10px] opacity-75">
                   Call ID: {selectedCall.id} | Lead Phone: {selectedCall.phone_number || 'N/A'}
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
         </div>
