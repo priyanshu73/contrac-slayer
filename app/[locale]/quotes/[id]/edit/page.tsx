@@ -81,12 +81,12 @@ export default function EditQuotePage() {
   if (loading) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-4xl mx-auto p-6">
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-6 max-w-[1600px]">
             <div className="animate-pulse space-y-6">
-              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
-              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-8 bg-muted rounded w-1/3"></div>
+              <div className="h-64 bg-muted rounded"></div>
+              <div className="h-32 bg-muted rounded"></div>
             </div>
           </div>
         </div>
@@ -97,15 +97,15 @@ export default function EditQuotePage() {
   if (error) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <Card className="p-8 text-center">
-            <div className="text-red-600 mb-4">
+            <div className="text-destructive mb-4">
               <svg className="h-12 w-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <h2 className="text-xl font-semibold mb-2">Error Loading Quote</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
               Try Again
             </Button>
@@ -118,10 +118,10 @@ export default function EditQuotePage() {
   if (!job) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <Card className="p-8 text-center">
             <h2 className="text-xl font-semibold mb-2">Quote Not Found</h2>
-            <p className="text-gray-600 mb-4">The quote you're looking for doesn't exist.</p>
+            <p className="text-muted-foreground mb-4">The quote you're looking for doesn't exist.</p>
             <Button asChild>
               <a href="/quotes">Back to Quotes</a>
             </Button>
@@ -133,22 +133,33 @@ export default function EditQuotePage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-6xl mx-auto p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Edit Quote #{job.id}</h1>
-              <p className="text-gray-600 mt-1">Update quote details and line items</p>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" asChild>
+                <a href={`/quotes/${jobId}`}>
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </a>
+              </Button>
+              <div>
+                <h1 className="text-lg font-semibold leading-none">Edit Quote #{job.id}</h1>
+                <p className="text-sm text-muted-foreground">
+                  Update quote details and line items
+                </p>
+              </div>
             </div>
-            <Button variant="outline" onClick={() => router.push(`/quotes/${jobId}`)}>
-              Cancel
-            </Button>
           </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
           <QuoteCreator 
             quoteId={jobId}
             initialData={job}
           />
-        </div>
+        </main>
       </div>
     </AuthGuard>
   )

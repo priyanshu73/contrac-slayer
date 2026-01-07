@@ -424,7 +424,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
   const [laborRatePerHour, setLaborRatePerHour] = useState<number>(75) // Default $75/hr, will be updated from profile
-  const [loadingMarkup, setLoadingMarkup] = useState(true)
+  const [loadingMarkup, setLoadingMarkup] = useState(!quoteId) // Only loading if not editing (no quoteId)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
   
@@ -434,10 +434,14 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [itemSearchResults, setItemSearchResults] = useState<Record<number, MaterialResult[]>>({})
   const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({})
 
-  // Fetch contractor profile to get default markup
+  // Fetch contractor profile to get default markup (only if not editing)
   useEffect(() => {
-    fetchContractorMarkup()
-  }, [])
+    // Only fetch default markup if we're not editing an existing quote
+    // If editing, the markup will be loaded from initialData in a separate useEffect
+    if (!quoteId) {
+      fetchContractorMarkup()
+    }
+  }, [quoteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load clients on mount
   useEffect(() => {
@@ -500,9 +504,12 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     setShowClientSuggestions(matches.length > 0 && phoneClean.length >= 7)
   }, [clientPhone, allClients, selectedClientId])
 
+  // Track if we've loaded initial data to prevent re-running
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false)
+
   // Load initial quote data if editing
   useEffect(() => {
-    if (initialData && quoteId) {
+    if (initialData && quoteId && !hasLoadedInitialData) {
       // Reset selected client when loading existing quote
       setSelectedClientId(null)
       
@@ -558,26 +565,35 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         // If editing and items have markup, use the first item's markup
         const firstItem = initialData.items[0]
         if (firstItem?.markup_percentage !== undefined && firstItem.markup_percentage !== null) {
-          setMarkupPercentage(parseFloat(firstItem.markup_percentage) || 20)
+          const parsed = parseFloat(firstItem.markup_percentage.toString())
+          setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
         }
       }
+      
+      // Mark as loaded and ensure loadingMarkup is false for editing
+      setHasLoadedInitialData(true)
+      setLoadingMarkup(false)
     }
-  }, [initialData, quoteId])
+  }, [initialData, quoteId, hasLoadedInitialData])
 
   const fetchContractorMarkup = async () => {
     try {
       setLoadingMarkup(true)
       const profile = await api.getMyProfile() as any
-      if (profile?.default_markup_percentage !== undefined) {
-        setMarkupPercentage(parseFloat(profile.default_markup_percentage) || 20)
+      // Only set markup if we don't have initialData (not editing) or if initialData doesn't have markup
+      if (!initialData && profile?.default_markup_percentage !== undefined && profile.default_markup_percentage !== null) {
+        const parsed = parseFloat(profile.default_markup_percentage)
+        setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
       }
       // Store tax rate for calculations
-      if (profile?.default_sales_tax_rate !== undefined) {
-        setTaxRate(parseFloat(profile.default_sales_tax_rate) || 8.25)
+      if (profile?.default_sales_tax_rate !== undefined && profile.default_sales_tax_rate !== null) {
+        const parsed = parseFloat(profile.default_sales_tax_rate)
+        setTaxRate(isNaN(parsed) ? 8.25 : parsed)
       }
       // Store labor rate for calculations
-      if (profile?.default_labor_rate_per_hour !== undefined) {
-        setLaborRatePerHour(parseFloat(profile.default_labor_rate_per_hour) || 75)
+      if (profile?.default_labor_rate_per_hour !== undefined && profile.default_labor_rate_per_hour !== null) {
+        const parsed = parseFloat(profile.default_labor_rate_per_hour)
+        setLaborRatePerHour(isNaN(parsed) ? 75 : parsed)
       }
     } catch (error) {
       console.error("Failed to fetch contractor markup:", error)
@@ -1595,14 +1611,29 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                 min="0"
                 max="100"
                 step="0.1"
-                value={markupPercentage === 0 ? "" : markupPercentage}
+                value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
                 onChange={(e) => {
                   const val = e.target.value
-                  if (val === "") {
+                  if (val === "" || val === "-") {
                     setMarkupPercentage(0)
                   } else {
-                    const num = parseFloat(val) || 0
-                    setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                    const num = parseFloat(val)
+                    if (!isNaN(num)) {
+                      setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const val = e.target.value
+                  if (val === "" || val === "-") {
+                    setMarkupPercentage(0)
+                  } else {
+                    const num = parseFloat(val)
+                    if (!isNaN(num)) {
+                      setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                    } else {
+                      setMarkupPercentage(0)
+                    }
                   }
                 }}
                 placeholder="0"
@@ -1786,14 +1817,29 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                           min="0"
                           max="100"
                           step="0.1"
-                          value={markupPercentage === 0 ? "" : markupPercentage}
+                          value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
                           onChange={(e) => {
                             const val = e.target.value
-                            if (val === "") {
+                            if (val === "" || val === "-") {
                               setMarkupPercentage(0)
                             } else {
-                              const num = parseFloat(val) || 0
-                              setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                              const num = parseFloat(val)
+                              if (!isNaN(num)) {
+                                setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value
+                            if (val === "" || val === "-") {
+                              setMarkupPercentage(0)
+                            } else {
+                              const num = parseFloat(val)
+                              if (!isNaN(num)) {
+                                setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                              } else {
+                                setMarkupPercentage(0)
+                              }
                             }
                           }}
                           placeholder="20"
