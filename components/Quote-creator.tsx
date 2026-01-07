@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
-import { api } from "@/lib/api"
+import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements } from "@/lib/types"
 import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
@@ -479,8 +479,10 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     }
 
     const phoneClean = clientPhone.replace(/\D/g, '') // Remove non-digits
+    const nameClean = clientName.trim().toLowerCase()
+    const emailClean = clientEmail.trim().toLowerCase()
 
-    // Only match on phone number, and require at least 7 digits
+    // Match on phone number (require at least 7 digits)
     if (phoneClean.length >= 7) {
       allClients.forEach(client => {
         const clientPhoneClean = (client.phone || '').replace(/\D/g, '')
@@ -500,9 +502,48 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       })
     }
 
+    // Match on name (require at least 3 characters)
+    if (nameClean.length >= 3) {
+      allClients.forEach(client => {
+        const clientNameClean = (client.name || '').toLowerCase()
+        
+        // Name match: check if names are similar (contains or starts with)
+        const nameMatch = clientNameClean.includes(nameClean) || nameClean.includes(clientNameClean)
+        
+        if (nameMatch) {
+          // Avoid duplicates
+          if (!matches.find(m => m.id === client.id)) {
+            matches.push(client)
+          }
+        }
+      })
+    }
+
+    // Match on email (require at least 5 characters and contains @)
+    if (emailClean.length >= 5 && emailClean.includes('@')) {
+      allClients.forEach(client => {
+        const clientEmailClean = (client.email || '').toLowerCase()
+        
+        // Email match: exact match, or entered email contains client email or vice versa
+        // This handles cases like "john" matching "john@example.com"
+        const emailMatch = clientEmailClean === emailClean || 
+                          clientEmailClean.includes(emailClean) || 
+                          emailClean.includes(clientEmailClean)
+        
+        if (emailMatch) {
+          // Avoid duplicates
+          if (!matches.find(m => m.id === client.id)) {
+            matches.push(client)
+          }
+        }
+      })
+    }
+
     setMatchingClients(matches)
-    setShowClientSuggestions(matches.length > 0 && phoneClean.length >= 7)
-  }, [clientPhone, allClients, selectedClientId])
+    // Show suggestions if we have matches and at least one field has enough input
+    const hasEnoughInput = phoneClean.length >= 7 || nameClean.length >= 3 || (emailClean.length >= 5 && emailClean.includes('@'))
+    setShowClientSuggestions(matches.length > 0 && hasEnoughInput)
+  }, [clientPhone, clientName, clientEmail, allClients, selectedClientId])
 
   // Track if we've loaded initial data to prevent re-running
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false)
@@ -672,9 +713,9 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         setProjectTitle(lead.project_type)
       }
       
-      // Extract measurements from lead
-      if (lead.measurements) {
-        setMeasurements(lead.measurements as Measurements)
+      // Extract measurements from lead (if available)
+      if ((lead as any).measurements) {
+        setMeasurements((lead as any).measurements as Measurements)
       }
     } catch (error) {
       console.error("Failed to fetch lead data:", error)
@@ -925,7 +966,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const validateForm = (): string | null => {
     if (!clientName.trim()) return "Client name is required"
     if (!clientEmail.trim()) return "Client email is required"
-    if (!clientAddress.trim()) return "Client address is required"
+    // Address is now optional - removed validation
     
     // Check if at least one line item has description and rate
     const validItems = items.filter(item => 
@@ -968,8 +1009,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim() || null,
-        client_address: clientAddress.trim(),
-        location_zip_code: extractZipCode(clientAddress),
+        client_address: clientAddress.trim() || null, // Address is optional
+        location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
         job_description: serviceDescription.trim() || null,
         customer_notes: notes.trim() || null,
         payment_terms: paymentTerms.trim() || null,

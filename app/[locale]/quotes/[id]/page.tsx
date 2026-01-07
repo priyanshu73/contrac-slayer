@@ -120,9 +120,77 @@ export default function QuoteDetailPage() {
   }
 
   const handleSendToClient = async () => {
-    // TODO: Implement send to client functionality
-    // This should generate/ensure quote_public_link exists and send email
-    console.log("Send to client", identifier)
+    if (!job) return
+
+    try {
+      // Generate public link if it doesn't exist (needed for both cases)
+      let publicLink = job.quote_public_link
+      if (!publicLink) {
+        try {
+          publicLink = await api.generateQuotePublicLink(job.id)
+          // Refresh job data to get updated public link
+          await fetchJob()
+        } catch (error: any) {
+          console.error("Failed to generate public link:", error)
+          alert("Failed to generate quote link. Please try again.")
+          return
+        }
+      }
+
+      // Get client email
+      const clientEmail = job.client?.email
+      
+      if (!clientEmail) {
+        // If no email, prompt user to enter it
+        const email = prompt("Please enter the client's email address:")
+        if (!email || !email.trim()) {
+          return // User cancelled or entered empty email
+        }
+        
+        // Use the entered email
+        const mailtoEmail = email.trim()
+        await sendMailtoLink(mailtoEmail, job, publicLink)
+        return
+      }
+
+      // Send mailto link with existing email
+      await sendMailtoLink(clientEmail, job, publicLink)
+    } catch (error: any) {
+      console.error("Failed to send to client:", error)
+      alert("Failed to prepare email. Please try again.")
+    }
+  }
+
+  const sendMailtoLink = async (email: string, jobData: Job, publicLink?: string) => {
+    // Get the public link (use provided or from job)
+    const link = publicLink || jobData.quote_public_link
+    
+    if (!link) {
+      alert("Quote public link is not available. Please try again.")
+      return
+    }
+
+    // Construct the full URL
+    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const quoteUrl = `${frontendUrl}/quotes/${link}`
+    
+    // Create email subject
+    const quoteNumber = jobData.job_number || `#${jobData.id}`
+    const subject = encodeURIComponent(`Quote ${quoteNumber} from ${jobData.contractor?.company_name || 'Your Contractor'}`)
+    
+    // Create email body
+    const body = encodeURIComponent(
+      `Hello,\n\n` +
+      `Please review your quote at the following link:\n\n` +
+      `${quoteUrl}\n\n` +
+      `Thank you!`
+    )
+    
+    // Create mailto link
+    const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`
+    
+    // Open mailto link
+    window.location.href = mailtoLink
   }
 
   const handleEdit = () => {
