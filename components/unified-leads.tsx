@@ -105,6 +105,7 @@ export function UnifiedLeads() {
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'calls'>('all')
   const [statusFilter, setStatusFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState<'date-new' | 'date-old' | 'name-az' | 'name-za'>('date-new')
 
   // Initialize from URL parameters
   useEffect(() => {
@@ -139,7 +140,7 @@ export function UnifiedLeads() {
 
   useEffect(() => {
     filterLeads()
-  }, [leads, activeTab, statusFilter, searchTerm])
+  }, [leads, activeTab, statusFilter, searchTerm, sortBy])
 
   // Update URL when tab changes
   useEffect(() => {
@@ -210,9 +211,8 @@ export function UnifiedLeads() {
         return true
       })
       
-      // Combine and sort
+      // Combine (sorting will be handled by filterLeads)
       const combined = [...requestLeads, ...uniqueCallLeads]
-      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       
       setLeads(combined)
       setLoadingCallLeads(false)
@@ -473,6 +473,22 @@ export function UnifiedLeads() {
       )
     }
 
+    // Sort leads
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'date-new':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'date-old':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        case 'name-az':
+          return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        case 'name-za':
+          return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' })
+        default:
+          return 0
+      }
+    })
+
     setFilteredLeads(filtered)
   }
 
@@ -485,6 +501,7 @@ export function UnifiedLeads() {
       contacted: leads.filter(l => l.status === 'CONTACTED').length,
       quoted: leads.filter(l => l.status === 'QUOTED').length,
       converted: leads.filter(l => l.status === 'CONVERTED').length,
+      lost: leads.filter(l => l.status === 'LOST').length,
     }
   }
 
@@ -699,16 +716,55 @@ export function UnifiedLeads() {
           {/* Left Panel - Leads List */}
           <div className={`lg:col-span-1 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
             <Card className="h-full flex flex-col overflow-hidden">
-              {/* Search */}
-              <div className="p-2 md:p-4 border-b flex-shrink-0">
+              {/* Search and Sort */}
+              <div className="px-2 py-1.5 md:px-3 md:py-2 border-b flex-shrink-0 space-y-1.5">
                 <div className="relative">
-                  <Search className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+                  <Search className="absolute left-2 top-2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                   <Input
                     placeholder={t('searchLeads')}
-                    className="pl-8 md:pl-10 h-8 md:h-10 text-sm"
+                    className="pl-8 h-8 md:h-9 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-8 text-xs md:text-sm">
+                      <SelectValue>
+                        {statusFilter === 'all' ? 'All Statuses' :
+                         statusFilter === 'NEW' ? `🆕 New (${counts.new})` :
+                         statusFilter === 'CONTACTED' ? `📞 Contacted (${counts.contacted})` :
+                         statusFilter === 'QUOTED' ? `💼 Quoted (${counts.quoted})` :
+                         statusFilter === 'CONVERTED' ? `✅ Converted (${counts.converted})` :
+                         statusFilter === 'LOST' ? `❌ Lost (${counts.lost})` :
+                         statusFilter}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="NEW">🆕 New ({counts.new})</SelectItem>
+                      <SelectItem value="CONTACTED">📞 Contacted ({counts.contacted})</SelectItem>
+                      <SelectItem value="QUOTED">💼 Quoted ({counts.quoted})</SelectItem>
+                      <SelectItem value="CONVERTED">✅ Converted ({counts.converted})</SelectItem>
+                      <SelectItem value="LOST">❌ Lost ({counts.lost})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+                    <SelectTrigger className="h-8 text-xs md:text-sm">
+                      <SelectValue>
+                        {sortBy === 'date-new' ? '📅 Newest' :
+                         sortBy === 'date-old' ? '📅 Oldest' :
+                         sortBy === 'name-az' ? '🔤 A-Z' :
+                         '🔤 Z-A'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-new">📅 Newest First</SelectItem>
+                      <SelectItem value="date-old">📅 Oldest First</SelectItem>
+                      <SelectItem value="name-az">🔤 Name (A-Z)</SelectItem>
+                      <SelectItem value="name-za">🔤 Name (Z-A)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

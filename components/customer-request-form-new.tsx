@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Upload, X, Check } from "lucide-react"
+import { Upload, X, Check, Calendar, Sparkles, Clock, Shield, CheckCircle2 } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface CustomerRequestFormProps {
   contractorUuid: string
@@ -121,57 +122,108 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
 
   return (
     <div className="max-w-4xl mx-auto p-4 py-8 pb-24">
-      {/* Minimal Contractor Header */}
-      <div className="mb-8 py-6 border-b border-gray-200">
-        <div className="flex items-center gap-4 mb-4">
-          {contractor.logo_url ? (
-            <div className="relative w-12 h-12 rounded-lg bg-gray-50 border border-gray-200 p-1 flex-shrink-0">
-              <Image
-                src={contractor.logo_url}
-                alt={contractor.company_name}
-                fill
-                className="object-contain"
-              />
-            </div>
-          ) : (
-            <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg font-bold text-white">
-                {contractor.company_name.charAt(0)}
-              </span>
-            </div>
-          )}
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">{contractor.company_name}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-              <span className="flex items-center gap-1">
-                <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Verified
-              </span>
-              <span>•</span>
-              <span>{contractor.email}</span>
-              {contractor.phone_number && (
-                <>
-                  <span>•</span>
-                  <span>{contractor.phone_number}</span>
-                </>
+      {/* Modern Professional Header */}
+      <div className="mb-10">
+        {/* Company Header Card */}
+        <Card className="p-6 md:p-8 bg-white shadow-lg border border-gray-100 rounded-2xl mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            {/* Left: Logo + Company Name */}
+            <div className="flex items-center gap-4 md:gap-5">
+              {contractor.logo_url ? (
+                <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gray-50 border-2 border-gray-100 p-2 flex-shrink-0 shadow-sm">
+                  <Image
+                    src={contractor.logo_url}
+                    alt={contractor.company_name}
+                    fill
+                    className="object-contain rounded-lg"
+                  />
+                </div>
+              ) : (
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0 shadow-md">
+                  <span className="text-2xl md:text-3xl font-bold text-white">
+                    {contractor.company_name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               )}
-              <span>•</span>
-              <span>2-4hr response</span>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                  {contractor.company_name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  <span className="flex items-center gap-1.5">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">Verified Professional</span>
+                  </span>
+                  {contractor.phone_number && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <span>{contractor.phone_number}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Schedule Call CTA */}
+            {contractor.calendar_link && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="lg" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-6 md:px-8 md:py-6 rounded-xl font-semibold text-base md:text-lg shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto"
+                  >
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Schedule a Call
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-5xl p-0 overflow-hidden">
+                  <DialogHeader className="p-4 pb-0">
+                    <DialogTitle>Schedule a call with {contractor.company_name}</DialogTitle>
+                  </DialogHeader>
+                  <div className="p-4 pt-2">
+                    <iframe
+                      src={contractor.calendar_link}
+                      title="Schedule a call"
+                      className="w-full h-[70vh] rounded-md border"
+                      style={{ border: "none" }}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </Card>
+
+        {/* Benefit-Focused Info Banner */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 md:p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-2 text-base md:text-lg">
+                Help us help you: Get the most accurate quote
+              </h3>
+              <p className="text-sm md:text-base text-gray-700 mb-3 leading-relaxed">
+                Include photos, measurements, project details, and timeline for the most accurate quote.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-gray-600">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium">Better pricing</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium">Faster turnaround</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium">Free estimate</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* Minimal Tips */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-sm text-gray-700 mb-2">
-            <span className="font-medium">Help us help you:</span> Include photos, measurements, project details, and timeline for the most accurate quote.
-          </p>
-          <div className="text-xs text-gray-500">
-            More details = Better pricing • Faster turnaround • Free estimate
-          </div>
-        </div>
+        </Card>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
