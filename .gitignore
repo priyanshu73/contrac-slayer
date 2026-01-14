@@ -6,7 +6,7 @@
 # next.js
 /.next/
 /out/
-
+/terminate.md
 # production
 /build
 

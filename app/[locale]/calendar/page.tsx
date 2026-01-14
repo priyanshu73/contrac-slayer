@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -682,109 +682,71 @@ export default function CalendarPage() {
             if (!open) setActiveBooking(null)
           }}
         >
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle className="truncate">{activeBooking ? bookingTitle(activeBooking) : "Booking"}</DialogTitle>
-              <DialogDescription>
-                {activeBooking ? bookingDateTimeRangeLabel(activeBooking) : null}
-              </DialogDescription>
-            </DialogHeader>
+          <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 border-b">
+              <DialogTitle className="text-xl font-semibold text-foreground mb-2">
+                {activeBooking ? bookingTitle(activeBooking) : "Booking"}
+              </DialogTitle>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{activeBooking ? bookingDateTimeRangeLabel(activeBooking) : null}</span>
+              </div>
+            </div>
 
             {activeBooking ? (
-              <div className="space-y-4">
-                <div className="rounded-md border p-3">
-                  <div className="text-sm font-medium">Client</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {activeBooking?.name ? <span className="text-foreground">{String(activeBooking.name)}</span> : "—"}
-                    {activeBooking?.email ? <span className="ml-2">({String(activeBooking.email)})</span> : null}
+              <div className="px-6 py-5">
+                {/* Info Section */}
+                <div className="space-y-0 mb-6">
+                  <div className="flex py-3 border-b border-border/50">
+                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Client</span>
+                    <span className="text-sm text-foreground">
+                      {activeBooking?.name ? String(activeBooking.name) : "—"}
+                      {activeBooking?.email ? ` (${String(activeBooking.email)})` : null}
+                    </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <div className="text-xs text-muted-foreground">
-                      Status: <span className="text-foreground">{String(activeBooking?.status || "—")}</span>
+                  <div className="flex py-3 border-b border-border/50">
+                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Status</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-muted text-foreground capitalize">
+                      {String(activeBooking?.status || "—")}
+                    </span>
+                  </div>
+                  {activeBooking?.time_zone ? (
+                    <div className="flex py-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Time zone</span>
+                      <span className="text-sm text-foreground">{String(activeBooking.time_zone)}</span>
                     </div>
-                    {activeBooking?.time_zone ? (
-                      <div className="text-xs text-muted-foreground">
-                        Time zone: <span className="text-foreground">{String(activeBooking.time_zone)}</span>
-                      </div>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Join link</div>
-                  {(() => {
-                    const joinUrl =
-                      activeBooking?.room_url ||
-                      activeBooking?.spot_details ||
-                      activeBooking?.client_booking_url ||
-                      activeBooking?.admin_booking_url
-                    return joinUrl ? (
-                      <div className="flex items-center gap-2">
-                        <Input value={joinUrl} readOnly className="text-xs" />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => copyText(joinUrl, "Join link")}
-                          aria-label="Copy join link"
-                        >
-                          <CopyIcon className="h-4 w-4" />
-                        </Button>
-                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open join link">
-                          <a href={joinUrl} target="_blank" rel="noreferrer">
-                            <ExternalLinkIcon className="h-4 w-4" />
-                          </a>
-                        </Button>
+                {/* Join Meeting Button */}
+                {(() => {
+                  const joinUrl =
+                    activeBooking?.room_url ||
+                    activeBooking?.spot_details ||
+                    activeBooking?.client_booking_url ||
+                    activeBooking?.admin_booking_url
+                  return joinUrl ? (
+                    <div className="pt-5 border-t">
+                      <Button
+                        asChild
+                        className="w-full h-12 text-[15px] font-medium bg-primary hover:bg-primary/90"
+                      >
+                        <a href={joinUrl} target="_blank" rel="noreferrer">
+                          Join Meeting
+                        </a>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="pt-5 border-t">
+                      <div className="text-sm text-muted-foreground text-center py-3">
+                        No join link available.
                       </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">No join link available.</div>
-                    )
-                  })()}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Booking links</div>
-                  <div className="grid gap-2">
-                    {activeBooking?.client_booking_url ? (
-                      <div className="flex items-center gap-2">
-                        <Input value={String(activeBooking.client_booking_url)} readOnly className="text-xs" />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => copyText(String(activeBooking.client_booking_url), "Client booking URL")}
-                          aria-label="Copy client booking URL"
-                        >
-                          <CopyIcon className="h-4 w-4" />
-                        </Button>
-                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open client booking URL">
-                          <a href={String(activeBooking.client_booking_url)} target="_blank" rel="noreferrer">
-                            <ExternalLinkIcon className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </div>
-                    ) : null}
-                    {activeBooking?.admin_booking_url ? (
-                      <div className="flex items-center gap-2">
-                        <Input value={String(activeBooking.admin_booking_url)} readOnly className="text-xs" />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => copyText(String(activeBooking.admin_booking_url), "Admin booking URL")}
-                          aria-label="Copy admin booking URL"
-                        >
-                          <CopyIcon className="h-4 w-4" />
-                        </Button>
-                        <Button asChild type="button" variant="outline" size="icon" aria-label="Open admin booking URL">
-                          <a href={String(activeBooking.admin_booking_url)} target="_blank" rel="noreferrer">
-                            <ExternalLinkIcon className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                    </div>
+                  )
+                })()}
               </div>
             ) : null}
           </DialogContent>

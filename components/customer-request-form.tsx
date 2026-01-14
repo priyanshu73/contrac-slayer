@@ -2,24 +2,32 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Upload, X, Check, CalendarDays } from "lucide-react"
+import { Upload, X, Check, CalendarDays, Sparkles } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
+interface PrefillData {
+  description?: string
+  project_type?: string
+  phone?: string
+}
+
 interface CustomerRequestFormProps {
   contractorUuid: string
   contractor: any
+  prefillData?: PrefillData | null
+  prefillLoading?: boolean
 }
 
-export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequestFormProps) {
+export function CustomerRequestForm({ contractorUuid, contractor, prefillData, prefillLoading }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -28,6 +36,20 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
     project_type: "",
     description: "",
   })
+  const [hasPrefilled, setHasPrefilled] = useState(false)
+
+  // Update form when prefillData becomes available
+  useEffect(() => {
+    if (prefillData && !hasPrefilled) {
+      setFormData(prev => ({
+        ...prev,
+        phone: prefillData.phone || prev.phone,
+        project_type: prefillData.project_type || prev.project_type,
+        description: prefillData.description || prev.description,
+      }))
+      setHasPrefilled(true)
+    }
+  }, [prefillData, hasPrefilled])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -303,7 +325,21 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
               </select>
             </div>
             <div>
-              <Label htmlFor="description">Project Description *</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="description">Project Description *</Label>
+                {prefillLoading && (
+                  <span className="text-xs text-blue-600 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 animate-pulse" />
+                    Loading from your call...
+                  </span>
+                )}
+                {hasPrefilled && prefillData?.description && !prefillLoading && (
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    Pre-filled from your call
+                  </span>
+                )}
+              </div>
               <Textarea
                 id="description"
                 value={formData.description}

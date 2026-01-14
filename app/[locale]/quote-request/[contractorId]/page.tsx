@@ -1,24 +1,56 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { api } from "@/lib/api"
+import { useParams, useSearchParams } from "next/navigation"
+import { api, contractorAI } from "@/lib/api"
 import { CustomerRequestForm } from "@/components/customer-request-form"
 import { Card } from "@/components/ui/card"
 import Image from "next/image"
 
+export interface PrefillData {
+  description?: string
+  project_type?: string
+  phone?: string
+}
+
 export default function PublicQuoteRequestPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const contractorUuid = params.contractorId as string
+  const interactionId = searchParams.get('interaction_id')
+  
   const [contractor, setContractor] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+  const [prefillData, setPrefillData] = useState<PrefillData | null>(null)
+  const [prefillLoading, setPrefillLoading] = useState(false)
 
   useEffect(() => {
-    const fetchContractor = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch contractor profile
         const profile = await api.getContractorProfileByUuid(contractorUuid)
         setContractor(profile)
+        
+        // If interaction_id is present, fetch project summary to pre-fill form
+        if (interactionId) {
+          setPrefillLoading(true)
+          try {
+            const summary = await contractorAI.getInteractionProjectSummary(interactionId)
+            if (summary.project_summary) {
+              setPrefillData({
+                description: summary.project_summary,
+                project_type: summary.project_type || '',
+                phone: summary.customer_number || ''
+              })
+            }
+          } catch (prefillErr) {
+            console.warn('Could not fetch interaction summary for pre-fill:', prefillErr)
+            // Non-critical error - just don't prefill
+          } finally {
+            setPrefillLoading(false)
+          }
+        }
       } catch (err: any) {
         setError("Contractor not found")
       } finally {
@@ -27,9 +59,9 @@ export default function PublicQuoteRequestPage() {
     }
 
     if (contractorUuid) {
-      fetchContractor()
+      fetchData()
     }
-  }, [contractorUuid])
+  }, [contractorUuid, interactionId])
 
   if (isLoading) {
     return (
@@ -69,7 +101,12 @@ export default function PublicQuoteRequestPage() {
       {/* Intentionally minimal header (contractor info is shown inside the form) */}
 
       {/* Form Section */}
-      <CustomerRequestForm contractor={contractor} contractorUuid={contractorUuid} />
+      <CustomerRequestForm 
+        contractor={contractor} 
+        contractorUuid={contractorUuid}
+        prefillData={prefillData}
+        prefillLoading={prefillLoading}
+      />
     </div>
   )
 }

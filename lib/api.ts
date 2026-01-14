@@ -697,6 +697,16 @@ class ContractorAIClient {
     return this.request(`/service-providers/${spId}/stats?days=${days}`)
   }
 
+  async getInteractionProjectSummary(interactionId: string): Promise<{
+    project_summary: string | null
+    project_type: string | null
+    customer_number: string | null
+    interaction_id: number
+    message?: string
+  }> {
+    return this.request(`/interactions/${interactionId}/project-summary`)
+  }
+
   async healthCheck() {
     return this.request('/health')
   }
