@@ -100,6 +100,34 @@ function bookingTitle(b: Booking) {
   )
 }
 
+function isPlaceholderEmail(email: string | undefined | null): boolean {
+  if (!email) return false
+  return email.startsWith("sms_") && email.endsWith("@call.placeholder.local")
+}
+
+function extractLocationFromNotes(notes: string | undefined | null): string | null {
+  if (!notes) return null
+  // Parse "Location: [location]" format
+  const locationMatch = notes.match(/Location:\s*(.+?)(?:\n|$)/i)
+  return locationMatch ? locationMatch[1].trim() : null
+}
+
+function getBookingLocation(b: Booking): string | null {
+  // Try metadata first
+  if (b?.metadata && typeof b.metadata === 'object') {
+    const location = (b.metadata as any)?.location
+    if (location && typeof location === 'string') {
+      return location
+    }
+  }
+  // Try internal_notes
+  if (b?.internal_notes) {
+    const location = extractLocationFromNotes(b.internal_notes)
+    if (location) return location
+  }
+  return null
+}
+
 function bookingTimeLabel(b: Booking) {
   const dt = bookingStartDate(b)
   if (!dt) return ""
@@ -328,6 +356,24 @@ function DayTimeline({
                       <div className="truncate text-sm font-medium text-slate-900">{bookingTitle(b)}</div>
                       <div className="whitespace-nowrap text-xs text-slate-500 tabular-nums">{bookingTimeLabel(b)}</div>
                     </div>
+                    {(() => {
+                      const location = getBookingLocation(b)
+                      const clientName = b?.name || "—"
+                      const showEmail = b?.email && !isPlaceholderEmail(b.email)
+                      return (
+                        <>
+                          <div className="mt-1 text-xs text-slate-600 truncate">
+                            {clientName}
+                            {showEmail ? ` (${b.email})` : ""}
+                          </div>
+                          {location && (
+                            <div className="mt-0.5 text-xs text-slate-500 truncate">
+                              📍 {location}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
                     {b?.status ? <div className="mt-1 text-xs text-slate-500">{String(b.status)}</div> : null}
                   </button>
                 </div>
@@ -704,9 +750,20 @@ export default function CalendarPage() {
                     <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Client</span>
                     <span className="text-sm text-foreground">
                       {activeBooking?.name ? String(activeBooking.name) : "—"}
-                      {activeBooking?.email ? ` (${String(activeBooking.email)})` : null}
+                      {activeBooking?.email && !isPlaceholderEmail(activeBooking.email) 
+                        ? ` (${String(activeBooking.email)})` 
+                        : null}
                     </span>
                   </div>
+                  {(() => {
+                    const location = getBookingLocation(activeBooking)
+                    return location ? (
+                      <div className="flex py-3 border-b border-border/50">
+                        <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Location</span>
+                        <span className="text-sm text-foreground">{location}</span>
+                      </div>
+                    ) : null
+                  })()}
                   <div className="flex py-3 border-b border-border/50">
                     <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Status</span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-muted text-foreground capitalize">
@@ -863,23 +920,37 @@ export default function CalendarPage() {
                   {selectedDayBookings.length === 0 ? (
                     <div className="text-sm text-muted-foreground">Nothing scheduled.</div>
                   ) : (
-                    selectedDayBookings.map((b, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => openBooking(b)}
-                        className="w-full rounded-md border p-3 text-left transition hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                        aria-label={`Open booking details for ${bookingTitle(b)}`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{bookingTitle(b)}</div>
-                            <div className="text-sm text-muted-foreground">{bookingTimeLabel(b)}</div>
+                    selectedDayBookings.map((b, idx) => {
+                      const location = getBookingLocation(b)
+                      const clientName = b?.name || "—"
+                      const showEmail = b?.email && !isPlaceholderEmail(b.email)
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => openBooking(b)}
+                          className="w-full rounded-md border p-3 text-left transition hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                          aria-label={`Open booking details for ${bookingTitle(b)}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium truncate">{bookingTitle(b)}</div>
+                              <div className="text-sm text-muted-foreground truncate">
+                                {clientName}
+                                {showEmail ? ` (${b.email})` : ""}
+                              </div>
+                              {location && (
+                                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                  📍 {location}
+                                </div>
+                              )}
+                              <div className="text-sm text-muted-foreground">{bookingTimeLabel(b)}</div>
+                            </div>
+                            <div className="text-xs text-muted-foreground whitespace-nowrap">{b?.status || ""}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground whitespace-nowrap">{b?.status || ""}</div>
-                        </div>
-                      </button>
-                    ))
+                        </button>
+                      )
+                    })
                   )}
                 </div>
               </ScrollArea>
