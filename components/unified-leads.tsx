@@ -62,6 +62,7 @@ interface UnifiedLead {
   // Timestamps
   created_at: string
   last_contact_date?: string
+  last_message_at?: string // Most recent message timestamp from conversation
   
   // Call-specific data
   conversation_count?: number
@@ -166,6 +167,9 @@ export function UnifiedLeads() {
       setLoadingCallLeads(true)
       const callLeads = await fetchCallLeads(true) // lightweight = true
       
+      // Stage 3: Load conversations to get last_message_at timestamps
+      const enrichedLeads = await enrichLeadsWithConversationData([...requestLeads, ...callLeads])
+      
       // Combine and deduplicate by phone number (normalize for comparison)
       const normalizePhone = (phone: string | undefined) => {
         if (!phone) return ''
@@ -181,7 +185,7 @@ export function UnifiedLeads() {
       // Get phone numbers from consolidated request leads (those with contractor_ai_call_lead_id)
       // Normalize to E.164 format for consistent comparison
       const consolidatedPhoneNumbers = new Set<string>()
-      requestLeads.forEach(lead => {
+      enrichedLeads.forEach(lead => {
         if ((lead as any).contractor_ai_call_lead_id && lead.phone) {
           const normalized = normalizePhoneToE164(lead.phone)
           if (normalized) {
@@ -193,7 +197,10 @@ export function UnifiedLeads() {
       // Filter out call leads that match consolidated request leads by phone number
       // Also deduplicate call leads by normalized phone number (E.164 format)
       const seenCallPhones = new Set<string>()
-      const uniqueCallLeads = callLeads.filter(lead => {
+      const uniqueCallLeads = enrichedLeads.filter(lead => {
+        // Only filter call leads
+        if (lead.type !== 'call') return true
+        
         const normalized = normalizePhoneToE164(lead.phone)
         if (!normalized) return false
         
@@ -212,7 +219,7 @@ export function UnifiedLeads() {
       })
       
       // Combine (sorting will be handled by filterLeads)
-      const combined = [...requestLeads, ...uniqueCallLeads]
+      const combined = uniqueCallLeads
       
       setLeads(combined)
       setLoadingCallLeads(false)
@@ -221,6 +228,54 @@ export function UnifiedLeads() {
       setError(err.message || "Failed to load leads")
       setLoading(false)
       setLoadingCallLeads(false)
+    }
+  }
+
+  // Enrich leads with conversation data (last_message_at timestamps)
+  const enrichLeadsWithConversationData = async (leads: UnifiedLead[]): Promise<UnifiedLead[]> => {
+    try {
+      const spId = getContractorAISpId()
+      if (!spId) return leads
+
+      // Fetch all conversations
+      const conversationsResponse = await contractorAI.getConversations({
+        sp_id: spId.toString(),
+        status: 'all' // Get all conversations
+      })
+
+      const conversations = (conversationsResponse as any).conversations || []
+      
+      // Create a map of phone number to last_message_at
+      const phoneToLastMessage = new Map<string, string>()
+      conversations.forEach((conv: any) => {
+        const customerPhone = conv.customer?.phone_number || ''
+        if (customerPhone && conv.last_message_at) {
+          const normalized = normalizePhoneToE164(customerPhone)
+          if (normalized) {
+            // Keep the most recent message timestamp if multiple conversations exist
+            const existing = phoneToLastMessage.get(normalized)
+            if (!existing || new Date(conv.last_message_at) > new Date(existing)) {
+              phoneToLastMessage.set(normalized, conv.last_message_at)
+            }
+          }
+        }
+      })
+
+      // Enrich leads with last_message_at
+      return leads.map(lead => {
+        if (lead.phone) {
+          const normalized = normalizePhoneToE164(lead.phone)
+          const lastMessageAt = phoneToLastMessage.get(normalized)
+          if (lastMessageAt) {
+            return { ...lead, last_message_at: lastMessageAt }
+          }
+        }
+        return lead
+      })
+    } catch (error) {
+      console.error('Failed to enrich leads with conversation data:', error)
+      // Return leads as-is if enrichment fails
+      return leads
     }
   }
 
@@ -447,6 +502,23 @@ export function UnifiedLeads() {
     return statusMap[callStatus] || callStatus.toUpperCase()
   }
 
+  // Get the most recent activity timestamp for a lead
+  const getMostRecentActivity = (lead: UnifiedLead): Date => {
+    // Priority: last_message_at > last_contact_date > created_at
+    const timestamps = [
+      lead.last_message_at,
+      lead.last_contact_date,
+      lead.created_at
+    ].filter(Boolean) as string[]
+    
+    if (timestamps.length === 0) {
+      return new Date(0) // Fallback to epoch if no timestamps
+    }
+    
+    // Return the most recent timestamp
+    return new Date(Math.max(...timestamps.map(ts => new Date(ts).getTime())))
+  }
+
   const filterLeads = () => {
     let filtered = leads
 
@@ -477,9 +549,14 @@ export function UnifiedLeads() {
     filtered = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'date-new':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          // Sort by most recent activity (last message, last contact, or created date)
+          const aActivity = getMostRecentActivity(a)
+          const bActivity = getMostRecentActivity(b)
+          return bActivity.getTime() - aActivity.getTime()
         case 'date-old':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          const aActivityOld = getMostRecentActivity(a)
+          const bActivityOld = getMostRecentActivity(b)
+          return aActivityOld.getTime() - bActivityOld.getTime()
         case 'name-az':
           return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         case 'name-za':
