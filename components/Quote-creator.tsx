@@ -428,6 +428,9 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
   
+  // Track initial tax rate from profile to detect changes
+  const [initialTaxRate, setInitialTaxRate] = useState<number | null>(null)
+  
   // Inline search states for line items
   const [searchingItemIndex, setSearchingItemIndex] = useState<number | null>(null)
   const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({})
@@ -629,7 +632,11 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       // Store tax rate for calculations
       if (profile?.default_sales_tax_rate !== undefined && profile.default_sales_tax_rate !== null) {
         const parsed = parseFloat(profile.default_sales_tax_rate)
-        setTaxRate(isNaN(parsed) ? 8.25 : parsed)
+        const taxValue = isNaN(parsed) ? 8.25 : parsed
+        setTaxRate(taxValue)
+        setInitialTaxRate(taxValue) // Track initial value
+      } else {
+        setInitialTaxRate(8.25) // Default if not in profile
       }
       // Store labor rate for calculations
       if (profile?.default_labor_rate_per_hour !== undefined && profile.default_labor_rate_per_hour !== null) {
@@ -639,6 +646,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     } catch (error) {
       console.error("Failed to fetch contractor markup:", error)
       // Keep defaults: 20% markup, 8.25% tax, $75/hr labor
+      setInitialTaxRate(8.25) // Set default initial tax rate
     } finally {
       setLoadingMarkup(false)
     }
@@ -1045,6 +1053,24 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
           title: "Quote created",
           description: "Quote has been successfully created",
         })
+      }
+      
+      // Update profile's default tax rate if it has changed
+      if (initialTaxRate !== null && Math.abs(taxRate - initialTaxRate) > 0.01) {
+        try {
+          await api.updateProfile({
+            default_sales_tax_rate: taxRate
+          })
+          // Update initial tax rate to the new value so we don't update again unnecessarily
+          setInitialTaxRate(taxRate)
+          toast({
+            title: "Profile updated",
+            description: `Default tax rate updated to ${taxRate.toFixed(2)}%`,
+          })
+        } catch (profileError) {
+          // Log error but don't block quote creation
+          console.error("Failed to update profile tax rate:", profileError)
+        }
       }
       
       // Success! Redirect to quote details page
