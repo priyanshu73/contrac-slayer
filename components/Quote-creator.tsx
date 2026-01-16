@@ -1686,6 +1686,58 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
           </div>
         </div>
 
+        {/* Tax Rate Settings */}
+        <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <Label htmlFor="tax-rate" className="text-sm font-medium">
+                Tax Rate
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sales tax rate applied to subtotal. Default from your profile settings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="tax-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={taxRate === 0 ? "0" : taxRate.toString()}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val === "" || val === "-") {
+                    setTaxRate(0)
+                  } else {
+                    const num = parseFloat(val)
+                    if (!isNaN(num)) {
+                      setTaxRate(Math.max(0, Math.min(100, num)))
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const val = e.target.value
+                  if (val === "" || val === "-") {
+                    setTaxRate(0)
+                  } else {
+                    const num = parseFloat(val)
+                    if (!isNaN(num)) {
+                      setTaxRate(Math.max(0, Math.min(100, num)))
+                    } else {
+                      setTaxRate(0)
+                    }
+                  }
+                }}
+                placeholder="0.00"
+                className="w-20"
+                disabled={loadingMarkup}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
+        </div>
+
         {/* Totals */}
         <div className="mt-6 space-y-2 border-t border-border pt-4">
           <div className="flex justify-between text-sm">
