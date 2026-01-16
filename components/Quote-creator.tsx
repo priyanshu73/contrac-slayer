@@ -437,13 +437,11 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [itemSearchResults, setItemSearchResults] = useState<Record<number, MaterialResult[]>>({})
   const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({})
 
-  // Fetch contractor profile to get default markup (only if not editing)
+  // Fetch contractor profile to get default markup and tax rate
   useEffect(() => {
-    // Only fetch default markup if we're not editing an existing quote
-    // If editing, the markup will be loaded from initialData in a separate useEffect
-    if (!quoteId) {
-      fetchContractorMarkup()
-    }
+    // Always fetch profile to get current default tax rate (needed for tracking changes)
+    // Markup will be loaded from initialData if editing, otherwise from profile
+    fetchContractorMarkup()
   }, [quoteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load clients on mount
@@ -625,17 +623,24 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       setLoadingMarkup(true)
       const profile = await api.getMyProfile() as any
       // Only set markup if we don't have initialData (not editing) or if initialData doesn't have markup
+      // When editing, markup comes from initialData items, but we still need to load tax rate from profile
       if (!initialData && profile?.default_markup_percentage !== undefined && profile.default_markup_percentage !== null) {
         const parsed = parseFloat(profile.default_markup_percentage)
         setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
       }
-      // Store tax rate for calculations
+      // Always load tax rate from profile (needed for tracking changes and updating profile)
       if (profile?.default_sales_tax_rate !== undefined && profile.default_sales_tax_rate !== null) {
         const parsed = parseFloat(profile.default_sales_tax_rate)
         const taxValue = isNaN(parsed) ? 8.25 : parsed
-        setTaxRate(taxValue)
-        setInitialTaxRate(taxValue) // Track initial value
+        // Only set tax rate if we haven't loaded initial data yet (to avoid overwriting during edit)
+        if (!hasLoadedInitialData) {
+          setTaxRate(taxValue)
+        }
+        setInitialTaxRate(taxValue) // Always track initial value from profile
       } else {
+        if (!hasLoadedInitialData) {
+          setTaxRate(8.25)
+        }
         setInitialTaxRate(8.25) // Default if not in profile
       }
       // Store labor rate for calculations
@@ -646,6 +651,9 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     } catch (error) {
       console.error("Failed to fetch contractor markup:", error)
       // Keep defaults: 20% markup, 8.25% tax, $75/hr labor
+      if (!hasLoadedInitialData) {
+        setTaxRate(8.25)
+      }
       setInitialTaxRate(8.25) // Set default initial tax rate
     } finally {
       setLoadingMarkup(false)
