@@ -25,8 +25,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/invoices/") // Legacy non-i18n routes
 
   useEffect(() => {
-    // Don't redirect on auth pages, public pages, or landing page
-    if (isPublicRoute) {
+    // Don't redirect on auth pages, public pages, landing page, or admin
+    if (isPublicRoute || pathname?.includes('/admin')) {
       return
     }
 
@@ -62,8 +62,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Show content if authenticated or on public pages
-  if (user || isPublicRoute) {
+  // Show content if authenticated, on public pages, or admin route
+  if (user || isPublicRoute || pathname?.includes('/admin')) {
     return <>{children}</>
   }
 
