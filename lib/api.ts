@@ -40,6 +40,11 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    // Create AbortController for timeout handling
+    const controller = new AbortController()
+    // Set timeout to 90 seconds (longer than backend timeout to get proper error)
+    const timeoutId = setTimeout(() => controller.abort(), 90000)
+    
     const config: RequestInit = {
       ...options,
       headers: {
@@ -47,10 +52,12 @@ class ApiClient {
         ...options.headers,
       },
       credentials: 'include',
+      signal: controller.signal,
     }
 
     try {
       const response = await fetch(url, config)
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         let parsed: any = null
@@ -65,7 +72,13 @@ class ApiClient {
 
       return response.json()
     } catch (error) {
+      clearTimeout(timeoutId)
+      
+      // Handle timeout/abort errors
       if (error instanceof Error) {
+        if (error.name === 'AbortError' || error.message.includes('aborted')) {
+          throw new Error('Request timed out. The server took too long to respond. Please try again.')
+        }
         throw error
       }
       throw new Error('Network error')
@@ -576,12 +589,18 @@ class ContractorAIClient {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
     const url = `${this.baseURL}${normalizedEndpoint}`
     
+    // Create AbortController for timeout handling
+    const controller = new AbortController()
+    // Set timeout to 90 seconds
+    const timeoutId = setTimeout(() => controller.abort(), 90000)
+    
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      signal: controller.signal,
     }
 
     console.log(`🌐 ContractorAI API: Making request to ${url}`)
@@ -589,6 +608,7 @@ class ContractorAIClient {
 
     try {
       const response = await fetch(url, config)
+      clearTimeout(timeoutId)
 
       console.log(`🌐 ContractorAI API: Response status: ${response.status}`)
       console.log(`🌐 ContractorAI API: Response headers:`, Object.fromEntries(response.headers.entries()))
@@ -609,8 +629,14 @@ class ContractorAIClient {
       console.log(`🌐 ContractorAI API: Success response:`, data)
       return data
     } catch (error) {
+      clearTimeout(timeoutId)
+      
       console.error(`🌐 ContractorAI API: Request error for ${url}:`, error)
       if (error instanceof Error) {
+        // Handle timeout/abort errors
+        if (error.name === 'AbortError' || error.message.includes('aborted')) {
+          throw new Error('Request timed out. The server took too long to respond. Please try again.')
+        }
         if (error.message.includes('Failed to fetch')) {
           throw new Error(`Network error: Cannot connect to ${url}. Make sure the contractor-ai backend is running on the correct port.`)
         }

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI } from "@/lib/api"
@@ -34,6 +35,7 @@ interface LineItem {
   confidence?: "low" | "medium" | "high" // Confidence level from AI estimate
   productSource?: string // Product source (e.g., "Home Depot")
   category?: string // Category: materials | labor | equipment | disposal
+  applyTax?: boolean // Whether to apply tax to this line item (defaults to true)
 }
 
 interface MaterialResult {
@@ -601,6 +603,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
           model: item.model,
           externalUrl: item.external_url || item.externalUrl,
           unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
+          applyTax: item.is_taxable !== false, // Preserve tax status from backend, default to true if undefined
         }))
         setItems(lineItems)
         
@@ -893,6 +896,11 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         markup_percentage: markupPercentage, // Send markup from form
       }) as any
       
+      // Validate response structure to prevent crashes
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response from server. Please try again.')
+      }
+      
       // Log for debugging
       console.log("📐 Estimate generation request:", {
         description: serviceDescription.substring(0, 50) + "...",
@@ -902,8 +910,9 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         lead_id: leadId,
       })
       
-      // Convert response line items to LineItem format
-      const newItems: LineItem[] = (response.line_items || []).map((item: any, idx: number) => ({
+      // Safely convert response line items to LineItem format
+      const lineItems = Array.isArray(response.line_items) ? response.line_items : []
+      const newItems: LineItem[] = lineItems.map((item: any, idx: number) => ({
         description: item.description,
         quantity: item.quantity || 1,
         rate: item.rate || 0,
@@ -916,14 +925,15 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         confidence: item.confidence,
         productSource: item.product_source,
         category: item.category, // Include category for icon selection
+        applyTax: true, // Default to applying tax on all AI-generated items
       }))
       
       // Auto-fill line items directly
       setItems(newItems)
       
-      // Store assumptions and warnings
-      setAssumptions(response.assumptions || [])
-      setWarnings(response.warnings || [])
+      // Safely store assumptions and warnings
+      setAssumptions(Array.isArray(response.assumptions) ? response.assumptions : [])
+      setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
       
       toast({
         title: "Estimate generated",
@@ -942,7 +952,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 0, rate: "" }])
+    setItems([...items, { description: "", quantity: 0, rate: "", applyTax: true }])
   }
 
   const removeItem = (index: number) => {
@@ -1041,7 +1051,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
           model: item.model || null,
           external_url: item.externalUrl || null,
           unit_of_measure: item.unitOfMeasure || "each", // Use actual unit from material or default
-          is_taxable: true,
+          is_taxable: item.applyTax !== false, // Use applyTax field, default to true if undefined
           markup_percentage: markupPercentage,
         }))
       }
@@ -1113,8 +1123,19 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   // Calculate subtotal with markup
   const subtotal = baseSubtotal + markupAmount
   
-  // Calculate tax using contractor's tax rate
-  const tax = subtotal * (taxRate / 100)
+  // Calculate taxable subtotal (only items where applyTax is true or undefined)
+  const taxableSubtotal = items.reduce((sum, item) => {
+    const itemTotal = (item.quantity || 0) * getRateNumber(item.rate)
+    const itemTotalWithMarkup = itemTotal * (1 + markupPercentage / 100)
+    // Apply tax if applyTax is true or undefined (default behavior)
+    if (item.applyTax !== false) {
+      return sum + itemTotalWithMarkup
+    }
+    return sum
+  }, 0)
+  
+  // Calculate tax using contractor's tax rate on taxable items only
+  const tax = taxableSubtotal * (taxRate / 100)
   const total = subtotal + tax
 
   return (
@@ -1266,7 +1287,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   model: material.model,
                   externalUrl: material.url,
                   unitOfMeasure: material.unit_of_measure, // Add unit of measure
-                  searchResults: material.searchResults // Store all search results for substitutes
+                  searchResults: material.searchResults, // Store all search results for substitutes
+                  applyTax: true, // Default to applying tax on materials
                 }])
                 toast({
                   title: "Item added",
@@ -1409,13 +1431,14 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         </div>
 
         {/* Table Header - Desktop */}
-        <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
+        <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
           <div></div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
           <div></div>
         </div>
 
@@ -1545,11 +1568,25 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                       ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
                     </span>
                   </div>
+                  <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-xs text-muted-foreground">Apply Tax</span>
+                    <Checkbox
+                      checked={item.applyTax !== false}
+                      onCheckedChange={(checked) => {
+                        const updatedItems = [...items]
+                        updatedItems[index] = {
+                          ...updatedItems[index],
+                          applyTax: checked === true
+                        }
+                        setItems(updatedItems)
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               
               {/* Desktop Layout - Table Style */}
-              <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_50px] gap-3 items-start">
+              <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-start">
                 {/* Image */}
                 <div className="pt-1">
                   <MaterialThumbnail
@@ -1645,6 +1682,21 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   </span>
                 </div>
                 
+                {/* Apply Tax Checkbox */}
+                <div className="flex justify-center pt-1">
+                  <Checkbox
+                    checked={item.applyTax !== false}
+                    onCheckedChange={(checked) => {
+                      const updatedItems = [...items]
+                      updatedItems[index] = {
+                        ...updatedItems[index],
+                        applyTax: checked === true
+                      }
+                      setItems(updatedItems)
+                    }}
+                  />
+                </div>
+                
                 {/* Delete Button */}
                 <div className="flex justify-center pt-1">
                   <Button 
@@ -1712,7 +1764,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   }
                 }}
                 placeholder="0"
-                className="w-20"
+                className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={loadingMarkup}
               />
               <span className="text-sm text-muted-foreground">%</span>
@@ -1764,7 +1816,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   }
                 }}
                 placeholder="0.00"
-                className="w-20"
+                className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={loadingMarkup}
               />
               <span className="text-sm text-muted-foreground">%</span>
@@ -1871,24 +1923,26 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              {quoteId ? "Update Quote" : "Create Quote"}
+              {quoteId ? "Update Quote" : "Save Quote"}
             </>
           )}
         </Button>
-        <Button size="lg" variant="outline" asChild>
-          <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>
-            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              />
-            </svg>
-            Preview
-          </a>
-        </Button>
+        {quoteId && (
+          <Button size="lg" variant="outline" asChild>
+            <a href={`/quotes/${quoteId}`}>
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              Preview Quote
+            </a>
+          </Button>
+        )}
         <Button size="lg" variant="outline" asChild>
           <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel          </a>
         </Button>
