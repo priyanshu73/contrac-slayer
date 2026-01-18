@@ -113,17 +113,47 @@ function extractLocationFromNotes(notes: string | undefined | null): string | nu
 }
 
 function getBookingLocation(b: Booking): string | null {
-  // Try metadata first
+  // Try metadata.original_request.meeting_location first (from our booking creation)
   if (b?.metadata && typeof b.metadata === 'object') {
+    const originalRequest = (b.metadata as any)?.original_request
+    if (originalRequest && typeof originalRequest === 'object') {
+      const location = originalRequest.meeting_location
+      if (location && typeof location === 'string' && location.trim()) {
+        return location.trim()
+      }
+    }
+    // Fallback: try direct metadata.location (for backwards compatibility)
     const location = (b.metadata as any)?.location
-    if (location && typeof location === 'string') {
-      return location
+    if (location && typeof location === 'string' && location.trim()) {
+      return location.trim()
     }
   }
   // Try internal_notes
   if (b?.internal_notes) {
     const location = extractLocationFromNotes(b.internal_notes)
     if (location) return location
+  }
+  return null
+}
+
+function getBookingClientPhone(b: Booking): string | null {
+  // Try metadata.original_request.client_phone first
+  if (b?.metadata && typeof b.metadata === 'object') {
+    const originalRequest = (b.metadata as any)?.original_request
+    if (originalRequest && typeof originalRequest === 'object') {
+      const phone = originalRequest.client_phone
+      if (phone && typeof phone === 'string' && phone.trim()) {
+        return phone.trim()
+      }
+    }
+  }
+  // Fallback: try to extract from placeholder email
+  if (b?.email && isPlaceholderEmail(b.email)) {
+    // Extract phone from "sms_12232728916@call.placeholder.local"
+    const match = b.email.match(/^sms_(\d+)@call\.placeholder\.local$/)
+    if (match && match[1]) {
+      return `+${match[1]}`
+    }
   }
   return null
 }
@@ -358,6 +388,7 @@ function DayTimeline({
                     </div>
                     {(() => {
                       const location = getBookingLocation(b)
+                      const clientPhone = getBookingClientPhone(b)
                       const clientName = b?.name || "—"
                       const showEmail = b?.email && !isPlaceholderEmail(b.email)
                       return (
@@ -369,6 +400,11 @@ function DayTimeline({
                           {location && (
                             <div className="mt-0.5 text-xs text-slate-500 truncate">
                               📍 {location}
+                            </div>
+                          )}
+                          {clientPhone && !location && (
+                            <div className="mt-0.5 text-xs text-slate-500 truncate">
+                              📞 {clientPhone}
                             </div>
                           )}
                         </>
@@ -757,11 +793,22 @@ export default function CalendarPage() {
                   </div>
                   {(() => {
                     const location = getBookingLocation(activeBooking)
-                    return location ? (
-                      <div className="flex py-3 border-b border-border/50">
-                        <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Location</span>
-                        <span className="text-sm text-foreground">{location}</span>
-                      </div>
+                    const clientPhone = getBookingClientPhone(activeBooking)
+                    return location || clientPhone ? (
+                      <>
+                        {location && (
+                          <div className="flex py-3 border-b border-border/50">
+                            <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Location</span>
+                            <span className="text-sm text-foreground">{location}</span>
+                          </div>
+                        )}
+                        {clientPhone && (
+                          <div className="flex py-3 border-b border-border/50">
+                            <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Phone</span>
+                            <span className="text-sm text-foreground">{clientPhone}</span>
+                          </div>
+                        )}
+                      </>
                     ) : null
                   })()}
                   <div className="flex py-3 border-b border-border/50">
@@ -922,8 +969,22 @@ export default function CalendarPage() {
                   ) : (
                     selectedDayBookings.map((b, idx) => {
                       const location = getBookingLocation(b)
+                      const clientPhone = getBookingClientPhone(b)
                       const clientName = b?.name || "—"
                       const showEmail = b?.email && !isPlaceholderEmail(b.email)
+                      
+                      // Format: "Meeting with {phone} at {location}" or fallback to client name
+                      const displayText = (() => {
+                        if (location && clientPhone) {
+                          return `Meeting with ${clientPhone} at ${location}`
+                        } else if (location) {
+                          return `Meeting at ${location}`
+                        } else if (clientPhone) {
+                          return `Meeting with ${clientPhone}`
+                        }
+                        return null
+                      })()
+                      
                       return (
                         <button
                           key={idx}
@@ -935,16 +996,27 @@ export default function CalendarPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="font-medium truncate">{bookingTitle(b)}</div>
-                              <div className="text-sm text-muted-foreground truncate">
-                                {clientName}
-                                {showEmail ? ` (${b.email})` : ""}
-                              </div>
-                              {location && (
+                              {displayText ? (
+                                <div className="text-sm text-muted-foreground truncate mt-0.5">
+                                  {displayText}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-muted-foreground truncate">
+                                  {clientName}
+                                  {showEmail ? ` (${b.email})` : ""}
+                                </div>
+                              )}
+                              {location && !displayText && (
                                 <div className="text-xs text-muted-foreground truncate mt-0.5">
                                   📍 {location}
                                 </div>
                               )}
-                              <div className="text-sm text-muted-foreground">{bookingTimeLabel(b)}</div>
+                              {clientPhone && !displayText && (
+                                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                  📞 {clientPhone}
+                                </div>
+                              )}
+                              <div className="text-sm text-muted-foreground mt-1">{bookingTimeLabel(b)}</div>
                             </div>
                             <div className="text-xs text-muted-foreground whitespace-nowrap">{b?.status || ""}</div>
                           </div>

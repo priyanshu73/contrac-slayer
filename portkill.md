@@ -1,0 +1,1 @@
+lsof -ti:3000,3001,3002,3003 | xargs kill -9 2>/dev/null; rm -f .next/dev/lock && npm run dev 
