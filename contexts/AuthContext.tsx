@@ -8,6 +8,7 @@ import { User, ContractorProfile } from "@/lib/types"
 interface ExtendedUser extends User {
   contractor_profile?: ContractorProfile
   contractor_ai_sp_id?: number | null
+  preferred_language?: string | null
 }
 
 interface AuthContextType {

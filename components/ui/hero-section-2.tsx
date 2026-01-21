@@ -108,7 +108,7 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
                   </m.h1>
 
                   <m.p className="text-2xl md:text-2xl text-muted-foreground text-balance max-w-3xl mb-10 leading-relaxed" variants={itemVariants}>
-                    {subtitle ?? 'Transform your contracting business with intelligent automation. Generate invoices instantly, capture every lead, and close more deals all powered by cutting edge AI technology.'}
+                    {subtitle ?? 'Communicate with clients via SMS no app downloads required. AI listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by AI'}
                   </m.p>
 
                   <div className="flex flex-col sm:flex-row gap-4 mb-12">

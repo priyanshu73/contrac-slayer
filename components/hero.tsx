@@ -130,8 +130,8 @@ export function Hero() {
           </h1>
 
           <p className="text-xl text-muted-foreground text-balance max-w-3xl mb-10 leading-relaxed">
-            Transform your contracting business with intelligent automation. Generate invoices instantly, capture every
-            lead, and close more deals all powered by cutting edge AI technology.
+            Communicate with clients via SMS—no app downloads required. ContractorOps AI listens to calls, reads texts, and automatically responds. 
+            Generate invoices instantly, capture every lead, and close more deals powered by cutting edge AI technology.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-12">

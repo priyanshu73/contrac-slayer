@@ -2,8 +2,8 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Sparkles, X, Plus, Phone, MessageSquare, Package, Calendar } from "lucide-react"
+import { Sparkles, X, Plus, Package } from "lucide-react"
+import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
 export function HowItWorks() {
   return (
@@ -29,51 +29,8 @@ export function HowItWorks() {
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-blue-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
-              <div className="lg:pr-16">
-                <Card className="p-5 bg-gradient-to-br from-[#FFF8F0] to-[#FEF3E2] dark:from-amber-950/20 dark:to-orange-900/20 border-amber-200/40 dark:border-amber-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
-                    <div className="flex items-center gap-3 mb-4 pb-3 border-b">
-                      <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                        <Phone className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-lg">Incoming Call</div>
-                        <div className="text-base text-muted-foreground">Sarah Johnson • (555) 0123</div>
-                      </div>
-                      <Badge variant="secondary" className="text-base bg-amber-100 text-amber-700 dark:bg-amber-900/30">
-                        Live
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="font-medium mb-2 text-base text-muted-foreground">Call Transcript</div>
-                        <p className="text-foreground leading-relaxed text-lg">
-                          Hi, I'm interested in getting my backyard landscaped. I need new sod, maybe some pavers for a
-                          patio area, and I'd like to add a few trees for shade.
-                        </p>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <MessageSquare className="h-6 w-6 text-amber-600 mt-1 flex-shrink-0" />
-                        <div className="flex-1 bg-amber-50/80 dark:bg-amber-950/30 rounded-lg p-4 border border-amber-200/50 dark:border-amber-800/30">
-                          <div className="font-medium mb-2 text-base text-amber-600">AI Auto-Response</div>
-                          <p className="text-foreground leading-relaxed text-lg">
-                            Thanks for calling! I'd love to help with your backyard project. I'm sending you a text with
-                            initial estimates and available times — you can also schedule a visit directly using the link
-                            below.
-                          </p>
-                          <div className="mt-4 flex items-center">
-                            <Button size="sm" className="bg-black text-white hover:bg-gray-800 h-9 px-4">
-                              <Calendar className="h-4 w-4 text-white mr-2" />
-                              Schedule a Call
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Card>
+              <div className="lg:pr-16 flex justify-center lg:justify-end">
+                <PhoneMessagePreview />
               </div>
 
               <div className="lg:pl-16 order-first lg:order-last">
@@ -82,7 +39,8 @@ export function HowItWorks() {
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
                   Never miss a client. AI listens to calls, reads texts, and automatically follows up with personalized
-                  responses capturing every lead opportunity.
+                  responses. It&apos;s text-based with no app downloads—clients use their built-in Messages; you capture
+                  every lead opportunity.
                 </p>
               </div>
             </div>
