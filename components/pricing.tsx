@@ -33,7 +33,7 @@ export function Pricing() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Start your free trial today. No credit card required.
+            Start your free trial today.
           </p>
         </div>
 
