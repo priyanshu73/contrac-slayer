@@ -119,8 +119,8 @@ export default function BillingPage() {
           {/* Yearly Plan */}
           <Card className="p-6 md:p-8 relative border-primary bg-primary/5">
             {/* Best Value Badge */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+              <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium whitespace-nowrap">
                 Best Value - Save $480/year
               </span>
             </div>

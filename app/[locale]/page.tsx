@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { HeroSection } from '@/components/ui/hero-section-2'
 import { Features } from '@/components/features'
+import { Pricing } from '@/components/pricing'
 import { CTA } from '@/components/cta'
 import { Header } from '@/components/header'
 import { HowItWorks } from '@/components/how-it-works'
@@ -42,6 +43,7 @@ export default function Home() {
         />
         <HowItWorks />
         <Features />
+        <Pricing />
         <CTA />
       </div>
     )
