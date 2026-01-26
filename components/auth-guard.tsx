@@ -24,6 +24,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.match(/^\/[a-z]{2}\/invoices\//) || // Matches /en/invoices/, /es/invoices/, etc.
     pathname?.startsWith("/invoices/") // Legacy non-i18n routes
 
+  // Routes accessible without subscription (but require auth)
+  const isBillingRoute = 
+    pathname?.match(/^\/[a-z]{2}\/billing/) || // Matches /en/billing, /es/billing, etc.
+    pathname?.startsWith("/billing")
+
+  // Settings page should be accessible for subscription management
+  const isSettingsRoute =
+    pathname?.match(/^\/[a-z]{2}\/settings/) ||
+    pathname?.startsWith("/settings")
+
   useEffect(() => {
     // Don't redirect on auth pages, public pages, landing page, or admin
     if (isPublicRoute || pathname?.includes('/admin')) {
@@ -33,13 +43,24 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Redirect to login if not authenticated
     if (!loading && !user) {
       router.push(`/${locale}/auth/login`)
+      return
     }
 
     // Redirect to profile setup if user doesn't have a profile
     if (!loading && user && !user.contractor_profile && pathname !== `/${locale}/auth/profile-setup`) {
       router.push(`/${locale}/auth/profile-setup`)
+      return
     }
-  }, [user, loading, router, pathname, locale])
+
+    // Redirect to billing if user has profile but no subscription
+    // Allow access to billing and settings pages without subscription
+    if (!loading && user && user.contractor_profile && !user.has_access) {
+      if (!isBillingRoute && !isSettingsRoute) {
+        router.push(`/${locale}/billing`)
+        return
+      }
+    }
+  }, [user, loading, router, pathname, locale, isBillingRoute, isSettingsRoute])
 
   // Show loading state
   if (loading) {
@@ -62,8 +83,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Show content if authenticated, on public pages, or admin route
+  // Show content if authenticated, on public pages, admin route, or billing/settings pages
   if (user || isPublicRoute || pathname?.includes('/admin')) {
+    // If user is authenticated but has no access, only allow billing and settings
+    if (user && user.contractor_profile && !user.has_access && !isBillingRoute && !isSettingsRoute && !isPublicRoute) {
+      return null // Will redirect in useEffect
+    }
     return <>{children}</>
   }
 

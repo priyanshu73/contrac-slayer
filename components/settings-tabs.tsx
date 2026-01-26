@@ -14,10 +14,12 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink } from "lucide-react"
+import { useLocale } from "next-intl"
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
+  const locale = useLocale()
   const t = useTranslations('settings')
   const tAuth = useTranslations('auth')
   const tCommon = useTranslations('common')
@@ -29,6 +31,7 @@ export function SettingsTabs() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false)
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -153,9 +156,9 @@ export function SettingsTabs() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
         <TabsTrigger value="business">{t('business')}</TabsTrigger>
-        {/* <TabsTrigger value="integrations">{t('integrations')}</TabsTrigger> */}
+        <TabsTrigger value="billing">Billing</TabsTrigger>
         <TabsTrigger value="notifications">{t('notifications')}</TabsTrigger>
         <TabsTrigger value="language">{t('language')}</TabsTrigger>
       </TabsList>
@@ -426,6 +429,115 @@ export function SettingsTabs() {
               {tCommon('cancel')}
             </Button>
           </div>
+        </Card>
+      </TabsContent>
+
+      {/* Billing Settings */}
+      <TabsContent value="billing" className="space-y-6">
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">Subscription</h2>
+          
+          {user?.has_access ? (
+            <div className="space-y-4">
+              {/* Current Plan Info */}
+              <div className="rounded-lg border border-border p-4 bg-muted/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    user.stripe_subscription_status === 'active' 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : user.stripe_subscription_status === 'trialing'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  }`}>
+                    {user.stripe_subscription_status === 'trialing' ? 'Free Trial' : 
+                     user.stripe_subscription_status === 'active' ? 'Active' :
+                     user.stripe_subscription_status || 'Unknown'}
+                  </span>
+                </div>
+                
+                {user.stripe_subscription_status === 'trialing' && user.stripe_trial_end && (
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Trial ends</span>
+                    <span className="text-sm font-medium">
+                      {new Date(user.stripe_trial_end).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                
+                {user.stripe_current_period_end && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {user.stripe_subscription_status === 'trialing' ? 'First billing date' : 'Next billing date'}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {new Date(user.stripe_current_period_end).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Manage your subscription, update payment method, or cancel your plan through the Stripe portal.
+              </p>
+
+              <Button
+                onClick={async () => {
+                  setIsManagingSubscription(true)
+                  try {
+                    const baseUrl = window.location.origin
+                    const result = await api.createPortalSession({
+                      return_url: `${baseUrl}/${locale}/settings`,
+                    })
+                    window.location.href = result.url
+                  } catch (err: any) {
+                    setError(err.message || "Failed to open subscription portal")
+                    setIsManagingSubscription(false)
+                  }
+                }}
+                disabled={isManagingSubscription}
+              >
+                {isManagingSubscription ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Opening...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Manage Subscription
+                    <ExternalLink className="h-3 w-3" />
+                  </span>
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border p-4 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                    No active subscription
+                  </span>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Subscribe to get full access to all features including AI-powered quotes, lead management, and more.
+              </p>
+
+              <Button
+                onClick={() => {
+                  window.location.href = `/${locale}/billing`
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  View Plans & Subscribe
+                </span>
+              </Button>
+            </div>
+          )}
         </Card>
       </TabsContent>
 

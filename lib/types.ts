@@ -100,6 +100,11 @@ export interface User {
   is_email_verified: boolean
   created_at: string
   updated_at?: string
+  // Billing fields
+  has_access?: boolean
+  stripe_subscription_status?: string | null
+  stripe_current_period_end?: string | null
+  stripe_trial_end?: string | null
 }
 
 export interface ContractorProfile {

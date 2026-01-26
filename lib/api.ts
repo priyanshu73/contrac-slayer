@@ -564,6 +564,30 @@ class ApiClient {
     const qs = searchParams.toString()
     return this.request(`/neetocal/available-slots${qs ? `?${qs}` : ''}`)
   }
+
+  // =========================
+  // Billing / Stripe
+  // =========================
+  
+  async createCheckoutSession(data: {
+    plan: 'monthly' | 'yearly'
+    success_url: string
+    cancel_url: string
+  }): Promise<{ url: string }> {
+    return this.request('/billing/checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createPortalSession(data: {
+    return_url: string
+  }): Promise<{ url: string }> {
+    return this.request('/billing/portal-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 class ContractorAIClient {
