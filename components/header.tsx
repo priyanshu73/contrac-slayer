@@ -26,7 +26,7 @@ export function Header() {
                 className="w-8 h-8 object-contain"
               />
               <span className="text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-                ContractPro AI
+                ContractorOps AI
               </span>
             </Link>
           <nav className="hidden md:flex items-center gap-8">

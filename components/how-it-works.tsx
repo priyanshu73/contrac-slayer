@@ -16,7 +16,7 @@ export function HowItWorks() {
         <div className="text-center mb-20">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-balance">How it works</h2>
           <p className="text-lg text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed">
-            ContractPro AI provides a complete toolkit to grow your contracting business 10x faster without having to
+            ContractorOps AI provides a complete toolkit to grow your contracting business 10x faster without having to
             work 10x harder.
           </p>
         </div>

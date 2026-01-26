@@ -20,7 +20,7 @@ export function AIConversationPreview() {
       type: 'text',
       timestamp: '10:25 AM',
       content: 'Hi Sarah! Thanks for reaching out. I\'d love to help with your backyard project. I can schedule a free estimate this week—how about Thursday at 2 PM?',
-      sender: 'ContractPro AI',
+      sender: 'ContractorOps AI',
       status: 'Delivered',
     },
     {
@@ -91,7 +91,7 @@ export function AIConversationPreview() {
                   <Badge variant="outline" className="text-xs px-1.5 py-0">{msg.status}</Badge>
                 </div>
                 <div className={`rounded-lg p-3 ${
-                  msg.sender === 'ContractPro AI' 
+                  msg.sender === 'ContractorOps AI' 
                     ? 'bg-primary/10 border border-primary/20 ml-4' 
                     : 'bg-muted/50 mr-4'
                 }`}>

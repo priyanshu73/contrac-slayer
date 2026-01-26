@@ -17,7 +17,7 @@ export function PhoneMessagePreview() {
         <div className="relative overflow-hidden rounded-[1.75rem] sm:rounded-[2rem] bg-gray-50 dark:bg-gray-900 aspect-[9/19] min-h-[492px]">
           {/* Header */}
           <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-200/80 dark:border-gray-700/80">
-            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">ContractPro AI</span>
+            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">ContractorOps AI</span>
             <span className="text-base text-blue-600 dark:text-blue-400">Messages</span>
           </div>
 

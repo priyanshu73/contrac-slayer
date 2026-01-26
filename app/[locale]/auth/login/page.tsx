@@ -99,7 +99,7 @@ export default function LoginPage() {
               />
             </div>
             <span className="text-3xl font-bold text-white drop-shadow-2xl" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
-              ContractPro
+              ContractorOps AI
             </span>
           </div>
           <div className="bg-gradient-to-br from-blue-500/15 to-sky-500/15 backdrop-blur-sm rounded-2xl p-6 inline-block shadow-2xl border border-blue-300/20">

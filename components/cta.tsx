@@ -10,7 +10,7 @@ export function CTA() {
           Ready to Transform Your Contracting Business?
         </h2>
         <p className="text-xl text-muted-foreground mb-10 text-balance max-w-2xl mx-auto">
-          Join thousands of contractors who are closing more deals and saving time with ContractPro AI
+          Join thousands of contractors who are closing more deals and saving time with ContractorOps AI
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button size="lg" className="text-base px-8 bg-primary text-primary-foreground hover:bg-primary/90" asChild>

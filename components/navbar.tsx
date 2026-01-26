@@ -55,7 +55,7 @@ export function Navbar() {
                 className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
               />
               <span className="text-base md:text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-                ContractPro
+                ContractorOps AI
               </span>
             </Link>
 

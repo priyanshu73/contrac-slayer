@@ -143,7 +143,7 @@ export default function ProfileSetupPage() {
               </div>
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-2">
-              Welcome to ContractPro
+              Welcome to ContractorOps AI
             </h1>
             <p className="text-gray-600 text-lg">
               Let's set up your business profile in just a few steps
