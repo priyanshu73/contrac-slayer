@@ -36,11 +36,16 @@ export function Header() {
             </a>
           </nav>
           <div className="flex items-center gap-3">
+            {/* Desktop: Sign In + Start Free Trial */}
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
               <Link href={`/${locale}/auth/login`}>Sign In</Link>
             </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+            <Button size="sm" className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90" asChild>
               <Link href={signupUrl}>Start Free Trial</Link>
+            </Button>
+            {/* Mobile: Just Sign In (blue) */}
+            <Button size="sm" className="sm:hidden bg-blue-600 text-white hover:bg-blue-700" asChild>
+              <Link href={`/${locale}/auth/login`}>Sign In</Link>
             </Button>
           </div>
         </div>
