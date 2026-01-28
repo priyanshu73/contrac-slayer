@@ -39,7 +39,7 @@ export default function Home() {
         <Header />
         <HeroSection
           backgroundImage="/hero.png"
-          contactInfo={{ website: "yourwebsite.com", phone: "+1 (555) 123-4567", address: "20 Fieldstone Dr, Roswell, GA" }}
+          contactInfo={{ website: "www.contractorops.ai", phone: "+1 (555) 123-4567", address: "20 Fieldstone Dr, Roswell, GA" }}
         />
         <HowItWorks />
         <Features />
