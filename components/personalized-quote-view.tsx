@@ -231,7 +231,7 @@ export function PersonalizedQuoteView({
   const taxAmount = total - subtotalWithMarkup
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 print:min-h-0 print:py-0 print:bg-white print:mt-0 print:pt-0">
+    <div className="min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0">
       <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
         {/* Printable Quote Document */}
         <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">

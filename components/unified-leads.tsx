@@ -11,7 +11,7 @@ import { api, contractorAI } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye } from "lucide-react"
 import { TranslatableSection } from "@/components/translate-button"
 
 // ============================================
@@ -1190,26 +1190,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex gap-3 md:gap-6 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 md:gap-6 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-20 lg:pb-0">
         {/* Show call lead layout for both call leads AND consolidated leads (request leads with call data) */}
         {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
           <>
-            {/* Middle - Conversation History (for call leads and consolidated leads) */}
-            <div className="flex-1 border-r bg-muted/10 hidden lg:flex lg:flex-col min-h-0">
-              <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  {tLeads('conversationHistory')}
-                </h3>
-                <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-              </div>
-            </div>
-
-            {/* Right Side - Lead Details (for call leads and consolidated leads) */}
-            <div className="w-80 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+            {/* Lead Details - Shows first on mobile, right side on desktop */}
+            <div className="order-1 lg:order-2 w-full lg:w-80 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full">
               {/* Contact Information */}
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
@@ -1247,10 +1233,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (
                 <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <span>{tLeads('aiSummary')}</span>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span className="shrink-0">{tLeads('aiSummary')}</span>
                     {(lead as any).contractor_ai_call_lead_id && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
                         {tLeads('fromCall')}
                       </Badge>
                     )}
@@ -1263,7 +1249,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedSummary
                         )}
                         disabled={isTranslatingSummary}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
                           translatedSummary 
                             ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
@@ -1296,9 +1282,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Project Description from quote request (for consolidated leads) */}
               {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
                 <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <span>{tLeads('projectDescription')}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span className="shrink-0">{tLeads('projectDescription')}</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
                       {tLeads('fromQuoteRequest')}
                     </Badge>
                     {locale === 'es' && (
@@ -1310,7 +1296,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedDescription
                         )}
                         disabled={isTranslatingDescription}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
                           translatedDescription 
                             ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
@@ -1343,8 +1329,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Project Description for call-only leads (fallback) */}
               {lead.description && lead.type === 'call' && !lead.summary_text && (
                 <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <span>{tLeads('projectDescription')}</span>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span className="shrink-0">{tLeads('projectDescription')}</span>
                     {locale === 'es' && (
                       <button
                         onClick={() => handleTranslate(
@@ -1354,7 +1340,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedDescription
                         )}
                         disabled={isTranslatingDescription}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
                           translatedDescription 
                             ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
@@ -1387,42 +1373,46 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Request-specific content (for consolidated leads) */}
               {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && lead.estimated_value && (
                 <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    Estimated Value
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                    {tLeads('estimatedValue')}
                   </h3>
-                  <div className="text-2xl font-bold text-primary">
+                  <p className="text-lg font-bold text-primary">
                     ${lead.estimated_value.toLocaleString()}
-                  </div>
+                  </p>
                 </div>
               )}
 
-              {/* Attachments (for consolidated leads) */}
-              {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && lead.attachments && lead.attachments.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    Attachments
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    📎 {lead.attachments.length} file{lead.attachments.length > 1 ? 's' : ''} attached
-                  </div>
-                </div>
-              )}
+              {/* Call History Section (for call leads and consolidated leads) */}
+              <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
 
-              {/* Call History with Transcripts */}
-              <CallHistorySection 
-                key={`call-history-${lead.phone}-${lead.id}`} 
-                phoneNumber={normalizePhoneToE164(lead.phone)} 
-                currentLeadId={lead.id} 
-              />
+              {/* Action Buttons */}
+              <div className="pt-2 md:pt-4 border-t space-y-2 md:space-y-3">
+                <Button className="w-full h-10 md:h-12 text-sm md:text-base" asChild>
+                  <a href={`tel:${lead.phone}`}>
+                    <Phone className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                    {tLeads('callCustomer')}
+                  </a>
+                </Button>
+                <Button variant="outline" className="w-full h-9 md:h-11 text-xs md:text-sm" asChild>
+                  <a href={`/quotes/new?leadId=${lead.id}`}>
+                    <Eye className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+                    {tFilters('quoted')}
+                  </a>
+                </Button>
+              </div>
+            </div>
 
-              {/* Mobile Conversation View */}
-              <div className="lg:hidden">
-                <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+            {/* Conversation History - Shows second on mobile, middle on desktop */}
+            <div className="order-2 lg:order-1 flex-1 border-t lg:border-t-0 lg:border-r bg-muted/10 flex flex-col min-h-0">
+              <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
                   {tLeads('conversationHistory')}
                 </h3>
-                <Card className="max-h-64 overflow-hidden">
-                  <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-                </Card>
+                <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
+              </div>
+              
+              <div className="flex-1 lg:overflow-y-auto min-h-[300px] lg:min-h-0 lg:max-h-full overscroll-contain">
+                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
               </div>
             </div>
           </>
@@ -1466,10 +1456,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {/* AI Summary from contractor-ai (for consolidated leads) */}
             {lead.summary_text && (
               <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <span>{tLeads('aiSummary')}</span>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
+                  <span className="shrink-0">{tLeads('aiSummary')}</span>
                   {(lead as any).contractor_ai_call_lead_id && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
                       {tLeads('fromCall')}
                     </Badge>
                   )}
@@ -1482,7 +1472,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         !!translatedSummary
                       )}
                       disabled={isTranslatingSummary}
-                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
                         translatedSummary 
                           ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
                           : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
@@ -1515,10 +1505,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {/* Project Description from quote request */}
             {lead.description && (
               <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <span>{tLeads('projectDescription')}</span>
+                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
+                  <span className="shrink-0">{tLeads('projectDescription')}</span>
                   {lead.type === 'request' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
                       {tLeads('fromQuoteRequest')}
                     </Badge>
                   )}
@@ -1531,7 +1521,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         !!translatedDescription
                       )}
                       disabled={isTranslatingDescription}
-                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
                         translatedDescription 
                           ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
                           : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
