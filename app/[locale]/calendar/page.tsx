@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type Booking = Record<string, any>
 
@@ -424,6 +425,8 @@ function DayTimeline({
 
 export default function CalendarPage() {
   const { toast } = useToast()
+  const tCalendar = useTranslations('calendar')
+  const tCommon = useTranslations('common')
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [error, setError] = useState<string>("")
@@ -875,8 +878,8 @@ export default function CalendarPage() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-6">
           <div className="flex items-center justify-between gap-3">
             <TabsList>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="availability">Set availability</TabsTrigger>
+              <TabsTrigger value="calendar">{tCalendar('title')}</TabsTrigger>
+              <TabsTrigger value="availability">{tCalendar('setAvailability')}</TabsTrigger>
             </TabsList>
             </div>
 
@@ -952,11 +955,11 @@ export default function CalendarPage() {
                       : "Bookings"}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {selectedDayBookings.length === 0 ? "No bookings." : `${selectedDayBookings.length} booking(s).`}
+                    {selectedDayBookings.length === 0 ? tCalendar('noBookings') : `${selectedDayBookings.length} booking(s).`}
                   </div>
                 </div>
                   <Button variant="outline" onClick={load} disabled={bookingsLoading}>
-                    Refresh
+                    {tCommon('refresh')}
                   </Button>
               </div>
 
@@ -965,7 +968,7 @@ export default function CalendarPage() {
               <ScrollArea className="h-[280px]">
                 <div className="space-y-2 pr-4">
                   {selectedDayBookings.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">Nothing scheduled.</div>
+                    <div className="text-sm text-muted-foreground">{tCommon('nothingScheduled')}</div>
                   ) : (
                     selectedDayBookings.map((b, idx) => {
                       const location = getBookingLocation(b)
@@ -1030,7 +1033,7 @@ export default function CalendarPage() {
               <Separator className="my-4" />
 
               <div className="space-y-2">
-                <div className="text-sm font-medium">Scheduling link</div>
+                <div className="text-sm font-medium">{tCalendar('schedulingLink')}</div>
                 {calendarLink ? (
                   <div className="flex items-center gap-2">
                     <Input value={calendarLink} readOnly className="text-xs" />

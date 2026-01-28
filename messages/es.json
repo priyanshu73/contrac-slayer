@@ -25,7 +25,12 @@
     "back": "Regresar",
     "confirm": "Confirmar",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "retry": "Reintentar",
+    "viewDetails": "Ver Detalles",
+    "call": "Llamar",
+    "refresh": "Actualizar",
+    "nothingScheduled": "Nada programado."
   },
   "auth": {
     "login": "Iniciar Sesión",
@@ -168,7 +173,16 @@
     "paid": "Pagado",
     "overdue": "Vencido",
     "active": "Activo",
-    "completed": "Completado"
+    "completed": "Completado",
+    "requests": "Solicitudes",
+    "calls": "Llamadas",
+    "allStatuses": "Todos los Estados",
+    "newest": "Más Reciente",
+    "oldest": "Más Antiguo",
+    "newestFirst": "Más Reciente Primero",
+    "oldestFirst": "Más Antiguo Primero",
+    "nameAZ": "Nombre (A-Z)",
+    "nameZA": "Nombre (Z-A)"
   },
   "forms": {
     "required": "Requerido",
@@ -185,6 +199,45 @@
     "deleted": "Elemento eliminado exitosamente",
     "created": "Elemento creado exitosamente",
     "updated": "Elemento actualizado exitosamente"
+  },
+  "leads": {
+    "title": "Prospectos",
+    "conversationHistory": "Historial de Conversación",
+    "liveChatMessages": "Mensajes de chat en vivo",
+    "contactInformation": "Información de Contacto",
+    "aiSummary": "Resumen de IA",
+    "fromCall": "De Llamada",
+    "projectDescription": "Descripción del Proyecto",
+    "fromQuoteRequest": "De Solicitud de Cotización",
+    "callHistoryAndTranscripts": "Historial de Llamadas y Transcripciones",
+    "callCustomer": "Llamar al Cliente",
+    "createQuote": "Crear Cotización",
+    "markAsContacted": "Marcar como Contactado",
+    "viewFullDetails": "Ver Detalles Completos",
+    "noLeads": "No se encontraron prospectos",
+    "consolidated": "Consolidado"
+  },
+  "clients": {
+    "title": "Clientes",
+    "addClient": "Agregar Cliente",
+    "addNewClient": "Agregar Nuevo Cliente",
+    "createNewClientProfile": "Crear un nuevo perfil de cliente",
+    "clientInformation": "Información del Cliente",
+    "name": "Nombre",
+    "email": "Correo Electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "billingAddress": "Dirección de Facturación",
+    "billingAddressHint": "Si es diferente a la dirección anterior",
+    "createClient": "Crear Cliente",
+    "searchClients": "Buscar clientes por nombre, correo o teléfono..."
+  },
+  "calendar": {
+    "title": "Calendario",
+    "setAvailability": "Establecer disponibilidad",
+    "bookings": "Reservas",
+    "noBookings": "Sin reservas.",
+    "schedulingLink": "Enlace de programación"
   },
   "metadata": {
     "title": "ContractorOps AI - CRM con IA para Contratistas Modernos",

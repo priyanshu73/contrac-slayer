@@ -25,7 +25,12 @@
     "back": "Back",
     "confirm": "Confirm",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "retry": "Retry",
+    "viewDetails": "View Details",
+    "call": "Call",
+    "refresh": "Refresh",
+    "nothingScheduled": "Nothing scheduled."
   },
   "auth": {
     "login": "Login",
@@ -168,7 +173,16 @@
     "paid": "Paid",
     "overdue": "Overdue",
     "active": "Active",
-    "completed": "Completed"
+    "completed": "Completed",
+    "requests": "Requests",
+    "calls": "Calls",
+    "allStatuses": "All Statuses",
+    "newest": "Newest",
+    "oldest": "Oldest",
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First",
+    "nameAZ": "Name (A-Z)",
+    "nameZA": "Name (Z-A)"
   },
   "forms": {
     "required": "Required",
@@ -185,6 +199,45 @@
     "deleted": "Item deleted successfully",
     "created": "Item created successfully",
     "updated": "Item updated successfully"
+  },
+  "leads": {
+    "title": "Leads",
+    "conversationHistory": "Conversation History",
+    "liveChatMessages": "Live chat messages",
+    "contactInformation": "Contact Information",
+    "aiSummary": "AI Summary",
+    "fromCall": "From Call",
+    "projectDescription": "Project Description",
+    "fromQuoteRequest": "From Quote Request",
+    "callHistoryAndTranscripts": "Call History & Transcripts",
+    "callCustomer": "Call Customer",
+    "createQuote": "Create Quote",
+    "markAsContacted": "Mark as Contacted",
+    "viewFullDetails": "View Full Details",
+    "noLeads": "No leads found",
+    "consolidated": "Consolidated"
+  },
+  "clients": {
+    "title": "Clients",
+    "addClient": "Add Client",
+    "addNewClient": "Add New Client",
+    "createNewClientProfile": "Create a new client profile",
+    "clientInformation": "Client Information",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "billingAddress": "Billing Address",
+    "billingAddressHint": "If different from address above",
+    "createClient": "Create Client",
+    "searchClients": "Search clients by name, email, or phone..."
+  },
+  "calendar": {
+    "title": "Calendar",
+    "setAvailability": "Set availability",
+    "bookings": "Bookings",
+    "noBookings": "No bookings.",
+    "schedulingLink": "Scheduling link"
   },
   "metadata": {
     "title": "ContractorOps AI - AI-Powered CRM for Modern Contractors",

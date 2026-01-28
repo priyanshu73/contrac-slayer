@@ -92,6 +92,8 @@ export function UnifiedLeads() {
   const isMobile = useIsMobile()
   const t = useTranslations('search')
   const tFilters = useTranslations('filters')
+  const tLeads = useTranslations('leads')
+  const tCommon = useTranslations('common')
   
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
@@ -712,82 +714,6 @@ export function UnifiedLeads() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden pb-16 md:pb-0">
-      {/* Header */}
-      <header className="flex-shrink-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-3 md:px-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            {/* Back to list button on mobile when lead is selected */}
-            {selectedLead ? (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  setSelectedLeadId(null)
-                  setHasUserClearedSelection(true)
-                }}
-                className="lg:hidden h-8 w-8"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" asChild className="md:hidden h-8 w-8">
-                <a href="/">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </a>
-              </Button>
-            )}
-            {/* Mobile: Dropdown filter - always visible */}
-            <div className="md:hidden">
-              <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
-                <SelectTrigger className="h-8 w-auto border-none bg-transparent p-0 text-sm font-semibold text-muted-foreground shadow-none focus:ring-0 hover:bg-transparent">
-                  <SelectValue>
-                    {activeTab === 'all' ? `${tFilters('all')} ${counts.all}` : activeTab === 'requests' ? `Requests ${counts.requests}` : `Calls ${counts.calls}`}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{tFilters('all')} {counts.all}</SelectItem>
-                  <SelectItem value="requests">Requests {counts.requests}</SelectItem>
-                  <SelectItem value="calls">Calls {counts.calls}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Desktop: Filter buttons - always visible */}
-            <div className="hidden md:flex gap-1">
-              <Button
-                variant={activeTab === 'all' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('all')}
-                className="text-xs md:text-sm h-8 md:h-9"
-              >
-                {tFilters('all')} <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.all}</span>
-              </Button>
-              <Button
-                variant={activeTab === 'requests' ? 'default' : 'ghost'}
-                size="sm" 
-                onClick={() => setActiveTab('requests')}
-                className="text-xs md:text-sm h-8 md:h-9"
-              >
-                Requests <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.requests}</span>
-              </Button>
-              <Button
-                variant={activeTab === 'calls' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('calls')}
-                className="text-xs md:text-sm h-8 md:h-9"
-              >
-                Calls <span className="ml-1 md:ml-2 text-[10px] md:text-xs">{counts.calls}</span>
-              </Button>
-            </div>
-          </div>
-          {/* New button - always visible */}
-          <Button asChild size="sm" className="h-8 md:h-10">
-            <a href="/quote-request/new">New</a>
-          </Button>
-        </div>
-      </header>
-
       <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-6 overflow-hidden min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-6 h-full">
           {/* Left Panel - Leads List */}
@@ -804,42 +730,35 @@ export function UnifiedLeads() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-8 text-xs md:text-sm">
-                      <SelectValue>
-                        {statusFilter === 'all' ? 'All Statuses' :
-                         statusFilter === 'NEW' ? `🆕 New (${counts.new})` :
-                         statusFilter === 'CONTACTED' ? `📞 Contacted (${counts.contacted})` :
-                         statusFilter === 'QUOTED' ? `💼 Quoted (${counts.quoted})` :
-                         statusFilter === 'CONVERTED' ? `✅ Converted (${counts.converted})` :
-                         statusFilter === 'LOST' ? `❌ Lost (${counts.lost})` :
-                         statusFilter}
+                <div className="flex gap-1.5">
+                  <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
+                    <SelectTrigger className="h-8 text-xs md:text-sm flex-1 min-w-0">
+                      <SelectValue className="truncate">
+                        {activeTab === 'all' ? `${tFilters('all')} ${counts.all}` :
+                         activeTab === 'requests' ? `${tFilters('requests')} ${counts.requests}` :
+                         `${tFilters('calls')} ${counts.calls}`}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="NEW">🆕 New ({counts.new})</SelectItem>
-                      <SelectItem value="CONTACTED">📞 Contacted ({counts.contacted})</SelectItem>
-                      <SelectItem value="QUOTED">💼 Quoted ({counts.quoted})</SelectItem>
-                      <SelectItem value="CONVERTED">✅ Converted ({counts.converted})</SelectItem>
-                      <SelectItem value="LOST">❌ Lost ({counts.lost})</SelectItem>
+                      <SelectItem value="all">{tFilters('all')} {counts.all}</SelectItem>
+                      <SelectItem value="requests">{tFilters('requests')} {counts.requests}</SelectItem>
+                      <SelectItem value="calls">{tFilters('calls')} {counts.calls}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
-                    <SelectTrigger className="h-8 text-xs md:text-sm">
-                      <SelectValue>
-                        {sortBy === 'date-new' ? '📅 Newest' :
-                         sortBy === 'date-old' ? '📅 Oldest' :
+                    <SelectTrigger className="h-8 text-xs md:text-sm flex-1 min-w-0">
+                      <SelectValue className="truncate">
+                        {sortBy === 'date-new' ? `📅 ${tFilters('newest')}` :
+                         sortBy === 'date-old' ? `📅 ${tFilters('oldest')}` :
                          sortBy === 'name-az' ? '🔤 A-Z' :
                          '🔤 Z-A'}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="date-new">📅 Newest First</SelectItem>
-                      <SelectItem value="date-old">📅 Oldest First</SelectItem>
-                      <SelectItem value="name-az">🔤 Name (A-Z)</SelectItem>
-                      <SelectItem value="name-za">🔤 Name (Z-A)</SelectItem>
+                      <SelectItem value="date-new">📅 {tFilters('newestFirst')}</SelectItem>
+                      <SelectItem value="date-old">📅 {tFilters('oldestFirst')}</SelectItem>
+                      <SelectItem value="name-az">🔤 {tFilters('nameAZ')}</SelectItem>
+                      <SelectItem value="name-za">🔤 {tFilters('nameZA')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -850,7 +769,7 @@ export function UnifiedLeads() {
                 <div className="p-4 text-center text-destructive flex-shrink-0">
                   <p className="text-sm">{error}</p>
                   <Button onClick={fetchAllLeads} className="mt-2" variant="outline" size="sm">
-                    Retry
+                    {tCommon('retry')}
                   </Button>
                 </div>
               )}
@@ -1040,6 +959,10 @@ interface LeadDetailsPanelProps {
 }
 
 function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
+  const tLeads = useTranslations('leads')
+  const tFilters = useTranslations('filters')
+  const tCommon = useTranslations('common')
+  
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -1094,7 +1017,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   variant="outline" 
                   className="text-[10px] md:text-xs px-1.5 md:px-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
                 >
-                  📞📝 Consolidated
+                  📞📝 {tLeads('consolidated')}
                 </Badge>
               ) : (
                 <Badge 
@@ -1124,9 +1047,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             <div className="flex-1 border-r bg-muted/10 hidden lg:flex lg:flex-col min-h-0">
               <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  Conversation History
+                  {tLeads('conversationHistory')}
                 </h3>
-                <p className="text-[10px] md:text-xs text-muted-foreground">Live chat messages</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
               </div>
               
               <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
@@ -1139,7 +1062,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Contact Information */}
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  Contact Information
+                  {tLeads('contactInformation')}
                 </h3>
                 <div className="space-y-2 md:space-y-3">
                   {lead.phone && (
@@ -1147,7 +1070,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
                       <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
                       <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
-                        <a href={`tel:${lead.phone}`}>Call</a>
+                        <a href={`tel:${lead.phone}`}>{tCommon('call')}</a>
                       </Button>
                     </div>
                   )}
@@ -1174,10 +1097,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {lead.summary_text && (
                 <div>
                   <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <span>AI Summary</span>
+                    <span>{tLeads('aiSummary')}</span>
                     {(lead as any).contractor_ai_call_lead_id && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                        From Call
+                        {tLeads('fromCall')}
                       </Badge>
                     )}
                   </h3>
@@ -1191,9 +1114,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
                 <div>
                   <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <span>Project Description</span>
+                    <span>{tLeads('projectDescription')}</span>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                      From Quote Request
+                      {tLeads('fromQuoteRequest')}
                     </Badge>
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
@@ -1206,7 +1129,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {lead.description && lead.type === 'call' && !lead.summary_text && (
                 <div>
                   <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                    Project Description
+                    {tLeads('projectDescription')}
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
                     <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
@@ -1248,7 +1171,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Mobile Conversation View */}
               <div className="lg:hidden">
                 <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                  Conversation History
+                  {tLeads('conversationHistory')}
                 </h3>
                 <Card className="max-h-64 overflow-hidden">
                   <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
@@ -1262,7 +1185,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {/* Contact Information */}
             <div>
               <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                Contact Information
+                {tLeads('contactInformation')}
               </h3>
               <div className="space-y-2 md:space-y-3">
                 {lead.phone && (
@@ -1270,7 +1193,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
                     <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
                     <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
-                      <a href={`tel:${lead.phone}`}>Call</a>
+                      <a href={`tel:${lead.phone}`}>{tCommon('call')}</a>
                     </Button>
                   </div>
                 )}
@@ -1363,7 +1286,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 {/* Mobile Conversation View (for consolidated leads) */}
                 <div className="lg:hidden">
                   <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    Conversation History
+                    {tLeads('conversationHistory')}
                   </h3>
                   <Card className="max-h-64 overflow-hidden">
                     <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
@@ -1382,7 +1305,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             <Button variant="default" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={`tel:${lead.phone}`}>
                 <Phone className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-                Call Customer
+                {tLeads('callCustomer')}
               </a>
             </Button>
           )}
@@ -1394,7 +1317,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                View Quote
+                {tFilters('quoted')}
               </a>
             </Button>
           ) : (
@@ -1407,7 +1330,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Create Quote
+                {tLeads('createQuote')}
               </a>
             </Button>
           )}
@@ -1422,7 +1345,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               <svg className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Mark as Contacted
+              {tLeads('markAsContacted')}
             </Button>
           )}
         </div>
@@ -1431,7 +1354,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           <div className="mt-2 md:mt-3">
             <Button variant="ghost" asChild className="w-full h-8 md:h-10 text-xs md:text-sm">
               <a href={`/leads/${lead.id.replace('request-', '')}`}>
-                View Full Details →
+                {tLeads('viewFullDetails')} →
               </a>
             </Button>
           </div>

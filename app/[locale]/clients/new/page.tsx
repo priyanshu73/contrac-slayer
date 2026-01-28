@@ -2,8 +2,11 @@
 
 import { AddClientForm } from "@/components/add-client-form"
 import { Button } from "@/components/ui/button"
+import { useTranslations } from "next-intl"
 
 export default function NewClientPage() {
+  const tClients = useTranslations('clients')
+  
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -17,9 +20,9 @@ export default function NewClientPage() {
               </a>
             </Button>
             <div>
-              <h1 className="text-lg font-semibold leading-none">Add New Client</h1>
+              <h1 className="text-lg font-semibold leading-none">{tClients('addNewClient')}</h1>
               <p className="text-sm text-muted-foreground">
-                Create a new client profile
+                {tClients('createNewClientProfile')}
               </p>
             </div>
           </div>

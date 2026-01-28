@@ -9,12 +9,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 
 export function AddClientForm() {
   const { toast } = useToast()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tClients = useTranslations('clients')
+  const tCommon = useTranslations('common')
 
   // Form state - simplified to essential fields only
   const [formData, setFormData] = useState({
@@ -107,11 +110,11 @@ export function AddClientForm() {
 
       {/* Contact Information */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Client Information</h2>
+        <h2 className="text-lg font-semibold mb-4">{tClients('clientInformation')}</h2>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">
-              Name <span className="text-red-500">*</span>
+              {tClients('name')} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
@@ -125,7 +128,7 @@ export function AddClientForm() {
 
           <div className="space-y-2">
             <Label htmlFor="email">
-              Email <span className="text-red-500">*</span>
+              {tClients('email')} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="email"
@@ -138,7 +141,7 @@ export function AddClientForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">{tClients('phone')}</Label>
             <Input
               id="phone"
               type="tel"
@@ -149,7 +152,7 @@ export function AddClientForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="address">{tClients('address')}</Label>
             <Textarea
               id="address"
               value={formData.address}
@@ -160,12 +163,12 @@ export function AddClientForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="billing_address">Billing Address</Label>
+            <Label htmlFor="billing_address">{tClients('billingAddress')}</Label>
             <Textarea
               id="billing_address"
               value={formData.billing_address}
               onChange={(e) => handleChange("billing_address", e.target.value)}
-              placeholder="If different from address above"
+              placeholder={tClients('billingAddressHint')}
               className="min-h-[80px]"
             />
           </div>
@@ -184,14 +187,14 @@ export function AddClientForm() {
               <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Creating Client...
+              {tCommon('loading')}
             </>
           ) : (
             <>
               <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Create Client
+              {tClients('createClient')}
             </>
           )}
         </Button>
@@ -202,7 +205,7 @@ export function AddClientForm() {
           onClick={() => router.push("/clients")}
           disabled={loading}
         >
-          Cancel
+          {tCommon('cancel')}
         </Button>
       </div>
     </form>

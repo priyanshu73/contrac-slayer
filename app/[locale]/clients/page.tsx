@@ -5,10 +5,12 @@ import { ClientsSearch } from "@/components/clients-search"
 import { ClientsList } from "@/components/clients-list"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
+import { useTranslations } from "next-intl"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const tClients = useTranslations('clients')
 
   useEffect(() => {
     fetchClients()
@@ -41,7 +43,7 @@ export default function ClientsPage() {
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Client
+                {tClients('addClient')}
               </a>
             </Button>
           </div>
