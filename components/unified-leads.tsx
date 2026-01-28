@@ -783,7 +783,7 @@ export function UnifiedLeads() {
           </div>
           {/* New button - always visible */}
           <Button asChild size="sm" className="h-8 md:h-10">
-            <a href="/quotes/new">New Quote</a>
+            <a href="/quote-request/new">New</a>
           </Button>
         </div>
       </header>

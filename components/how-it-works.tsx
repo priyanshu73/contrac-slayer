@@ -2,13 +2,13 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Sparkles, X, Plus, Package } from "lucide-react"
+import { Sparkles, X, Plus, Package, Calendar, Check } from "lucide-react"
 import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="py-32 px-4 bg-white relative overflow-hidden dark:bg-background">
-      <div className="absolute left-1/2 top-48 bottom-24 w-0.5 bg-gradient-to-b from-blue-200 via-teal-200 to-indigo-200 hidden lg:block" />
+      <div className="absolute left-1/2 top-48 bottom-24 w-0.5 bg-gradient-to-b from-blue-200 via-teal-200 via-indigo-200 to-purple-200 hidden lg:block" />
 
       {/* The vertical timeline line */}
 
@@ -194,9 +194,6 @@ export function HowItWorks() {
 
                     <div className="space-y-3">
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="h-20 w-20 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-transparent">
-                          <img src="/images/home-depot.svg" alt="Home Depot" className="h-20 w-20 object-contain" />
-                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-lg line-clamp-2">Flagstone Natural Paver 12x12</div>
                           <div className="text-base text-muted-foreground mt-1">Perfect for your patio project</div>
@@ -210,9 +207,6 @@ export function HowItWorks() {
                       </div>
 
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="h-20 w-20 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-transparent">
-                          <img src="/images/lowes.svg" alt="Lowe's" className="h-20 w-20 object-contain" />
-                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-lg line-clamp-2">Red Oak Tree 7-8 ft Potted</div>
                           <div className="text-base text-muted-foreground mt-1">Fast-growing shade tree</div>
@@ -226,10 +220,6 @@ export function HowItWorks() {
                       </div>
 
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="h-20 w-20 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-transparent">
-                          {/* Using Home Depot logo for Menards as requested */}
-                          <img src="/images/home-depot.svg" alt="Home Depot (for Menards)" className="h-20 w-20 object-contain" />
-                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-lg line-clamp-2">Premium Kentucky Bluegrass Sod</div>
                           <div className="text-base text-muted-foreground mt-1">High-quality lawn grass</div>
@@ -251,8 +241,92 @@ export function HowItWorks() {
                   <h3 className="text-4xl font-bold text-balance">Smart Product Suggestions</h3>
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  AI recommends the best products from Home Depot, Lowe's, and Menards based on your project needs with
-                  real-time pricing and availability.
+                  AI recommends the best products for your project needs with real-time pricing and availability.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 5 - Smart Scheduling */}
+            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
+              {/* Timeline circle for step 5 (aligned to this step) */}
+              <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-purple-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
+                <span className="text-2xl font-bold text-purple-600">5</span>
+              </div>
+              <div className="lg:pr-16">
+                <Card className="p-5 bg-gradient-to-br from-[#F3E8FF] to-[#E9D5FF] dark:from-purple-950/20 dark:to-violet-900/20 border-purple-200/40 dark:border-purple-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
+                    {/* SMS Detection Banner */}
+                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Calendar className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-base text-blue-900 dark:text-blue-100 mb-1">
+                            Meeting detected from your conversation!
+                          </div>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            Customer on 2026-01-20 at 1:00 PM @ 309 Washington Street, Gettysburg, PA
+                          </p>
+                          <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
+                            <span className="font-medium">Details:</span> Customer | 2026-01-20 | 1:00 PM | 309 Washington Street, 
+                            Gettysburg, PA | Site visit or project discussion
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Prompt */}
+                    <div className="mb-4">
+                      <p className="text-base text-muted-foreground">
+                        Reply <span className="font-semibold text-foreground">YES</span> to add to your calendar, or{" "}
+                        <span className="font-semibold text-foreground">NO</span> to skip.
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 mb-4">
+                      <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-base h-11">
+                        <Check className="h-4 w-4 mr-2" />
+                        YES
+                      </Button>
+                      <Button variant="outline" className="flex-1 text-base h-11">
+                        NO
+                      </Button>
+                    </div>
+
+                    {/* Success Confirmation */}
+                    <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                          <Check className="h-4 w-4 text-white" />
+                        </div>
+                        <p className="text-base font-semibold text-green-900 dark:text-green-100">
+                          Meeting scheduled with Customer on 2026-01-20 at 1:00 PM!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Calendar Link Info */}
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-start gap-2">
+                        <Calendar className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-muted-foreground">
+                          Calendar link automatically sent to customer to book based on your availability
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </Card>
+              </div>
+
+              <div className="lg:pl-16 order-first lg:order-last">
+                <div className="flex items-center gap-4 mb-5">
+                  <h3 className="text-4xl font-bold text-balance">AI-Powered Scheduling</h3>
+                </div>
+                <p className="text-xl text-muted-foreground leading-relaxed">
+                  AI automatically detects scheduling conversations in your SMS and helps book meetings instantly. 
+                  Customers receive a calendar link to select times based on your availability—no back-and-forth needed.
                 </p>
               </div>
             </div>
