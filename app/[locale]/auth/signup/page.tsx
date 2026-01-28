@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,14 +10,66 @@ import { useAuth } from "@/contexts/AuthContext"
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [referralId, setReferralId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     full_name: "",
   })
+
+  // Get referral ID from URL params or sessionStorage
+  useEffect(() => {
+    const refFromUrl = searchParams.get("ref") || searchParams.get("referral_id")
+    if (refFromUrl) {
+      setReferralId(refFromUrl)
+      sessionStorage.setItem("referral_id", refFromUrl)
+    } else {
+      const storedRef = sessionStorage.getItem("referral_id")
+      if (storedRef) {
+        setReferralId(storedRef)
+      }
+    }
+  }, [searchParams])
+
+  // Function to track referral in SheetDB
+  const trackReferral = async (customerName: string) => {
+    if (!referralId) return
+
+    const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_API
+    if (!sheetDbUrl) {
+      console.warn("SHEETDB_API environment variable not set")
+      return
+    }
+
+    try {
+      const today = new Date()
+      const dateStr = today.toISOString().split('T')[0] // YYYY-MM-DD format
+
+      await fetch(sheetDbUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          data: {
+            id: referralId,
+            customer_name: customerName,
+            date: dateStr,
+          },
+        }),
+      })
+
+      // Clear referral from sessionStorage after successful tracking
+      sessionStorage.removeItem("referral_id")
+    } catch (err) {
+      // Don't block signup if referral tracking fails
+      console.error("Failed to track referral:", err)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +89,10 @@ export default function SignupPage() {
 
     try {
       const response = await api.signup(formData.email, formData.password, formData.full_name) as any
+      
+      // Track referral if present (don't await - fire and forget)
+      trackReferral(formData.full_name)
+      
       // Redirect to OTP verification page
       router.push(`/auth/verify-otp?email=${encodeURIComponent(formData.email)}`)
     } catch (err: any) {

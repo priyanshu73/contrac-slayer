@@ -1,9 +1,11 @@
 import type React from "react"
+import { Suspense } from "react"
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AuthProvider } from "@/contexts/AuthContext"
 import { LanguageProvider } from "@/contexts/LanguageContext"
+import { ReferralProvider } from "@/contexts/ReferralContext"
 import { AuthGuard } from "@/components/auth-guard"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
@@ -33,11 +35,15 @@ export default async function LocaleLayout({
     <NextIntlClientProvider locale={locale} messages={messages}>
       <AuthProvider>
         <LanguageProvider>
-          <AuthGuard>
-            <Navbar />
-            <EmailVerificationBanner />
-            {children}
-          </AuthGuard>
+          <Suspense fallback={null}>
+            <ReferralProvider>
+              <AuthGuard>
+                <Navbar />
+                <EmailVerificationBanner />
+                {children}
+              </AuthGuard>
+            </ReferralProvider>
+          </Suspense>
         </LanguageProvider>
       </AuthProvider>
     </NextIntlClientProvider>

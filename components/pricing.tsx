@@ -5,9 +5,12 @@ import { Card } from "@/components/ui/card"
 import { Check, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useLocale } from "next-intl"
+import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
 
 export function Pricing() {
   const locale = useLocale()
+  const { referralId } = useReferral()
+  const signupUrl = buildSignupUrl(locale, referralId)
 
   const features = [
     "AI-Powered Quote Generation",
@@ -61,7 +64,7 @@ export function Pricing() {
               variant="outline"
               asChild
             >
-              <Link href={`/${locale}/auth/signup`}>
+              <Link href={signupUrl}>
                 Start Free Trial
               </Link>
             </Button>
@@ -107,7 +110,7 @@ export function Pricing() {
               size="lg"
               asChild
             >
-              <Link href={`/${locale}/auth/signup`}>
+              <Link href={signupUrl}>
                 Start Free Trial
               </Link>
             </Button>

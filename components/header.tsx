@@ -3,9 +3,12 @@
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
+import { useReferral, buildSignupUrl } from '@/contexts/ReferralContext'
 
 export function Header() {
   const locale = useLocale()
+  const { referralId } = useReferral()
+  const signupUrl = buildSignupUrl(locale, referralId)
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
@@ -37,7 +40,7 @@ export function Header() {
               <Link href={`/${locale}/auth/login`}>Sign In</Link>
             </Button>
             <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-              <Link href={`/${locale}/auth/signup`}>Start Free Trial</Link>
+              <Link href={signupUrl}>Start Free Trial</Link>
             </Button>
           </div>
         </div>
