@@ -242,5 +242,15 @@
   "metadata": {
     "title": "ContractorOps AI - AI-Powered CRM for Modern Contractors",
     "description": "Communicate with clients via SMS no app downloads required. AI listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by AI "
+  },
+  "translation": {
+    "translate": "Translate",
+    "translateToSpanish": "Translate to Spanish",
+    "translateToEnglish": "Translate to English",
+    "translating": "Translating...",
+    "showOriginal": "Show original",
+    "translated": "Translated",
+    "translateAll": "Translate All",
+    "messages": "messages"
   }
 }

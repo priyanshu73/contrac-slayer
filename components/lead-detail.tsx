@@ -1,18 +1,123 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { Lead } from "@/lib/types"
 import Image from "next/image"
+import { useLocale, useTranslations } from "next-intl"
+import { Languages, Loader2, RotateCcw } from "lucide-react"
+
+// Translation cache utilities
+const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
+
+interface TranslationCacheEntry {
+  translation: string
+  timestamp: number
+}
+
+interface TranslationCache {
+  [key: string]: TranslationCacheEntry
+}
+
+const generateCacheKey = (text: string, targetLang: string): string => {
+  const hash = text.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0) | 0
+  }, 0)
+  return `${targetLang}_${hash}_${text.length}`
+}
+
+const getCachedTranslation = (text: string, targetLang: string): string | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
+    if (!cacheStr) return null
+    const cache: TranslationCache = JSON.parse(cacheStr)
+    const key = generateCacheKey(text, targetLang)
+    const entry = cache[key]
+    if (!entry) return null
+    const expiryTime = 7 * 24 * 60 * 60 * 1000
+    if (Date.now() - entry.timestamp > expiryTime) {
+      delete cache[key]
+      localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
+      return null
+    }
+    return entry.translation
+  } catch (error) {
+    return null
+  }
+}
+
+const setCachedTranslation = (text: string, targetLang: string, translation: string): void => {
+  if (typeof window === 'undefined') return
+  try {
+    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
+    const cache: TranslationCache = cacheStr ? JSON.parse(cacheStr) : {}
+    const key = generateCacheKey(text, targetLang)
+    cache[key] = { translation, timestamp: Date.now() }
+    const keys = Object.keys(cache)
+    if (keys.length > 500) {
+      const sorted = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)
+      sorted.slice(0, keys.length - 500).forEach(k => delete cache[k])
+    }
+    localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
+  } catch (error) {
+    console.error('Error saving to translation cache:', error)
+  }
+}
+
+const translateWithCache = async (text: string, targetLang: string, sourceLang?: string): Promise<string> => {
+  const cached = getCachedTranslation(text, targetLang)
+  if (cached) return cached
+  const response = await api.translateText(text, targetLang, sourceLang)
+  setCachedTranslation(text, targetLang, response.translated_text)
+  return response.translated_text
+}
 
 export function LeadDetail({ leadId }: { leadId: string }) {
+  const locale = useLocale()
+  const tTranslation = useTranslations('translation')
+  const tLeads = useTranslations('leads')
+  
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
+  
+  // Translation states
+  const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
+  const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
+  const [translatedNotes, setTranslatedNotes] = useState<string | null>(null)
+  const [isTranslatingNotes, setIsTranslatingNotes] = useState(false)
+  
+  // Reset translations when lead changes
+  useEffect(() => {
+    setTranslatedDescription(null)
+    setTranslatedNotes(null)
+  }, [leadId])
+  
+  const handleTranslate = async (
+    text: string,
+    setTranslated: (text: string | null) => void,
+    setLoading: (loading: boolean) => void,
+    isTranslated: boolean
+  ) => {
+    if (isTranslated) {
+      setTranslated(null)
+      return
+    }
+    setLoading(true)
+    try {
+      const translated = await translateWithCache(text, 'es', 'en')
+      setTranslated(translated)
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     fetchLead()
@@ -328,16 +433,84 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       {/* Project Description Card */}
       {lead.description && (
         <Card className="p-6">
-          <h3 className="mb-4 text-lg font-semibold">Project Description</h3>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{lead.description}</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">{tLeads('projectDescription')}</h3>
+            {locale === 'es' && (
+              <button
+                onClick={() => handleTranslate(
+                  lead.description!,
+                  setTranslatedDescription,
+                  setIsTranslatingDescription,
+                  !!translatedDescription
+                )}
+                disabled={isTranslatingDescription}
+                className={`p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                  translatedDescription 
+                    ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                }`}
+                title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+              >
+                {isTranslatingDescription ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                ) : translatedDescription ? (
+                  <RotateCcw className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <Languages className="h-5 w-5 text-white" />
+                )}
+              </button>
+            )}
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {translatedDescription || lead.description}
+          </p>
+          {translatedDescription && (
+            <p className="text-xs mt-3 text-green-600 dark:text-green-400 italic">
+              ✓ {tTranslation('translated')}
+            </p>
+          )}
         </Card>
       )}
 
       {/* Notes Card */}
       {lead.notes && (
         <Card className="p-6">
-          <h3 className="mb-4 text-lg font-semibold">Internal Notes</h3>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{lead.notes}</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Internal Notes</h3>
+            {locale === 'es' && (
+              <button
+                onClick={() => handleTranslate(
+                  lead.notes!,
+                  setTranslatedNotes,
+                  setIsTranslatingNotes,
+                  !!translatedNotes
+                )}
+                disabled={isTranslatingNotes}
+                className={`p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                  translatedNotes 
+                    ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                }`}
+                title={translatedNotes ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+              >
+                {isTranslatingNotes ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                ) : translatedNotes ? (
+                  <RotateCcw className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <Languages className="h-5 w-5 text-white" />
+                )}
+              </button>
+            )}
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+            {translatedNotes || lead.notes}
+          </p>
+          {translatedNotes && (
+            <p className="text-xs mt-3 text-green-600 dark:text-green-400 italic">
+              ✓ {tTranslation('translated')}
+            </p>
+          )}
         </Card>
       )}
 

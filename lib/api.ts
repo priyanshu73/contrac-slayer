@@ -564,6 +564,49 @@ class ApiClient {
     const qs = searchParams.toString()
     return this.request(`/neetocal/available-slots${qs ? `?${qs}` : ''}`)
   }
+
+  // =========================
+  // Translation Service
+  // =========================
+  async translateText(text: string, targetLanguage: string, sourceLanguage?: string): Promise<{
+    translated_text: string
+    source_language: string | null
+    target_language: string
+    original_text: string
+  }> {
+    return this.request('/translate', {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        target_language: targetLanguage,
+        source_language: sourceLanguage
+      }),
+    })
+  }
+
+  async translateBatch(texts: string[], targetLanguage: string, sourceLanguage?: string): Promise<{
+    translated_texts: string[]
+    target_language: string
+    source_language: string | null
+    count: number
+  }> {
+    return this.request('/translate/batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        texts,
+        target_language: targetLanguage,
+        source_language: sourceLanguage
+      }),
+    })
+  }
+
+  async getSupportedLanguages(): Promise<{
+    languages: Record<string, string>
+    default_target: string
+    default_source: string
+  }> {
+    return this.request('/translate/languages')
+  }
 }
 
 class ContractorAIClient {

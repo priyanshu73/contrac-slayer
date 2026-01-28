@@ -10,8 +10,121 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, contractorAI } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useTranslations } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw } from "lucide-react"
+import { TranslatableSection } from "@/components/translate-button"
+
+// ============================================
+// Translation Cache Utilities (localStorage)
+// ============================================
+const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
+const CACHE_EXPIRY_DAYS = 7
+
+interface TranslationCacheEntry {
+  translation: string
+  timestamp: number
+}
+
+interface TranslationCache {
+  [key: string]: TranslationCacheEntry
+}
+
+// Generate a cache key from the original text
+const generateCacheKey = (text: string, targetLang: string): string => {
+  // Use a hash of the text + target language
+  const hash = text.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0) | 0
+  }, 0)
+  return `${targetLang}_${hash}_${text.length}`
+}
+
+// Get translation from cache
+const getCachedTranslation = (text: string, targetLang: string): string | null => {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
+    if (!cacheStr) return null
+    
+    const cache: TranslationCache = JSON.parse(cacheStr)
+    const key = generateCacheKey(text, targetLang)
+    const entry = cache[key]
+    
+    if (!entry) return null
+    
+    // Check if cache entry is expired
+    const expiryTime = CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    if (Date.now() - entry.timestamp > expiryTime) {
+      // Remove expired entry
+      delete cache[key]
+      localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
+      return null
+    }
+    
+    return entry.translation
+  } catch (error) {
+    console.error('Error reading translation cache:', error)
+    return null
+  }
+}
+
+// Save translation to cache
+const setCachedTranslation = (text: string, targetLang: string, translation: string): void => {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
+    const cache: TranslationCache = cacheStr ? JSON.parse(cacheStr) : {}
+    
+    const key = generateCacheKey(text, targetLang)
+    cache[key] = {
+      translation,
+      timestamp: Date.now()
+    }
+    
+    // Limit cache size (keep last 500 entries)
+    const keys = Object.keys(cache)
+    if (keys.length > 500) {
+      // Sort by timestamp and remove oldest
+      const sorted = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)
+      sorted.slice(0, keys.length - 500).forEach(k => delete cache[k])
+    }
+    
+    localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
+  } catch (error) {
+    console.error('Error saving to translation cache:', error)
+  }
+}
+
+// Translate text with caching
+const translateWithCache = async (
+  text: string, 
+  targetLang: string, 
+  sourceLang?: string
+): Promise<string> => {
+  // Check cache first
+  const cached = getCachedTranslation(text, targetLang)
+  if (cached) {
+    console.log('🔄 Using cached translation')
+    return cached
+  }
+  
+  // Call API
+  const response = await api.translateText(text, targetLang, sourceLang)
+  
+  // Cache the result
+  setCachedTranslation(text, targetLang, response.translated_text)
+  
+  return response.translated_text
+}
+
+// Format transcript translation - replace speaker names
+const formatTranscriptTranslation = (translatedText: string): string => {
+  return translatedText
+    .replace(/\bContractor\b/gi, 'Contratista')
+    .replace(/\bCustomer\b/gi, 'Cliente')
+    .replace(/\bClient\b/gi, 'Cliente')
+}
 
 // Utility function to normalize phone numbers to E.164 format (+1XXXXXXXXXX)
 const normalizePhoneToE164 = (phone: string | undefined | null): string => {
@@ -962,6 +1075,44 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const tLeads = useTranslations('leads')
   const tFilters = useTranslations('filters')
   const tCommon = useTranslations('common')
+  const tTranslation = useTranslations('translation')
+  const locale = useLocale()
+  
+  // Translation states for different sections
+  const [translatedSummary, setTranslatedSummary] = useState<string | null>(null)
+  const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
+  const [isTranslatingSummary, setIsTranslatingSummary] = useState(false)
+  const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
+  
+  // Reset translations when lead changes
+  useEffect(() => {
+    setTranslatedSummary(null)
+    setTranslatedDescription(null)
+  }, [lead.id])
+  
+  const handleTranslate = async (
+    text: string,
+    setTranslated: (text: string | null) => void,
+    setLoading: (loading: boolean) => void,
+    isTranslated: boolean
+  ) => {
+    if (isTranslated) {
+      // Reset to original
+      setTranslated(null)
+      return
+    }
+    
+    setLoading(true)
+    try {
+      // Use cached translation
+      const translated = await translateWithCache(text, 'es', 'en')
+      setTranslated(translated)
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
   
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -1103,9 +1254,41 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         {tLeads('fromCall')}
                       </Badge>
                     )}
+                    {locale === 'es' && (
+                      <button
+                        onClick={() => handleTranslate(
+                          lead.summary_text!,
+                          setTranslatedSummary,
+                          setIsTranslatingSummary,
+                          !!translatedSummary
+                        )}
+                        disabled={isTranslatingSummary}
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                          translatedSummary 
+                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                        }`}
+                        title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                      >
+                        {isTranslatingSummary ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        ) : translatedSummary ? (
+                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Languages className="h-4 w-4 text-white" />
+                        )}
+                      </button>
+                    )}
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.summary_text}</p>
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
+                      {translatedSummary || lead.summary_text}
+                    </p>
+                    {translatedSummary && (
+                      <p className="text-[10px] mt-2 text-blue-600 dark:text-blue-400 italic">
+                        {tTranslation('translated')}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1118,9 +1301,41 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                       {tLeads('fromQuoteRequest')}
                     </Badge>
+                    {locale === 'es' && (
+                      <button
+                        onClick={() => handleTranslate(
+                          lead.description!,
+                          setTranslatedDescription,
+                          setIsTranslatingDescription,
+                          !!translatedDescription
+                        )}
+                        disabled={isTranslatingDescription}
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                          translatedDescription 
+                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                        }`}
+                        title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                      >
+                        {isTranslatingDescription ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        ) : translatedDescription ? (
+                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Languages className="h-4 w-4 text-white" />
+                        )}
+                      </button>
+                    )}
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
+                      {translatedDescription || lead.description}
+                    </p>
+                    {translatedDescription && (
+                      <p className="text-[10px] mt-2 text-purple-600 dark:text-purple-400 italic">
+                        {tTranslation('translated')}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1128,11 +1343,43 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Project Description for call-only leads (fallback) */}
               {lead.description && lead.type === 'call' && !lead.summary_text && (
                 <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                    {tLeads('projectDescription')}
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                    <span>{tLeads('projectDescription')}</span>
+                    {locale === 'es' && (
+                      <button
+                        onClick={() => handleTranslate(
+                          lead.description!,
+                          setTranslatedDescription,
+                          setIsTranslatingDescription,
+                          !!translatedDescription
+                        )}
+                        disabled={isTranslatingDescription}
+                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                          translatedDescription 
+                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                        }`}
+                        title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                      >
+                        {isTranslatingDescription ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        ) : translatedDescription ? (
+                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Languages className="h-4 w-4 text-white" />
+                        )}
+                      </button>
+                    )}
                   </h3>
                   <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
+                      {translatedDescription || lead.description}
+                    </p>
+                    {translatedDescription && (
+                      <p className="text-[10px] mt-2 text-muted-foreground italic">
+                        {tTranslation('translated')}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1220,15 +1467,47 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {lead.summary_text && (
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <span>AI Summary</span>
+                  <span>{tLeads('aiSummary')}</span>
                   {(lead as any).contractor_ai_call_lead_id && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                      From Call
+                      {tLeads('fromCall')}
                     </Badge>
+                  )}
+                  {locale === 'es' && (
+                    <button
+                      onClick={() => handleTranslate(
+                        lead.summary_text!,
+                        setTranslatedSummary,
+                        setIsTranslatingSummary,
+                        !!translatedSummary
+                      )}
+                      disabled={isTranslatingSummary}
+                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                        translatedSummary 
+                          ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                      }`}
+                      title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                    >
+                      {isTranslatingSummary ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : translatedSummary ? (
+                        <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Languages className="h-4 w-4 text-white" />
+                      )}
+                    </button>
                   )}
                 </h3>
                 <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
-                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.summary_text}</p>
+                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
+                    {translatedSummary || lead.summary_text}
+                  </p>
+                  {translatedSummary && (
+                    <p className="text-[10px] mt-2 text-blue-600 dark:text-blue-400 italic">
+                      {tTranslation('translated')}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -1237,15 +1516,47 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {lead.description && (
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <span>Project Description</span>
+                  <span>{tLeads('projectDescription')}</span>
                   {lead.type === 'request' && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                      From Quote Request
+                      {tLeads('fromQuoteRequest')}
                     </Badge>
+                  )}
+                  {locale === 'es' && (
+                    <button
+                      onClick={() => handleTranslate(
+                        lead.description!,
+                        setTranslatedDescription,
+                        setIsTranslatingDescription,
+                        !!translatedDescription
+                      )}
+                      disabled={isTranslatingDescription}
+                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                        translatedDescription 
+                          ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                      }`}
+                      title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                    >
+                      {isTranslatingDescription ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : translatedDescription ? (
+                        <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Languages className="h-4 w-4 text-white" />
+                      )}
+                    </button>
                   )}
                 </h3>
                 <div className="p-2.5 md:p-4 rounded-lg bg-muted/50">
-                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{lead.description}</p>
+                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
+                    {translatedDescription || lead.description}
+                  </p>
+                  {translatedDescription && (
+                    <p className="text-[10px] mt-2 text-purple-600 dark:text-purple-400 italic">
+                      {tTranslation('translated')}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -1371,9 +1682,90 @@ interface ConversationMessagesProps {
 
 function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
   const { getContractorAISpId } = useAuth()
+  const locale = useLocale()
+  const tTranslation = useTranslations('translation')
+  const tLeads = useTranslations('leads')
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  
+  // Translation state - translate all at once
+  const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({})
+  const [isTranslatingAll, setIsTranslatingAll] = useState(false)
+  const [allTranslated, setAllTranslated] = useState(false)
+  
+  // Generate a cache key for the conversation
+  const getConversationCacheKey = useCallback(() => {
+    return `conv_translations_${phoneNumber}`
+  }, [phoneNumber])
+  
+  // Load cached translations on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && phoneNumber) {
+      try {
+        const cached = localStorage.getItem(getConversationCacheKey())
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          setTranslatedMessages(parsed.translations || {})
+          setAllTranslated(Object.keys(parsed.translations || {}).length > 0)
+        }
+      } catch (e) {
+        console.error('Error loading cached conversation translations:', e)
+      }
+    }
+  }, [phoneNumber, getConversationCacheKey])
+  
+  // Translate all messages at once
+  const handleTranslateAll = async () => {
+    if (allTranslated) {
+      // Reset to original
+      setTranslatedMessages({})
+      setAllTranslated(false)
+      // Clear cache
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(getConversationCacheKey())
+      }
+      return
+    }
+    
+    setIsTranslatingAll(true)
+    try {
+      // Get all message texts that need translation
+      const textsToTranslate = messages
+        .filter(msg => msg.message_text && msg.message_text.trim())
+        .map(msg => msg.message_text)
+      
+      if (textsToTranslate.length === 0) return
+      
+      // Translate all at once using batch API
+      const response = await api.translateBatch(textsToTranslate, 'es', 'en')
+      
+      // Map translations back to message IDs
+      const newTranslations: Record<string, string> = {}
+      let translationIndex = 0
+      messages.forEach(msg => {
+        if (msg.message_text && msg.message_text.trim()) {
+          newTranslations[msg.id] = response.translated_texts[translationIndex]
+          translationIndex++
+        }
+      })
+      
+      setTranslatedMessages(newTranslations)
+      setAllTranslated(true)
+      
+      // Save to localStorage cache
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(getConversationCacheKey(), JSON.stringify({
+          translations: newTranslations,
+          timestamp: Date.now()
+        }))
+      }
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setIsTranslatingAll(false)
+    }
+  }
 
   useEffect(() => {
     if (phoneNumber) {
@@ -1514,51 +1906,117 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
     )
   }
 
+  // Get sender label based on locale and translation state
+  const getSenderLabel = (senderType: string): string => {
+    if (senderType === 'service_provider') {
+      return locale === 'es' ? 'Contratista' : 'Contractor'
+    }
+    return locale === 'es' ? 'Cliente' : 'Customer'
+  }
+
   return (
-    <div className="space-y-3 p-4">
-      {messages.map((msg) => (
-        <div
-          key={msg.id}
-          className={`flex ${msg.sender_type === 'service_provider' ? 'justify-end' : 'justify-start'}`}
-        >
-          <div
-            className={`max-w-xs rounded-lg px-3 py-2 text-sm ${
-              msg.sender_type === 'service_provider'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-foreground'
+    <div className="flex flex-col h-full">
+      {/* Translate All Header - only show when locale is 'es' */}
+      {locale === 'es' && messages.length > 0 && (
+        <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {allTranslated ? `✓ ${tTranslation('translated')}` : `${messages.length} mensajes`}
+          </span>
+          <button
+            onClick={handleTranslateAll}
+            disabled={isTranslatingAll}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md ${
+              allTranslated 
+                ? 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-400' 
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/30'
             }`}
           >
-            <p className="whitespace-pre-wrap">{msg.message_text}</p>
-            {msg.translated_text && msg.translated_text !== msg.message_text && (
-              <p className={`text-xs mt-2 italic opacity-75 border-t pt-2 ${
-                msg.sender_type === 'service_provider' 
-                  ? 'text-primary-foreground/70 border-primary-foreground/20' 
-                  : 'text-muted-foreground border-border'
-              }`}>
-                Translation: {msg.translated_text}
-              </p>
+            {isTranslatingAll ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{tTranslation('translating')}</span>
+              </>
+            ) : allTranslated ? (
+              <>
+                <RotateCcw className="h-4 w-4" />
+                <span>{tTranslation('showOriginal')}</span>
+              </>
+            ) : (
+              <>
+                <Languages className="h-4 w-4" />
+                <span>{tTranslation('translateToSpanish')}</span>
+              </>
             )}
-            <div className="flex items-center justify-between mt-1">
-              <p className={`text-xs ${
-                msg.sender_type === 'service_provider' 
-                  ? 'text-primary-foreground/70' 
-                  : 'text-muted-foreground'
-              }`}>
-                {formatTime(msg.timestamp)}
-              </p>
-              {msg.status && msg.sender_type === 'service_provider' && (
-                <span className={`text-xs ml-2 ${
-                  msg.status === 'delivered' ? 'text-primary-foreground/70' :
-                  msg.status === 'failed' ? 'text-red-300' :
-                  'text-primary-foreground/50'
-                }`}>
-                  {msg.status === 'delivered' ? '✓✓' : msg.status === 'sent' ? '✓' : '✗'}
-                </span>
-              )}
-            </div>
-          </div>
+          </button>
         </div>
-      ))}
+      )}
+      
+      {/* Messages List */}
+      <div className="flex-1 space-y-3 p-4 overflow-y-auto">
+        {messages.map((msg) => {
+          const isTranslated = !!translatedMessages[msg.id]
+          const displayText = translatedMessages[msg.id] || msg.message_text
+          const isServiceProvider = msg.sender_type === 'service_provider'
+          
+          return (
+            <div
+              key={msg.id}
+              className={`flex ${isServiceProvider ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                  isServiceProvider
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-foreground'
+                }`}
+              >
+                {/* Sender Label */}
+                <div className={`text-[10px] mb-1 font-medium ${
+                  isServiceProvider 
+                    ? 'text-primary-foreground/70' 
+                    : 'text-muted-foreground'
+                }`}>
+                  {getSenderLabel(msg.sender_type)}
+                </div>
+                
+                {/* Message Text */}
+                <p className="text-sm whitespace-pre-wrap">{displayText}</p>
+                
+                {/* Timestamp and Status */}
+                <div className="flex items-center justify-between mt-1.5 gap-2">
+                  <p className={`text-[10px] ${
+                    isServiceProvider 
+                      ? 'text-primary-foreground/60' 
+                      : 'text-muted-foreground'
+                  }`}>
+                    {formatTime(msg.timestamp)}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {isTranslated && (
+                      <span className={`text-[10px] italic ${
+                        isServiceProvider 
+                          ? 'text-primary-foreground/50' 
+                          : 'text-green-600 dark:text-green-400'
+                      }`}>
+                        ✓ {locale === 'es' ? 'traducido' : 'translated'}
+                      </span>
+                    )}
+                    {msg.status && isServiceProvider && (
+                      <span className={`text-[10px] ${
+                        msg.status === 'delivered' ? 'text-primary-foreground/70' :
+                        msg.status === 'failed' ? 'text-red-300' :
+                        'text-primary-foreground/50'
+                      }`}>
+                        {msg.status === 'delivered' ? '✓✓' : msg.status === 'sent' ? '✓' : '✗'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -1580,11 +2038,72 @@ interface CallHistoryItem {
 
 function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionProps) {
   const { getContractorAISpId } = useAuth()
+  const locale = useLocale()
+  const tTranslation = useTranslations('translation')
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([])
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isExpanded, setIsExpanded] = useState(false)
   const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
+  const [translatedTranscript, setTranslatedTranscript] = useState<string | null>(null)
+  const [isTranslatingTranscript, setIsTranslatingTranscript] = useState(false)
+  
+  // Generate cache key for transcript
+  const getTranscriptCacheKey = useCallback((callId: string) => {
+    return `transcript_translation_${phoneNumber}_${callId}`
+  }, [phoneNumber])
+  
+  // Load cached translation when call selection changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && selectedCallId) {
+      try {
+        const cached = localStorage.getItem(getTranscriptCacheKey(selectedCallId))
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          setTranslatedTranscript(parsed.translation)
+        } else {
+          setTranslatedTranscript(null)
+        }
+      } catch (e) {
+        console.error('Error loading cached transcript translation:', e)
+        setTranslatedTranscript(null)
+      }
+    } else {
+      setTranslatedTranscript(null)
+    }
+  }, [selectedCallId, getTranscriptCacheKey])
+  
+  const handleTranslateTranscript = async (text: string) => {
+    if (translatedTranscript) {
+      // Reset to original and clear cache
+      setTranslatedTranscript(null)
+      if (typeof window !== 'undefined' && selectedCallId) {
+        localStorage.removeItem(getTranscriptCacheKey(selectedCallId))
+      }
+      return
+    }
+    
+    setIsTranslatingTranscript(true)
+    try {
+      // Use cached translation helper
+      const translated = await translateWithCache(text, 'es', 'en')
+      // Format with Spanish speaker names
+      const formatted = formatTranscriptTranslation(translated)
+      setTranslatedTranscript(formatted)
+      
+      // Cache the result
+      if (typeof window !== 'undefined' && selectedCallId) {
+        localStorage.setItem(getTranscriptCacheKey(selectedCallId), JSON.stringify({
+          translation: formatted,
+          timestamp: Date.now()
+        }))
+      }
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setIsTranslatingTranscript(false)
+    }
+  }
 
   useEffect(() => {
     console.log('📞 CallHistorySection: Phone number received:', phoneNumber, 'Lead ID:', currentLeadId)
@@ -1740,8 +2259,20 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
     }
   }
 
-  const renderFormattedTranscript = (text: string) => {
+  const renderFormattedTranscript = (text: string, isTranslated: boolean = false) => {
     const lines = text.split('\n').filter(line => line.trim())
+    
+    // Get Spanish speaker labels
+    const getDisplaySpeaker = (speaker: string): string => {
+      const speakerLower = speaker.trim().toLowerCase()
+      if (speakerLower.includes('contractor') || speakerLower.includes('contratista')) {
+        return isTranslated || locale === 'es' ? 'Contratista' : 'Contractor'
+      }
+      if (speakerLower.includes('customer') || speakerLower.includes('client') || speakerLower.includes('cliente')) {
+        return isTranslated || locale === 'es' ? 'Cliente' : 'Customer'
+      }
+      return speaker.trim()
+    }
     
     return lines.map((line, index) => {
       const [speaker, ...messageParts] = line.split(':')
@@ -1751,7 +2282,9 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
         return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
       }
       
-      const isContractor = speaker.trim().toLowerCase().includes('contractor')
+      const speakerLower = speaker.trim().toLowerCase()
+      const isContractor = speakerLower.includes('contractor') || speakerLower.includes('contratista')
+      const displaySpeaker = getDisplaySpeaker(speaker)
       
       return (
         <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
@@ -1760,8 +2293,10 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
               ? 'bg-primary text-primary-foreground' 
               : 'bg-muted text-foreground'
           }`}>
-            <div className="text-xs opacity-70 mb-1 font-medium">
-              {speaker.trim()}
+            <div className={`text-[10px] mb-1 font-medium ${
+              isContractor ? 'text-primary-foreground/70' : 'text-muted-foreground'
+            }`}>
+              {displaySpeaker}
             </div>
             <div className="text-sm">
               {message}
@@ -1848,16 +2383,47 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           {/* Selected Call Transcript */}
           {selectedCall && hasTranscript && (
             <div>
-              <div className="mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Transcript
                 </h4>
+                {locale === 'es' && (
+                  <button
+                    onClick={() => handleTranslateTranscript(
+                      selectedCall.formatted_transcript_text || selectedCall.transcript_text || ''
+                    )}
+                    disabled={isTranslatingTranscript}
+                    className={`p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                      translatedTranscript 
+                        ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                    }`}
+                    title={translatedTranscript ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                  >
+                    {isTranslatingTranscript ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    ) : translatedTranscript ? (
+                      <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <Languages className="h-4 w-4 text-white" />
+                    )}
+                  </button>
+                )}
               </div>
               
               <div className="bg-muted/30 p-3 rounded-lg max-h-96 overflow-y-auto">
-                {selectedCall.formatted_transcript_text ? (
+                {translatedTranscript ? (
+                  <>
+                    <div className="space-y-2">
+                      {renderFormattedTranscript(translatedTranscript, true)}
+                    </div>
+                    <p className="text-[10px] mt-3 pt-2 border-t border-muted text-green-600 dark:text-green-400 italic text-center">
+                      ✓ {tTranslation('translated')}
+                    </p>
+                  </>
+                ) : selectedCall.formatted_transcript_text ? (
                   <div className="space-y-2">
-                    {renderFormattedTranscript(selectedCall.formatted_transcript_text)}
+                    {renderFormattedTranscript(selectedCall.formatted_transcript_text, false)}
                   </div>
                 ) : selectedCall.transcript_text ? (
                   <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">

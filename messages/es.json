@@ -242,5 +242,15 @@
   "metadata": {
     "title": "ContractorOps AI - CRM con IA para Contratistas Modernos",
     "description": "Transforme su negocio de construcción con automatización inteligente. Genere facturas al instante, capture cada prospecto y cierre más negocios, todo impulsado por tecnología de inteligencia artificial de vanguardia."
+  },
+  "translation": {
+    "translate": "Traducir",
+    "translateToSpanish": "Traducir al español",
+    "translateToEnglish": "Traducir al inglés",
+    "translating": "Traduciendo...",
+    "showOriginal": "Mostrar original",
+    "translated": "Traducido",
+    "translateAll": "Traducir Todo",
+    "messages": "mensajes"
   }
 }
