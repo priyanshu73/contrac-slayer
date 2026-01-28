@@ -51,11 +51,11 @@ export function QuickActions() {
   ]
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 w-fit">
       <h2 className="mb-4 text-lg font-semibold">{tDashboard('quickActions')}</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-wrap gap-3">
         {actions.map((action) => (
-          <Button key={action.label} variant="outline" className="h-auto flex-col gap-2 py-4 bg-transparent hover:bg-transparent hover:text-foreground hover:scale-101 hover:shadow-lg transition-all duration-300" asChild>
+          <Button key={action.label} variant="outline" className="h-auto flex-col gap-2 py-4 px-6 bg-transparent hover:bg-transparent hover:text-foreground hover:scale-101 hover:shadow-lg transition-all duration-300" asChild>
             <Link href={action.href}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 {action.icon}
