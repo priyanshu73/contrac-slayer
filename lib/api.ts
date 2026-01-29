@@ -580,6 +580,15 @@ class ApiClient {
     })
   }
 
+  async createPortalSession(data: {
+    return_url: string
+  }): Promise<{ url: string }> {
+    return this.request('/billing/portal-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // =========================
   // Translation Service
   // =========================

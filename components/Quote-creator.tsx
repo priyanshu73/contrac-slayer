@@ -2126,45 +2126,25 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
             </div>
           </Card>
 
-          {/* Assumptions and Warnings Display */}
-          {(assumptions.length > 0 || warnings.length > 0) && (
+          {/* Assumptions Display */}
+          {assumptions.length > 0 && (
             <Card className="p-6 sticky top-6">
-              {assumptions.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    Assumptions
-                  </h3>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {assumptions.map((assumption, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-primary mt-1">•</span>
-                        <span>{assumption}</span>
-                      </li>
-                    ))}
-                  </ul>
-                    </div>
-                  )}
-              {warnings.length > 0 && (
-                                      <div>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-amber-600">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                          </svg>
-                    Warnings
-                  </h3>
-                  <ul className="space-y-1 text-sm text-amber-700">
-                    {warnings.map((warning, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-amber-600 mt-1">•</span>
-                        <span>{warning}</span>
-                      </li>
-                    ))}
-                  </ul>
-                    </div>
-                  )}
+              <div>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Assumptions
+                </h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {assumptions.map((assumption, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-primary mt-1">•</span>
+                      <span>{assumption}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </Card>
           )}
         </div>
