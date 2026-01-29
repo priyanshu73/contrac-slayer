@@ -566,6 +566,21 @@ class ApiClient {
   }
 
   // =========================
+  // Billing / Stripe
+  // =========================
+  
+  async createCheckoutSession(data: {
+    plan: 'monthly' | 'yearly'
+    success_url: string
+    cancel_url: string
+  }): Promise<{ url: string }> {
+    return this.request('/billing/checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // =========================
   // Translation Service
   // =========================
   async translateText(text: string, targetLanguage: string, sourceLanguage?: string): Promise<{
