@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 
+// Module-level guard to prevent double OTP sends from React.StrictMode
+let lastOtpSentEmail: string | null = null
+
 export default function VerifyOTPPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -36,10 +39,18 @@ export default function VerifyOTPPage() {
     setEmail(emailParam)
     setFromLogin(fromLoginParam)
 
-    // Only auto-send OTP if coming from signup, not from login, and haven't sent for this email yet
-    // If from login, OTP was already sent, so just show the page
-    if (!fromLoginParam && initialOtpSentRef.current !== emailParam) {
+    // Only auto-send OTP if:
+    // - coming from signup (not from login)
+    // - we haven't already sent for this email in this session (module + ref guards)
+    if (
+      !fromLoginParam &&
+      emailParam &&
+      initialOtpSentRef.current !== emailParam &&
+      lastOtpSentEmail !== emailParam
+    ) {
       initialOtpSentRef.current = emailParam
+      lastOtpSentEmail = emailParam
+
       const sendInitialOtp = async () => {
         setIsSending(true)
         setError("")
@@ -50,8 +61,9 @@ export default function VerifyOTPPage() {
           setSuccess("OTP sent successfully! Check your email.")
         } catch (err: any) {
           setError(err.message || "Failed to send OTP")
-          // Reset ref on error so user can try again
+          // Reset guards on error so user can try again (e.g., on reload)
           initialOtpSentRef.current = null
+          lastOtpSentEmail = null
         } finally {
           setIsSending(false)
         }
