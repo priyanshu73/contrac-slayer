@@ -113,6 +113,30 @@ export default function ProfileSetupPage() {
         await api.uploadLogo(logoFile)
       }
 
+      // Set up NeetoCal team member (and let backend optionally create a calendar link)
+      // NeetoCal expects `emails: string[]` for the Team Members API.
+      try {
+        const meetingName = `Meeting with ${formData.company_name}`
+        await api.createNeetoCalTeamMember({
+          team_member_payload: {
+            emails: [formData.email],
+            name: formData.company_name,
+            time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
+          meeting_payload: {
+            name: meetingName,
+            duration: 30, // 30 minute meetings by default
+            host_email: formData.email,
+            description: `Schedule a consultation with ${formData.company_name}`,
+          },
+          create_one_off_link: true,
+          save_calendar_link_to_profile: true,
+        })
+      } catch (calendarErr) {
+        // Log but don't fail profile creation if calendar setup fails
+        console.error("Failed to set up calendar:", calendarErr)
+      }
+
       // Refresh user data to include profile
       await refreshUser()
       router.push("/dashboard")

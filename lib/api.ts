@@ -516,6 +516,36 @@ class ApiClient {
     })
   }
 
+  /**
+   * Create a NeetoCal team member and optionally a meeting/calendar link
+   * This is called after profile creation to set up the contractor's calendar.
+   *
+   * NOTE: NeetoCal's Team Members API expects `emails: string[]`, not a single `email` field.
+   */
+  async createNeetoCalTeamMember(data: {
+    team_member_payload: {
+      emails: string[]
+      name?: string
+      organization_role?: string
+      invited_by?: string
+      time_zone?: string
+    }
+    meeting_payload?: {
+      name: string
+      duration: number
+      // Backend will adapt this payload for NeetoCal; keep it flexible.
+      host_email?: string
+      description?: string
+    }
+    create_one_off_link?: boolean
+    save_calendar_link_to_profile?: boolean
+  }) {
+    return this.request(`/neetocal/team-members`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // Clean endpoint alias (backend proxies to NeetoCal)
   async createAvailability(payload: any) {
     return this.request(`/availabilities`, {
