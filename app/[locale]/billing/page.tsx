@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useLocale } from "next-intl"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -10,9 +11,26 @@ import { Check, Sparkles, Zap, Shield, Clock } from "lucide-react"
 
 export default function BillingPage() {
   const locale = useLocale()
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, loading } = useAuth()
   const [isLoading, setIsLoading] = useState<"monthly" | "yearly" | null>(null)
   const [error, setError] = useState("")
+
+  // Redirect to dashboard if user already has access
+  useEffect(() => {
+    if (!loading && user?.has_access) {
+      router.push(`/${locale}/dashboard`)
+    }
+  }, [user, loading, router, locale])
+
+  // Show loading while checking access
+  if (loading || user?.has_access) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
 
   const handleSubscribe = async (plan: "monthly" | "yearly") => {
     setIsLoading(plan)
