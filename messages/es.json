@@ -310,8 +310,11 @@
       "state": "Estado",
       "selectState": "Seleccione un estado",
       "areaCode": "Código de Área",
-      "selectAreaCode": "Seleccione un código de área",
+      "areaCodeTooltip": "Números deseados — seleccione varios para aumentar la probabilidad de encontrar uno disponible.",
+      "selectAreaCode": "Seleccione códigos de área",
       "selectStateFirst": "Seleccione el estado primero",
+      "areaCodesSelected": "{count} código de área seleccionado",
+      "areaCodesSelected_other": "{count} códigos de área seleccionados",
       "whatIsThis": "¿Qué es esto?",
       "whatIsNumber": "¿Qué es el Número ContractorOpsAI?",
       "numberDescription": "Una línea telefónica dedicada para su negocio que usa IA para manejar automáticamente llamadas de clientes, solicitudes de cotización y seguimiento de prospectos.",
@@ -319,7 +322,7 @@
       "nextStepsDescription": "Termine la configuración y asignaremos su número según el estado y código de área que eligió.",
       "errors": {
         "stateRequired": "Por favor seleccione un estado",
-        "areaCodeRequired": "Por favor seleccione un código de área"
+        "areaCodeRequired": "Por favor seleccione al menos un código de área"
       }
     },
     "buttons": {
@@ -332,7 +335,8 @@
     },
     "errors": {
       "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
-      "anErrorOccurred": "Ocurrió un error"
+      "anErrorOccurred": "Ocurrió un error",
+      "completeProfileToGetStarted": "Complete su perfil para comenzar."
     }
   }
 }

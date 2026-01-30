@@ -310,8 +310,11 @@
       "state": "State",
       "selectState": "Select a state",
       "areaCode": "Area Code",
-      "selectAreaCode": "Select an area code",
+      "areaCodeTooltip": "Wanted phone numbers — select multiple to improve the chance one is available.",
+      "selectAreaCode": "Select area codes",
       "selectStateFirst": "Select state first",
+      "areaCodesSelected": "{count} area code selected",
+      "areaCodesSelected_other": "{count} area codes selected",
       "whatIsThis": "What is this?",
       "whatIsNumber": "What is ContractorOpsAI Number?",
       "numberDescription": "A dedicated phone line for your business that uses AI to automatically handle customer calls, quote requests, and lead tracking.",
@@ -319,7 +322,7 @@
       "nextStepsDescription": "Finish setup, and we'll assign your number based on your chosen state and area code.",
       "errors": {
         "stateRequired": "Please select a state",
-        "areaCodeRequired": "Please select an area code"
+        "areaCodeRequired": "Please select at least one area code"
       }
     },
     "buttons": {
@@ -332,7 +335,8 @@
     },
     "errors": {
       "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
-      "anErrorOccurred": "An error occurred"
+      "anErrorOccurred": "An error occurred",
+      "completeProfileToGetStarted": "Complete your profile to get started."
     }
   }
 }

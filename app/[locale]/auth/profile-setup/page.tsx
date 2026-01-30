@@ -12,6 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import Image from "next/image"
@@ -45,22 +52,33 @@ export default function ProfileSetupPage() {
   const [otherContractorType, setOtherContractorType] = useState("")
   const [isFetchingTaxRate, setIsFetchingTaxRate] = useState(false)
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
-  const [selectedAreaCode, setSelectedAreaCode] = useState<string>("")
+  const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
 
-  // Fetch tax rate from zipcode API when step 3 loads
+  // Fetch tax rate from zipcode API when step 3 loads (direct client fetch — no Next API route)
   useEffect(() => {
     const fetchTaxRate = async () => {
-      if (step === 3 && formData.default_zip_code) {
-        setIsFetchingTaxRate(true)
-        try {
-          const response = await fetch(`/api/zipcode?zip=${encodeURIComponent(formData.default_zip_code)}`)
-          if (!response.ok) {
-            throw new Error('Failed to fetch zipcode data')
+      if (step !== 3 || !formData.default_zip_code) return
+      const apiKey = process.env.NEXT_PUBLIC_API_NINJA_KEY
+      if (!apiKey) {
+        console.warn('NEXT_PUBLIC_API_NINJA_KEY not set; skipping zipcode lookup')
+        return
+      }
+      setIsFetchingTaxRate(true)
+      try {
+        const response = await fetch(
+          `https://api.api-ninjas.com/v1/zipcode?zip=${encodeURIComponent(formData.default_zip_code)}`,
+          {
+            headers: { 'X-Api-Key': apiKey },
           }
-          const data = await response.json()
-          
-          // The API returns an array, get the first result
-          if (Array.isArray(data) && data.length > 0) {
+        )
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(errorText || 'Failed to fetch zipcode data')
+        }
+        const data = await response.json()
+
+        // Api-Ninjas returns an array, get the first result
+        if (Array.isArray(data) && data.length > 0) {
             const zipData = data[0]
             // Note: The API doesn't return tax rate directly, but we can use state information
             // For now, we'll use a default tax rate lookup by state
@@ -133,7 +151,6 @@ export default function ProfileSetupPage() {
         } finally {
           setIsFetchingTaxRate(false)
         }
-      }
     }
 
     fetchTaxRate()
@@ -181,7 +198,7 @@ export default function ProfileSetupPage() {
         setIsLoading(false)
         return
       }
-      if (!selectedAreaCode) {
+      if (!selectedAreaCodes.length) {
         setError(t('opsAiNumber.errors.areaCodeRequired'))
         setIsLoading(false)
         return
@@ -258,37 +275,42 @@ export default function ProfileSetupPage() {
       await refreshUser()
 
       // Send Twilio number request to SheetDB only when completing setup (step 3)
-      // This happens after all profile operations are successful
-      if (step === 3 && selectedState && selectedAreaCode) {
+      // SheetDB Create API expects { data: [row, ...] } — column names must match the Google Sheet header row
+      if (step === 3 && selectedState && selectedAreaCodes.length) {
         try {
           const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
           if (sheetDbUrl) {
-            await fetch(sheetDbUrl, {
+            const res = await fetch(sheetDbUrl, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                data: {
-                  contractor_name: formData.company_name,
-                  phone_number: formData.phone_number || "",
-                  state: selectedState,
-                  area_code: selectedAreaCode,
-                  email: formData.email,
-                  created_at: new Date().toISOString(),
-                },
+                data: [
+                  {
+                    contractor_name: formData.company_name,
+                    phone_number: formData.phone_number || "",
+                    state: selectedState,
+                    area_code: selectedAreaCodes,
+                    email: formData.email,
+                    created_at: new Date().toISOString(),
+                  },
+                ],
               }),
             })
+            if (!res.ok) {
+              const text = await res.text()
+              console.warn("SheetDB Twilio request save failed:", res.status, text)
+            } else {
+              console.log("SheetDB Twilio request saved successfully", res.status)
+            }
           }
         } catch (sheetDbErr) {
-          // Log but don't fail profile creation if SheetDB submission fails
           console.error("Failed to submit Twilio number request to SheetDB:", sheetDbErr)
         }
       }
 
       router.push("/dashboard")
     } catch (err: any) {
-      setError(err.message || t('errors.anErrorOccurred'))
+      setError(t('errors.completeProfileToGetStarted'))
     } finally {
       setIsLoading(false)
     }
@@ -564,7 +586,7 @@ export default function ProfileSetupPage() {
                           value={selectedState || ""}
                           onValueChange={(value) => {
                             setSelectedState(value as StateAbbrev)
-                            setSelectedAreaCode("") // Reset area code when state changes
+                            setSelectedAreaCodes([]) // Reset area codes when state changes
                           }}
                           disabled={isLoading}
                         >
@@ -581,24 +603,64 @@ export default function ProfileSetupPage() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="selected_area_code" className="text-gray-700 font-medium">{t('opsAiNumber.areaCode')} *</Label>
-                        <Select
-                          value={selectedAreaCode}
-                          onValueChange={(value) => setSelectedAreaCode(value)}
-                          disabled={isLoading || !selectedState}
+                      <div className="space-y-2 md:col-span-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="selected_area_codes" className="text-gray-700 font-medium">{t('opsAiNumber.areaCode')} *</Label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                  aria-label={t('opsAiNumber.areaCodeTooltip')}
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                {t('opsAiNumber.areaCodeTooltip')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-2">{t('opsAiNumber.areaCodeTooltip')}</p>
+                        <div
+                          id="selected_area_codes"
+                          className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
                         >
-                          <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue placeholder={selectedState ? t('opsAiNumber.selectAreaCode') : t('opsAiNumber.selectStateFirst')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getAreaCodesForState(selectedState).map((areaCode) => (
-                              <SelectItem key={areaCode} value={areaCode}>
-                                {areaCode}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          {selectedState ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                              {getAreaCodesForState(selectedState).map((areaCode) => (
+                                <label
+                                  key={areaCode}
+                                  className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-gray-50 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-700"
+                                >
+                                  <Checkbox
+                                    checked={selectedAreaCodes.includes(areaCode)}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedAreaCodes((prev) =>
+                                        checked
+                                          ? [...prev, areaCode].sort()
+                                          : prev.filter((c) => c !== areaCode)
+                                      )
+                                    }}
+                                    disabled={isLoading}
+                                  />
+                                  <span className="text-sm font-mono">{areaCode}</span>
+                                </label>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">{t('opsAiNumber.selectStateFirst')}</p>
+                          )}
+                        </div>
+                        {selectedAreaCodes.length > 0 && (
+                          <p className="text-xs text-gray-600">
+                            {t('opsAiNumber.areaCodesSelected', { count: selectedAreaCodes.length })}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
