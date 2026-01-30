@@ -1384,22 +1384,6 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
               {/* Call History Section (for call leads and consolidated leads) */}
               <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
-
-              {/* Action Buttons */}
-              <div className="pt-2 md:pt-4 border-t space-y-2 md:space-y-3">
-                <Button className="w-full h-10 md:h-12 text-sm md:text-base" asChild>
-                  <a href={`tel:${lead.phone}`}>
-                    <Phone className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                    {tLeads('callCustomer')}
-                  </a>
-                </Button>
-                <Button variant="outline" className="w-full h-9 md:h-11 text-xs md:text-sm" asChild>
-                  <a href={`/quotes/new?leadId=${lead.id}`}>
-                    <Eye className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-                    {tFilters('quoted')}
-                  </a>
-                </Button>
-              </div>
             </div>
 
             {/* Conversation History - Shows second on mobile, middle on desktop */}
