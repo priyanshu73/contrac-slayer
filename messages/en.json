@@ -254,5 +254,85 @@
     "translated": "Translated",
     "translateAll": "Translate All",
     "messages": "messages"
+  },
+  "profileSetup": {
+    "welcome": "Welcome to ContractorOps AI",
+    "subtitle": "Let's set up your business profile in just a few steps",
+    "step1": "Company Info",
+    "step2": "Branding",
+    "step3": "OpsAI Number",
+    "companyInfo": {
+      "title": "Company Information",
+      "description": "Tell us about your business",
+      "companyName": "Company Name",
+      "companyNamePlaceholder": "ABC Landscaping",
+      "businessEmail": "Business Email",
+      "businessEmailPlaceholder": "contact@abclandscaping.com",
+      "phoneNumber": "Phone Number",
+      "phoneNumberPlaceholder": "(555) 123-4567",
+      "businessAddress": "Business Address",
+      "businessAddressPlaceholder": "123 Main St, City, State",
+      "defaultZipCode": "Default ZIP Code",
+      "defaultZipCodePlaceholder": "90210",
+      "typeOfWork": "Type of Work",
+      "selectSpecialty": "Select your specialty",
+      "specifySpecialty": "Please specify your specialty",
+      "contractorTypes": {
+        "electrician": "Electrician",
+        "plumber": "Plumber",
+        "landscaping": "Landscaping",
+        "remodeler": "Remodeler",
+        "roofer": "Roofer",
+        "hvac": "HVAC",
+        "painter": "Painter",
+        "carpenter": "Carpenter",
+        "concrete": "Concrete",
+        "flooring": "Flooring",
+        "general_contractor": "General Contractor",
+        "other": "Other"
+      },
+      "errors": {
+        "companyNameRequired": "Company name is required",
+        "emailRequired": "Business email is required"
+      }
+    },
+    "branding": {
+      "title": "Branding & Online Presence",
+      "description": "Make your business stand out",
+      "companyLogo": "Company Logo",
+      "logoUploadHint": "Upload your company logo (recommended: square image, PNG or JPG)",
+      "websiteUrl": "Website URL",
+      "websiteUrlPlaceholder": "https://yourcompany.com"
+    },
+    "opsAiNumber": {
+      "title": "Your ContractorOpsAI Number",
+      "description": "Select your preferred location and area code for your dedicated phone number",
+      "state": "State",
+      "selectState": "Select a state",
+      "areaCode": "Area Code",
+      "selectAreaCode": "Select an area code",
+      "selectStateFirst": "Select state first",
+      "whatIsThis": "What is this?",
+      "whatIsNumber": "What is ContractorOpsAI Number?",
+      "numberDescription": "A dedicated phone line for your business that uses AI to automatically handle customer calls, quote requests, and lead tracking.",
+      "nextSteps": "Next Steps:",
+      "nextStepsDescription": "Finish setup, and we'll assign your number based on your chosen state and area code.",
+      "errors": {
+        "stateRequired": "Please select a state",
+        "areaCodeRequired": "Please select an area code"
+      }
+    },
+    "buttons": {
+      "back": "Back",
+      "continue": "Continue",
+      "completeSetup": "Complete Setup",
+      "saving": "Saving...",
+      "switchToEnglish": "Switch to English",
+      "switchToSpanish": "Cambiar a Español"
+    },
+    "errors": {
+      "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
+      "anErrorOccurred": "An error occurred"
+    }
   }
 }

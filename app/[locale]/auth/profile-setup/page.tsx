@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,10 +15,17 @@ import {
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import Image from "next/image"
+import { AREA_CODES_BY_STATE_MAP, getAllStates, getAreaCodesForState, type StateAbbrev } from "@/lib/area-codes"
+import { useTranslations, useLocale } from "next-intl"
+import { useLanguage } from "@/hooks/useLanguage"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
   const { refreshUser } = useAuth()
+  const t = useTranslations('profileSetup')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+  const { changeLanguage, isChanging } = useLanguage()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [step, setStep] = useState(1)
@@ -36,6 +43,101 @@ export default function ProfileSetupPage() {
     contractor_type: "",
   })
   const [otherContractorType, setOtherContractorType] = useState("")
+  const [isFetchingTaxRate, setIsFetchingTaxRate] = useState(false)
+  const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
+  const [selectedAreaCode, setSelectedAreaCode] = useState<string>("")
+
+  // Fetch tax rate from zipcode API when step 3 loads
+  useEffect(() => {
+    const fetchTaxRate = async () => {
+      if (step === 3 && formData.default_zip_code) {
+        setIsFetchingTaxRate(true)
+        try {
+          const response = await fetch(`/api/zipcode?zip=${encodeURIComponent(formData.default_zip_code)}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch zipcode data')
+          }
+          const data = await response.json()
+          
+          // The API returns an array, get the first result
+          if (Array.isArray(data) && data.length > 0) {
+            const zipData = data[0]
+            // Note: The API doesn't return tax rate directly, but we can use state information
+            // For now, we'll use a default tax rate lookup by state
+            // Common sales tax rates by state (approximate - can be enhanced with a proper tax API)
+            const stateTaxRates: Record<string, string> = {
+              'AL': '9.46',
+              'AK': '1.82',
+              'AZ': '8.52',
+              'AR': '9.46',
+              'CA': '8.99',
+              'CO': '7.89',
+              'CT': '6.35',
+              'DE': '0.00',
+              'FL': '6.98',
+              'GA': '7.49',
+              'HI': '4.50',
+              'ID': '6.03',
+              'IL': '8.96',
+              'IN': '7.00',
+              'IA': '6.94',
+              'KS': '8.69',
+              'KY': '6.00',
+              'LA': '10.11',
+              'ME': '5.50',
+              'MD': '6.00',
+              'MA': '6.25',
+              'MI': '6.00',
+              'MN': '8.14',
+              'MS': '7.06',
+              'MO': '8.44',
+              'MT': '0.00',
+              'NE': '6.98',
+              'NV': '8.24',
+              'NH': '0.00',
+              'NJ': '6.60',
+              'NM': '7.67',
+              'NY': '8.54',
+              'NC': '7.00',
+              'ND': '7.09',
+              'OH': '7.29',
+              'OK': '9.06',
+              'OR': '0.00',
+              'PA': '6.34',
+              'RI': '7.00',
+              'SC': '7.49',
+              'SD': '6.11',
+              'TN': '9.61',
+              'TX': '8.20',
+              'UT': '7.42',
+              'VT': '6.39',
+              'VA': '5.77',
+              'WA': '9.51',
+              'WV': '6.59',
+              'WI': '5.72',
+              'WY': '5.56',
+              'DC': '6.00'
+            }
+            
+            const state = zipData.state
+            if (state && stateTaxRates[state]) {
+              setFormData(prev => ({
+                ...prev,
+                default_sales_tax_rate: stateTaxRates[state]
+              }))
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching tax rate:', error)
+          // Keep default value if fetch fails
+        } finally {
+          setIsFetchingTaxRate(false)
+        }
+      }
+    }
+
+    fetchTaxRate()
+  }, [step, formData.default_zip_code])
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -52,11 +154,11 @@ export default function ProfileSetupPage() {
 
   const handleNext = () => {
     if (step === 1 && !formData.company_name) {
-      setError("Company name is required")
+      setError(t('companyInfo.errors.companyNameRequired'))
       return
     }
     if (step === 1 && !formData.email) {
-      setError("Business email is required")
+      setError(t('companyInfo.errors.emailRequired'))
       return
     }
     setError("")
@@ -71,6 +173,21 @@ export default function ProfileSetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    
+    // Validate step 3 requirements
+    if (step === 3) {
+      if (!selectedState) {
+        setError(t('opsAiNumber.errors.stateRequired'))
+        setIsLoading(false)
+        return
+      }
+      if (!selectedAreaCode) {
+        setError(t('opsAiNumber.errors.areaCodeRequired'))
+        setIsLoading(false)
+        return
+      }
+    }
+    
     setIsLoading(true)
 
     try {
@@ -82,7 +199,7 @@ export default function ProfileSetupPage() {
             const formattedType = `other - ${otherContractorType.trim()}`
             // Ensure it doesn't exceed 50 characters
             if (formattedType.length > 50) {
-              setError("Contractor type description is too long. Please keep it under 44 characters.")
+              setError(t('errors.contractorTypeTooLong'))
               setIsLoading(false)
               return
             }
@@ -139,9 +256,39 @@ export default function ProfileSetupPage() {
 
       // Refresh user data to include profile
       await refreshUser()
+
+      // Send Twilio number request to SheetDB only when completing setup (step 3)
+      // This happens after all profile operations are successful
+      if (step === 3 && selectedState && selectedAreaCode) {
+        try {
+          const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
+          if (sheetDbUrl) {
+            await fetch(sheetDbUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                data: {
+                  contractor_name: formData.company_name,
+                  phone_number: formData.phone_number || "",
+                  state: selectedState,
+                  area_code: selectedAreaCode,
+                  email: formData.email,
+                  created_at: new Date().toISOString(),
+                },
+              }),
+            })
+          }
+        } catch (sheetDbErr) {
+          // Log but don't fail profile creation if SheetDB submission fails
+          console.error("Failed to submit Twilio number request to SheetDB:", sheetDbErr)
+        }
+      }
+
       router.push("/dashboard")
     } catch (err: any) {
-      setError(err.message || "An error occurred")
+      setError(err.message || t('errors.anErrorOccurred'))
     } finally {
       setIsLoading(false)
     }
@@ -167,10 +314,10 @@ export default function ProfileSetupPage() {
               </div>
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-2">
-              Welcome to ContractorOps AI
+              {t('welcome')}
             </h1>
             <p className="text-gray-600 text-lg">
-              Let's set up your business profile in just a few steps
+              {t('subtitle')}
             </p>
           </div>
 
@@ -195,14 +342,31 @@ export default function ProfileSetupPage() {
               ))}
             </div>
             <div className="flex items-center justify-center gap-16 text-sm text-gray-600 max-w-md mx-auto">
-              <span className={`text-center ${step >= 1 ? "text-blue-600 font-medium" : ""}`}>Company Info</span>
-              <span className={`text-center ${step >= 2 ? "text-blue-600 font-medium" : ""}`}>Branding</span>
-              <span className={`text-center ${step >= 3 ? "text-blue-600 font-medium" : ""}`}>Rates</span>
+              <span className={`text-center ${step >= 1 ? "text-blue-600 font-medium" : ""}`}>{t('step1')}</span>
+              <span className={`text-center ${step >= 2 ? "text-blue-600 font-medium" : ""}`}>{t('step2')}</span>
+              <span className={`text-center ${step >= 3 ? "text-blue-600 font-medium" : ""}`}>{t('step3')}</span>
             </div>
           </div>
 
           {/* Form Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
+          <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
+            {/* Language Switcher - Only show in step 1 */}
+            {step === 1 && (
+              <div className="absolute -top-12 left-0 z-20">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => changeLanguage(locale === 'en' ? 'es' : 'en')}
+                  disabled={isChanging}
+                  className="flex items-center gap-2 border-2 border-blue-300 hover:bg-blue-50 bg-white shadow-md"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                  {locale === 'en' ? 'Español' : 'English'}
+                </Button>
+              </div>
+            )}
             <form onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); handleNext() }}>
               {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
@@ -217,16 +381,16 @@ export default function ProfileSetupPage() {
               {step === 1 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Company Information</h2>
-                    <p className="text-gray-600">Tell us about your business</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('companyInfo.title')}</h2>
+                    <p className="text-gray-600">{t('companyInfo.description')}</p>
                   </div>
 
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="company_name" className="text-gray-700 font-medium">Company Name *</Label>
+                      <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *</Label>
                       <Input
                         id="company_name"
-                        placeholder="ABC Landscaping"
+                        placeholder={t('companyInfo.companyNamePlaceholder')}
                         value={formData.company_name}
                         onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                         disabled={isLoading}
@@ -235,11 +399,11 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-gray-700 font-medium">Business Email *</Label>
+                      <Label htmlFor="email" className="text-gray-700 font-medium">{t('companyInfo.businessEmail')} *</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="contact@abclandscaping.com"
+                        placeholder={t('companyInfo.businessEmailPlaceholder')}
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         disabled={isLoading}
@@ -248,11 +412,11 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">Phone Number</Label>
+                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}</Label>
                       <Input
                         id="phone_number"
                         type="tel"
-                        placeholder="(555) 123-4567"
+                        placeholder={t('companyInfo.phoneNumberPlaceholder')}
                         value={formData.phone_number}
                         onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                         disabled={isLoading}
@@ -261,10 +425,10 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="address" className="text-gray-700 font-medium">Business Address</Label>
+                      <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}</Label>
                       <Input
                         id="address"
-                        placeholder="123 Main St, City, State"
+                        placeholder={t('companyInfo.businessAddressPlaceholder')}
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         disabled={isLoading}
@@ -273,10 +437,10 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">Default ZIP Code</Label>
+                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}</Label>
                       <Input
                         id="default_zip_code"
-                        placeholder="90210"
+                        placeholder={t('companyInfo.defaultZipCodePlaceholder')}
                         value={formData.default_zip_code}
                         onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
                         disabled={isLoading}
@@ -286,7 +450,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">Type of Work</Label>
+                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">{t('companyInfo.typeOfWork')}</Label>
                       <Select
                         value={formData.contractor_type}
                         onValueChange={(value) => {
@@ -298,28 +462,28 @@ export default function ProfileSetupPage() {
                         disabled={isLoading}
                       >
                         <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                          <SelectValue placeholder="Select your specialty" />
+                          <SelectValue placeholder={t('companyInfo.selectSpecialty')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="electrician">Electrician</SelectItem>
-                          <SelectItem value="plumber">Plumber</SelectItem>
-                          <SelectItem value="landscaping">Landscaping</SelectItem>
-                          <SelectItem value="remodeler">Remodeler</SelectItem>
-                          <SelectItem value="roofer">Roofer</SelectItem>
-                          <SelectItem value="hvac">HVAC</SelectItem>
-                          <SelectItem value="painter">Painter</SelectItem>
-                          <SelectItem value="carpenter">Carpenter</SelectItem>
-                          <SelectItem value="concrete">Concrete</SelectItem>
-                          <SelectItem value="flooring">Flooring</SelectItem>
-                          <SelectItem value="general_contractor">General Contractor</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="electrician">{t('companyInfo.contractorTypes.electrician')}</SelectItem>
+                          <SelectItem value="plumber">{t('companyInfo.contractorTypes.plumber')}</SelectItem>
+                          <SelectItem value="landscaping">{t('companyInfo.contractorTypes.landscaping')}</SelectItem>
+                          <SelectItem value="remodeler">{t('companyInfo.contractorTypes.remodeler')}</SelectItem>
+                          <SelectItem value="roofer">{t('companyInfo.contractorTypes.roofer')}</SelectItem>
+                          <SelectItem value="hvac">{t('companyInfo.contractorTypes.hvac')}</SelectItem>
+                          <SelectItem value="painter">{t('companyInfo.contractorTypes.painter')}</SelectItem>
+                          <SelectItem value="carpenter">{t('companyInfo.contractorTypes.carpenter')}</SelectItem>
+                          <SelectItem value="concrete">{t('companyInfo.contractorTypes.concrete')}</SelectItem>
+                          <SelectItem value="flooring">{t('companyInfo.contractorTypes.flooring')}</SelectItem>
+                          <SelectItem value="general_contractor">{t('companyInfo.contractorTypes.general_contractor')}</SelectItem>
+                          <SelectItem value="other">{t('companyInfo.contractorTypes.other')}</SelectItem>
                         </SelectContent>
                       </Select>
                       {formData.contractor_type === "other" && (
                         <div className="mt-2">
                           <Input
                             id="other_contractor_type"
-                            placeholder="Please specify your specialty"
+                            placeholder={t('companyInfo.specifySpecialty')}
                             value={otherContractorType}
                             onChange={(e) => setOtherContractorType(e.target.value)}
                             disabled={isLoading}
@@ -336,13 +500,13 @@ export default function ProfileSetupPage() {
               {step === 2 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Branding & Online Presence</h2>
-                    <p className="text-gray-600">Make your business stand out</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('branding.title')}</h2>
+                    <p className="text-gray-600">{t('branding.description')}</p>
                   </div>
 
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="logo" className="text-gray-700 font-medium">Company Logo</Label>
+                      <Label htmlFor="logo" className="text-gray-700 font-medium">{t('branding.companyLogo')}</Label>
                       <div className="flex items-start gap-4">
                         {logoPreview && (
                           <div className="relative w-24 h-24 rounded-xl border-2 border-blue-200 overflow-hidden flex-shrink-0">
@@ -363,17 +527,17 @@ export default function ProfileSetupPage() {
                             disabled={isLoading}
                             className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                           />
-                          <p className="text-xs text-gray-500 mt-2">Upload your company logo (recommended: square image, PNG or JPG)</p>
+                          <p className="text-xs text-gray-500 mt-2">{t('branding.logoUploadHint')}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="website_url" className="text-gray-700 font-medium">Website URL</Label>
+                      <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}</Label>
                       <Input
                         id="website_url"
                         type="url"
-                        placeholder="https://yourcompany.com"
+                        placeholder={t('branding.websiteUrlPlaceholder')}
                         value={formData.website_url}
                         onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
                         disabled={isLoading}
@@ -384,53 +548,84 @@ export default function ProfileSetupPage() {
                 </div>
               )}
 
-              {/* Step 3: Default Rates */}
+              {/* Step 3: ContractorOpsAI Number */}
               {step === 3 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Default Rates</h2>
-                    <p className="text-gray-600">Set your default rates for quotes</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('opsAiNumber.title')}</h2>
+                    <p className="text-gray-600">{t('opsAiNumber.description')}</p>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="default_labor_rate_per_hour" className="text-gray-700 font-medium">Labor Rate ($/hour)</Label>
-                      <Input
-                        id="default_labor_rate_per_hour"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.default_labor_rate_per_hour}
-                        onChange={(e) => setFormData({ ...formData, default_labor_rate_per_hour: e.target.value })}
-                        disabled={isLoading}
-                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
+                  <div className="space-y-5">
+                    <div className="grid md:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="selected_state" className="text-gray-700 font-medium">{t('opsAiNumber.state')} *</Label>
+                        <Select
+                          value={selectedState || ""}
+                          onValueChange={(value) => {
+                            setSelectedState(value as StateAbbrev)
+                            setSelectedAreaCode("") // Reset area code when state changes
+                          }}
+                          disabled={isLoading}
+                        >
+                          <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectValue placeholder={t('opsAiNumber.selectState')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAllStates().map((state) => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="default_sales_tax_rate" className="text-gray-700 font-medium">Sales Tax Rate (%)</Label>
-                      <Input
-                        id="default_sales_tax_rate"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={formData.default_sales_tax_rate}
-                        onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
-                        disabled={isLoading}
-                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="selected_area_code" className="text-gray-700 font-medium">{t('opsAiNumber.areaCode')} *</Label>
+                        <Select
+                          value={selectedAreaCode}
+                          onValueChange={(value) => setSelectedAreaCode(value)}
+                          disabled={isLoading || !selectedState}
+                        >
+                          <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectValue placeholder={selectedState ? t('opsAiNumber.selectAreaCode') : t('opsAiNumber.selectStateFirst')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAreaCodesForState(selectedState).map((areaCode) => (
+                              <SelectItem key={areaCode} value={areaCode}>
+                                {areaCode}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex gap-3">
-                      <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Pro tip</p>
-                        <p className="text-sm text-blue-700 mt-1">You can always adjust these rates later in your settings or customize them for individual quotes.</p>
+                    <div className="text-sm text-blue-700 space-y-4">
+                      <div className="flex gap-3">
+                        <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="font-medium">{t('opsAiNumber.whatIsNumber')}</p>
+                          <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
+                            <li>{t('opsAiNumber.numberDescription')}</li>
+                          </ul>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="font-medium">{t('opsAiNumber.nextSteps')}</p>
+                          <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
+                            <li>{t('opsAiNumber.nextStepsDescription')}</li>
+                          </ul>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -450,7 +645,7 @@ export default function ProfileSetupPage() {
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back
+                    {t('buttons.back')}
                   </Button>
                 )}
                 <Button
@@ -461,18 +656,18 @@ export default function ProfileSetupPage() {
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
+                      <span>{t('buttons.saving')}</span>
                     </div>
                   ) : step === 3 ? (
                     <>
-                      Complete Setup
+                      {t('buttons.completeSetup')}
                       <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </>
                   ) : (
                     <>
-                      Continue
+                      {t('buttons.continue')}
                       <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>

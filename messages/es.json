@@ -254,5 +254,85 @@
     "translated": "Traducido",
     "translateAll": "Traducir Todo",
     "messages": "mensajes"
+  },
+  "profileSetup": {
+    "welcome": "Bienvenido a ContractorOps AI",
+    "subtitle": "Configuremos el perfil de su negocio en solo unos pasos",
+    "step1": "Información de la Empresa",
+    "step2": "Marca",
+    "step3": "Número OpsAI",
+    "companyInfo": {
+      "title": "Información de la Empresa",
+      "description": "Cuéntenos sobre su negocio",
+      "companyName": "Nombre de la Empresa",
+      "companyNamePlaceholder": "ABC Paisajismo",
+      "businessEmail": "Correo Empresarial",
+      "businessEmailPlaceholder": "contacto@abcpaisajismo.com",
+      "phoneNumber": "Número de Teléfono",
+      "phoneNumberPlaceholder": "(555) 123-4567",
+      "businessAddress": "Dirección de la Empresa",
+      "businessAddressPlaceholder": "123 Calle Principal, Ciudad, Estado",
+      "defaultZipCode": "Código Postal Predeterminado",
+      "defaultZipCodePlaceholder": "90210",
+      "typeOfWork": "Tipo de Trabajo",
+      "selectSpecialty": "Seleccione su especialidad",
+      "specifySpecialty": "Por favor especifique su especialidad",
+      "contractorTypes": {
+        "electrician": "Electricista",
+        "plumber": "Plomero",
+        "landscaping": "Paisajismo",
+        "remodeler": "Remodelador",
+        "roofer": "Techador",
+        "hvac": "HVAC",
+        "painter": "Pintor",
+        "carpenter": "Carpintero",
+        "concrete": "Concreto",
+        "flooring": "Pisos",
+        "general_contractor": "Contratista General",
+        "other": "Otro"
+      },
+      "errors": {
+        "companyNameRequired": "El nombre de la empresa es requerido",
+        "emailRequired": "El correo empresarial es requerido"
+      }
+    },
+    "branding": {
+      "title": "Marca y Presencia en Línea",
+      "description": "Haga que su negocio se destaque",
+      "companyLogo": "Logo de la Empresa",
+      "logoUploadHint": "Suba el logo de su empresa (recomendado: imagen cuadrada, PNG o JPG)",
+      "websiteUrl": "URL del Sitio Web",
+      "websiteUrlPlaceholder": "https://suempresa.com"
+    },
+    "opsAiNumber": {
+      "title": "Su Número ContractorOpsAI",
+      "description": "Seleccione su ubicación y código de área preferidos para su número de teléfono dedicado",
+      "state": "Estado",
+      "selectState": "Seleccione un estado",
+      "areaCode": "Código de Área",
+      "selectAreaCode": "Seleccione un código de área",
+      "selectStateFirst": "Seleccione el estado primero",
+      "whatIsThis": "¿Qué es esto?",
+      "whatIsNumber": "¿Qué es el Número ContractorOpsAI?",
+      "numberDescription": "Una línea telefónica dedicada para su negocio que usa IA para manejar automáticamente llamadas de clientes, solicitudes de cotización y seguimiento de prospectos.",
+      "nextSteps": "Próximos Pasos:",
+      "nextStepsDescription": "Termine la configuración y asignaremos su número según el estado y código de área que eligió.",
+      "errors": {
+        "stateRequired": "Por favor seleccione un estado",
+        "areaCodeRequired": "Por favor seleccione un código de área"
+      }
+    },
+    "buttons": {
+      "back": "Regresar",
+      "continue": "Continuar",
+      "completeSetup": "Completar Configuración",
+      "saving": "Guardando...",
+      "switchToEnglish": "Switch to English",
+      "switchToSpanish": "Cambiar a Español"
+    },
+    "errors": {
+      "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
+      "anErrorOccurred": "Ocurrió un error"
+    }
   }
 }

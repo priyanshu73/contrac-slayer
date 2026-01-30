@@ -12,8 +12,9 @@ export function Navbar() {
   const t = useTranslations('navigation')
   const locale = useLocale()
 
-  // Don't show navbar on auth pages, public quote request pages, or homepage
-  if (pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/quote-request")) {
+  // Don't show navbar on auth pages (except profile-setup), public quote request pages, or homepage
+  const isProfileSetup = pathname?.includes("/auth/profile-setup")
+  if (pathname === "/" || (pathname?.startsWith("/auth") && !isProfileSetup) || pathname?.startsWith("/quote-request")) {
     return null
   }
 
@@ -40,6 +41,28 @@ export function Navbar() {
 
   if (!user) {
     return null
+  }
+
+  // Show only logo on profile-setup page
+  if (isProfileSetup) {
+    return (
+      <nav className="border-b border-border bg-card sticky top-0 z-40 print:hidden">
+        <div className="container mx-auto px-2 md:px-3">
+          <div className="flex h-12 md:h-14 items-center">
+            <Link href={`/${locale}/dashboard`} className="flex items-center gap-1.5 md:gap-2">
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
+              />
+              <span className="text-base md:text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
+                ContractorOps AI
+              </span>
+            </Link>
+          </div>
+        </div>
+      </nav>
+    )
   }
 
   return (
