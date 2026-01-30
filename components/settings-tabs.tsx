@@ -176,10 +176,10 @@ export function SettingsTabs() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
         <TabsTrigger value="business">{t('business')}</TabsTrigger>
         <TabsTrigger value="billing">Billing</TabsTrigger>
-        <TabsTrigger value="notifications">{t('notifications')}</TabsTrigger>
+        {/* <TabsTrigger value="notifications">{t('notifications')}</TabsTrigger> */}
         <TabsTrigger value="language">{t('language')}</TabsTrigger>
       </TabsList>
 
