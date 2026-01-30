@@ -1619,20 +1619,6 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </a>
             </Button>
           )}
-          {lead.status === 'NEW' && (
-            <Button 
-              variant="outline"
-              onClick={() => {
-                console.log('Mark as contacted:', lead.id)
-              }}
-              className="flex-1 h-9 md:h-10 text-xs md:text-sm"
-            >
-              <svg className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              {tLeads('markAsContacted')}
-            </Button>
-          )}
         </div>
         
         {lead.type === 'request' && (
