@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy } from "lucide-react"
 import { useLocale } from "next-intl"
 
 export function SettingsTabs() {
@@ -47,6 +47,11 @@ export function SettingsTabs() {
     mid_tier_markup: "",
     high_tier_markup: "",
   })
+  const CONTRACTOR_OPS_AI_NUMBER_KEY = "contractorOpsAiNumber"
+  const [contractorOpsAiNumber, setContractorOpsAiNumber] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
+  })
 
   useEffect(() => {
     loadProfile()
@@ -72,6 +77,21 @@ export function SettingsTabs() {
         high_tier_markup: data.high_tier_markup?.toString() || "",
       })
       setLogoPreview(data.logo_url || null)
+      // Load ContractorOpsAI number: show from localStorage first, then fetch and cache
+      const cached = typeof window !== "undefined" ? localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY) : null
+      if (cached) setContractorOpsAiNumber(cached)
+      try {
+        const { twilio_number } = await api.getContractorOpsAiNumber()
+        if (twilio_number && typeof window !== "undefined") {
+          localStorage.setItem(CONTRACTOR_OPS_AI_NUMBER_KEY, twilio_number)
+          setContractorOpsAiNumber(twilio_number)
+        } else if (!twilio_number && typeof window !== "undefined") {
+          localStorage.removeItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
+          setContractorOpsAiNumber(null)
+        }
+      } catch {
+        // Keep cached value if fetch fails
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load profile")
     } finally {
@@ -307,6 +327,31 @@ export function SettingsTabs() {
                   disabled={isSaving}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="contractor-ops-ai-number">{t('contractorOpsAiNumber')}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="contractor-ops-ai-number"
+                    readOnly
+                    className="bg-muted cursor-text select-all"
+                    value={contractorOpsAiNumber ?? ""}
+                    placeholder={t('contractorOpsAiNumberPlaceholder')}
+                  />
+                  {contractorOpsAiNumber && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(contractorOpsAiNumber)
+                      }}
+                      title="Copy"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <div className="mt-6 flex gap-2">
@@ -370,6 +415,7 @@ export function SettingsTabs() {
               </p>
             </div>
 
+            {false && (
             <div className="pt-4 border-t">
               <h3 className="text-sm font-semibold mb-3">Quote Tier Markups</h3>
               <div className="grid gap-4 sm:grid-cols-3">
@@ -420,6 +466,7 @@ export function SettingsTabs() {
                 These markups are used when generating multi-tier quotes for customers
               </p>
             </div>
+            )}
           </div>
           <div className="mt-6 flex gap-2">
             <Button onClick={handleSaveProfile} disabled={isSaving}>

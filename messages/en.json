@@ -108,6 +108,8 @@
     "website": "Website",
     "businessAddress": "Business Address",
     "defaultZipCode": "Default ZIP Code",
+    "contractorOpsAiNumber": "ContractorOpsAI Number",
+    "contractorOpsAiNumberPlaceholder": "Not set up",
     "defaultLaborRate": "Default Labor Rate ($/hour)",
     "salesTaxRate": "Sales Tax Rate (%)",
     "defaultMarkup": "Default Markup (%)",

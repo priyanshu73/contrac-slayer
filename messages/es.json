@@ -108,6 +108,8 @@
     "website": "Sitio Web",
     "businessAddress": "Dirección de la Empresa",
     "defaultZipCode": "Código Postal Predeterminado",
+    "contractorOpsAiNumber": "Número ContractorOpsAI",
+    "contractorOpsAiNumberPlaceholder": "No configurado",
     "defaultLaborRate": "Tarifa de Mano de Obra Predeterminada ($/hora)",
     "salesTaxRate": "Tasa de Impuesto sobre Ventas (%)",
     "defaultMarkup": "Margen Predeterminado (%)",

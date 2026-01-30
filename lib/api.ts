@@ -197,6 +197,10 @@ class ApiClient {
     return this.request(`/contractors/profile/uuid/${contractorUuid}`)
   }
 
+  async getContractorOpsAiNumber(): Promise<{ twilio_number: string | null }> {
+    return this.request<{ twilio_number: string | null }>('/contractors/profile/contractor-ops-ai-number')
+  }
+
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
     const formData = new FormData()
     formData.append('name', data.name)
