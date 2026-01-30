@@ -1232,7 +1232,14 @@ export default function CalendarPage() {
                       </Select>
                   </div>
                   <div className="grid gap-2">
-                    <div className="text-sm font-medium">Timezone</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Timezone</div>
+                      <div className="text-xs text-muted-foreground">
+                        Current: <span className="font-mono">{timeZone}</span>
+                        {" · "}
+                        Browser: <span className="font-mono">{browserTz || "unknown"}</span>
+                      </div>
+                    </div>
                       <Select
                         value={timeZone}
                         onValueChange={(v) => {
@@ -1251,22 +1258,6 @@ export default function CalendarPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <div className="text-xs text-muted-foreground">
-                        Using:{" "}
-                        <span className="font-mono">
-                          {timeZoneSource === "neetocal"
-                            ? "NeetoCal"
-                            : timeZoneSource === "browser"
-                              ? "Browser"
-                              : timeZoneSource === "manual"
-                                ? "Manual"
-                                : "Default"}
-                        </span>
-                        {" · "}
-                        Current: <span className="font-mono">{timeZone}</span>
-                        {" · "}
-                        Browser: <span className="font-mono">{browserTz || "unknown"}</span>
-                      </div>
                     </div>
                   </div>
                 </div>
