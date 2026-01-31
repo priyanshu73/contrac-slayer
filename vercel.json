@@ -1,9 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://seal-app-bz6bk.ondigitalocean.app/api/:path*"
-    }
-  ]
-}
-
