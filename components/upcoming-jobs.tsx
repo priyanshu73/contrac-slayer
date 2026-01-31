@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
+import { MapPin } from "lucide-react"
 import { api } from "@/lib/api"
 
 type Booking = Record<string, any>
@@ -196,8 +197,9 @@ export function UpcomingJobs() {
         <div className="space-y-3">
           {jobs.map((job, idx) => {
             const { date, time } = formatBookingDateTime(job)
-            const location = getBookingLocation(job)
-            const clientName = job?.name || "—"
+            const parsedName = parseBookingNameAndLocation(job?.name)
+            const displayName = parsedName.displayName || job?.name || "—"
+            const location = parsedName.location || getBookingLocation(job)
             const showEmail = job?.email && !isPlaceholderEmail(job.email)
             
             return (
@@ -216,9 +218,15 @@ export function UpcomingJobs() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium leading-none">{bookingTitle(job)}</p>
-                      <p className="mt-1 text-sm text-muted-foreground truncate">
-                        {clientName}
-                        {showEmail ? ` (${job.email})` : ""}
+                      <p className="mt-1 text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="truncate">{displayName}</span>
+                        {showEmail ? <span className="truncate">({job.email})</span> : null}
+                        {location ? (
+                          <span className="flex items-center gap-1 min-w-0 shrink-0">
+                            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden />
+                            <span className="truncate">{location}</span>
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     {job?.status && (
@@ -241,20 +249,7 @@ export function UpcomingJobs() {
                     </span>
                     {location && (
                       <span className="flex items-center gap-1">
-                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
+                        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
                         <span className="truncate">{location}</span>
                       </span>
                     )}
