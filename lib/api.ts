@@ -953,6 +953,17 @@ class ContractorAIClient {
   async getFollowupTemplates(spId: string) {
     return this.request(`/followup/templates/${spId}`)
   }
+
+  async sendImmediateSms(data: {
+    sp_id: number
+    customer_number: string
+    message_text: string
+  }) {
+    return this.request('/followup/send-immediate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const api = new ApiClient(API_URL!)

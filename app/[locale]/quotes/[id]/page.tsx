@@ -233,28 +233,28 @@ export default function QuoteDetailPage() {
         return
       }
 
-      // Schedule a quote follow-up for 3 days from now
-      const followupDate = new Date()
-      followupDate.setDate(followupDate.getDate() + 3)
+      // Build the message with quote link
+      let message = `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`
+      
+      if (job.quote_public_link) {
+        message = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${job.quote_public_link}\n\nDo you have any questions?`
+      }
 
-      await contractorAI.scheduleFollowup({
+      // Send SMS immediately (not scheduled)
+      await contractorAI.sendImmediateSms({
         sp_id: user.contractor_profile.contractor_ai_sp_id,
         customer_number: customerPhone,
-        scheduled_for: followupDate.toISOString(),
-        message_text: `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`,
-        followup_type: "quote",
-        reference_type: "job",
-        reference_id: job.id,
+        message_text: message,
       })
 
       toast({
-        title: "Follow-up scheduled",
-        description: `Quote follow-up scheduled for ${followupDate.toLocaleDateString()}`,
+        title: "Follow-up sent!",
+        description: `SMS sent to ${customerName} successfully.`,
       })
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to schedule follow-up",
+        description: error instanceof Error ? error.message : "Failed to send follow-up",
         variant: "destructive",
       })
     }
