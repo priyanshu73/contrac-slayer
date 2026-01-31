@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircleIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, PlusIcon, XIcon } from "lucide-react"
+import { AlertCircleIcon, Calendar as CalendarIcon, CheckIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, Eye, HelpCircleIcon, MapPin, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react"
 import { api } from "@/lib/api"
 import { MonthlyCalendar } from "@/components/ui/monthly-calendar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -14,11 +14,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
+import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
 
 type Booking = Record<string, any>
+
+const NEETOCAL_TEAM_MEMBER_CACHE_KEY = "neetocal_team_member"
+
+function getCachedTeamMember(): { team_member_id?: string; email?: string; time_zone?: string } | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(NEETOCAL_TEAM_MEMBER_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { team_member_id?: string; email?: string; time_zone?: string }
+    return parsed && (parsed.team_member_id || parsed.time_zone) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function setCachedTeamMember(obj: { team_member_id?: string; email?: string; time_zone?: string } | null) {
+  if (typeof window === "undefined") return
+  try {
+    if (obj && (obj.team_member_id != null || obj.time_zone != null)) {
+      window.localStorage.setItem(NEETOCAL_TEAM_MEMBER_CACHE_KEY, JSON.stringify(obj))
+    } else {
+      window.localStorage.removeItem(NEETOCAL_TEAM_MEMBER_CACHE_KEY)
+    }
+  } catch {
+    // ignore
+  }
+}
 
 const WEEKDAYS = [
   { key: "sunday", short: "S", label: "Sunday" },
@@ -90,15 +130,52 @@ function bookingStartDate(b: Booking): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt
 }
 
+/** Parse "Name @ Location" from booking name; returns display name and location for UI. */
+function parseBookingNameAndLocation(name: string | undefined | null): { displayName: string; location: string | null } {
+  if (!name || typeof name !== "string") return { displayName: name || "", location: null }
+  const atIndex = name.lastIndexOf(" @ ")
+  if (atIndex === -1) return { displayName: name.trim(), location: null }
+  return {
+    displayName: name.slice(0, atIndex).trim(),
+    location: name.slice(atIndex + 3).trim() || null,
+  }
+}
+
+function getInitials(name: string | undefined | null): string {
+  const s = (name || "").trim()
+  const parts = s.split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return s.slice(0, 2).toUpperCase() || "?"
+}
+
+const BOOKING_AVATAR_COLORS = [
+  "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+] as const
+function getBookingAvatarColor(idx: number): string {
+  return BOOKING_AVATAR_COLORS[idx % BOOKING_AVATAR_COLORS.length]
+}
+
 function bookingTitle(b: Booking) {
-  return (
+  const clientDisplayName = (() => {
+    const name = b?.name
+    if (!name || typeof name !== "string") return null
+    const parsed = parseBookingNameAndLocation(name)
+    return (parsed.displayName || name).trim() || null
+  })()
+  if (clientDisplayName) {
+    return `Meeting with ${clientDisplayName}`
+  }
+  const raw =
     b?.meeting?.name ||
     b?.title ||
     b?.event_name ||
     b?.meeting_name ||
     b?.name ||
     "Booking"
-  )
+  return typeof raw === "string" ? raw : String(raw)
 }
 
 function isPlaceholderEmail(email: string | undefined | null): boolean {
@@ -114,7 +191,10 @@ function extractLocationFromNotes(notes: string | undefined | null): string | nu
 }
 
 function getBookingLocation(b: Booking): string | null {
-  // Try metadata.original_request.meeting_location first (from our booking creation)
+  // First: "Name @ Location" stored in b.name (manual + automation)
+  const fromName = parseBookingNameAndLocation(b?.name).location
+  if (fromName) return fromName
+  // Try metadata.original_request.meeting_location (legacy / automation)
   if (b?.metadata && typeof b.metadata === 'object') {
     const originalRequest = (b.metadata as any)?.original_request
     if (originalRequest && typeof originalRequest === 'object') {
@@ -123,13 +203,11 @@ function getBookingLocation(b: Booking): string | null {
         return location.trim()
       }
     }
-    // Fallback: try direct metadata.location (for backwards compatibility)
     const location = (b.metadata as any)?.location
     if (location && typeof location === 'string' && location.trim()) {
       return location.trim()
     }
   }
-  // Try internal_notes
   if (b?.internal_notes) {
     const location = extractLocationFromNotes(b.internal_notes)
     if (location) return location
@@ -208,6 +286,12 @@ function formatDayTitle(d: Date) {
 function availabilityId(a: any): string | undefined {
   const id = a?.id || a?.sid || a?.availability_sid || a?.availability_id
   return typeof id === "string" && id.trim() ? id.trim() : undefined
+}
+
+/** NeetoCal booking SID used for cancel/reschedule API. */
+function bookingSid(b: Booking): string | undefined {
+  const sid = b?.sid ?? b?.booking_sid ?? b?.id
+  return typeof sid === "string" && sid.trim() ? sid.trim() : undefined
 }
 
 function normalizeWday(raw: unknown): WeekdayKey | null {
@@ -390,7 +474,7 @@ function DayTimeline({
                     {(() => {
                       const location = getBookingLocation(b)
                       const clientPhone = getBookingClientPhone(b)
-                      const clientName = b?.name || "—"
+                      const clientName = parseBookingNameAndLocation(b?.name).displayName || "—"
                       const showEmail = b?.email && !isPlaceholderEmail(b.email)
                       return (
                         <>
@@ -432,8 +516,20 @@ export default function CalendarPage() {
   const [error, setError] = useState<string>("")
   const [notice, setNotice] = useState<string>("")
   const [copied, setCopied] = useState(false)
+  const [schedulingLinkViewOpen, setSchedulingLinkViewOpen] = useState(false)
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null)
+
+  const [createAppointmentOpen, setCreateAppointmentOpen] = useState(false)
+  const [clients, setClients] = useState<Array<{ id: number; name: string; email: string }>>([])
+
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [rescheduleDate, setRescheduleDate] = useState<string>("")
+  const [rescheduleTime, setRescheduleTime] = useState<string>("09:00")
+  const [rescheduleReason, setRescheduleReason] = useState<string>("")
+  const [rescheduling, setRescheduling] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const [profile, setProfile] = useState<any>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -596,13 +692,18 @@ export default function CalendarPage() {
 
   const refreshSingleAvailability = async () => {
     setAvailabilityLoading(true)
-    const res = await api.getSingleAvailability()
+    const cached = getCachedTeamMember()
+    const res = await api.getSingleAvailability(cached?.team_member_id ?? undefined)
     const data = (res as any)?.data ?? null
     const availability = data?.availability ?? data
-    const tz = data?.team_member?.time_zone as string | undefined
-    if (tz && tz.trim()) {
-      setTimeZone(tz.trim())
-      setTimeZoneSource("neetocal")
+    const teamMember = data?.team_member as { team_member_id?: string; email?: string; time_zone?: string } | undefined
+    if (teamMember) {
+      setCachedTeamMember(teamMember)
+      const tz = teamMember?.time_zone as string | undefined
+      if (tz && tz.trim()) {
+        setTimeZone(tz.trim())
+        setTimeZoneSource("neetocal")
+      }
     }
     if (availability) applyAvailabilityToForm(availability)
     setHasLoadedAvailability(true)
@@ -634,10 +735,24 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!createAppointmentOpen) return
+    api.getClients(0, 500).then((data: any) => {
+      const list = Array.isArray(data) ? data : []
+      setClients(list.map((c: any) => ({ id: c.id, name: c.name || "", email: c.email || "" })))
+    }).catch(() => setClients([]))
+  }, [createAppointmentOpen])
+
   // Lazy-load availability only when the user opens the tab.
   useEffect(() => {
     if (activeTab !== "availability") return
     if (hasLoadedAvailability) return
+    // Hydrate timezone from cache so dropdown shows immediately while we fetch
+    const cached = getCachedTeamMember()
+    if (cached?.time_zone?.trim()) {
+      setTimeZone(cached.time_zone.trim())
+      setTimeZoneSource("neetocal")
+    }
     refreshSingleAvailability().catch(() => {
       // keep page usable even if availability fetch fails
     })
@@ -660,7 +775,16 @@ export default function CalendarPage() {
         ),
       }
 
-      await api.upsertSingleAvailability(payload)
+      const res = await api.upsertSingleAvailability(payload)
+      const resData = (res as any)?.data ?? null
+      const teamMember = resData?.team_member as { team_member_id?: string; email?: string; time_zone?: string } | undefined
+      if (teamMember) {
+        setCachedTeamMember(teamMember)
+        if (teamMember.time_zone?.trim()) {
+          setTimeZone(teamMember.time_zone.trim())
+          setTimeZoneSource("neetocal")
+        }
+      }
       setNotice(activeAvailabilityId ? "Availability updated." : "Availability saved.")
       await refreshSingleAvailability()
     } catch (e: any) {
@@ -730,7 +854,7 @@ export default function CalendarPage() {
     try {
       await navigator.clipboard.writeText(calendarLink)
       setCopied(true)
-      toast({ description: "Scheduling link copied." })
+      toast({ description: tCalendar("copiedToClipboard") })
     } catch {
       toast({ description: "Could not copy link.", variant: "destructive" as any })
     }
@@ -749,6 +873,83 @@ export default function CalendarPage() {
   const openBooking = (b: Booking) => {
     setActiveBooking(b)
     setBookingDialogOpen(true)
+  }
+
+  const onCancelBookingConfirm = async () => {
+    if (!activeBooking) return
+    const sid = bookingSid(activeBooking)
+    if (!sid) {
+      toast({ description: "Cannot cancel: booking ID missing.", variant: "destructive" as any })
+      return
+    }
+    setCancelling(true)
+    try {
+      await api.cancelNeetoBooking(sid)
+      toast({ description: tCalendar("bookingCancelled") })
+      setBookingDialogOpen(false)
+      setActiveBooking(null)
+      setCancelConfirmOpen(false)
+      await load()
+    } catch (e: any) {
+      toast({ description: e?.message || "Failed to cancel booking", variant: "destructive" as any })
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const openRescheduleDialog = () => {
+    if (!activeBooking) return
+    const start = bookingStartDate(activeBooking)
+    if (start) {
+      setRescheduleDate(dateKeyLocal(start))
+      const mins = start.getHours() * 60 + start.getMinutes()
+      setRescheduleTime(minutesToHHMM(mins))
+    } else {
+      setRescheduleDate("")
+      setRescheduleTime("09:00")
+    }
+    setRescheduleReason("")
+    setRescheduleDialogOpen(true)
+  }
+
+  const onRescheduleSubmit = async () => {
+    if (!activeBooking) return
+    const sid = bookingSid(activeBooking)
+    if (!sid) {
+      toast({ description: "Cannot reschedule: booking ID missing.", variant: "destructive" as any })
+      return
+    }
+    if (!rescheduleDate.trim()) {
+      toast({ description: tCalendar("selectDate"), variant: "destructive" as any })
+      return
+    }
+    const timeZoneToUse = activeBooking?.time_zone || profile?.time_zone || timeZone || browserTz || "America/New_York"
+    const displayName = activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "Client"
+    const email = activeBooking?.email && !isPlaceholderEmail(activeBooking.email) ? String(activeBooking.email) : ""
+    if (!email) {
+      toast({ description: "Client email is required to reschedule.", variant: "destructive" as any })
+      return
+    }
+    setRescheduling(true)
+    try {
+      await api.rescheduleNeetoBooking(sid, {
+        name: displayName,
+        email,
+        slot_date: rescheduleDate,
+        slot_start_time: hhmmToApiTime(rescheduleTime),
+        time_zone: timeZoneToUse,
+        ...(rescheduleReason.trim() ? { reschedule_reason: rescheduleReason.trim() } : {}),
+      })
+      toast({ description: tCalendar("bookingRescheduled") })
+      setRescheduleDialogOpen(false)
+      setBookingDialogOpen(false)
+      setActiveBooking(null)
+      await load()
+    } catch (e: any) {
+      toast({ description: e?.message || "Failed to reschedule", variant: "destructive" as any })
+    } finally {
+      setRescheduling(false)
+    }
   }
 
   useEffect(() => {
@@ -788,7 +989,7 @@ export default function CalendarPage() {
                   <div className="flex py-3 border-b border-border/50">
                     <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Client</span>
                     <span className="text-sm text-foreground">
-                      {activeBooking?.name ? String(activeBooking.name) : "—"}
+                      {activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "—"}
                       {activeBooking?.email && !isPlaceholderEmail(activeBooking.email) 
                         ? ` (${String(activeBooking.email)})` 
                         : null}
@@ -800,9 +1001,19 @@ export default function CalendarPage() {
                     return location || clientPhone ? (
                       <>
                         {location && (
-                          <div className="flex py-3 border-b border-border/50">
-                            <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Location</span>
-                            <span className="text-sm text-foreground">{location}</span>
+                          <div className="flex items-center gap-2 py-3 border-b border-border/50">
+                            <span className="text-sm font-medium text-muted-foreground min-w-[100px] shrink-0">Location</span>
+                            <span className="text-sm text-foreground min-w-0 flex-1 truncate">{location}</span>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 rounded-lg p-0" asChild>
+                              <a
+                                href={`https://maps.google.com/?q=${encodeURIComponent(location)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label="Open location in Google Maps"
+                              >
+                                <MapPin className="h-4 w-4" />
+                              </a>
+                            </Button>
                           </div>
                         )}
                         {clientPhone && (
@@ -854,39 +1065,147 @@ export default function CalendarPage() {
                     </div>
                   )
                 })()}
+
+                {/* Cancel & Reschedule */}
+                {activeBooking && bookingSid(activeBooking) ? (
+                  <div className="pt-4 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={openRescheduleDialog}
+                    >
+                      {tCalendar("rescheduleBooking")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setCancelConfirmOpen(true)}
+                    >
+                      {tCalendar("cancelBooking")}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </DialogContent>
         </Dialog>
 
-        <div className="space-y-4">
-          {error ? (
-            <Alert variant="destructive">
-              <AlertCircleIcon />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+        <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tCalendar("cancelBooking")}</AlertDialogTitle>
+              <AlertDialogDescription>{tCalendar("cancelBookingConfirm")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancelling}>{tCommon("cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault()
+                  onCancelBookingConfirm()
+                }}
+                disabled={cancelling}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {cancelling ? "Saving..." : tCalendar("cancelBooking")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-          {notice ? (
-            <Alert>
-              <CheckCircle2Icon />
-              <AlertDescription>{notice}</AlertDescription>
-            </Alert>
-          ) : null}
-        </div>
+        <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+          <DialogContent className="sm:max-w-[400px] p-0 gap-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold">{tCalendar("rescheduleBookingTitle")}</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">{tCalendar("rescheduleBookingDescription")}</p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{tCalendar("newDate")}</label>
+                <Input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{tCalendar("newTime")}</label>
+                <Input
+                  type="time"
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value || "09:00")}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{tCalendar("rescheduleReason")}</label>
+                <Input
+                  type="text"
+                  placeholder=""
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setRescheduleDialogOpen(false)}>
+                  {tCommon("cancel")}
+                </Button>
+                <Button type="button" className="flex-1" onClick={onRescheduleSubmit} disabled={rescheduling}>
+                  {rescheduling ? tCommon("saving") : tCalendar("rescheduleBooking")}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-6">
-          <div className="flex items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="calendar">{tCalendar('title')}</TabsTrigger>
-              <TabsTrigger value="availability">{tCalendar('setAvailability')}</TabsTrigger>
-            </TabsList>
+        <CreateAppointmentDialog
+          open={createAppointmentOpen}
+          onOpenChange={setCreateAppointmentOpen}
+          clients={clients.map((c) => ({ id: c.id, name: c.name || "", email: c.email || "" }))}
+          profile={profile ? { time_zone: profile.time_zone, calendar_link: profile.calendar_link } : null}
+          onSuccess={load}
+        />
+
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-muted/20">
+          <div className="mx-auto max-w-[1320px] px-6 py-6">
+            <div className="space-y-4">
+              {error ? (
+                <Alert variant="destructive">
+                  <AlertCircleIcon />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {notice ? (
+                <Alert>
+                  <CheckCircle2Icon />
+                  <AlertDescription>{notice}</AlertDescription>
+                </Alert>
+              ) : null}
             </div>
 
-          <TabsContent value="calendar" className="mt-6">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-6">
+              <div className="flex items-center justify-between gap-3">
+                <TabsList className="h-auto gap-1 rounded-lg bg-[#F1F5F9] dark:bg-muted p-1">
+                  <TabsTrigger
+                    value="calendar"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border"
+                  >
+                    {tCalendar("title")}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="availability"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border"
+                  >
+                    {tCalendar("setAvailability")}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="calendar" className="mt-6">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
               {bookingsLoading ? (
-                <Card className="p-5">
+                <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-5 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
                   <div className="flex items-center justify-between gap-3">
                     <div className="space-y-2">
                       <Skeleton className="h-4 w-20" />
@@ -919,152 +1238,331 @@ export default function CalendarPage() {
                 />
               )}
 
-          <div className="space-y-6 lg:sticky lg:top-24 self-start">
+          <div className="space-y-6 lg:sticky lg:top-24 self-start rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
             {bookingsLoading ? (
-              <Card className="p-5">
+              <>
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-44" />
-                    <Skeleton className="h-4 w-28" />
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-xl" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-6 w-40" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
                   </div>
-                  <Skeleton className="h-10 w-24 rounded-md" />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <Skeleton className="h-10 w-28 rounded-lg" />
+                  </div>
                 </div>
-                <Separator className="my-4" />
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-14 w-full rounded-md" />
+                <div className="space-y-3 pt-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 w-full rounded-lg" />
                   ))}
                 </div>
-                <Separator className="my-4" />
-                <div className="space-y-2">
+                <div className="space-y-2 pt-4">
                   <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-11 w-full rounded-lg" />
                 </div>
-              </Card>
+              </>
             ) : (
-            <Card className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-base font-semibold truncate">
-                    {selectedDay
-                      ? selectedDay.toLocaleDateString(undefined, {
-                          weekday: "long",
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "Bookings"}
+            <>
+              {/* Header: actions on left, then date below */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-start gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={load}
+                    disabled={bookingsLoading}
+                    className="h-10 w-10 rounded-lg shrink-0 border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
+                    aria-label={tCommon("refresh")}
+                  >
+                    <RefreshCwIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setCreateAppointmentOpen(true)}
+                    disabled={!calendarLink}
+                    className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)] h-10 px-4 font-medium"
+                    aria-label={tCalendar("createAppointment")}
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    {tCalendar("createAppointment")}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <CalendarIcon className="h-5 w-5" aria-hidden />
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {selectedDayBookings.length === 0 ? tCalendar('noBookings') : `${selectedDayBookings.length} booking(s).`}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-foreground break-words">
+                      {selectedDay
+                        ? selectedDay.toLocaleDateString(undefined, {
+                            weekday: "long",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : tCalendar("bookings")}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {selectedDayBookings.length === 0
+                        ? tCalendar("noBookings")
+                        : selectedDay
+                          ? `${selectedDay.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${selectedDayBookings.length} ${selectedDayBookings.length === 1 ? "booking" : "bookings"}`
+                          : ""}
+                    </p>
                   </div>
                 </div>
-                  <Button variant="outline" onClick={load} disabled={bookingsLoading}>
-                    {tCommon('refresh')}
-                  </Button>
               </div>
 
-              <Separator className="my-4" />
-
-              <ScrollArea className="h-[280px]">
-                <div className="space-y-2 pr-4">
-                  {selectedDayBookings.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">{tCommon('nothingScheduled')}</div>
-                  ) : (
-                    selectedDayBookings.map((b, idx) => {
-                      const location = getBookingLocation(b)
-                      const clientPhone = getBookingClientPhone(b)
-                      const clientName = b?.name || "—"
-                      const showEmail = b?.email && !isPlaceholderEmail(b.email)
-                      
-                      // Format: "Meeting with {phone} at {location}" or fallback to client name
-                      const displayText = (() => {
-                        if (location && clientPhone) {
-                          return `Meeting with ${clientPhone} at ${location}`
-                        } else if (location) {
-                          return `Meeting at ${location}`
-                        } else if (clientPhone) {
-                          return `Meeting with ${clientPhone}`
-                        }
-                        return null
-                      })()
-                      
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => openBooking(b)}
-                          className="w-full rounded-md border p-3 text-left transition hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                          aria-label={`Open booking details for ${bookingTitle(b)}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium truncate">{bookingTitle(b)}</div>
-                              {displayText ? (
-                                <div className="text-sm text-muted-foreground truncate mt-0.5">
-                                  {displayText}
-                                </div>
-                              ) : (
-                                <div className="text-sm text-muted-foreground truncate">
-                                  {clientName}
-                                  {showEmail ? ` (${b.email})` : ""}
-                                </div>
-                              )}
-                              {location && !displayText && (
-                                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                                  📍 {location}
-                                </div>
-                              )}
-                              {clientPhone && !displayText && (
-                                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                                  📞 {clientPhone}
-                                </div>
-                              )}
-                              <div className="text-sm text-muted-foreground mt-1">{bookingTimeLabel(b)}</div>
-                            </div>
-                            <div className="text-xs text-muted-foreground whitespace-nowrap">{b?.status || ""}</div>
-                          </div>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              </ScrollArea>
-
-              <Separator className="my-4" />
-
-              <div className="space-y-2">
-                <div className="text-sm font-medium">{tCalendar('schedulingLink')}</div>
-                {calendarLink ? (
-                  <div className="flex items-center gap-2">
-                    <Input value={calendarLink} readOnly className="text-xs" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={onCopyLink}
-                        aria-label="Copy scheduling link"
-                      >
-                      <CopyIcon className="h-4 w-4" />
-                    </Button>
-                    <Button asChild type="button" variant="outline" size="icon" aria-label="Open scheduling link">
-                      <a href={calendarLink} target="_blank" rel="noreferrer">
-                        <ExternalLinkIcon className="h-4 w-4" />
-                      </a>
+              {/* Booking cards */}
+              <div className="space-y-3">
+                {selectedDayBookings.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#E2E8F0] dark:border-border bg-[#FAFBFD] dark:bg-muted/20 py-10 px-4 text-center shadow-sm">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {tCommon("nothingScheduled")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80 mt-1">
+                      No more bookings today — add one?
+                    </p>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="mt-4 rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
+                      onClick={() => setCreateAppointmentOpen(true)}
+                      disabled={!calendarLink}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      {tCalendar("createAppointment")}
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No scheduling link saved yet.</div>
+                  <ScrollArea className="h-[300px] pr-2">
+                    <div className="space-y-3">
+                      {selectedDayBookings.map((b, idx) => {
+                        const location = getBookingLocation(b)
+                        const clientPhone = getBookingClientPhone(b)
+                        const clientName = parseBookingNameAndLocation(b?.name).displayName || "—"
+                        const showEmail = b?.email && !isPlaceholderEmail(b.email)
+                        const subtitle =
+                          location && clientPhone
+                            ? `Meeting with ${clientPhone} at ${location}`
+                            : location
+                              ? `Meeting at ${location}`
+                              : clientPhone
+                                ? `Meeting with ${clientPhone}`
+                                : clientName + (showEmail ? ` (${b.email})` : "")
+                        const status = (b?.status as string) || "confirmed"
+                        const isConfirmed = String(status).toLowerCase() === "confirmed"
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => openBooking(b)}
+                            className="w-full rounded-lg border border-border bg-background p-4 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            aria-label={`Open booking details for ${bookingTitle(b)}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar
+                                className={cn(
+                                  "h-10 w-10 shrink-0 rounded-full",
+                                  getBookingAvatarColor(idx)
+                                )}
+                              >
+                                <AvatarFallback className="text-sm font-semibold">
+                                  {getInitials(clientName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="text-base font-semibold text-primary truncate">
+                                    {bookingTitle(b)}
+                                  </h3>
+                                  <span className="shrink-0 rounded-full p-1 text-muted-foreground" aria-hidden>
+                                    <MoreHorizontalIcon className="h-4 w-4" />
+                                  </span>
+                                </div>
+                                {subtitle ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2 break-words">
+                                        {subtitle}
+                                      </p>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      {subtitle}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : null}
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                  <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                    {bookingTimeLabel(b)}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                    {isConfirmed ? (
+                                      <>
+                                        <CheckCircle2Icon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-hidden />
+                                        Confirmed
+                                      </>
+                                    ) : (
+                                      <span className="capitalize">{status}</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
                 )}
-                {copied ? <div className="text-xs text-muted-foreground">Copied.</div> : null}
               </div>
-            </Card>
+
+              {/* Your Scheduling Link — card per designer spec */}
+              <div className="pt-4 border-t border-border/60">
+                <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-base font-semibold text-foreground">
+                          {tCalendar("yourSchedulingLink")}
+                        </label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex cursor-help rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" aria-hidden>
+                              <HelpCircleIcon className="h-4 w-4" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px]">
+                            {tCalendar("schedulingLinkTooltip")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      {calendarLink ? (
+                        <div
+                          className="flex min-h-10 items-stretch gap-0 rounded-md border-b-2 border-primary/30 bg-transparent focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                          role="group"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              onCopyLink()
+                            }
+                          }}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="font-mono text-sm text-primary min-w-0 flex-1 truncate py-2.5 pr-2 cursor-default"
+                                aria-label="Scheduling link URL"
+                              >
+                                {calendarLink}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[min(90vw,28rem)] font-mono text-xs break-all">
+                              {calendarLink}
+                            </TooltipContent>
+                          </Tooltip>
+                          <div className="flex items-center gap-0.5 pr-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  onClick={onCopyLink}
+                                  aria-label="Copy scheduling link"
+                                >
+                                  {copied ? (
+                                    <CheckIcon className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden />
+                                  ) : (
+                                    <CopyIcon className="h-4 w-4" aria-hidden />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{copied ? tCalendar("copiedToClipboard") : "Copy"}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  onClick={() => setSchedulingLinkViewOpen(true)}
+                                  aria-label="View scheduling link"
+                                >
+                                  <Eye className="h-4 w-4" aria-hidden />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  asChild
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  aria-label="Open scheduling link in new tab"
+                                >
+                                  <a href={calendarLink} target="_blank" rel="noreferrer">
+                                    <ExternalLinkIcon className="h-4 w-4" aria-hidden />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Open</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {tCalendar("linkInactiveRegenerate")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* View scheduling link dialog */}
+                <Dialog open={schedulingLinkViewOpen} onOpenChange={setSchedulingLinkViewOpen}>
+                  <DialogContent className="sm:max-w-2xl h-[80vh] flex flex-col p-0 gap-0" showCloseButton={false}>
+                    <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border">
+                      <DialogTitle className="text-base font-semibold">
+                        {tCalendar("yourSchedulingLink")}
+                      </DialogTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setSchedulingLinkViewOpen(false)}
+                        aria-label="Close"
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {calendarLink ? (
+                      <iframe
+                        src={calendarLink}
+                        title="Scheduling link preview"
+                        className="w-full flex-1 min-h-0 rounded-b-lg"
+                      />
+                    ) : null}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </>
             )}
               </div>
                   </div>
           </TabsContent>
 
           <TabsContent value="availability" className="mt-6">
-            <Card className="p-6 md:p-8">
+            <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
               {availabilityLoading || !hasLoadedAvailability ? (
                 <>
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1148,28 +1646,23 @@ export default function CalendarPage() {
                       <div className="text-sm text-muted-foreground">Set when you are typically available for meetings</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
+                      <Button type="button" variant="outline" className="rounded-lg hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)]" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
                         Reload
                       </Button>
-                      <Button type="button" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
-                      {savingAvailability ? "Saving…" : "Save"}
-                    </Button>
+                      <Button type="button" className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
+                        {savingAvailability ? "Saving…" : "Save"}
+                      </Button>
                     </div>
                   </div>
 
                   <Separator className="my-6" />
 
                   <div className="grid gap-6">
-                <div className="rounded-2xl border p-4">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="text-sm font-medium">Apply uniform hours</div>
-                      <div className="text-sm text-muted-foreground">Select days and apply the same start/end time.</div>
-                    </div>
-                    <Button type="button" variant="outline" onClick={applyUniformToSelectedDays}>
-                      Apply
-                    </Button>
-                </div>
+                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+                  <div>
+                    <div className="text-sm font-semibold text-[#1E293B] dark:text-foreground">Apply uniform hours</div>
+                    <div className="text-sm text-[#6B7280] dark:text-gray-400 mt-0.5">Select days and apply the same start/end time.</div>
+                  </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {WEEKDAYS.map((d) => (
@@ -1179,7 +1672,7 @@ export default function CalendarPage() {
                         onClick={() => setQuickDays((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
                         className={cn(
                           "rounded-full border px-3 py-1.5 text-sm font-medium transition",
-                          quickDays[d.key] ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+                          quickDays[d.key] ? "bg-primary text-primary-foreground border-primary" : "border-[#E5E7EB] dark:border-border bg-transparent hover:bg-muted/70"
                         )}
                       >
                         {d.short}
@@ -1231,15 +1724,9 @@ export default function CalendarPage() {
                         </SelectContent>
                       </Select>
                   </div>
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Timezone</div>
-                      <div className="text-xs text-muted-foreground">
-                        Current: <span className="font-mono">{timeZone}</span>
-                        {" · "}
-                        Browser: <span className="font-mono">{browserTz || "unknown"}</span>
-                      </div>
-                    </div>
+                  <div className="grid gap-2 sm:flex sm:flex-col sm:justify-end">
+                    <label className="text-sm font-medium">Current time zone</label>
+                    <div className="flex items-center gap-2">
                       <Select
                         value={timeZone}
                         onValueChange={(v) => {
@@ -1247,7 +1734,7 @@ export default function CalendarPage() {
                           setTimeZoneSource("manual")
                         }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full min-w-0">
                           <SelectValue placeholder="Select timezone" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1258,32 +1745,50 @@ export default function CalendarPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <Button type="button" variant="outline" className="rounded-lg shrink-0 h-10" onClick={applyUniformToSelectedDays}>
+                        Apply
+                      </Button>
                     </div>
+                  </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border">
+                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
                   {WEEKDAYS.map((d, idx) => {
                     const ranges = weeklyHours[d.key] || []
                     const isUnavailable = ranges.length === 0
                     return (
-                      <div key={d.key} className={cn("p-4 md:p-5", idx > 0 ? "border-t" : "")}>
+                      <div
+                        key={d.key}
+                        className={cn(
+                          "py-5 px-4 md:py-6 md:px-5 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-muted/20",
+                          idx > 0 ? "border-t border-[#F3F4F6] dark:border-border" : ""
+                        )}
+                      >
                         <div className="flex items-start gap-4">
-                          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                          <div
+                            className={cn(
+                              "mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                              isUnavailable
+                                ? "border-2 border-[#E5E7EB] dark:border-border bg-transparent text-muted-foreground"
+                                : "bg-primary text-primary-foreground"
+                            )}
+                          >
                             {d.short}
-                  </div>
+                          </div>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-medium">{d.label}</div>
+                              <div className="text-sm font-semibold text-foreground">{d.label}</div>
                               <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="icon"
+                                className="h-9 w-9 border-[#E5E7EB] dark:border-border text-muted-foreground hover:text-foreground"
                                 onClick={() => addRangeForDay(d.key)}
                                 aria-label={`Add time range for ${d.label}`}
                               >
-                                <PlusIcon className="h-4 w-4" />
+                                <PlusIcon className="h-3.5 w-3.5 stroke-[2]" />
                               </Button>
                             </div>
 
@@ -1292,7 +1797,7 @@ export default function CalendarPage() {
                             ) : (
                               <div className="mt-3 space-y-2">
                                 {ranges.map((r, i) => (
-                                  <div key={i} className="flex flex-wrap items-center gap-2">
+                                  <div key={i} className="flex flex-wrap items-center gap-3">
                                     <Select
                                       value={r.start}
                                       onValueChange={(v) => {
@@ -1311,7 +1816,7 @@ export default function CalendarPage() {
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    <span className="text-muted-foreground">–</span>
+                                    <span className="text-muted-foreground opacity-50 select-none">–</span>
                                     <Select
                                       value={r.end}
                                       onValueChange={(v) => {
@@ -1330,27 +1835,31 @@ export default function CalendarPage() {
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => removeRangeForDay(d.key, i)}
-                                      aria-label={`Remove time range ${i + 1} for ${d.label}`}
-                                    >
-                                      <XIcon className="h-4 w-4" />
-                                    </Button>
-
-                                    {i === ranges.length - 1 ? (
+                                    <div className="inline-flex items-center gap-0.5">
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        onClick={() => copyDayToSelectedDays(d.key)}
-                                        aria-label={`Copy ${d.label} hours to selected days`}
+                                        className="h-11 w-11 min-w-[44px] min-h-[44px] rounded-md text-muted-foreground hover:text-foreground"
+                                        onClick={() => removeRangeForDay(d.key, i)}
+                                        aria-label={`Remove time range ${i + 1} for ${d.label}`}
                                       >
-                                        <CopyIcon className="h-4 w-4" />
+                                        <XIcon className="h-3.5 w-3.5" />
                                       </Button>
-                                    ) : null}
+
+                                      {i === ranges.length - 1 ? (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-11 w-11 min-w-[44px] min-h-[44px] rounded-md text-muted-foreground hover:text-foreground"
+                                          onClick={() => copyDayToSelectedDays(d.key)}
+                                          aria-label={`Copy ${d.label} hours to selected days`}
+                                        >
+                                          <CopyIcon className="h-3.5 w-3.5" />
+                                        </Button>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1362,21 +1871,19 @@ export default function CalendarPage() {
                   })}
                 </div>
 
-                <div className="text-xs text-muted-foreground">
-                  {activeAvailabilityId ? (
-                    <>
-                      Loaded availability id: <span className="font-mono">{activeAvailabilityId}</span>
-                    </>
-                  ) : (
-                    <>No existing availability found yet (saving will create one).</>
-                  )}
-                </div>
+                {!activeAvailabilityId && (
+                  <div className="text-xs text-muted-foreground">
+                    No existing availability found yet (saving will create one).
+                  </div>
+                )}
               </div>
                 </>
               )}
             </Card>
           </TabsContent>
-        </Tabs>
+            </Tabs>
+          </div>
+        </div>
       </main>
     </div>
   )

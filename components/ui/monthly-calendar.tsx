@@ -81,11 +81,17 @@ export function MonthlyCalendar({
   }, [first])
 
   return (
-    <div className={cn("rounded-2xl border bg-card p-4 md:p-5", className)}>
+    <div
+      className={cn(
+        "rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-5 md:p-6",
+        "shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]",
+        className
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-medium text-muted-foreground">Bookings</div>
-          <div className="truncate text-lg font-semibold leading-tight">{title}</div>
+          <div className="truncate text-lg font-semibold leading-tight text-[#1E293B] dark:text-foreground">{title}</div>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -94,6 +100,7 @@ export function MonthlyCalendar({
             size="icon"
             onClick={() => onMonthChange(addMonths(first, -1))}
             aria-label="Previous month"
+            className="h-9 w-9 rounded-lg border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -103,6 +110,7 @@ export function MonthlyCalendar({
             size="icon"
             onClick={() => onMonthChange(addMonths(first, 1))}
             aria-label="Next month"
+            className="h-9 w-9 rounded-lg border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -126,11 +134,13 @@ export function MonthlyCalendar({
               type="button"
               onClick={() => onSelect(date)}
               className={cn(
-                "relative grid h-10 w-10 place-items-center rounded-xl text-sm font-medium transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                "relative grid h-10 w-10 place-items-center rounded-lg text-sm font-medium transition-all",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 inMonth ? "text-foreground" : "text-muted-foreground/50",
-                isSelected ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-muted",
-                !isSelected && hasBookings ? "ring-1 ring-primary/25" : ""
+                isSelected
+                  ? "bg-primary text-primary-foreground shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] shadow-md"
+                  : "hover:bg-muted/80 hover:shadow-[0_2px_6px_rgba(0,0,0,0.06)]",
+                !isSelected && hasBookings ? "ring-1 ring-primary/20" : ""
               )}
               aria-pressed={isSelected}
             >
@@ -138,8 +148,8 @@ export function MonthlyCalendar({
               {hasBookings ? (
                 <span
                   className={cn(
-                    "absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-semibold tabular-nums",
-                    isSelected ? "bg-background text-primary" : "bg-primary text-primary-foreground"
+                    "absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-semibold tabular-nums shadow-sm",
+                    isSelected ? "bg-white dark:bg-card text-primary" : "bg-primary text-primary-foreground"
                   )}
                 >
                   {count > 99 ? "99+" : count}

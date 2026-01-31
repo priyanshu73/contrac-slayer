@@ -3,13 +3,18 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { Calendar } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface ClientsListProps {
   clients?: any[]
   loading?: boolean
+  /** When user clicks "Schedule a call" on a client card, open create-appointment for that client. */
+  onScheduleClick?: (client: { id: number; name?: string; email?: string }) => void
 }
 
-export function ClientsList({ clients = [], loading = false }: ClientsListProps) {
+export function ClientsList({ clients = [], loading = false, onScheduleClick }: ClientsListProps) {
+  const tClients = useTranslations("clients")
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -136,6 +141,19 @@ export function ClientsList({ clients = [], loading = false }: ClientsListProps)
           <div className="mt-4 flex gap-2">
             <Button size="sm" className="flex-1" asChild>
               <Link href={`/clients/${client.id}`}>View Details</Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              title={tClients("scheduleCall")}
+              onClick={(e) => {
+                e.stopPropagation()
+                onScheduleClick?.(client)
+              }}
+              disabled={!onScheduleClick}
+            >
+              <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
             </Button>
             {client.phone && (
               <Button size="sm" variant="outline" asChild>
