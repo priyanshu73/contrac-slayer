@@ -210,10 +210,10 @@ export default function QuoteDetailPage() {
   }
 
   const handleSendFollowup = async () => {
-    if (!job || !user?.contractor_profile?.id) {
+    if (!job || !user?.contractor_profile?.contractor_ai_sp_id) {
       toast({
         title: "Error",
-        description: "Unable to send follow-up. Missing required information.",
+        description: "Unable to send follow-up. Contractor AI integration not set up.",
         variant: "destructive",
       })
       return
@@ -238,7 +238,7 @@ export default function QuoteDetailPage() {
       followupDate.setDate(followupDate.getDate() + 3)
 
       await contractorAI.scheduleFollowup({
-        sp_id: user.contractor_profile.id,
+        sp_id: user.contractor_profile.contractor_ai_sp_id,
         customer_number: customerPhone,
         scheduled_for: followupDate.toISOString(),
         message_text: `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`,

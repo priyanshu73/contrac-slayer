@@ -754,7 +754,7 @@ export function SettingsTabs() {
           </TabsList>
 
           <TabsContent value="settings">
-            <FollowupSettings contractorId={profile?.id} />
+            <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
           </TabsContent>
 
           <TabsContent value="scheduled">
@@ -769,7 +769,7 @@ export function SettingsTabs() {
                   Schedule Follow-up
                 </Button>
               </div>
-              <ScheduledFollowupsList contractorId={profile?.id} statusFilter="pending" />
+              <ScheduledFollowupsList contractorId={profile?.contractor_ai_sp_id} statusFilter="pending" />
             </div>
           </TabsContent>
 
@@ -779,13 +779,13 @@ export function SettingsTabs() {
                 <h2 className="text-2xl font-bold">Follow-up History</h2>
                 <p className="text-muted-foreground">View past follow-up messages and their status</p>
               </div>
-              <ScheduledFollowupsList contractorId={profile?.id} statusFilter="all" />
+              <ScheduledFollowupsList contractorId={profile?.contractor_ai_sp_id} statusFilter="all" />
             </div>
           </TabsContent>
         </Tabs>
 
         <ScheduleFollowupDialog 
-          contractorId={profile?.id}
+          contractorId={profile?.contractor_ai_sp_id}
           open={showScheduleDialog} 
           onOpenChange={setShowScheduleDialog}
           onScheduled={() => {
