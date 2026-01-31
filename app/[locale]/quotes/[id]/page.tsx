@@ -5,16 +5,18 @@ import { useParams, useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { api } from "@/lib/api"
+import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
 import { useAuth } from "@/contexts/AuthContext"
 import { Job } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function QuoteDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const { toast } = useToast()
   const identifier = params.id as string
   
   const [job, setJob] = useState<Job | null>(null)
@@ -207,6 +209,62 @@ export default function QuoteDetailPage() {
     await fetchJob()
   }
 
+  const handleSendFollowup = async () => {
+    if (!job || !user?.contractor_profile?.contractor_ai_sp_id) {
+      toast({
+        title: "Error",
+        description: "Unable to send follow-up. Contractor AI integration not set up.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      // Get the customer phone number from the job's client
+      const customerPhone = job.client?.phone || ""
+      const customerName = job.client?.name || "Customer"
+      
+      if (!customerPhone) {
+        toast({
+          title: "Error",
+          description: "Customer phone number not found.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Build the message with quote link
+      let message = `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`
+      
+      if (job.quote_public_link) {
+        // Construct full URL for the quote
+        const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        const quoteUrl = `${frontendUrl}/quotes/${job.quote_public_link}`
+        message = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${quoteUrl}\n\nDo you have any questions?`
+      }
+
+      // Send SMS immediately (not scheduled)
+      await contractorAI.sendImmediateSms({
+        sp_id: user.contractor_profile.contractor_ai_sp_id,
+        customer_number: customerPhone,
+        message_text: message,
+        reference_type: "job",
+        reference_id: job.id,
+      })
+
+      toast({
+        title: "Follow-up sent!",
+        description: `SMS sent to ${customerName} successfully.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send follow-up",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -277,6 +335,7 @@ export default function QuoteDetailPage() {
         showActions={true}
         onSendToClient={handleSendToClient}
         onEdit={handleEdit}
+        onSendFollowup={handleSendFollowup}
         onCreateInvoice={handleCreateInvoice}
         onSignatureUpdate={handleSignatureUpdate}
         isContractor={true}

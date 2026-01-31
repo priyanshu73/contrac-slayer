@@ -896,6 +896,76 @@ class ContractorAIClient {
   async healthCheck() {
     return this.request('/health')
   }
+
+  // =========================
+  // Follow-up System
+  // =========================
+  
+  async getFollowupSettings(spId: string) {
+    return this.request(`/followup/settings/${spId}`)
+  }
+
+  async updateFollowupSettings(spId: string, data: any) {
+    return this.request(`/followup/settings/${spId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getScheduledFollowups(spId: string, params?: {
+    status?: string
+    type?: string
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.type) searchParams.append('type', params.type)
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+
+    const qs = searchParams.toString()
+    return this.request(`/followup/scheduled/${spId}${qs ? `?${qs}` : ''}`)
+  }
+
+  async scheduleFollowup(data: {
+    sp_id: number
+    customer_number: string
+    scheduled_for: string
+    message_text: string
+    followup_type?: string
+    reference_type?: string
+    reference_id?: number
+    appointment_datetime?: string
+  }) {
+    return this.request('/followup/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async cancelFollowup(followupId: string) {
+    return this.request(`/followup/${followupId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getFollowupTemplates(spId: string) {
+    return this.request(`/followup/templates/${spId}`)
+  }
+
+  async sendImmediateSms(data: {
+    sp_id: number
+    customer_number: string
+    message_text: string
+    reference_type?: string
+    reference_id?: number
+  }) {
+    return this.request('/followup/send-immediate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const api = new ApiClient(API_URL!)
