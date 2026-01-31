@@ -1,0 +1,507 @@
+"use client"
+
+import { useMemo, useState, useEffect, useCallback } from "react"
+import { Calendar, ChevronsUpDown, Info, MapPin } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Kbd } from "@/components/ui/kbd"
+import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
+import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0")
+}
+function minutesToHHMM(m: number) {
+  const hh = Math.floor(m / 60)
+  const mm = m % 60
+  return `${pad2(hh)}:${pad2(mm)}`
+}
+function hhmmToMinutes(hhmm: string): number {
+  const m = String(hhmm || "").trim().match(/^(\d{2}):(\d{2})$/)
+  if (!m) return 0
+  const hh = parseInt(m[1], 10)
+  const mm = parseInt(m[2], 10)
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return 0
+  return hh * 60 + mm
+}
+function hhmmToLabel(hhmm: string): string {
+  const mins = hhmmToMinutes(hhmm)
+  const hh24 = Math.floor(mins / 60)
+  const mm = mins % 60
+  const ap = hh24 >= 12 ? "PM" : "AM"
+  const hh12 = hh24 % 12 === 0 ? 12 : hh24 % 12
+  return `${hh12}:${pad2(mm)} ${ap}`
+}
+function hhmmToApiTime(hhmm: string): string {
+  const mins = hhmmToMinutes(hhmm)
+  const hh24 = Math.floor(mins / 60)
+  const mm = mins % 60
+  const ap = hh24 >= 12 ? "PM" : "AM"
+  const hh12raw = hh24 % 12 === 0 ? 12 : hh24 % 12
+  return `${pad2(hh12raw)}:${pad2(mm)} ${ap}`
+}
+
+/** Parse NeetoCal slot start_time (e.g. "09:00", "09:00:00", or "2025-01-15T09:00:00Z") to HH:MM. */
+function parseSlotStartToHHMM(raw: string): string | null {
+  if (!raw || typeof raw !== "string") return null
+  const s = raw.trim()
+  const match = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/) || s.match(/T(\d{1,2}):(\d{2})/)
+  if (match) {
+    const hh = parseInt(match[1], 10)
+    const mm = parseInt(match[2], 10)
+    if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) return `${pad2(hh)}:${pad2(mm)}`
+  }
+  return null
+}
+
+const AVATAR_COLORS = [
+  "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+] as const
+
+function getAvatarColor(clientId: number): string {
+  return AVATAR_COLORS[Math.abs(clientId) % AVATAR_COLORS.length]
+}
+
+function getInitials(name: string): string {
+  const parts = (name || "").trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return (name || "?").slice(0, 2).toUpperCase()
+}
+
+const MEETING_SPOT_OPTIONS: Array<{ value: string; labelKey: string }> = [
+  { value: "in_person", labelKey: "meetingSpotInPerson" },
+  { value: "jitsi", labelKey: "meetingSpotJitsi" },
+  { value: "zoom", labelKey: "meetingSpotZoom" },
+  { value: "google_meet", labelKey: "meetingSpotGoogleMeet" },
+  { value: "teams", labelKey: "meetingSpotTeams" },
+  { value: "whereby", labelKey: "meetingSpotWhereby" },
+  { value: "daily", labelKey: "meetingSpotDaily" },
+  { value: "custom", labelKey: "meetingSpotCustom" },
+]
+
+export type CreateAppointmentClient = { id: number; name: string; email: string }
+
+export interface CreateAppointmentDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  clients: CreateAppointmentClient[]
+  profile: { time_zone?: string; calendar_link?: string } | null
+  preSelectedClientId?: string | null
+  onSuccess?: () => void
+}
+
+export function CreateAppointmentDialog({
+  open,
+  onOpenChange,
+  clients,
+  profile,
+  preSelectedClientId = null,
+  onSuccess,
+}: CreateAppointmentDialogProps) {
+  const { toast } = useToast()
+  const tCalendar = useTranslations("calendar")
+  const tCommon = useTranslations("common")
+
+  const [clientId, setClientId] = useState<string>("")
+  const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+  const [date, setDate] = useState<string>("")
+  const [time, setTime] = useState<string>("")
+  const [meetingSpot, setMeetingSpot] = useState<string>("in_person")
+  const [location, setLocation] = useState<string>("")
+  const [creating, setCreating] = useState(false)
+  const [slotTimeOptions, setSlotTimeOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+
+  useEffect(() => {
+    if (open && preSelectedClientId) {
+      setClientId(preSelectedClientId)
+    }
+  }, [open, preSelectedClientId])
+
+  const hasCalendarLink = Boolean(profile?.calendar_link)
+  const timeZoneToUse = profile?.time_zone ?? (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null) ?? "America/New_York"
+
+  useEffect(() => {
+    if (!open || !date.trim() || !hasCalendarLink) {
+      setSlotTimeOptions([])
+      return
+    }
+    const [y, m, d] = date.split("-").map(Number)
+    if (!y || !m) return
+    setSlotsLoading(true)
+    api
+      .getNeetoSlots({
+        time_zone: timeZoneToUse,
+        year: String(y),
+        month: String(m),
+        day: d ? String(d) : undefined,
+      })
+      .then((res: any) => {
+        const rawSlots = res?.slots ?? res?.data?.slots ?? []
+        const startTimes = new Set<string>()
+        const targetDate = date
+        for (const dayEntry of rawSlots) {
+          if (dayEntry.date !== targetDate) continue
+          const slotMap = dayEntry.slots ?? {}
+          for (const slot of Object.values(slotMap) as Array<{ start_time?: string }>) {
+            const hhmm = parseSlotStartToHHMM(slot?.start_time ?? "")
+            if (hhmm) startTimes.add(hhmm)
+          }
+        }
+        const sorted = Array.from(startTimes).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b))
+        setSlotTimeOptions(sorted.map((v) => ({ value: v, label: hhmmToLabel(v) })))
+      })
+      .catch(() => setSlotTimeOptions([]))
+      .finally(() => setSlotsLoading(false))
+  }, [open, date, hasCalendarLink, timeZoneToUse])
+
+  useEffect(() => {
+    if (slotTimeOptions.length === 0) {
+      setTime("")
+      return
+    }
+    const currentInList = slotTimeOptions.some((o) => o.value === time)
+    if (!currentInList) setTime(slotTimeOptions[0].value)
+  }, [slotTimeOptions])
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => String(c.id) === clientId),
+    [clients, clientId]
+  )
+
+  const onSubmit = useCallback(async () => {
+    const client = clients.find((c) => String(c.id) === clientId)
+    if (!client?.email) {
+      toast({ description: tCalendar("selectClient"), variant: "destructive" as any })
+      return
+    }
+    if (!date.trim()) {
+      toast({ description: tCalendar("selectDate"), variant: "destructive" as any })
+      return
+    }
+    if (!time) {
+      toast({ description: "Please select an available time.", variant: "destructive" as any })
+      return
+    }
+    setCreating(true)
+    try {
+      const timeZoneToUse = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "America/New_York"
+      const isInPerson = meetingSpot === "in_person"
+      const locationTrimmed = location?.trim() ?? ""
+      await api.createNeetoBooking({
+        name: client.name,
+        email: client.email,
+        time_zone: timeZoneToUse,
+        slot_date: date,
+        slot_start_time: hhmmToApiTime(time),
+        preferred_meeting_spot: meetingSpot || "in_person",
+        ...(isInPerson && locationTrimmed ? { location: locationTrimmed } : {}),
+      })
+      toast({ description: tCalendar("appointmentCreated") })
+      onOpenChange(false)
+      onSuccess?.()
+    } catch (e: any) {
+      toast({ description: e?.message || "Failed to create appointment", variant: "destructive" as any })
+    } finally {
+      setCreating(false)
+    }
+  }, [clientId, clients, date, location, meetingSpot, profile?.time_zone, time, tCalendar, onOpenChange, onSuccess, toast])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault()
+        if (hasCalendarLink && !creating) onSubmit()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open, hasCalendarLink, creating, onSubmit])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          "sm:max-w-[520px] p-0 gap-0 overflow-hidden rounded-2xl border shadow-xl",
+          "bg-gradient-to-b from-background to-muted/5",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200"
+        )}
+        showCloseButton={true}
+      >
+        {/* Header accent + title */}
+        <div className="relative">
+          <div className="h-1 w-full rounded-t-2xl bg-primary/80" aria-hidden />
+          <div className="px-6 pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  {tCalendar("createAppointment")}
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {tCalendar("createAppointmentDescription")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 pb-6 space-y-6">
+          {/* Client — searchable combobox */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground block">
+              {tCalendar("selectClient")}
+            </label>
+            <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={clientComboboxOpen}
+                  disabled={!hasCalendarLink}
+                  className={cn(
+                    "h-11 w-full justify-between rounded-lg px-3 py-2.5 font-normal",
+                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    !selectedClient && "text-muted-foreground"
+                  )}
+                >
+                  {selectedClient ? (
+                    <div className="flex items-center gap-3 truncate text-left">
+                      <Avatar
+                        className={cn(
+                          "h-9 w-9 shrink-0 rounded-full",
+                          getAvatarColor(selectedClient.id)
+                        )}
+                      >
+                        <AvatarFallback className="text-sm font-medium">
+                          {getInitials(selectedClient.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 truncate">
+                        <span className="block truncate text-[15px] font-medium text-foreground">
+                          {selectedClient.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {selectedClient.email}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span>{tCalendar("selectClientPlaceholder")}</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder={tCalendar("selectClientPlaceholder")} className="h-10" />
+                  <CommandList>
+                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandGroup>
+                      {clients.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={`${c.name} ${c.email}`}
+                          onSelect={() => {
+                            setClientId(String(c.id))
+                            setClientComboboxOpen(false)
+                          }}
+                          className="gap-3 py-2.5 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground"
+                        >
+                          <Avatar
+                            className={cn(
+                              "h-9 w-9 shrink-0 rounded-full",
+                              getAvatarColor(c.id)
+                            )}
+                          >
+                            <AvatarFallback className="text-sm font-medium">
+                              {getInitials(c.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[15px] font-semibold text-foreground">
+                              {c.name}
+                            </span>
+                            <span className="block text-sm text-muted-foreground">{c.email}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Date & Time — side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground block">{tCalendar("date")}</label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                disabled={!hasCalendarLink}
+                className="h-11 rounded-lg px-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground block">{tCalendar("time")}</label>
+              <Select
+                value={time || undefined}
+                onValueChange={setTime}
+                disabled={!hasCalendarLink || slotsLoading || !date.trim()}
+              >
+                <SelectTrigger className="h-11 rounded-lg px-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&>span]:line-clamp-1">
+                  <SelectValue
+                    placeholder={
+                      !date.trim()
+                        ? "Select date first"
+                        : slotsLoading
+                          ? "Loading..."
+                          : slotTimeOptions.length === 0
+                            ? "No available slots"
+                            : undefined
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {slotTimeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Meeting Type + tooltip (warning only for non–in-person options) */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium text-foreground block">
+                {tCalendar("meetingType")}
+              </label>
+              {meetingSpot !== "in_person" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex cursor-help rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                      <Info className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px] bg-muted text-muted-foreground border border-border">
+                    {tCalendar("meetingOptionWarning")}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <Select value={meetingSpot} onValueChange={setMeetingSpot} disabled={!hasCalendarLink}>
+              <SelectTrigger className="h-11 rounded-lg px-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MEETING_SPOT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {tCalendar(opt.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {meetingSpot === "in_person" && (
+              <div className="space-y-2 pt-0">
+                <label className="text-sm font-medium text-foreground block">
+                  {tCalendar("location")}
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder={tCalendar("locationPlaceholder")}
+                      disabled={!hasCalendarLink}
+                      className="h-11 pl-10 pr-3 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  {location?.trim() && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 shrink-0 rounded-lg"
+                          asChild
+                        >
+                          <a
+                            href={`https://maps.google.com/?q=${encodeURIComponent(location.trim())}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Open location in Google Maps"
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open in Google Maps</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              className="w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+              disabled={creating}
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              className="w-full sm:min-w-[140px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              onClick={onSubmit}
+              disabled={creating || !hasCalendarLink}
+            >
+              {creating ? "Saving..." : tCalendar("createAppointment")}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center sm:text-right">
+            <Kbd className="align-middle">⌘</Kbd>
+            <span className="mx-0.5">+</span>
+            <Kbd className="align-middle">⏎</Kbd>
+            <span className="ml-1">{tCalendar("keyboardHintCreate")}</span>
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

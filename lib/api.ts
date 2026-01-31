@@ -513,6 +513,21 @@ class ApiClient {
     return this.request(`/neetocal/availabilities${qs ? `?${qs}` : ''}`)
   }
 
+  /**
+   * Fetch available slots for the scheduling link (NeetoCal GET /slots/{meeting_slug}).
+   * Used to show only available times in the create-appointment time dropdown.
+   */
+  async getNeetoSlots(params: { time_zone: string; year: string; month: string; day?: string }) {
+    const searchParams = new URLSearchParams()
+    searchParams.append('time_zone', params.time_zone)
+    searchParams.append('year', params.year)
+    searchParams.append('month', params.month)
+    if (params.day) searchParams.append('day', params.day)
+    return this.request<{ slots?: Array<{ date: string; day: number; slots: Record<string, { start_time: string; end_time: string; count?: number }> }> }>(
+      `/neetocal/slots?${searchParams.toString()}`
+    )
+  }
+
   async createNeetoAvailability(payload: any) {
     return this.request(`/neetocal/availabilities`, {
       method: 'POST',
@@ -562,8 +577,9 @@ class ApiClient {
     return this.request(`/availabilities`)
   }
 
-  async getSingleAvailability() {
-    return this.request(`/availability`)
+  async getSingleAvailability(teamMemberId?: string | null) {
+    const qs = teamMemberId ? `?team_member_id=${encodeURIComponent(teamMemberId)}` : ''
+    return this.request(`/availability${qs}`)
   }
 
   async getAvailabilityTimeZone() {
@@ -597,6 +613,49 @@ class ApiClient {
     if (params?.timezone) searchParams.append('timezone', params.timezone)
     const qs = searchParams.toString()
     return this.request(`/neetocal/available-slots${qs ? `?${qs}` : ''}`)
+  }
+
+  /**
+   * Create a NeetoCal booking manually (in-person meeting with a client).
+   * Uses NeetoCal Make a booking API; meeting_slug is derived from profile calendar_link.
+   */
+  async createNeetoBooking(payload: {
+    name: string
+    email: string
+    time_zone: string
+    slot_date?: string
+    slot_start_time?: string
+    preferred_meeting_spot?: string
+    location?: string
+    form_responses?: Record<string, unknown>
+  }) {
+    return this.request('/neetocal/bookings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  /** Cancel a NeetoCal booking. POST /bookings/{booking_sid}/cancel */
+  async cancelNeetoBooking(bookingSid: string, cancelReason?: string) {
+    const qs = cancelReason ? `?cancel_reason=${encodeURIComponent(cancelReason)}` : ''
+    return this.request(`/neetocal/bookings/${encodeURIComponent(bookingSid)}/cancel${qs}`, {
+      method: 'POST',
+    })
+  }
+
+  /** Reschedule a NeetoCal booking. PATCH /bookings/{booking_sid} */
+  async rescheduleNeetoBooking(bookingSid: string, payload: {
+    name: string
+    email: string
+    slot_date: string
+    slot_start_time: string
+    time_zone: string
+    reschedule_reason?: string
+  }) {
+    return this.request(`/neetocal/bookings/${encodeURIComponent(bookingSid)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
   }
 
   // =========================

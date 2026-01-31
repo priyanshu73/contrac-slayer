@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { ClientsSearch } from "@/components/clients-search"
 import { ClientsList } from "@/components/clients-list"
+import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useTranslations } from "next-intl"
@@ -10,10 +11,28 @@ import { useTranslations } from "next-intl"
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const tClients = useTranslations('clients')
+  const [profile, setProfile] = useState<{ time_zone?: string; calendar_link?: string } | null>(null)
+  const [createAppointmentOpen, setCreateAppointmentOpen] = useState(false)
+  const [createAppointmentClientId, setCreateAppointmentClientId] = useState<string | null>(null)
+  const tClients = useTranslations("clients")
 
   useEffect(() => {
     fetchClients()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getMyProfile()
+      .then((p) => {
+        if (!cancelled) setProfile(p ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setProfile(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const fetchClients = async () => {
@@ -29,9 +48,19 @@ export default function ClientsPage() {
     }
   }
 
+  const clientsForAppointment: CreateAppointmentClient[] = clients.map((c) => ({
+    id: c.id,
+    name: c.name || c.full_name || "",
+    email: c.email || "",
+  }))
+
+  const handleScheduleClick = (client: { id: number; name?: string; email?: string }) => {
+    setCreateAppointmentClientId(String(client.id))
+    setCreateAppointmentOpen(true)
+  }
+
   return (
     <div className="min-h-screen bg-background">
-
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -43,12 +72,20 @@ export default function ClientsPage() {
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                {tClients('addClient')}
+                {tClients("addClient")}
               </a>
             </Button>
           </div>
-          <ClientsList clients={clients} loading={loading} />
+          <ClientsList clients={clients} loading={loading} onScheduleClick={handleScheduleClick} />
         </div>
+
+        <CreateAppointmentDialog
+          open={createAppointmentOpen}
+          onOpenChange={setCreateAppointmentOpen}
+          clients={clientsForAppointment}
+          profile={profile}
+          preSelectedClientId={createAppointmentClientId}
+        />
       </main>
     </div>
   )

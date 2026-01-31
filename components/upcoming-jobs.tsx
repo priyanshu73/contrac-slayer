@@ -23,7 +23,23 @@ function bookingStartDate(b: Booking): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt
 }
 
+function parseBookingNameAndLocation(name: string | undefined | null): { displayName: string; location: string | null } {
+  if (!name || typeof name !== "string") return { displayName: name || "", location: null }
+  const atIndex = name.lastIndexOf(" @ ")
+  if (atIndex === -1) return { displayName: name.trim(), location: null }
+  return {
+    displayName: name.slice(0, atIndex).trim(),
+    location: name.slice(atIndex + 3).trim() || null,
+  }
+}
+
 function bookingTitle(b: Booking): string {
+  const name = b?.name
+  if (name && typeof name === "string") {
+    const parsed = parseBookingNameAndLocation(name)
+    const displayName = (parsed.displayName || name).trim()
+    if (displayName) return `Meeting with ${displayName}`
+  }
   return (
     b?.meeting?.name ||
     b?.title ||
