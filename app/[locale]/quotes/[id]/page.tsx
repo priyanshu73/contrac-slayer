@@ -237,7 +237,10 @@ export default function QuoteDetailPage() {
       let message = `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`
       
       if (job.quote_public_link) {
-        message = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${job.quote_public_link}\n\nDo you have any questions?`
+        // Construct full URL for the quote
+        const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        const quoteUrl = `${frontendUrl}/quotes/${job.quote_public_link}`
+        message = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${quoteUrl}\n\nDo you have any questions?`
       }
 
       // Send SMS immediately (not scheduled)
@@ -245,6 +248,8 @@ export default function QuoteDetailPage() {
         sp_id: user.contractor_profile.contractor_ai_sp_id,
         customer_number: customerPhone,
         message_text: message,
+        reference_type: "job",
+        reference_id: job.id,
       })
 
       toast({

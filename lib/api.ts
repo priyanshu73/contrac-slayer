@@ -958,6 +958,8 @@ class ContractorAIClient {
     sp_id: number
     customer_number: string
     message_text: string
+    reference_type?: string
+    reference_id?: number
   }) {
     return this.request('/followup/send-immediate', {
       method: 'POST',
