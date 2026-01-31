@@ -8,8 +8,9 @@ import { api } from "@/lib/api"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
-import { QuotePublicLink } from "@/components/quote-public-link"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useToast } from "@/hooks/use-toast"
 
 interface PersonalizedQuoteViewProps {
   job: Job
@@ -35,12 +36,15 @@ export function PersonalizedQuoteView({
   isPublicView = false,
 }: PersonalizedQuoteViewProps) {
   const isMobile = useIsMobile()
+  const { toast } = useToast()
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [showContractorSignature, setShowContractorSignature] = useState(false)
   const [showCustomerSignature, setShowCustomerSignature] = useState(false)
   const [signingInProgress, setSigningInProgress] = useState(false)
   const [currentJob, setCurrentJob] = useState<Job>(job)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [generatingLink, setGeneratingLink] = useState(false)
 
   // Sync currentJob with job prop when it changes
   useEffect(() => {
@@ -232,11 +236,72 @@ export function PersonalizedQuoteView({
   const subtotalWithMarkup = baseSubtotal + markupAmount
   const taxAmount = total - subtotalWithMarkup
 
+  const handleGeneratePublicLink = async () => {
+    if (!isContractor) return
+    
+    try {
+      setGeneratingLink(true)
+      const link = await api.generateQuotePublicLink(currentJob.id)
+      setCurrentJob(prev => prev ? { ...prev, quote_public_link: link } : prev)
+      toast({
+        title: "Public Link Generated!",
+        description: "Quote is now ready to share with your customer.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Failed to generate link",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingLink(false)
+    }
+  }
+
+  const handleCopyQuoteLink = async () => {
+    const publicLink = currentJob.quote_public_link
+    if (!publicLink) {
+      // Generate link first if it doesn't exist
+      await handleGeneratePublicLink()
+      return
+    }
+
+    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const fullUrl = `${frontendUrl}/quotes/${publicLink}`
+
+    try {
+      await navigator.clipboard.writeText(fullUrl)
+      setCopiedLink(true)
+      toast({
+        title: "Link Copied!",
+        description: "Quote link has been copied to your clipboard.",
+      })
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch (error) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again or copy manually.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getQuoteLinkUrl = () => {
+    const publicLink = currentJob.quote_public_link
+    if (!publicLink) return null
+    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${frontendUrl}/quotes/${publicLink}`
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0">
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
-        {/* Printable Quote Document */}
-        <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:pl-6 lg:pr-8 xl:pl-8 xl:pr-12 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
+        {/* Layout: Quote centered, Actions on far right */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
+          {/* Quote Content - Centered */}
+          <div className="w-full lg:flex-1 lg:max-w-[900px] lg:min-w-0 lg:mx-auto print:max-w-full">
+            {/* Printable Quote Document */}
+            <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">
           <div className="p-4 sm:p-6 md:p-8 lg:p-12 print:p-6 print:break-inside-avoid print:pt-6">
             {/* Header with Logo */}
             <div className="mb-4 sm:mb-6 pb-3 sm:pb-4 print:mb-4 print:pb-2 border-b-2 border-gray-200 print:break-inside-avoid">
@@ -671,6 +736,116 @@ export function PersonalizedQuoteView({
             )}
           </div>
         </Card>
+          </div>
+
+          {/* Actions Sidebar - Far Right */}
+          {showActions && !isPublicView && (
+            <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
+              <div className="lg:sticky lg:top-8 space-y-4">
+                {/* Action Buttons Card */}
+                <Card className="bg-white shadow-lg p-4 sm:p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+                  <div className="flex flex-col gap-3">
+                    {isContractor && (
+                      <>
+                        <Button 
+                          size="lg" 
+                          className="w-full justify-start h-12 text-base" 
+                          onClick={onSendToClient}
+                        >
+                          <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Send to Client
+                        </Button>
+                        <Button 
+                          size="lg" 
+                          className="w-full justify-start h-12 text-base" 
+                          variant="outline" 
+                          onClick={onEdit}
+                        >
+                          <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit Quote
+                        </Button>
+                        {onSendFollowup && (
+                          <Button 
+                            size="lg" 
+                            className="w-full justify-start h-12 text-base" 
+                            variant="outline" 
+                            onClick={onSendFollowup}
+                          >
+                            <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            Send Follow-up
+                          </Button>
+                        )}
+                        {/* Copy Quote Link Button */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="lg"
+                              className="w-full justify-start h-12 text-base"
+                              variant="outline"
+                              onClick={handleCopyQuoteLink}
+                              disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
+                            >
+                              {copiedLink ? (
+                                <>
+                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Link Copied!
+                                </>
+                              ) : generatingLink ? (
+                                <>
+                                  <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                  </svg>
+                                  {currentJob.quote_public_link ? "Copy Quote Link" : "Generate & Copy Link"}
+                                </>
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs">
+                            {getQuoteLinkUrl() ? (
+                              <p className="font-mono text-xs break-all">{getQuoteLinkUrl()}</p>
+                            ) : !currentJob.signature?.contractor_signed_at ? (
+                              <p>Please sign the quote first before generating a public link.</p>
+                            ) : (
+                              <p>Click to generate and copy the quote link.</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                    <Button
+                      size="lg"
+                      className="w-full justify-start h-12 text-base"
+                      variant="outline"
+                      onClick={() => window.print()}
+                    >
+                      <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Print / Save PDF
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Signature Capture Modals */}
         {showContractorSignature && (
@@ -689,72 +864,6 @@ export function PersonalizedQuoteView({
           />
         )}
 
-        {/* Public Link for Contractors */}
-        {isContractor && !isPublicView && (
-          <div className="mt-4 sm:mt-8 print:hidden">
-            <QuotePublicLink 
-              jobId={currentJob.id} 
-              currentPublicLink={currentJob.quote_public_link}
-              contractorHasSigned={!!currentJob.signature?.contractor_signed_at}
-              onLinkGenerated={(link) => {
-                setCurrentJob(prev => prev ? { ...prev, quote_public_link: link } : prev)
-              }}
-            />
-          </div>
-        )}
-
-        {/* Actions - Only show if not printed and not public view */}
-        {showActions && !isPublicView && (
-          <div className="mt-4 sm:mt-8 flex flex-wrap gap-2 sm:gap-3 print:hidden">
-            {isContractor && (
-              <>
-                <Button size="sm" className="sm:h-10 sm:px-4 text-xs sm:text-base" onClick={onSendToClient}>
-                  <svg className="mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Send to Client</span>
-                  <span className="sm:hidden">Send</span>
-                </Button>
-                <Button size="sm" className="sm:h-10 sm:px-4 text-xs sm:text-base" variant="outline" onClick={onEdit}>
-                  <svg className="mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  <span className="hidden sm:inline">Edit Quote</span>
-                  <span className="sm:hidden">Edit</span>
-                </Button>
-                {onSendFollowup && (
-                  <Button size="sm" className="sm:h-10 sm:px-4 text-xs sm:text-base" variant="outline" onClick={onSendFollowup}>
-                    <svg className="mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    <span className="hidden sm:inline">Send Follow-up</span>
-                    <span className="sm:hidden">Follow-up</span>
-                  </Button>
-                )}
-                {/* Commented out - might use in the future
-                <Button size="lg" variant="outline" onClick={onCreateInvoice}>
-                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Create Invoice
-                </Button>
-                */}
-              </>
-            )}
-            <Button
-              size="sm"
-              className="sm:h-10 sm:px-4 text-xs sm:text-base"
-              variant="outline"
-              onClick={() => window.print()}
-            >
-              <svg className="mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              <span className="hidden sm:inline">Print / Save PDF</span>
-              <span className="sm:hidden">Print</span>
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   )
