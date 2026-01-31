@@ -16,6 +16,7 @@ interface PersonalizedQuoteViewProps {
   showActions?: boolean
   onEdit?: () => void
   onSendToClient?: () => void
+  onSendFollowup?: () => void
   onCreateInvoice?: () => void
   onSignatureUpdate?: () => void
   isContractor?: boolean  // If true, hide customer signature button
@@ -27,6 +28,7 @@ export function PersonalizedQuoteView({
   showActions = true,
   onEdit,
   onSendToClient,
+  onSendFollowup,
   onCreateInvoice,
   onSignatureUpdate,
   isContractor = false,
@@ -720,6 +722,15 @@ export function PersonalizedQuoteView({
                   <span className="hidden sm:inline">Edit Quote</span>
                   <span className="sm:hidden">Edit</span>
                 </Button>
+                {onSendFollowup && (
+                  <Button size="sm" className="sm:h-10 sm:px-4 text-xs sm:text-base" variant="outline" onClick={onSendFollowup}>
+                    <svg className="mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <span className="hidden sm:inline">Send Follow-up</span>
+                    <span className="sm:hidden">Follow-up</span>
+                  </Button>
+                )}
                 {/* Commented out - might use in the future
                 <Button size="lg" variant="outline" onClick={onCreateInvoice}>
                   <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

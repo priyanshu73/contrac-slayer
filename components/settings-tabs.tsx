@@ -14,8 +14,11 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, PlusIcon } from "lucide-react"
 import { useLocale } from "next-intl"
+import { FollowupSettings } from "@/components/followup-settings"
+import { ScheduledFollowupsList } from "@/components/scheduled-followups-list"
+import { ScheduleFollowupDialog } from "@/components/schedule-followup-dialog"
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
@@ -52,6 +55,7 @@ export function SettingsTabs() {
     if (typeof window === "undefined") return null
     return localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
   })
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -176,10 +180,10 @@ export function SettingsTabs() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
         <TabsTrigger value="business">{t('business')}</TabsTrigger>
         <TabsTrigger value="billing">Billing</TabsTrigger>
-        {/* <TabsTrigger value="notifications">{t('notifications')}</TabsTrigger> */}
+        <TabsTrigger value="notifications">Follow-ups</TabsTrigger>
         <TabsTrigger value="language">{t('language')}</TabsTrigger>
       </TabsList>
 
@@ -740,90 +744,54 @@ export function SettingsTabs() {
         </TabsContent>
       )}
 
-      {/* Notifications */}
+      {/* Follow-ups / Notifications */}
       <TabsContent value="notifications" className="space-y-6">
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('emailNotifications')}</h2>
-          <p className="mb-6 text-sm text-muted-foreground">{t('emailNotificationsDesc')}</p>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-new-leads">{t('newLeads')}</Label>
-                <p className="text-sm text-muted-foreground">{t('newLeadsDesc')}</p>
-              </div>
-              <Switch id="notify-new-leads" defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-job-reminders">{t('jobReminders')}</Label>
-                <p className="text-sm text-muted-foreground">{t('jobRemindersDesc')}</p>
-              </div>
-              <Switch id="notify-job-reminders" defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-invoice-paid">{t('invoicePayments')}</Label>
-                <p className="text-sm text-muted-foreground">{t('invoicePaymentsDesc')}</p>
-              </div>
-              <Switch id="notify-invoice-paid" defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-overdue">{t('overdueInvoices')}</Label>
-                <p className="text-sm text-muted-foreground">{t('overdueInvoicesDesc')}</p>
-              </div>
-              <Switch id="notify-overdue" defaultChecked />
-            </div>
-          </div>
-        </Card>
+        <Tabs defaultValue="settings" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('pushNotifications')}</h2>
-          <p className="mb-6 text-sm text-muted-foreground">{t('pushNotificationsDesc')}</p>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="push-enabled">{t('enablePushNotifications')}</Label>
-                <p className="text-sm text-muted-foreground">{t('enablePushNotificationsDesc')}</p>
-              </div>
-              <Switch id="push-enabled" />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="push-job-updates">{t('jobUpdates')}</Label>
-                <p className="text-sm text-muted-foreground">{t('jobUpdatesDesc')}</p>
-              </div>
-              <Switch id="push-job-updates" />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="push-messages">{t('clientMessages')}</Label>
-                <p className="text-sm text-muted-foreground">{t('clientMessagesDesc')}</p>
-              </div>
-              <Switch id="push-messages" />
-            </div>
-          </div>
-        </Card>
+          <TabsContent value="settings">
+            <FollowupSettings contractorId={profile?.id} />
+          </TabsContent>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('reminderSettings')}</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="job-reminder-time">{t('jobReminderTime')}</Label>
-              <Input id="job-reminder-time" type="number" placeholder="24" defaultValue="24" />
-              <p className="text-sm text-muted-foreground">{t('jobReminderTimeDesc')}</p>
+          <TabsContent value="scheduled">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold">Scheduled Follow-ups</h2>
+                  <p className="text-muted-foreground">View and manage upcoming follow-up messages</p>
+                </div>
+                <Button onClick={() => setShowScheduleDialog(true)}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Schedule Follow-up
+                </Button>
+              </div>
+              <ScheduledFollowupsList contractorId={profile?.id} statusFilter="pending" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-reminder-days">{t('invoiceReminderDays')}</Label>
-              <Input id="invoice-reminder-days" type="number" placeholder="7" defaultValue="7" />
-              <p className="text-sm text-muted-foreground">{t('invoiceReminderDaysDesc')}</p>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold">Follow-up History</h2>
+                <p className="text-muted-foreground">View past follow-up messages and their status</p>
+              </div>
+              <ScheduledFollowupsList contractorId={profile?.id} statusFilter="all" />
             </div>
-          </div>
-          <div className="mt-6 flex gap-2">
-            <Button>{t('saveChanges')}</Button>
-            <Button variant="outline">{tCommon('cancel')}</Button>
-          </div>
-        </Card>
+          </TabsContent>
+        </Tabs>
+
+        <ScheduleFollowupDialog 
+          contractorId={profile?.id}
+          open={showScheduleDialog} 
+          onOpenChange={setShowScheduleDialog}
+          onScheduled={() => {
+            // Could trigger a refresh of the list here if needed
+          }}
+        />
       </TabsContent>
 
       {/* Language Settings */}
