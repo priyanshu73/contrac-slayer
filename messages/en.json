@@ -72,6 +72,14 @@
       "createQuote": "Create Quote",
       "addClient": "Add Client"
     },
+    "contractorOpsNumber": {
+      "title": "Your ContractorOps AI number",
+      "description": "Your dedicated AI line for customer calls, texts, and lead tracking.",
+      "notSet": "Not set up",
+      "setUp": "Set up",
+      "numberCopied": "Number copied!",
+      "numberCopiedDesc": "Your AI number has been copied to your clipboard."
+    },
     "quoteRequest": {
       "title": "Quote Request Form",
       "description": "Copy link to share with customers",
