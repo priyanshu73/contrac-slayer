@@ -7,9 +7,13 @@
       },
       {
         "source": "/api/:path*",
+        "has": [{ "type": "host", "value": "www.contractorops.ai" }],
+        "destination": "https://seal-app-bz6bk.ondigitalocean.app/api/:path*"
+      },
+      {
+        "source": "/api/:path*",
         "has": [{ "type": "host", "value": "dev.frontend.contractorops.ai" }],
         "destination": "https://contractorbackend.onrender.com/api/:path*"
       }
     ]
   }
-  
