@@ -11,7 +11,16 @@ import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 
-export function AddClientForm() {
+export type CreatedClient = { id: number; name: string; email: string }
+
+export interface AddClientFormProps {
+  /** When true, form does not redirect on success; use onSuccess instead. */
+  embedded?: boolean
+  /** Called with the created client when embedded and submit succeeds. */
+  onSuccess?: (client: CreatedClient) => void
+}
+
+export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProps = {}) {
   const { toast } = useToast()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -73,15 +82,23 @@ export function AddClientForm() {
       if (formData.billing_address.trim()) clientData.billing_address = formData.billing_address.trim()
 
       // Call API to create client
-      await api.createClient(clientData)
-      
+      const created = await api.createClient(clientData) as { id?: number; name?: string; email?: string } | undefined
+      const createdClient: CreatedClient = {
+        id: created?.id ?? 0,
+        name: created?.name ?? formData.name.trim(),
+        email: created?.email ?? formData.email.trim(),
+      }
+
       toast({
         title: "Client created",
         description: `${formData.name} has been added to your clients.`,
       })
 
-      // Redirect to clients page
-      router.push("/clients")
+      if (embedded && onSuccess) {
+        onSuccess(createdClient)
+      } else {
+        router.push("/clients")
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create client. Please try again.")
       toast({
@@ -198,15 +215,17 @@ export function AddClientForm() {
             </>
           )}
         </Button>
-        <Button 
-          type="button" 
-          size="lg" 
-          variant="outline"
-          onClick={() => router.push("/clients")}
-          disabled={loading}
-        >
-          {tCommon('cancel')}
-        </Button>
+        {!embedded && (
+          <Button 
+            type="button" 
+            size="lg" 
+            variant="outline"
+            onClick={() => router.push("/clients")}
+            disabled={loading}
+          >
+            {tCommon('cancel')}
+          </Button>
+        )}
       </div>
     </form>
   )

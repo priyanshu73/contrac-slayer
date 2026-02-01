@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react"
 import { Calendar, ChevronsUpDown, Info, MapPin } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,6 +23,16 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { AddClientForm, type CreatedClient } from "@/components/add-client-form"
+
+
+function PersonAddIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" className={cn("shrink-0", className)} fill="currentColor" aria-hidden>
+      <path d="M720-400v-120H600v-80h120v-120h80v120h120v80H800v120h-80Zm-360-80q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm80-80h480v-32q0-11-5.5-20T580-306q-54-27-109-40.5T360-360q-56 0-111 13.5T140-306q-9 5-14.5 14t-5.5 20v32Zm240-320q33 0 56.5-23.5T440-640q0-33-23.5-56.5T360-720q-33 0-56.5 23.5T280-640q0 33 23.5 56.5T360-560Zm0-80Zm0 400Z" />
+    </svg>
+  )
+}
 
 function pad2(n: number) {
   return String(n).padStart(2, "0")
@@ -108,8 +119,9 @@ export interface CreateAppointmentDialogProps {
   profile: { time_zone?: string; calendar_link?: string } | null
   preSelectedClientId?: string | null
   onSuccess?: () => void
+  /** Called when a new client is created from the "Add client" panel; use to refetch clients. */
+  onClientCreated?: (client: CreateAppointmentClient) => void
 }
-
 export function CreateAppointmentDialog({
   open,
   onOpenChange,
@@ -117,6 +129,7 @@ export function CreateAppointmentDialog({
   profile,
   preSelectedClientId = null,
   onSuccess,
+  onClientCreated,
 }: CreateAppointmentDialogProps) {
   const { toast } = useToast()
   const tCalendar = useTranslations("calendar")
@@ -124,6 +137,7 @@ export function CreateAppointmentDialog({
 
   const [clientId, setClientId] = useState<string>("")
   const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+  const [addClientPanelOpen, setAddClientPanelOpen] = useState(false)
   const [date, setDate] = useState<string>("")
   const [time, setTime] = useState<string>("")
   const [meetingSpot, setMeetingSpot] = useState<string>("in_person")
@@ -140,6 +154,10 @@ export function CreateAppointmentDialog({
 
   const hasCalendarLink = Boolean(profile?.calendar_link)
   const timeZoneToUse = profile?.time_zone ?? (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null) ?? "America/New_York"
+  useEffect(() => {
+    if (!open) setAddClientPanelOpen(false)
+  }, [open])
+
 
   useEffect(() => {
     if (!open || !date.trim() || !hasCalendarLink) {
@@ -240,6 +258,7 @@ export function CreateAppointmentDialog({
   }, [open, hasCalendarLink, creating, onSubmit])
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
@@ -273,9 +292,28 @@ export function CreateAppointmentDialog({
         <div className="px-6 pb-6 space-y-6">
           {/* Client — searchable combobox */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground block">
-              {tCalendar("selectClient")}
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm font-medium text-foreground block">
+                {tCalendar("selectClient")}
+              </label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                    onClick={() => setAddClientPanelOpen(true)}
+                    aria-label={tCalendar("addClient")}
+                  >
+                    <PersonAddIcon className="h-6 w-6" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[240px]">
+                  {tCalendar("addClientTooltip")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -503,5 +541,27 @@ export function CreateAppointmentDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    <Sheet open={addClientPanelOpen} onOpenChange={setAddClientPanelOpen}>
+      <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{tCalendar("addClient")}</SheetTitle>
+          <p className="text-sm text-muted-foreground">
+            {tCalendar("addClientTooltip")}
+          </p>
+        </SheetHeader>
+        <div className="mt-4 px-1">
+          <AddClientForm
+            embedded
+            onSuccess={(newClient: CreatedClient) => {
+              setClientId(String(newClient.id))
+              setAddClientPanelOpen(false)
+              onClientCreated?.({ id: newClient.id, name: newClient.name, email: newClient.email })
+            }}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   )
 }

@@ -124,6 +124,7 @@ export interface ContractorProfile {
   default_zip_code?: string
   logo_url?: string
   website_url?: string
+  contractor_ai_sp_id?: number
   calendar_link?: string
   created_at: string
   updated_at?: string

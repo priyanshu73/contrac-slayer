@@ -64,7 +64,9 @@
       "revenue": "Revenue",
       "awaitingContact": "Awaiting contact",
       "allTime": "All time",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "acceptedAndInProgress": "Accepted + In Progress",
+      "paidQuotes": "From paid quotes"
     },
     "actions": {
       "newLead": "New Lead",
@@ -194,7 +196,17 @@
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First",
     "nameAZ": "Name (A-Z)",
-    "nameZA": "Name (Z-A)"
+    "nameZA": "Name (Z-A)",
+    "viewed": "Viewed",
+    "rejected": "Rejected",
+    "inProgress": "In progress",
+    "invoiced": "Invoiced",
+    "cancelled": "Cancelled",
+    "customerModified": "Customer modified"
+  },
+  "quotes": {
+    "changeStatus": "Change status",
+    "statusUpdated": "Quote status updated to {status}."
   },
   "forms": {
     "required": "Required",
@@ -260,6 +272,8 @@
     "createAppointment": "Create appointment",
     "createAppointmentDescription": "Schedule an in-person meeting with a client.",
     "selectClient": "Please select a client.",
+    "addClient": "Add client",
+    "addClientTooltip": "Create a new client and use them for this appointment",
     "selectClientPlaceholder": "Select client by email…",
     "selectDate": "Please select a date.",
     "date": "Date",

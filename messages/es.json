@@ -64,7 +64,9 @@
       "revenue": "Ingresos",
       "awaitingContact": "Esperando contacto",
       "allTime": "Todo el tiempo",
-      "comingSoon": "Próximamente"
+      "comingSoon": "Próximamente",
+      "acceptedAndInProgress": "Aceptados + En Progreso",
+      "paidQuotes": "De cotizaciones pagadas"
     },
     "actions": {
       "newLead": "Nuevo Prospecto",
@@ -194,7 +196,17 @@
     "newestFirst": "Más Reciente Primero",
     "oldestFirst": "Más Antiguo Primero",
     "nameAZ": "Nombre (A-Z)",
-    "nameZA": "Nombre (Z-A)"
+    "nameZA": "Nombre (Z-A)",
+    "viewed": "Visto",
+    "rejected": "Rechazado",
+    "inProgress": "En progreso",
+    "invoiced": "Facturado",
+    "cancelled": "Cancelado",
+    "customerModified": "Cliente modificó"
+  },
+  "quotes": {
+    "changeStatus": "Cambiar estado",
+    "statusUpdated": "Estado de la cotización actualizado a {status}."
   },
   "forms": {
     "required": "Requerido",
@@ -260,6 +272,8 @@
     "createAppointment": "Crear cita",
     "createAppointmentDescription": "Programe una reunión en persona con un cliente.",
     "selectClient": "Seleccione un cliente.",
+    "addClient": "Agregar cliente",
+    "addClientTooltip": "Crear un nuevo cliente y usarlo para esta cita",
     "selectClientPlaceholder": "Seleccionar cliente por correo…",
     "selectDate": "Seleccione una fecha.",
     "date": "Fecha",
