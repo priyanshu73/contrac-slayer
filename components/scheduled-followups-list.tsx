@@ -176,8 +176,16 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
 
   const formatDateTime = (dateString: string) => {
     try {
-      const date = new Date(dateString)
-      return format(date, "MMM d, yyyy 'at' h:mm a")
+      // API returns UTC; ensure we parse as UTC if no timezone suffix
+      const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
+      const date = new Date(utcString)
+      const timeZoneName = typeof Intl !== "undefined"
+        ? new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+            .formatToParts(date)
+            .find((p) => p.type === "timeZoneName")?.value ?? ""
+        : ""
+      const formatted = format(date, "MMM d, yyyy 'at' h:mm a")
+      return timeZoneName ? `${formatted} ${timeZoneName}` : formatted
     } catch {
       return dateString
     }
@@ -185,7 +193,8 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
 
   const getRelativeTime = (dateString: string) => {
     try {
-      const date = new Date(dateString)
+      const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
+      const date = new Date(utcString)
       const now = new Date()
       const diffInHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60))
       
