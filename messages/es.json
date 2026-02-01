@@ -6,7 +6,10 @@
     "clients": "Clientes",
     "invoices": "Facturas",
     "calendar": "Calendario",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "actions": "Acciones",
+    "messaging": "Mensajería",
+    "moreComingSoon": "Más próximamente"
   },
   "common": {
     "save": "Guardar",

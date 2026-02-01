@@ -27,7 +27,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
+import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
 
@@ -489,7 +489,7 @@ function DayTimeline({
                           )}
                           {clientPhone && !location && (
                             <div className="mt-0.5 text-xs text-slate-500 truncate">
-                              📞 {clientPhone}
+                              📞 {formatPhoneForDisplay(clientPhone)}
                             </div>
                           )}
                         </>
@@ -1023,7 +1023,7 @@ export default function CalendarPage() {
                         {clientPhone && (
                           <div className="flex py-3 border-b border-border/50">
                             <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Phone</span>
-                            <span className="text-sm text-foreground">{clientPhone}</span>
+                            <span className="text-sm text-foreground">{formatPhoneForDisplay(clientPhone)}</span>
                           </div>
                         )}
                       </>

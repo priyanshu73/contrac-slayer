@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/command"
 import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { cn } from "@/lib/utils"
+import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ScheduleFollowupRequest } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
@@ -237,7 +237,7 @@ export function ScheduleFollowupDialog({
                   {clientsLoading
                     ? "Loading clients..."
                     : selectedClientData
-                      ? `${selectedClientData.name}${selectedClientData.phone ? ` (${selectedClientData.phone})` : ""}`
+                      ? `${selectedClientData.name}${selectedClientData.phone ? ` (${formatPhoneForDisplay(selectedClientData.phone)})` : ""}`
                       : "Select a client"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -264,7 +264,7 @@ export function ScheduleFollowupDialog({
                           <div className="flex flex-col items-start">
                             <span className="font-medium">{client.name}</span>
                             {client.phone && (
-                              <span className="text-xs text-muted-foreground">{client.phone}</span>
+                              <span className="text-xs text-muted-foreground">{formatPhoneForDisplay(client.phone)}</span>
                             )}
                           </div>
                         </CommandItem>

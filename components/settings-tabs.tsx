@@ -14,11 +14,9 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, PlusIcon } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy } from "lucide-react"
 import { useLocale } from "next-intl"
-import { FollowupSettings } from "@/components/followup-settings"
-import { ScheduledFollowupsList } from "@/components/scheduled-followups-list"
-import { ScheduleFollowupDialog } from "@/components/schedule-followup-dialog"
+import { formatPhoneForDisplay } from "@/lib/utils"
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
@@ -55,7 +53,6 @@ export function SettingsTabs() {
     if (typeof window === "undefined") return null
     return localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
   })
-  const [showScheduleDialog, setShowScheduleDialog] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -180,10 +177,9 @@ export function SettingsTabs() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
         <TabsTrigger value="business">{t('business')}</TabsTrigger>
         <TabsTrigger value="billing">Billing</TabsTrigger>
-        <TabsTrigger value="notifications">Follow-ups</TabsTrigger>
         <TabsTrigger value="language">{t('language')}</TabsTrigger>
       </TabsList>
 
@@ -338,7 +334,7 @@ export function SettingsTabs() {
                     id="contractor-ops-ai-number"
                     readOnly
                     className="bg-muted cursor-text select-all"
-                    value={contractorOpsAiNumber ?? ""}
+                    value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : ""}
                     placeholder={t('contractorOpsAiNumberPlaceholder')}
                   />
                   {contractorOpsAiNumber && (
@@ -743,56 +739,6 @@ export function SettingsTabs() {
           </Card>
         </TabsContent>
       )}
-
-      {/* Follow-ups / Notifications */}
-      <TabsContent value="notifications" className="space-y-6">
-        <Tabs defaultValue="settings" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="settings">
-            <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
-          </TabsContent>
-
-          <TabsContent value="scheduled">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold">Scheduled Follow-ups</h2>
-                  <p className="text-muted-foreground">View and manage upcoming follow-up messages</p>
-                </div>
-                <Button onClick={() => setShowScheduleDialog(true)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Schedule Follow-up
-                </Button>
-              </div>
-              <ScheduledFollowupsList contractorId={profile?.contractor_ai_sp_id} statusFilter="pending" />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="history">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold">Follow-up History</h2>
-                <p className="text-muted-foreground">View past follow-up messages and their status</p>
-              </div>
-              <ScheduledFollowupsList contractorId={profile?.contractor_ai_sp_id} statusFilter="all" />
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <ScheduleFollowupDialog 
-          contractorId={profile?.contractor_ai_sp_id}
-          open={showScheduleDialog} 
-          onOpenChange={setShowScheduleDialog}
-          onScheduled={() => {
-            // Could trigger a refresh of the list here if needed
-          }}
-        />
-      </TabsContent>
 
       {/* Language Settings */}
       <TabsContent value="language" className="space-y-6">

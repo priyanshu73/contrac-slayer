@@ -197,6 +197,16 @@ class ApiClient {
     return this.request(`/contractors/profile/uuid/${contractorUuid}`)
   }
 
+  /** Resolve customer names for phone numbers from ContractorBackend leads/clients. Returns map of E.164 phone -> name. */
+  async getCustomerNamesByPhones(phones: string[]): Promise<Record<string, string>> {
+    if (!phones.length) return {}
+    const res = await this.request<{ phone_to_name: Record<string, string> }>('/contractors/customer-names-by-phones', {
+      method: 'POST',
+      body: JSON.stringify({ phones }),
+    })
+    return res?.phone_to_name ?? {}
+  }
+
   async getContractorOpsAiNumber(): Promise<{ twilio_number: string | null }> {
     return this.request<{ twilio_number: string | null }>('/contractors/profile/contractor-ops-ai-number')
   }

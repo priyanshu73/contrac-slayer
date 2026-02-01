@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { api } from "@/lib/api"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
@@ -371,7 +372,7 @@ export function PersonalizedQuoteView({
                     </p>
                     {contractorProfile?.phone_number && (
                       <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                        {contractorProfile.phone_number}
+                        {formatPhoneForDisplay(contractorProfile.phone_number)}
                       </p>
                     )}
                     {contractorProfile?.email && (
@@ -429,7 +430,7 @@ export function PersonalizedQuoteView({
                     <p className="text-xs sm:text-sm print:text-xs text-gray-600">{currentJob.client.email}</p>
                   )}
                   {currentJob.client?.phone && (
-                    <p className="text-xs sm:text-sm print:text-xs text-gray-600">{currentJob.client.phone}</p>
+                    <p className="text-xs sm:text-sm print:text-xs text-gray-600">{formatPhoneForDisplay(currentJob.client.phone)}</p>
                   )}
                 </div>
               </div>

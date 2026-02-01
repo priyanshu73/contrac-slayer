@@ -52,7 +52,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import type { ScheduledFollowup, FollowupStatus, FollowupType } from "@/lib/types/followup"
-import { contractorAI } from "@/lib/api"
+import { contractorAI, api } from "@/lib/api"
+import { formatPhoneForDisplay } from "@/lib/utils"
+
+/** Normalize phone to E.164 (+1XXXXXXXXXX) for lookup against ContractorBackend response. */
+function normalizePhoneToE164(phone: string): string {
+  if (!phone) return phone
+  const digits = phone.replace(/\D/g, "")
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`
+  return phone
+}
 
 interface ScheduledFollowupsListProps {
   contractorId?: number
@@ -106,7 +116,19 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
           status: selectedStatus !== "all" ? selectedStatus : undefined,
           type: typeFilter !== "all" ? typeFilter : undefined,
         })
-        setFollowups(data.followups || data || [])
+        const raw = (data.followups || data || []) as ScheduledFollowup[]
+        const phones = [...new Set(raw.map((f) => f.customer_number).filter(Boolean))]
+        let phoneToName: Record<string, string> = {}
+        try {
+          phoneToName = await api.getCustomerNamesByPhones(phones)
+        } catch {
+          // User may not be logged into ContractorBackend; show followups without names
+        }
+        const merged = raw.map((f) => ({
+          ...f,
+          customer_name: phoneToName[normalizePhoneToE164(f.customer_number)] ?? f.customer_name ?? "",
+        }))
+        setFollowups(merged)
       } catch (error) {
         const message = error instanceof Error ? error.message : ""
         if (message.toLowerCase().includes("service provider not found")) {
@@ -262,19 +284,6 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
               <SelectItem value="custom">Custom Message</SelectItem>
             </SelectContent>
           </Select>
-
-          <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as FollowupStatus | "all")}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -321,7 +330,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Customer Name</TableHead>
                 <TableHead>Message</TableHead>
                 <TableHead>Scheduled For</TableHead>
                 <TableHead>Status</TableHead>
@@ -341,8 +350,8 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{followup.customer_name}</div>
-                      <div className="text-sm text-muted-foreground">{followup.customer_number}</div>
+                      <div className="font-medium">{followup.customer_name || "—"}</div>
+                      <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(followup.customer_number)}</div>
                     </div>
                   </TableCell>
                   <TableCell>

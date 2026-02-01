@@ -6,7 +6,10 @@
     "clients": "Clients",
     "invoices": "Invoices",
     "calendar": "Calendar",
-    "settings": "Settings"
+    "settings": "Settings",
+    "actions": "Actions",
+    "messaging": "Messaging",
+    "moreComingSoon": "More coming soon"
   },
   "common": {
     "save": "Save",

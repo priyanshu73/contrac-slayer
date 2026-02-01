@@ -8,18 +8,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-
-/** Format E.164/US number as +1 (XXX)-XXX-XXXX */
-function formatPhoneDisplay(raw: string): string {
-  const digits = raw.replace(/\D/g, "")
-  if (digits.length === 11 && digits.startsWith("1")) {
-    return `+1 (${digits.slice(1, 4)})-${digits.slice(4, 7)}-${digits.slice(7)}`
-  }
-  if (digits.length === 10) {
-    return `+1 (${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6)}`
-  }
-  return raw
-}
+import { formatPhoneForDisplay } from "@/lib/utils"
 
 export function DashboardContractorOpsNumber() {
   const { user } = useAuth()
@@ -58,7 +47,7 @@ export function DashboardContractorOpsNumber() {
   const handleCopy = async () => {
     if (!twilioNumber) return
     try {
-      await navigator.clipboard.writeText(formatPhoneDisplay(twilioNumber))
+      await navigator.clipboard.writeText(twilioNumber)
       setCopied(true)
       toast({
         title: t("numberCopied"),
@@ -106,7 +95,7 @@ export function DashboardContractorOpsNumber() {
               <span>{t("description")}</span>
             </p>
             <p className="text-lg font-semibold tracking-tight truncate tabular-nums">
-              {twilioNumber ? formatPhoneDisplay(twilioNumber) : t("notSet")}
+              {twilioNumber ? formatPhoneForDisplay(twilioNumber) : t("notSet")}
             </p>
           </div>
         </div>
