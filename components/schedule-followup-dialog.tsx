@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import {
   Dialog,
@@ -23,12 +23,21 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, ClockIcon, SendIcon, InfoIcon } from "lucide-react"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ScheduleFollowupRequest } from "@/lib/types/followup"
-import { contractorAI } from "@/lib/api"
+import { contractorAI, api } from "@/lib/api"
+import type { Client } from "@/lib/types"
 
 interface ScheduleFollowupDialogProps {
   contractorId?: number
@@ -37,25 +46,16 @@ interface ScheduleFollowupDialogProps {
   onScheduled?: () => void
 }
 
-// Mock customers for the demo
-const mockCustomers = [
-  { id: 1, name: "John Smith", phone: "+15551234567" },
-  { id: 2, name: "Sarah Johnson", phone: "+15559876543" },
-  { id: 3, name: "Mike Davis", phone: "+15555555555" },
-  { id: 4, name: "Emily Wilson", phone: "+15554443333" },
-  { id: 5, name: "David Brown", phone: "+15556667777" },
-]
-
 const templates = [
   {
     id: "appointment",
     name: "Appointment Reminder",
-    template: "Hi {customer_name}! This is a reminder about your appointment tomorrow at {time}. Looking forward to seeing you!",
+    template: "Hi {client_name}! This is a reminder about your appointment tomorrow at {time}. Looking forward to seeing you!",
   },
   {
     id: "quote",
     name: "Quote Follow-up",
-    template: "Hi {customer_name}, just following up on the quote we sent. Do you have any questions?",
+    template: "Hi {client_name}, just following up on the quote we sent. Do you have any questions?",
   },
   {
     id: "custom",
@@ -70,19 +70,41 @@ export function ScheduleFollowupDialog({
   onOpenChange,
   onScheduled,
 }: ScheduleFollowupDialogProps) {
-  const [selectedCustomer, setSelectedCustomer] = useState<string>("")
+  const [clients, setClients] = useState<Client[]>([])
+  const [clientsLoading, setClientsLoading] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<string>("")
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
   const [messageText, setMessageText] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [selectedTime, setSelectedTime] = useState("09:00")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  const filteredCustomers = mockCustomers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery)
-  )
+  useEffect(() => {
+    if (open) {
+      const fetchClients = async () => {
+        setClientsLoading(true)
+        try {
+          const data = await api.getClients(0, 500) as Client[] | { items?: Client[] }
+          const list = Array.isArray(data) ? data : (data?.items ?? [])
+          setClients(list)
+        } catch {
+          setClients([])
+        } finally {
+          setClientsLoading(false)
+        }
+      }
+      fetchClients()
+      // Default date to today when dialog opens
+      setSelectedDate((prev) => prev ?? new Date())
+    }
+  }, [open])
+
+  // Only show clients with a phone number (required for SMS follow-up)
+  const clientsWithPhone = clients.filter((c) => c.phone && c.phone.trim() !== "")
+  const selectedClientData = clientsWithPhone.find((c) => c.id.toString() === selectedClient)
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId)
@@ -93,7 +115,7 @@ export function ScheduleFollowupDialog({
   }
 
   const handleSubmit = async () => {
-    if (!contractorId || !selectedCustomer || !messageText || !selectedDate || !selectedTime) {
+    if (!contractorId || !selectedClient || !messageText || !selectedDate || !selectedTime) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -102,21 +124,49 @@ export function ScheduleFollowupDialog({
       return
     }
 
+    const client = clientsWithPhone.find((c) => c.id.toString() === selectedClient)
+    if (!client?.phone) {
+      toast({
+        title: "Invalid client",
+        description: "Selected client has no phone number for SMS.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // Combine date and time
+      // Treat date and time as browser local time; send UTC to API
       const [hours, minutes] = selectedTime.split(":").map(Number)
-      const scheduledDateTime = new Date(selectedDate)
-      scheduledDateTime.setHours(hours, minutes, 0, 0)
+      const y = selectedDate.getFullYear()
+      const m = selectedDate.getMonth()
+      const d = selectedDate.getDate()
+      const scheduledDateTime = new Date(y, m, d, hours, minutes, 0, 0)
 
-      const customer = mockCustomers.find(c => c.id.toString() === selectedCustomer)
+      if (scheduledDateTime <= new Date()) {
+        toast({
+          title: "Invalid time",
+          description: "Please pick a date and time in the future.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Replace template variables with actual values before sending
+      const timeStr = format(scheduledDateTime, "h:mm a")
+      const dateStr = format(scheduledDateTime, "MMMM d, yyyy")
+      const formattedMessage = messageText
+        .replace(/\{client_name\}/g, client.name ?? "there")
+        .replace(/\{time\}/g, timeStr)
+        .replace(/\{date\}/g, dateStr)
+        .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
 
       await contractorAI.scheduleFollowup({
         sp_id: contractorId,
-        customer_number: customer?.phone || "",
+        customer_number: client.phone,
         scheduled_for: scheduledDateTime.toISOString(),
-        message_text: messageText,
+        message_text: formattedMessage,
         followup_type: selectedTemplate || "custom",
       })
 
@@ -130,12 +180,13 @@ export function ScheduleFollowupDialog({
       }
 
       // Reset form
-      setSelectedCustomer("")
+      setSelectedClient("")
       setSelectedTemplate("")
       setMessageText("")
       setSelectedDate(undefined)
       setSelectedTime("09:00")
-      setSearchQuery("")
+      setClientComboboxOpen(false)
+      setDatePopoverOpen(false)
       onOpenChange(false)
     } catch (error) {
       toast({
@@ -157,7 +208,7 @@ export function ScheduleFollowupDialog({
         <DialogHeader>
           <DialogTitle>Schedule Custom Follow-up</DialogTitle>
           <DialogDescription>
-            Send a follow-up message to a customer at a specific time
+            Send a follow-up message to a client at a specific time
           </DialogDescription>
         </DialogHeader>
 
@@ -171,31 +222,58 @@ export function ScheduleFollowupDialog({
         ) : (
         <>
         <div className="space-y-4 py-4">
-          {/* Customer Selection */}
+          {/* Client Selection - combined search + dropdown */}
           <div className="space-y-2">
-            <Label htmlFor="customer">Customer *</Label>
-            <div className="space-y-2">
-              <Input
-                placeholder="Search customers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCustomers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id.toString()}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{customer.name}</span>
-                        <span className="text-xs text-muted-foreground">{customer.phone}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Label htmlFor="client">Client *</Label>
+            <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={clientComboboxOpen}
+                  disabled={clientsLoading}
+                  className="w-full justify-between font-normal"
+                >
+                  {clientsLoading
+                    ? "Loading clients..."
+                    : selectedClientData
+                      ? `${selectedClientData.name}${selectedClientData.phone ? ` (${selectedClientData.phone})` : ""}`
+                      : "Select a client"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search clients..." />
+                  <CommandList className="max-h-[280px]">
+                    <CommandEmpty>
+                      {clientsWithPhone.length === 0
+                        ? "No clients with phone numbers. Add a client with a phone to send follow-ups."
+                        : "No clients match your search."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {clientsWithPhone.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={`${client.name ?? ""} ${client.phone ?? ""} ${client.email ?? ""}`}
+                          onSelect={() => {
+                            setSelectedClient(client.id.toString())
+                            setClientComboboxOpen(false)
+                          }}
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{client.name}</span>
+                            {client.phone && (
+                              <span className="text-xs text-muted-foreground">{client.phone}</span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Template Selection */}
@@ -227,55 +305,73 @@ export function ScheduleFollowupDialog({
               maxLength={maxCharacters}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Use variables: {"{customer_name}"}, {"{time}"}, {"{date}"}</span>
+              <span>Use variables: {"{client_name}"}, {"{time}"}, {"{date}"}</span>
               <span className={characterCount > maxCharacters * 0.9 ? "text-orange-500" : ""}>
                 {characterCount}/{maxCharacters}
               </span>
             </div>
           </div>
 
-          {/* Date & Time Selection */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          {/* Date & Time Selection (browser local timezone) */}
+          <div className="space-y-2">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Date *</Label>
+                <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSelectedDate(date)
+                          setDatePopoverOpen(false)
+                        }
+                      }}
+                      disabled={(date) => {
+                        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                        const todayStart = new Date()
+                        todayStart.setHours(0, 0, 0, 0)
+                        return dayStart < todayStart
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="time">Time *</Label>
-              <div className="relative">
-                <ClockIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="time"
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="space-y-2">
+                <Label htmlFor="time">Time *</Label>
+                <div className="relative">
+                  <ClockIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="time"
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Times are in your local timezone
+              {typeof Intl !== "undefined" && (
+                <> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</>
+              )}
+            </p>
           </div>
 
           {/* Preview */}
@@ -287,6 +383,9 @@ export function ScheduleFollowupDialog({
                 <span className="font-medium text-foreground">
                   {format(selectedDate, "MMMM d, yyyy")} at {selectedTime}
                 </span>
+                {typeof Intl !== "undefined" && (
+                  <span className="text-muted-foreground"> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>
+                )}
               </p>
             </div>
           )}

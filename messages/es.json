@@ -65,6 +65,7 @@
       "awaitingContact": "Esperando contacto",
       "allTime": "Todo el tiempo",
       "comingSoon": "Próximamente",
+      "acceptedAndInProgress": "Aceptados + En Progreso",
       "paidQuotes": "De cotizaciones pagadas"
     },
     "actions": {
