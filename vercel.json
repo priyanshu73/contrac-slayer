@@ -2,7 +2,7 @@
     "rewrites": [
       {
         "source": "/api/:path*",
-        "has": [{ "type": "host", "value": "frontend.contractorops.ai" }],
+        "has": [{ "type": "host", "value": "contractorops.ai" }],
         "destination": "https://seal-app-bz6bk.ondigitalocean.app/api/:path*"
       },
       {
