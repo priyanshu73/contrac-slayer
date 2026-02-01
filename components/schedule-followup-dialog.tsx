@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, ClockIcon, SendIcon } from "lucide-react"
+import { CalendarIcon, ClockIcon, SendIcon, InfoIcon } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ScheduleFollowupRequest } from "@/lib/types/followup"
@@ -160,6 +161,15 @@ export function ScheduleFollowupDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {!contractorId ? (
+          <Alert>
+            <InfoIcon className="h-4 w-4" />
+            <AlertDescription>
+              You need a ContractorOps AI number to schedule follow-ups. Add your contact in Contractor AI admin and link it to your profile first.
+            </AlertDescription>
+          </Alert>
+        ) : (
+        <>
         <div className="space-y-4 py-4">
           {/* Customer Selection */}
           <div className="space-y-2">
@@ -295,6 +305,8 @@ export function ScheduleFollowupDialog({
             {isSubmitting ? "Scheduling..." : "Schedule Follow-up"}
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   )

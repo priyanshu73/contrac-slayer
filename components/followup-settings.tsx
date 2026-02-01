@@ -11,7 +11,10 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { InfoIcon, SaveIcon, Loader2Icon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { FollowupSettings as FollowupSettingsType } from "@/lib/types/followup"
+import {
+  type FollowupSettings as FollowupSettingsType,
+  mockFollowupSettings,
+} from "@/lib/types/followup"
 import { contractorAI } from "@/lib/api"
 
 interface FollowupSettingsProps {
@@ -22,22 +25,39 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
   const [settings, setSettings] = useState<FollowupSettingsType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [spNotFound, setSpNotFound] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!contractorId) return
-      
+      if (!contractorId) {
+        setIsLoading(false)
+        setSpNotFound(false)
+        return
+      }
+
       try {
         setIsLoading(true)
-        const data = await contractorAI.getFollowupSettings(contractorId.toString())
-        setSettings(data)
+        setSpNotFound(false)
+        const data = await contractorAI.getFollowupSettings(contractorId.toString()) as
+          { settings?: FollowupSettingsType } | FollowupSettingsType
+        const resolved =
+          data && typeof data === "object" && "settings" in data
+            ? (data as { settings?: FollowupSettingsType }).settings ?? data
+            : data
+        setSettings(resolved as FollowupSettingsType)
       } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load follow-up settings",
-          variant: "destructive",
-        })
+        const message = error instanceof Error ? error.message : ""
+        if (message.toLowerCase().includes("service provider not found")) {
+          setSettings(null)
+          setSpNotFound(true)
+        } else {
+          toast({
+            title: "Error",
+            description: message || "Failed to load follow-up settings",
+            variant: "destructive",
+          })
+        }
       } finally {
         setIsLoading(false)
       }
@@ -81,6 +101,19 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
       <div className="flex items-center justify-center py-12">
         <Loader2Icon className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
+    )
+  }
+
+  if (!contractorId || spNotFound) {
+    return (
+      <Alert>
+        <InfoIcon className="h-4 w-4" />
+        <AlertDescription>
+          {spNotFound
+            ? "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use follow-up settings."
+            : "You need a ContractorOps AI number to access follow-up settings. Add your contact in Contractor AI admin and link it to your profile to use this section."}
+        </AlertDescription>
+      </Alert>
     )
   }
 

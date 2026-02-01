@@ -781,7 +781,12 @@ class ContractorAIClient {
         } catch (parseError) {
           console.error(`🌐 ContractorAI API: Failed to parse error response:`, parseError)
         }
-        console.error(`🌐 ContractorAI API: Request failed:`, errorMessage)
+        const isSpNotFound = response.status === 404 && String(errorMessage).toLowerCase().includes('service provider not found')
+        if (isSpNotFound) {
+          console.warn(`🌐 ContractorAI API: Service provider not found (linked contact may have been removed)`)
+        } else {
+          console.error(`🌐 ContractorAI API: Request failed:`, errorMessage)
+        }
         throw new Error(errorMessage)
       }
 

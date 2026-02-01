@@ -30,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -40,7 +41,8 @@ import {
   TrashIcon,
   SearchIcon,
   FilterIcon,
-  Loader2Icon
+  Loader2Icon,
+  InfoIcon
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -81,6 +83,7 @@ const statusColors: Record<FollowupStatus, string> = {
 export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: ScheduledFollowupsListProps) {
   const [followups, setFollowups] = useState<ScheduledFollowup[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [spNotFound, setSpNotFound] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<FollowupType | "all">("all")
   const [selectedStatus, setSelectedStatus] = useState<FollowupStatus | "all">(statusFilter)
@@ -90,21 +93,32 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
 
   useEffect(() => {
     const fetchFollowups = async () => {
-      if (!contractorId) return
-      
+      if (!contractorId) {
+        setIsLoading(false)
+        setSpNotFound(false)
+        return
+      }
+
       try {
         setIsLoading(true)
+        setSpNotFound(false)
         const data = await contractorAI.getScheduledFollowups(contractorId.toString(), {
           status: selectedStatus !== "all" ? selectedStatus : undefined,
           type: typeFilter !== "all" ? typeFilter : undefined,
         })
         setFollowups(data.followups || data || [])
       } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load follow-ups",
-          variant: "destructive",
-        })
+        const message = error instanceof Error ? error.message : ""
+        if (message.toLowerCase().includes("service provider not found")) {
+          setFollowups([])
+          setSpNotFound(true)
+        } else {
+          toast({
+            title: "Error",
+            description: message || "Failed to load follow-ups",
+            variant: "destructive",
+          })
+        }
       } finally {
         setIsLoading(false)
       }
@@ -193,6 +207,19 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       <div className="flex items-center justify-center py-12">
         <Loader2Icon className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
+    )
+  }
+
+  if (!contractorId || spNotFound) {
+    return (
+      <Alert>
+        <InfoIcon className="h-4 w-4" />
+        <AlertDescription>
+          {spNotFound
+            ? "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use scheduled follow-ups."
+            : "You need a ContractorOps AI number to access scheduled follow-ups. Add your contact in Contractor AI admin and link it to your profile to use this section."}
+        </AlertDescription>
+      </Alert>
     )
   }
 
