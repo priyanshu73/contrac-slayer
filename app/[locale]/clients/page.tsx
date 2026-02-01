@@ -85,6 +85,7 @@ export default function ClientsPage() {
           clients={clientsForAppointment}
           profile={profile}
           preSelectedClientId={createAppointmentClientId}
+          onClientCreated={fetchClients}
         />
       </main>
     </div>

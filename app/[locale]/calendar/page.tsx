@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertCircleIcon, Calendar as CalendarIcon, CheckIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, Eye, HelpCircleIcon, MapPin, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react"
 import { api } from "@/lib/api"
 import { MonthlyCalendar } from "@/components/ui/monthly-calendar"
@@ -735,13 +735,17 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (!createAppointmentOpen) return
+  const refetchClients = useCallback(() => {
     api.getClients(0, 500).then((data: any) => {
       const list = Array.isArray(data) ? data : []
       setClients(list.map((c: any) => ({ id: c.id, name: c.name || "", email: c.email || "" })))
     }).catch(() => setClients([]))
-  }, [createAppointmentOpen])
+  }, [])
+
+  useEffect(() => {
+    if (!createAppointmentOpen) return
+    refetchClients()
+  }, [createAppointmentOpen, refetchClients])
 
   // Lazy-load availability only when the user opens the tab.
   useEffect(() => {
@@ -1164,6 +1168,7 @@ export default function CalendarPage() {
           clients={clients.map((c) => ({ id: c.id, name: c.name || "", email: c.email || "" }))}
           profile={profile ? { time_zone: profile.time_zone, calendar_link: profile.calendar_link } : null}
           onSuccess={load}
+          onClientCreated={refetchClients}
         />
 
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-muted/20">

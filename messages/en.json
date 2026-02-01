@@ -252,6 +252,8 @@
     "createAppointment": "Create appointment",
     "createAppointmentDescription": "Schedule an in-person meeting with a client.",
     "selectClient": "Please select a client.",
+    "addClient": "Add client",
+    "addClientTooltip": "Create a new client and use them for this appointment",
     "selectClientPlaceholder": "Select client by email…",
     "selectDate": "Please select a date.",
     "date": "Date",
