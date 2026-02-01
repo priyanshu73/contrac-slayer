@@ -74,6 +74,14 @@
       "createQuote": "Crear Cotización",
       "addClient": "Agregar Cliente"
     },
+    "contractorOpsNumber": {
+      "title": "Tu número ContractorOps AI",
+      "description": "Tu línea de IA dedicada para llamadas, mensajes y seguimiento de prospectos.",
+      "notSet": "No configurado",
+      "setUp": "Configurar",
+      "numberCopied": "¡Número copiado!",
+      "numberCopiedDesc": "Tu número de IA se ha copiado al portapapeles."
+    },
     "quoteRequest": {
       "title": "Formulario de Solicitud de Cotización",
       "description": "Copie el enlace para compartir con clientes",

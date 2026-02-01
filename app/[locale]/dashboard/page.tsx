@@ -1,6 +1,7 @@
 "use client"
 
 import { StatsCardsReal } from "@/components/stats-cards-real"
+import { DashboardContractorOpsNumber } from "@/components/dashboard-contractor-ops-number"
 import { QuickActions } from "@/components/quick-actions"
 import { RecentLeadsReal } from "@/components/recent-leads-real"
 import { UpcomingJobs } from "@/components/upcoming-jobs"
@@ -16,6 +17,9 @@ export default function DashboardPage() {
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
+          {/* ContractorOps AI number - share with clients */}
+          <DashboardContractorOpsNumber />
+
           {/* Stats Overview */}
           <StatsCardsReal />
 
