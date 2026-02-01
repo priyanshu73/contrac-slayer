@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl"
 interface Stats {
   new_leads: number
   total_leads: number
-  // Add more as backend provides them
+  revenue: number  // Sum of accepted_total_amount for jobs with status PAID
 }
 
 export function StatsCardsReal() {
@@ -30,12 +30,21 @@ export function StatsCardsReal() {
 
   const fetchStats = async () => {
     try {
-      // Fetch leads to calculate stats
-      const leads = await api.getMyLeads() as any[]
-      const newLeads = leads.filter((l: any) => l.status.toLowerCase() === "new").length
+      // Fetch leads and jobs in parallel
+      const [leads, jobs] = await Promise.all([
+        api.getMyLeads() as Promise<any[]>,
+        api.getMyJobs(undefined, 0, 100) as Promise<any[]>,
+      ])
+      const newLeads = leads.filter((l: any) => l.status?.toLowerCase() === "new").length
+      const paidJobs = Array.isArray(jobs) ? jobs.filter((j: any) => String(j.status).toUpperCase() === "PAID") : []
+      const revenue = paidJobs.reduce(
+        (sum: number, j: any) => sum + (Number(j.accepted_total_amount) || 0),
+        0
+      )
       setStats({
         new_leads: newLeads,
         total_leads: leads.length,
+        revenue,
       })
     } catch (error) {
       // Silently handle errors - profile might not exist yet or other issues
@@ -84,8 +93,8 @@ export function StatsCardsReal() {
     },
     {
       label: t('revenue'),
-      value: "$0",
-      change: t('comingSoon'),
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.revenue ?? 0),
+      change: t('paidQuotes'),
       trend: "neutral" as const,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

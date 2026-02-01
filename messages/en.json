@@ -64,7 +64,8 @@
       "revenue": "Revenue",
       "awaitingContact": "Awaiting contact",
       "allTime": "All time",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "paidQuotes": "From paid quotes"
     },
     "actions": {
       "newLead": "New Lead",
@@ -186,7 +187,17 @@
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First",
     "nameAZ": "Name (A-Z)",
-    "nameZA": "Name (Z-A)"
+    "nameZA": "Name (Z-A)",
+    "viewed": "Viewed",
+    "rejected": "Rejected",
+    "inProgress": "In progress",
+    "invoiced": "Invoiced",
+    "cancelled": "Cancelled",
+    "customerModified": "Customer modified"
+  },
+  "quotes": {
+    "changeStatus": "Change status",
+    "statusUpdated": "Quote status updated to {status}."
   },
   "forms": {
     "required": "Required",

@@ -338,6 +338,7 @@ export default function QuoteDetailPage() {
         onSendFollowup={handleSendFollowup}
         onCreateInvoice={handleCreateInvoice}
         onSignatureUpdate={handleSignatureUpdate}
+        onStatusUpdate={fetchJob}
         isContractor={true}
         isPublicView={false}
       />

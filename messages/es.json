@@ -64,7 +64,8 @@
       "revenue": "Ingresos",
       "awaitingContact": "Esperando contacto",
       "allTime": "Todo el tiempo",
-      "comingSoon": "Próximamente"
+      "comingSoon": "Próximamente",
+      "paidQuotes": "De cotizaciones pagadas"
     },
     "actions": {
       "newLead": "Nuevo Prospecto",
@@ -186,7 +187,17 @@
     "newestFirst": "Más Reciente Primero",
     "oldestFirst": "Más Antiguo Primero",
     "nameAZ": "Nombre (A-Z)",
-    "nameZA": "Nombre (Z-A)"
+    "nameZA": "Nombre (Z-A)",
+    "viewed": "Visto",
+    "rejected": "Rechazado",
+    "inProgress": "En progreso",
+    "invoiced": "Facturado",
+    "cancelled": "Cancelado",
+    "customerModified": "Cliente modificó"
+  },
+  "quotes": {
+    "changeStatus": "Cambiar estado",
+    "statusUpdated": "Estado de la cotización actualizado a {status}."
   },
   "forms": {
     "required": "Requerido",

@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { api } from "@/lib/api"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
@@ -20,9 +26,20 @@ interface PersonalizedQuoteViewProps {
   onSendFollowup?: () => void
   onCreateInvoice?: () => void
   onSignatureUpdate?: () => void
+  onStatusUpdate?: () => void
   isContractor?: boolean  // If true, hide customer signature button
   isPublicView?: boolean  // If true, this is a public customer view
 }
+
+const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "SENT", label: "Sent" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "IN_PROGRESS", label: "Job In Progress" },
+  { value: "COMPLETED", label: "Job Completed" },
+  { value: "PAID", label: "Paid" },
+  { value: "CANCELLED", label: "Cancelled" },
+]
 
 export function PersonalizedQuoteView({
   job,
@@ -32,11 +49,13 @@ export function PersonalizedQuoteView({
   onSendFollowup,
   onCreateInvoice,
   onSignatureUpdate,
+  onStatusUpdate,
   isContractor = false,
   isPublicView = false,
 }: PersonalizedQuoteViewProps) {
   const isMobile = useIsMobile()
   const { toast } = useToast()
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [showContractorSignature, setShowContractorSignature] = useState(false)
@@ -255,6 +274,21 @@ export function PersonalizedQuoteView({
       })
     } finally {
       setGeneratingLink(false)
+    }
+  }
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      setUpdatingStatus(true)
+      await api.updateJob(currentJob.id, { status: newStatus })
+      const option = QUOTE_STATUS_OPTIONS.find((o) => o.value === newStatus)
+      setCurrentJob((prev) => ({ ...prev, status: newStatus as JobStatus }))
+      toast({ title: "Status updated", description: `Quote status set to ${option?.label ?? newStatus}.` })
+      onStatusUpdate?.()
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message ?? "Failed to update status.", variant: "destructive" })
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -827,6 +861,47 @@ export function PersonalizedQuoteView({
                             )}
                           </TooltipContent>
                         </Tooltip>
+                        {/* Change status */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="lg"
+                              className="w-full justify-start h-12 text-base"
+                              variant="outline"
+                              disabled={updatingStatus}
+                            >
+                              {updatingStatus ? (
+                                <>
+                                  <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                  </svg>
+                                  Updating...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  Change status
+                                  <svg className="ml-auto h-4 w-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {QUOTE_STATUS_OPTIONS.map((opt) => (
+                              <DropdownMenuItem
+                                key={opt.value}
+                                onClick={() => handleStatusChange(opt.value)}
+                              >
+                                {opt.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </>
                     )}
                     <Button
