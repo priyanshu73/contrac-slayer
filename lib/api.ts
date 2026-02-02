@@ -23,8 +23,18 @@ class ApiClient {
     if (typeof detail === 'string') return detail
     if (typeof detail === 'object') {
       const maybe = detail as Record<string, any>
-      if (typeof maybe.message === 'string') return maybe.message
-      if (typeof maybe.error === 'string') return maybe.error
+      if (typeof maybe.message === 'string' && maybe.message.trim()) return maybe.message
+      if (typeof maybe.error === 'string' && maybe.error.trim()) return maybe.error
+      // Backend may return { message, neetocal } for NeetoCal 422; prefer message, else extract from neetocal
+      const neetocal = maybe.neetocal
+      if (neetocal != null) {
+        if (typeof neetocal === 'string' && neetocal.trim()) return neetocal.trim()
+        if (typeof neetocal === 'object') {
+          const nc = neetocal as Record<string, any>
+          if (typeof nc.error === 'string' && nc.error.trim()) return nc.error
+          if (typeof nc.message === 'string' && nc.message.trim()) return nc.message
+        }
+      }
       try {
         return JSON.stringify(detail)
       } catch {
