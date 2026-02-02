@@ -202,6 +202,25 @@ class ApiClient {
     return response.json()
   }
 
+  /** Upload onboarding step 3 attachments (invoices/samples). Stored as SUPPORT_TICKET with contractor uuid. */
+  async uploadOnboardingAttachments(files: File[]): Promise<{ attachments_uploaded: number }> {
+    if (!files.length) return { attachments_uploaded: 0 }
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+    const response = await fetch(`${this.baseURL}/contractors/profile/onboarding-attachments`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload attachments')
+    }
+    return response.json()
+  }
+
   async getContractorProfile(contractorId: number) {
     return this.request(`/contractors/profile/${contractorId}`)
   }

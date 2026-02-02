@@ -291,6 +291,16 @@ export default function ProfileSetupPage() {
       // Refresh user data to include profile
       await refreshUser()
 
+      // Upload step 3 attachments (invoices/samples) to attachments table as SUPPORT_TICKET, uploaded_by = contractor uuid
+      if (invoiceFiles.length > 0) {
+        try {
+          await api.uploadOnboardingAttachments(invoiceFiles)
+        } catch (uploadErr) {
+          console.error("Failed to upload onboarding attachments:", uploadErr)
+          // Don't block redirect; attachments are optional
+        }
+      }
+
       // Send Twilio number request to SheetDB only when completing setup (step 3)
       // SheetDB Create API expects { data: [row, ...] } — column names must match the Google Sheet header row
       if (selectedState && selectedAreaCodes.length) {
