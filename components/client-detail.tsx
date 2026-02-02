@@ -6,9 +6,37 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { api } from "@/lib/api"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, DollarSign, Briefcase, Clock } from "lucide-react"
+import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2 } from "lucide-react"
 
 interface ClientDetailData {
   id: number
@@ -67,16 +95,57 @@ interface ClientDetailData {
   }>
 }
 
+const CLIENT_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
+
 export function ClientDetail({ clientId }: { clientId: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const [clientData, setClientData] = useState<ClientDetailData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [deleteDeleting, setDeleteDeleting] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    company_name: "",
+    billing_address: "",
+    tax_id: "",
+    status: "ACTIVE",
+    notes: "",
+    preferred_contact_method: "",
+    payment_terms: "",
+    discount_percentage: "",
+    referral_source: "",
+  })
 
   useEffect(() => {
     fetchClientDetails()
   }, [clientId])
+
+  useEffect(() => {
+    if (clientData && editOpen) {
+      setEditForm({
+        name: clientData.name ?? "",
+        email: clientData.email ?? "",
+        phone: clientData.phone ?? "",
+        address: clientData.address ?? "",
+        company_name: clientData.company_name ?? "",
+        billing_address: clientData.billing_address ?? "",
+        tax_id: clientData.tax_id ?? "",
+        status: clientData.status ?? "ACTIVE",
+        notes: clientData.notes ?? "",
+        preferred_contact_method: clientData.preferred_contact_method ?? "",
+        payment_terms: clientData.payment_terms ?? "",
+        discount_percentage: clientData.discount_percentage != null ? String(clientData.discount_percentage) : "",
+        referral_source: clientData.referral_source ?? "",
+      })
+    }
+  }, [clientData, editOpen])
 
   const fetchClientDetails = async () => {
     try {
@@ -94,6 +163,70 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!clientData) return
+    setEditSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        status: editForm.status,
+      }
+      if (editForm.phone.trim()) payload.phone = editForm.phone.trim()
+      if (editForm.address.trim()) payload.address = editForm.address.trim()
+      if (editForm.company_name.trim()) payload.company_name = editForm.company_name.trim()
+      if (editForm.billing_address.trim()) payload.billing_address = editForm.billing_address.trim()
+      if (editForm.tax_id.trim()) payload.tax_id = editForm.tax_id.trim()
+      if (editForm.notes.trim()) payload.notes = editForm.notes.trim()
+      if (editForm.preferred_contact_method.trim()) payload.preferred_contact_method = editForm.preferred_contact_method.trim()
+      if (editForm.payment_terms.trim()) payload.payment_terms = editForm.payment_terms.trim()
+      if (editForm.discount_percentage.trim()) {
+        const num = parseFloat(editForm.discount_percentage)
+        if (!isNaN(num)) payload.discount_percentage = num
+      }
+      if (editForm.referral_source.trim()) payload.referral_source = editForm.referral_source.trim()
+
+      await api.updateClient(clientData.id, payload)
+      setEditOpen(false)
+      await fetchClientDetails()
+      toast({
+        title: "Client updated",
+        description: "Client details have been saved.",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update client.",
+        variant: "destructive",
+      })
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!clientData) return
+    setDeleteDeleting(true)
+    try {
+      await api.deleteClient(clientData.id)
+      toast({
+        title: "Client archived",
+        description: `${clientData.name} has been archived.`,
+      })
+      setDeleteOpen(false)
+      router.push("/clients")
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to archive client.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleteDeleting(false)
     }
   }
 
@@ -228,7 +361,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               {clientData.phone && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm">{clientData.phone}</span>
+                  <span className="text-sm">{formatPhoneForDisplay(clientData.phone)}</span>
                 </div>
               )}
               <div className="flex items-center gap-2">
@@ -343,6 +476,14 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
             {/* Action Buttons */}
             <div className="mt-6 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
               {clientData.phone && (
                 <Button variant="outline" asChild>
                   <a href={`tel:${clientData.phone}`}>
@@ -537,6 +678,179 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           </TabsContent>
         </Tabs>
       </Card>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit client</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}>
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLIENT_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Textarea
+                id="edit-address"
+                value={editForm.address}
+                onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-company_name">Company name</Label>
+              <Input
+                id="edit-company_name"
+                value={editForm.company_name}
+                onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-billing_address">Billing address</Label>
+              <Textarea
+                id="edit-billing_address"
+                value={editForm.billing_address}
+                onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))}
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-tax_id">Tax ID</Label>
+                <Input
+                  id="edit-tax_id"
+                  value={editForm.tax_id}
+                  onChange={(e) => setEditForm((f) => ({ ...f, tax_id: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-discount_percentage">Discount %</Label>
+                <Input
+                  id="edit-discount_percentage"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  value={editForm.discount_percentage}
+                  onChange={(e) => setEditForm((f) => ({ ...f, discount_percentage: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-preferred_contact_method">Preferred contact</Label>
+                <Input
+                  id="edit-preferred_contact_method"
+                  value={editForm.preferred_contact_method}
+                  onChange={(e) => setEditForm((f) => ({ ...f, preferred_contact_method: e.target.value }))}
+                  placeholder="e.g. email, phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-payment_terms">Payment terms</Label>
+                <Input
+                  id="edit-payment_terms"
+                  value={editForm.payment_terms}
+                  onChange={(e) => setEditForm((f) => ({ ...f, payment_terms: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-referral_source">Referral source</Label>
+              <Input
+                id="edit-referral_source"
+                value={editForm.referral_source}
+                onChange={(e) => setEditForm((f) => ({ ...f, referral_source: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                className="min-h-[80px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete (Archive) Confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive client?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will archive {clientData?.name}. You can still view archived clients from the clients list. This does not remove their quotes or history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleDeleteConfirm()
+              }}
+              disabled={deleteDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteDeleting ? "Archiving…" : "Archive client"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

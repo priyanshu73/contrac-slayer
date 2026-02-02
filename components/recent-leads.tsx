@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { formatPhoneForDisplay } from "@/lib/utils"
 
 export function RecentLeads() {
   const leads = [
@@ -68,7 +69,7 @@ export function RecentLeads() {
               </div>
               <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{lead.time}</span>
-                <span>{lead.phone}</span>
+                <span>{formatPhoneForDisplay(lead.phone)}</span>
               </div>
             </div>
           </div>

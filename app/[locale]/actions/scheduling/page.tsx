@@ -13,8 +13,8 @@ import { AuthGuard } from "@/components/auth-guard"
 import { Loader2Icon } from "lucide-react"
 import { useTranslations } from "next-intl"
 
-export default function MessagingPage() {
-  const t = useTranslations("messaging")
+export default function SchedulingPage() {
+  const t = useTranslations("scheduling")
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
@@ -64,14 +64,14 @@ export default function MessagingPage() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <h2 className="text-2xl font-bold">Scheduled Follow-ups</h2>
+                          <h2 className="text-2xl font-bold">{t("scheduledTitle")}</h2>
                           <p className="text-muted-foreground">
-                            View and manage upcoming follow-up messages
+                            {t("scheduledDescription")}
                           </p>
                         </div>
                         <Button onClick={() => setShowScheduleDialog(true)}>
                           <PlusIcon className="mr-2 h-4 w-4" />
-                          Schedule Follow-up
+                          {t("scheduleFollowup")}
                         </Button>
                       </div>
                       <ScheduledFollowupsList

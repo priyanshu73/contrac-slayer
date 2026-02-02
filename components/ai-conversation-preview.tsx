@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { formatPhoneForDisplay } from '@/lib/utils'
 import { Phone, MessageSquare } from 'lucide-react'
 
 export function AIConversationPreview() {
@@ -55,7 +56,7 @@ export function AIConversationPreview() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <p className="font-semibold text-sm">{msg.speaker}</p>
-                      <p className="text-xs text-muted-foreground">{msg.phone}</p>
+                      <p className="text-xs text-muted-foreground">{formatPhoneForDisplay(msg.phone)}</p>
                     </div>
                   </div>
                   <p className="text-sm leading-relaxed">{msg.content}</p>

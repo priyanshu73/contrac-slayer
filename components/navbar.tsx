@@ -135,9 +135,9 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[180px]">
                   <DropdownMenuItem asChild>
-                    <Link href={`/${locale}/actions/messaging`} className="flex items-center gap-2">
+                    <Link href={`/${locale}/actions/scheduling`} className="flex items-center gap-2">
                       <MessageCircle className="h-4 w-4" />
-                      {t('messaging')}
+                      {t('scheduling')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled className="text-muted-foreground">
@@ -181,9 +181,9 @@ export function Navbar() {
               </Link>
             )
           })}
-          {/* Actions -> Messaging on mobile */}
+          {/* Actions -> Scheduling on mobile */}
           <Link
-            href={`/${locale}/actions/messaging`}
+            href={`/${locale}/actions/scheduling`}
             className={`flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 ${
               pathname?.startsWith(`/${locale}/actions`) ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
             }`}

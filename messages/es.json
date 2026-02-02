@@ -8,7 +8,7 @@
     "calendar": "Calendario",
     "settings": "Configuración",
     "actions": "Acciones",
-    "messaging": "Mensajería",
+    "scheduling": "Programación",
     "moreComingSoon": "Más próximamente"
   },
   "common": {
@@ -169,9 +169,9 @@
     "clientMessages": "Mensajes de Clientes",
     "clientMessagesDesc": "Nuevos mensajes de clientes"
   },
-  "messaging": {
-    "pageTitle": "Mensajería",
-    "pageDescription": "Programe seguimientos y administre la configuración de mensajería",
+  "scheduling": {
+    "pageTitle": "Programación",
+    "pageDescription": "Programe seguimientos y administre la configuración de programación",
     "tabs": {
       "settings": "Configuración",
       "scheduled": "Programados",

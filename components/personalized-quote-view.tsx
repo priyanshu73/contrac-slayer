@@ -78,6 +78,7 @@ export function PersonalizedQuoteView({
         // Convert ContractorInfo to ContractorProfile format for compatibility
         const contractorFromJob: ContractorProfile = {
           id: job.contractor.id,
+          uuid: (job.contractor as ContractorInfo & { uuid?: string }).uuid ?? "",
           user_id: 0, // Not needed for display
           company_name: job.contractor.company_name,
           email: job.contractor.email,

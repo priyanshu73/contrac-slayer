@@ -23,7 +23,7 @@ interface FollowupSettingsProps {
 }
 
 export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
-  const t = useTranslations("messaging.settings")
+  const t = useTranslations("scheduling.settings")
   const [settings, setSettings] = useState<FollowupSettingsType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)

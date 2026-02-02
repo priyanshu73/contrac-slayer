@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { formatPhoneForDisplay } from "@/lib/utils"
 
 export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [invoice, setInvoice] = useState<any>(null)
@@ -78,7 +79,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             <p className="font-semibold">{invoice.client.name}</p>
             <p className="text-sm text-muted-foreground">{invoice.client.address}</p>
             <p className="text-sm text-muted-foreground">{invoice.client.email}</p>
-            <p className="text-sm text-muted-foreground">{invoice.client.phone}</p>
+            <p className="text-sm text-muted-foreground">{formatPhoneForDisplay(invoice.client.phone)}</p>
           </div>
           <div className="text-right">
             <div className="space-y-1">

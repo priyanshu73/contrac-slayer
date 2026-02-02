@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect, useRef } from 'react'
 import { contractorAI } from '@/lib/api'
+import { formatPhoneForDisplay } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Message {
@@ -275,7 +276,7 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
             <h2 className="text-lg font-semibold text-foreground">
               {lead.name || `Customer ${lead.phone_number.slice(-4)}`}
             </h2>
-            <p className="text-sm text-muted-foreground">{lead.phone_number}</p>
+            <p className="text-sm text-muted-foreground">{formatPhoneForDisplay(lead.phone_number)}</p>
           </div>
           <Button variant="ghost" size="icon">
             <MoreVertical className="h-4 w-4" />

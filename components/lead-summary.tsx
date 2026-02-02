@@ -2,6 +2,7 @@
 
 import { Zap, TrendingUp, Clock, MapPin, User, Phone, Briefcase, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { formatPhoneForDisplay } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 
@@ -173,7 +174,7 @@ export default function LeadSummary({ lead, language }: LeadSummaryProps) {
           
           <div className="flex items-center gap-2">
             <Phone className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">{lead.phone_number}</span>
+            <span className="text-sm">{formatPhoneForDisplay(lead.phone_number)}</span>
           </div>
           
           {lead.service_type && (

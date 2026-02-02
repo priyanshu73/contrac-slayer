@@ -80,6 +80,9 @@ class ApiClient {
         throw new Error(this.formatApiErrorDetail(detail))
       }
 
+      if (response.status === 204) {
+        return undefined as T
+      }
       return response.json()
     } catch (error) {
       clearTimeout(timeoutId)
@@ -397,6 +400,12 @@ class ApiClient {
     return this.request(`/clients/${clientId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    })
+  }
+
+  async deleteClient(clientId: number): Promise<void> {
+    await this.request<void>(`/clients/${clientId}`, {
+      method: 'DELETE',
     })
   }
 

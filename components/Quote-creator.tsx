@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements } from "@/lib/types"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
 
@@ -1240,7 +1241,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                               <span className="truncate">{client.email}</span>
                             )}
                             {client.phone && (
-                              <span className="flex-shrink-0">{client.phone}</span>
+                              <span className="flex-shrink-0">{formatPhoneForDisplay(client.phone)}</span>
                             )}
                           </div>
                           {client.address && (

@@ -8,7 +8,7 @@
     "calendar": "Calendar",
     "settings": "Settings",
     "actions": "Actions",
-    "messaging": "Messaging",
+    "scheduling": "Scheduling",
     "moreComingSoon": "More coming soon"
   },
   "common": {
@@ -169,9 +169,9 @@
     "clientMessages": "Client Messages",
     "clientMessagesDesc": "New messages from clients"
   },
-  "messaging": {
-    "pageTitle": "Messaging",
-    "pageDescription": "Schedule follow-ups and manage your messaging settings",
+  "scheduling": {
+    "pageTitle": "Scheduling",
+    "pageDescription": "Schedule follow-ups and manage your scheduling settings",
     "tabs": {
       "settings": "Settings",
       "scheduled": "Scheduled",

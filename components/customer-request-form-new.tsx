@@ -12,6 +12,7 @@ import { Upload, X, Check, Calendar, Sparkles, Clock, Shield, CheckCircle2 } fro
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface CustomerRequestFormProps {
@@ -102,7 +103,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                <span>Urgent matters: Call us at <strong>{contractor.phone_number}</strong></span>
+                <span>Urgent matters: Call us at <strong>{formatPhoneForDisplay(contractor.phone_number)}</strong></span>
               </div>
             )}
           </div>
@@ -157,7 +158,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
                   {contractor.phone_number && (
                     <>
                       <span className="text-gray-300">•</span>
-                      <span>{contractor.phone_number}</span>
+                      <span>{formatPhoneForDisplay(contractor.phone_number)}</span>
                     </>
                   )}
                 </div>
