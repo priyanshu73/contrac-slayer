@@ -278,7 +278,19 @@ export function PersonalizedQuoteView({
     }
   }
 
+  const quoteSignedByCustomer = Boolean(currentJob.signature?.customer_signed_at)
+  const statusRequiresSignedQuote = (status: string) =>
+    status === "COMPLETED" || status === "PAID"
+
   const handleStatusChange = async (newStatus: string) => {
+    if (statusRequiresSignedQuote(newStatus) && !quoteSignedByCustomer) {
+      toast({
+        title: "Quote not signed",
+        description: "The customer must sign the quote before you can set status to Job Completed or Paid.",
+        variant: "destructive",
+      })
+      return
+    }
     try {
       setUpdatingStatus(true)
       await api.updateJob(currentJob.id, { status: newStatus })
@@ -893,14 +905,28 @@ export function PersonalizedQuoteView({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {QUOTE_STATUS_OPTIONS.map((opt) => (
-                              <DropdownMenuItem
-                                key={opt.value}
-                                onClick={() => handleStatusChange(opt.value)}
-                              >
-                                {opt.label}
-                              </DropdownMenuItem>
-                            ))}
+                            {QUOTE_STATUS_OPTIONS.map((opt) => {
+                              const disabled = statusRequiresSignedQuote(opt.value) && !quoteSignedByCustomer
+                              return (
+                                <Tooltip key={opt.value}>
+                                  <TooltipTrigger asChild>
+                                    <div>
+                                      <DropdownMenuItem
+                                        onClick={() => handleStatusChange(opt.value)}
+                                        disabled={disabled}
+                                      >
+                                        {opt.label}
+                                      </DropdownMenuItem>
+                                    </div>
+                                  </TooltipTrigger>
+                                  {disabled && (
+                                    <TooltipContent side="right">
+                                      <p>Quote must be signed by customer first</p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              )
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </>
