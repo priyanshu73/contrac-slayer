@@ -11,8 +11,10 @@ import { api } from "@/lib/api"
 import { ContractorProfile } from "@/lib/types"
 import { AuthGuard } from "@/components/auth-guard"
 import { Loader2Icon } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export default function MessagingPage() {
+  const t = useTranslations("messaging")
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
@@ -37,10 +39,8 @@ export default function MessagingPage() {
         <main className="container mx-auto px-4 py-6">
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold">Messaging</h1>
-              <p className="text-muted-foreground">
-                Schedule follow-ups and manage your messaging settings
-              </p>
+              <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
+              <p className="text-muted-foreground">{t("pageDescription")}</p>
             </div>
 
             {loading ? (
@@ -51,9 +51,9 @@ export default function MessagingPage() {
               <>
                 <Tabs defaultValue="scheduled" className="space-y-6">
                   <TabsList>
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
-                    <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-                    <TabsTrigger value="history">History</TabsTrigger>
+                    <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
+                    <TabsTrigger value="scheduled">{t("tabs.scheduled")}</TabsTrigger>
+                    <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="settings">
@@ -84,10 +84,8 @@ export default function MessagingPage() {
                   <TabsContent value="history">
                     <div className="space-y-4">
                       <div>
-                        <h2 className="text-2xl font-bold">Follow-up History</h2>
-                        <p className="text-muted-foreground">
-                          View past follow-up messages and their status
-                        </p>
+                        <h2 className="text-2xl font-bold">{t("historyTitle")}</h2>
+                        <p className="text-muted-foreground">{t("historyDescription")}</p>
                       </div>
                       <ScheduledFollowupsList
                         contractorId={profile?.contractor_ai_sp_id}

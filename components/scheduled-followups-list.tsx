@@ -51,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import type { ScheduledFollowup, FollowupStatus, FollowupType } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -76,11 +77,13 @@ const followupTypeIcons: Record<FollowupType, React.ReactNode> = {
   custom: <MailIcon className="h-4 w-4" />,
 }
 
-const followupTypeLabels: Record<FollowupType, string> = {
-  appointment_1day: "Appointment (1 day)",
-  appointment_1hour: "Appointment (1 hour)",
-  quote: "Quote Follow-up",
-  custom: "Custom Message",
+function getFollowupTypeLabels(t: (key: string) => string): Record<FollowupType, string> {
+  return {
+    appointment_1day: t("list.typeAppointment1day"),
+    appointment_1hour: t("list.typeAppointment1hour"),
+    quote: t("list.typeQuote"),
+    custom: t("list.typeCustom"),
+  }
 }
 
 const statusColors: Record<FollowupStatus, string> = {
@@ -91,6 +94,7 @@ const statusColors: Record<FollowupStatus, string> = {
 }
 
 export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: ScheduledFollowupsListProps) {
+  const t = useTranslations("messaging")
   const [followups, setFollowups] = useState<ScheduledFollowup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [spNotFound, setSpNotFound] = useState(false)
@@ -100,6 +104,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [followupToDelete, setFollowupToDelete] = useState<number | null>(null)
   const { toast } = useToast()
+  const followupTypeLabels = getFollowupTypeLabels((key) => t(key))
 
   useEffect(() => {
     const fetchFollowups = async () => {
@@ -136,8 +141,8 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
           setSpNotFound(true)
         } else {
           toast({
-            title: "Error",
-            description: message || "Failed to load follow-ups",
+            title: t("list.loadFailed").replace(/\..*/, "").trim() || "Error",
+            description: message || t("list.loadFailed"),
             variant: "destructive",
           })
         }
@@ -181,13 +186,13 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       await contractorAI.cancelFollowup(followupToDelete.toString())
       setFollowups(prev => prev.filter(f => f.id !== followupToDelete))
       toast({
-        title: "Follow-up cancelled",
-        description: "The scheduled follow-up has been cancelled successfully.",
+        title: t("list.cancelConfirmTitle"),
+        description: t("list.cancelledSuccess"),
       })
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to cancel follow-up",
+        title: t("settings.error"),
+        description: error instanceof Error ? error.message : t("list.cancelFailed"),
         variant: "destructive",
       })
     } finally {
@@ -246,9 +251,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       <Alert>
         <InfoIcon className="h-4 w-4" />
         <AlertDescription>
-          {spNotFound
-            ? "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use scheduled follow-ups."
-            : "You need a ContractorOps AI number to access scheduled follow-ups. Add your contact in Contractor AI admin and link it to your profile to use this section."}
+          {spNotFound ? t("list.spNotFound") : t("list.spRequired")}
         </AlertDescription>
       </Alert>
     )
@@ -262,7 +265,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
           <div className="relative flex-1 max-w-sm">
             <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by customer name or message..."
+              placeholder={t("list.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
@@ -274,14 +277,14 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
           <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as FollowupType | "all")}>
             <SelectTrigger className="w-[180px]">
               <FilterIcon className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filter by type" />
+              <SelectValue placeholder={t("list.filterByType")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="appointment_1day">Appointment (1 day)</SelectItem>
-              <SelectItem value="appointment_1hour">Appointment (1 hour)</SelectItem>
-              <SelectItem value="quote">Quote Follow-up</SelectItem>
-              <SelectItem value="custom">Custom Message</SelectItem>
+              <SelectItem value="all">{t("list.allTypes")}</SelectItem>
+              <SelectItem value="appointment_1day">{t("list.typeAppointment1day")}</SelectItem>
+              <SelectItem value="appointment_1hour">{t("list.typeAppointment1hour")}</SelectItem>
+              <SelectItem value="quote">{t("list.typeQuote")}</SelectItem>
+              <SelectItem value="custom">{t("list.typeCustom")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -290,23 +293,23 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border p-3">
-          <div className="text-sm text-muted-foreground">Total</div>
+          <div className="text-sm text-muted-foreground">{t("list.total")}</div>
           <div className="text-2xl font-bold">{followups.length}</div>
         </div>
         <div className="rounded-lg border p-3">
-          <div className="text-sm text-muted-foreground">Pending</div>
+          <div className="text-sm text-muted-foreground">{t("list.pending")}</div>
           <div className="text-2xl font-bold text-blue-500">
             {followups.filter(f => f.status === "pending").length}
           </div>
         </div>
         <div className="rounded-lg border p-3">
-          <div className="text-sm text-muted-foreground">Sent</div>
+          <div className="text-sm text-muted-foreground">{t("list.sent")}</div>
           <div className="text-2xl font-bold text-green-500">
             {followups.filter(f => f.status === "sent").length}
           </div>
         </div>
         <div className="rounded-lg border p-3">
-          <div className="text-sm text-muted-foreground">Failed</div>
+          <div className="text-sm text-muted-foreground">{t("list.failed")}</div>
           <div className="text-2xl font-bold text-red-500">
             {followups.filter(f => f.status === "failed").length}
           </div>
@@ -317,11 +320,11 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       {filteredFollowups.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <MailIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">No follow-ups found</h3>
+          <h3 className="mt-4 text-lg font-semibold">{t("list.noFollowups")}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             {searchQuery || typeFilter !== "all" || selectedStatus !== "all"
-              ? "Try adjusting your filters"
-              : "Schedule your first follow-up to get started"}
+              ? t("list.tryFilters")
+              : t("list.getStarted")}
           </p>
         </div>
       ) : (
@@ -329,11 +332,11 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Customer Name</TableHead>
-                <TableHead>Message</TableHead>
-                <TableHead>Scheduled For</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("list.type")}</TableHead>
+                <TableHead>{t("list.customerName")}</TableHead>
+                <TableHead>{t("list.message")}</TableHead>
+                <TableHead>{t("list.scheduledFor")}</TableHead>
+                <TableHead>{t("list.status")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -367,7 +370,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
                   </TableCell>
                   <TableCell>
                     <Badge className={statusColors[followup.status]} variant="secondary">
-                      {followup.status}
+                      {t(`list.${followup.status}` as "list.pending" | "list.sent" | "list.failed" | "list.cancelled")}
                     </Badge>
                     {followup.status === "failed" && followup.error_message && (
                       <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
@@ -387,7 +390,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
                             onClick={() => handleDeleteClick(followup.id)}
                           >
                             <TrashIcon className="mr-2 h-4 w-4" />
-                            Cancel Follow-up
+                            {t("list.cancelFollowup")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -404,15 +407,13 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: S
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Follow-up?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will cancel the scheduled follow-up message. This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("list.cancelConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("list.cancelConfirmDescription")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep It</AlertDialogCancel>
+            <AlertDialogCancel>{t("list.keepIt")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
-              Cancel Follow-up
+              {t("list.cancelFollowup")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
