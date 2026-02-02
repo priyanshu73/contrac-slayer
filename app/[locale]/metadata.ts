@@ -16,6 +16,11 @@ export async function generateMetadata({
     icons: {
       icon: "/images/favicon.ico",
     },
+    appleWebApp: {
+      capable: true,
+      title: "ContractorOps",
+      statusBarStyle: "default",
+    },
     alternates: {
       languages: {
         'en': '/en',
