@@ -33,8 +33,9 @@ import {
 } from "@/components/ui/command"
 import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { cn } from "@/lib/utils"
+import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import type { ScheduleFollowupRequest } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
 import type { Client } from "@/lib/types"
@@ -46,23 +47,13 @@ interface ScheduleFollowupDialogProps {
   onScheduled?: () => void
 }
 
-const templates = [
-  {
-    id: "appointment",
-    name: "Appointment Reminder",
-    template: "Hi {client_name}! This is a reminder about your appointment tomorrow at {time}. Looking forward to seeing you!",
-  },
-  {
-    id: "quote",
-    name: "Quote Follow-up",
-    template: "Hi {client_name}, just following up on the quote we sent. Do you have any questions?",
-  },
-  {
-    id: "custom",
-    name: "Custom Message",
-    template: "",
-  },
-]
+const TEMPLATE_IDS = ["appointment", "quote", "custom"] as const
+
+const DEFAULT_TEMPLATES: Record<string, string> = {
+  appointment: "Hi {client_name}! This is a reminder about your appointment tomorrow at {time}. Looking forward to seeing you!",
+  quote: "Hi {client_name}, just following up on the quote we sent. Do you have any questions?",
+  custom: "",
+}
 
 export function ScheduleFollowupDialog({
   contractorId,
@@ -70,6 +61,7 @@ export function ScheduleFollowupDialog({
   onOpenChange,
   onScheduled,
 }: ScheduleFollowupDialogProps) {
+  const t = useTranslations("messaging.dialog")
   const [clients, setClients] = useState<Client[]>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [selectedClient, setSelectedClient] = useState<string>("")
@@ -81,6 +73,12 @@ export function ScheduleFollowupDialog({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  const templateNames: Record<string, string> = {
+    appointment: t("templateAppointment"),
+    quote: t("templateQuote"),
+    custom: t("templateCustom"),
+  }
 
   useEffect(() => {
     if (open) {
@@ -108,17 +106,15 @@ export function ScheduleFollowupDialog({
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId)
-    const template = templates.find(t => t.id === templateId)
-    if (template) {
-      setMessageText(template.template)
-    }
+    const text = DEFAULT_TEMPLATES[templateId]
+    if (text !== undefined) setMessageText(text)
   }
 
   const handleSubmit = async () => {
     if (!contractorId || !selectedClient || !messageText || !selectedDate || !selectedTime) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
+        title: t("missingInfo"),
+        description: t("fillRequired"),
         variant: "destructive",
       })
       return
@@ -127,8 +123,8 @@ export function ScheduleFollowupDialog({
     const client = clientsWithPhone.find((c) => c.id.toString() === selectedClient)
     if (!client?.phone) {
       toast({
-        title: "Invalid client",
-        description: "Selected client has no phone number for SMS.",
+        title: t("invalidClient"),
+        description: t("noPhone"),
         variant: "destructive",
       })
       return
@@ -146,8 +142,8 @@ export function ScheduleFollowupDialog({
 
       if (scheduledDateTime <= new Date()) {
         toast({
-          title: "Invalid time",
-          description: "Please pick a date and time in the future.",
+          title: t("invalidTime"),
+          description: t("pickFuture"),
           variant: "destructive",
         })
         return
@@ -171,7 +167,7 @@ export function ScheduleFollowupDialog({
       })
 
       toast({
-        title: "Follow-up scheduled",
+        title: t("scheduledSuccess"),
         description: `Message scheduled for ${format(scheduledDateTime, "MMM d, yyyy 'at' h:mm a")}`,
       })
 
@@ -190,8 +186,8 @@ export function ScheduleFollowupDialog({
       onOpenChange(false)
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to schedule follow-up",
+        title: t("error"),
+        description: error instanceof Error ? error.message : t("scheduleFailed"),
         variant: "destructive",
       })
     } finally {
@@ -206,25 +202,21 @@ export function ScheduleFollowupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Schedule Custom Follow-up</DialogTitle>
-          <DialogDescription>
-            Send a follow-up message to a client at a specific time
-          </DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         {!contractorId ? (
           <Alert>
             <InfoIcon className="h-4 w-4" />
-            <AlertDescription>
-              You need a ContractorOps AI number to schedule follow-ups. Add your contact in Contractor AI admin and link it to your profile first.
-            </AlertDescription>
+            <AlertDescription>{t("spRequired")}</AlertDescription>
           </Alert>
         ) : (
         <>
         <div className="space-y-4 py-4">
           {/* Client Selection - combined search + dropdown */}
           <div className="space-y-2">
-            <Label htmlFor="client">Client *</Label>
+            <Label htmlFor="client">{t("clientLabel")}</Label>
             <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -235,21 +227,21 @@ export function ScheduleFollowupDialog({
                   className="w-full justify-between font-normal"
                 >
                   {clientsLoading
-                    ? "Loading clients..."
+                    ? t("loadingClients")
                     : selectedClientData
-                      ? `${selectedClientData.name}${selectedClientData.phone ? ` (${selectedClientData.phone})` : ""}`
-                      : "Select a client"}
+                      ? `${selectedClientData.name}${selectedClientData.phone ? ` (${formatPhoneForDisplay(selectedClientData.phone)})` : ""}`
+                      : t("selectClient")}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Search clients..." />
+                  <CommandInput placeholder={t("searchClients")} />
                   <CommandList className="max-h-[280px]">
                     <CommandEmpty>
                       {clientsWithPhone.length === 0
-                        ? "No clients with phone numbers. Add a client with a phone to send follow-ups."
-                        : "No clients match your search."}
+                        ? t("noClientsWithPhone")
+                        : t("noClientsMatch")}
                     </CommandEmpty>
                     <CommandGroup>
                       {clientsWithPhone.map((client) => (
@@ -264,7 +256,7 @@ export function ScheduleFollowupDialog({
                           <div className="flex flex-col items-start">
                             <span className="font-medium">{client.name}</span>
                             {client.phone && (
-                              <span className="text-xs text-muted-foreground">{client.phone}</span>
+                              <span className="text-xs text-muted-foreground">{formatPhoneForDisplay(client.phone)}</span>
                             )}
                           </div>
                         </CommandItem>
@@ -278,15 +270,15 @@ export function ScheduleFollowupDialog({
 
           {/* Template Selection */}
           <div className="space-y-2">
-            <Label htmlFor="template">Message Template (Optional)</Label>
+            <Label htmlFor="template">{t("templateLabel")}</Label>
             <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a template or write custom message" />
+                <SelectValue placeholder={t("templatePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
+                {TEMPLATE_IDS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {templateNames[id]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -295,17 +287,17 @@ export function ScheduleFollowupDialog({
 
           {/* Message Text */}
           <div className="space-y-2">
-            <Label htmlFor="message">Message *</Label>
+            <Label htmlFor="message">{t("messageLabel")}</Label>
             <Textarea
               id="message"
               rows={6}
-              placeholder="Enter your follow-up message..."
+              placeholder={t("messagePlaceholder")}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               maxLength={maxCharacters}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Use variables: {"{client_name}"}, {"{time}"}, {"{date}"}</span>
+              <span>{t("useVariables")} {"{client_name}"}, {"{time}"}, {"{date}"}</span>
               <span className={characterCount > maxCharacters * 0.9 ? "text-orange-500" : ""}>
                 {characterCount}/{maxCharacters}
               </span>
@@ -316,7 +308,7 @@ export function ScheduleFollowupDialog({
           <div className="space-y-2">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Date *</Label>
+                <Label>{t("dateLabel")}</Label>
                 <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -327,7 +319,7 @@ export function ScheduleFollowupDialog({
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                      {selectedDate ? format(selectedDate, "PPP") : t("pickDate")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -353,7 +345,7 @@ export function ScheduleFollowupDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="time">Time *</Label>
+                <Label htmlFor="time">{t("timeLabel")}</Label>
                 <div className="relative">
                   <ClockIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -367,7 +359,7 @@ export function ScheduleFollowupDialog({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Times are in your local timezone
+              {t("timesLocal")}
               {typeof Intl !== "undefined" && (
                 <> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</>
               )}
@@ -377,9 +369,9 @@ export function ScheduleFollowupDialog({
           {/* Preview */}
           {selectedDate && selectedTime && (
             <div className="rounded-lg border border-muted bg-muted/50 p-4">
-              <p className="text-sm font-medium mb-2">Preview</p>
+              <p className="text-sm font-medium mb-2">{t("preview")}</p>
               <p className="text-sm text-muted-foreground">
-                This message will be sent on{" "}
+                {t("previewSentOn")}{" "}
                 <span className="font-medium text-foreground">
                   {format(selectedDate, "MMMM d, yyyy")} at {selectedTime}
                 </span>
@@ -397,11 +389,11 @@ export function ScheduleFollowupDialog({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            Cancel
+            {t("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             <SendIcon className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Scheduling..." : "Schedule Follow-up"}
+            {isSubmitting ? t("scheduling") : t("schedule")}
           </Button>
         </DialogFooter>
         </>

@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { InfoIcon, SaveIcon, Loader2Icon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import {
   type FollowupSettings as FollowupSettingsType,
   mockFollowupSettings,
@@ -22,6 +23,7 @@ interface FollowupSettingsProps {
 }
 
 export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
+  const t = useTranslations("messaging.settings")
   const [settings, setSettings] = useState<FollowupSettingsType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -53,8 +55,8 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
           setSpNotFound(true)
         } else {
           toast({
-            title: "Error",
-            description: message || "Failed to load follow-up settings",
+            title: t("error"),
+            description: message || t("loadFailedShort"),
             variant: "destructive",
           })
         }
@@ -74,13 +76,13 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
     try {
       await contractorAI.updateFollowupSettings(contractorId.toString(), settings)
       toast({
-        title: "Settings saved",
-        description: "Your follow-up settings have been updated successfully.",
+        title: t("saveSuccessTitle"),
+        description: t("saveSuccess"),
       })
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save settings",
+        title: t("error"),
+        description: error instanceof Error ? error.message : t("saveFailed"),
         variant: "destructive",
       })
     } finally {
@@ -109,9 +111,7 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
       <Alert>
         <InfoIcon className="h-4 w-4" />
         <AlertDescription>
-          {spNotFound
-            ? "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use follow-up settings."
-            : "You need a ContractorOps AI number to access follow-up settings. Add your contact in Contractor AI admin and link it to your profile to use this section."}
+          {spNotFound ? t("spNotFound") : t("spRequired")}
         </AlertDescription>
       </Alert>
     )
@@ -120,9 +120,7 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
   if (!settings) {
     return (
       <Alert variant="destructive">
-        <AlertDescription>
-          Failed to load follow-up settings. Please try again.
-        </AlertDescription>
+        <AlertDescription>{t("loadFailed")}</AlertDescription>
       </Alert>
     )
   }
@@ -131,20 +129,15 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
     <div className="space-y-6">
       <Alert>
         <InfoIcon className="h-4 w-4" />
-        <AlertDescription>
-          Configure automatic follow-ups to send reminders to your customers via SMS. 
-          Customize timing and message templates for different types of follow-ups.
-        </AlertDescription>
+        <AlertDescription>{t("intro")}</AlertDescription>
       </Alert>
 
       {/* Master Toggle */}
       <Card className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label className="text-base font-semibold">Enable Automatic Follow-ups</Label>
-            <p className="text-sm text-muted-foreground">
-              Automatically send follow-up messages based on your configured settings
-            </p>
+            <Label className="text-base font-semibold">{t("enableAutomatic")}</Label>
+            <p className="text-sm text-muted-foreground">{t("enableAutomaticDesc")}</p>
           </div>
           <Switch
             checked={settings.automatic_followup_enabled}
@@ -155,15 +148,13 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
 
       {/* Appointment Reminders */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Appointment Reminders</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Send automatic reminders to customers before scheduled appointments
-        </p>
+        <h2 className="text-lg font-semibold mb-4">{t("appointmentReminders")}</h2>
+        <p className="text-sm text-muted-foreground mb-6">{t("appointmentRemindersDesc")}</p>
 
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="days-before">Days before appointment</Label>
+              <Label htmlFor="days-before">{t("daysBefore")}</Label>
               <Input
                 id="days-before"
                 type="number"
@@ -173,13 +164,11 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
                 onChange={(e) => updateSetting('followup_days_before_appointment', parseInt(e.target.value) || 0)}
                 disabled={!settings.automatic_followup_enabled}
               />
-              <p className="text-xs text-muted-foreground">
-                Send reminder this many days before (at 9 AM)
-              </p>
+              <p className="text-xs text-muted-foreground">{t("daysBeforeHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="hours-before">Hours before appointment</Label>
+              <Label htmlFor="hours-before">{t("hoursBefore")}</Label>
               <Input
                 id="hours-before"
                 type="number"
@@ -189,26 +178,24 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
                 onChange={(e) => updateSetting('followup_hours_before_appointment', parseInt(e.target.value) || 0)}
                 disabled={!settings.automatic_followup_enabled}
               />
-              <p className="text-xs text-muted-foreground">
-                Send reminder this many hours before
-              </p>
+              <p className="text-xs text-muted-foreground">{t("hoursBeforeHint")}</p>
             </div>
           </div>
 
           <Separator />
 
           <div className="space-y-2">
-            <Label htmlFor="template-1day">1-Day Before Reminder Template</Label>
+            <Label htmlFor="template-1day">{t("template1day")}</Label>
             <Textarea
               id="template-1day"
               rows={3}
               value={settings.reminder_1day_template}
               onChange={(e) => updateSetting('reminder_1day_template', e.target.value)}
               disabled={!settings.automatic_followup_enabled}
-              placeholder="Hi {customer_name}! This is a reminder about your appointment tomorrow at {time}..."
+              placeholder={t("template1dayPlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              Available variables: <code className="text-xs">{"{customer_name}"}</code>,{" "}
+              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
               <code className="text-xs">{"{time}"}</code>,{" "}
               <code className="text-xs">{"{date}"}</code>,{" "}
               <code className="text-xs">{"{datetime}"}</code>
@@ -216,17 +203,17 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="template-1hour">1-Hour Before Reminder Template</Label>
+            <Label htmlFor="template-1hour">{t("template1hour")}</Label>
             <Textarea
               id="template-1hour"
               rows={3}
               value={settings.reminder_1hour_template}
               onChange={(e) => updateSetting('reminder_1hour_template', e.target.value)}
               disabled={!settings.automatic_followup_enabled}
-              placeholder="Hi {customer_name}! Your appointment is in 1 hour at {time}..."
+              placeholder={t("template1hourPlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              Available variables: <code className="text-xs">{"{customer_name}"}</code>,{" "}
+              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
               <code className="text-xs">{"{time}"}</code>
             </p>
           </div>
@@ -235,14 +222,12 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
 
       {/* Quote Follow-ups */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Quote Follow-ups</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Automatically follow up with customers who haven't responded to quotes
-        </p>
+        <h2 className="text-lg font-semibold mb-4">{t("quoteFollowups")}</h2>
+        <p className="text-sm text-muted-foreground mb-6">{t("quoteFollowupsDesc")}</p>
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="days-after-quote">Days after sending quote</Label>
+            <Label htmlFor="days-after-quote">{t("daysAfterQuote")}</Label>
             <Input
               id="days-after-quote"
               type="number"
@@ -252,23 +237,21 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
               onChange={(e) => updateSetting('followup_days_after_quote', parseInt(e.target.value) || 0)}
               disabled={!settings.automatic_followup_enabled}
             />
-            <p className="text-xs text-muted-foreground">
-              Send follow-up this many days after quote is sent
-            </p>
+            <p className="text-xs text-muted-foreground">{t("daysAfterQuoteHint")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="template-quote">Quote Follow-up Template</Label>
+            <Label htmlFor="template-quote">{t("quoteTemplate")}</Label>
             <Textarea
               id="template-quote"
               rows={3}
               value={settings.quote_followup_template}
               onChange={(e) => updateSetting('quote_followup_template', e.target.value)}
               disabled={!settings.automatic_followup_enabled}
-              placeholder="Hi {customer_name}, just following up on the quote we sent..."
+              placeholder={t("quoteTemplatePlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              Available variables: <code className="text-xs">{"{customer_name}"}</code>,{" "}
+              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
               <code className="text-xs">{"{quote_link}"}</code>,{" "}
               <code className="text-xs">{"{quote_amount}"}</code>
             </p>
@@ -280,14 +263,14 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
       <div className="flex gap-2 sticky bottom-0 bg-background pt-4 pb-4">
         <Button onClick={handleSave} disabled={isSaving}>
           <SaveIcon className="mr-2 h-4 w-4" />
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? t("saving") : t("saveChanges")}
         </Button>
         <Button
           variant="outline"
           onClick={() => setSettings(mockFollowupSettings)}
           disabled={isSaving}
         >
-          Reset to Defaults
+          {t("resetToDefaults")}
         </Button>
       </div>
     </div>

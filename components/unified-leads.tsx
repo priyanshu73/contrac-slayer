@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, contractorAI } from "@/lib/api"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
@@ -926,7 +927,7 @@ export function UnifiedLeads() {
                             </p>
                             
                             {lead.phone && (
-                              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{lead.phone}</p>
+                              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{formatPhoneForDisplay(lead.phone)}</p>
                             )}
                             
                             <div className="flex items-center justify-between gap-1">
@@ -1205,7 +1206,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   {lead.phone && (
                     <div className="flex items-center gap-2 md:gap-3">
                       <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                      <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{lead.phone}</span>
+                      <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{formatPhoneForDisplay(lead.phone)}</span>
                       <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
                         <a href={`tel:${lead.phone}`}>{tCommon('call')}</a>
                       </Button>
