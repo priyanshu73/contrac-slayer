@@ -53,11 +53,20 @@ export default function ProfileSetupPage() {
   const [isFetchingTaxRate, setIsFetchingTaxRate] = useState(false)
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
+  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
 
-  // Fetch tax rate from zipcode API when step 3 loads (direct client fetch — no Next API route)
+  const AI_ESTIMATOR_VIDEO_URL =
+    process.env.NEXT_PUBLIC_AI_ESTIMATOR_VIDEO_URL ||
+    "https://res.cloudinary.com/du4slyinf/video/upload/v1770016910/AI_Estimator_English_gbugne.mp4"
+
+  // Use a dedicated Spanish onboarding video when locale is 'es'
+  const AI_ESTIMATOR_VIDEO_URL_ES =
+    "https://res.cloudinary.com/du4slyinf/video/upload/v1770017275/0201_2_w2nerd.mov"
+
+  // Fetch tax rate from zipcode API when step 1 has zip (direct client fetch — no Next API route)
   useEffect(() => {
     const fetchTaxRate = async () => {
-      if (step !== 3 || !formData.default_zip_code) return
+      if (step !== 1 || !formData.default_zip_code) return
       const apiKey = process.env.NEXT_PUBLIC_API_NINJA_KEY
       if (!apiKey) {
         console.warn('NEXT_PUBLIC_API_NINJA_KEY not set; skipping zipcode lookup')
@@ -170,16 +179,39 @@ export default function ProfileSetupPage() {
   }
 
   const handleNext = () => {
-    if (step === 1 && !formData.company_name) {
-      setError(t('companyInfo.errors.companyNameRequired'))
-      return
+    if (step === 1) {
+      if (!formData.company_name) {
+        setError(t('companyInfo.errors.companyNameRequired'))
+        return
+      }
+      if (!formData.email) {
+        setError(t('companyInfo.errors.emailRequired'))
+        return
+      }
     }
-    if (step === 1 && !formData.email) {
-      setError(t('companyInfo.errors.emailRequired'))
-      return
+    if (step === 2) {
+      if (!selectedState) {
+        setError(t('opsAiNumber.errors.stateRequired'))
+        return
+      }
+      if (!selectedAreaCodes.length) {
+        setError(t('opsAiNumber.errors.areaCodeRequired'))
+        return
+      }
     }
     setError("")
     setStep(step + 1)
+  }
+
+  const handleInvoiceFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files?.length) return
+    setInvoiceFiles((prev) => [...prev, ...Array.from(files)])
+    e.target.value = ""
+  }
+
+  const removeInvoiceFile = (index: number) => {
+    setInvoiceFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleBack = () => {
@@ -190,21 +222,6 @@ export default function ProfileSetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    
-    // Validate step 3 requirements
-    if (step === 3) {
-      if (!selectedState) {
-        setError(t('opsAiNumber.errors.stateRequired'))
-        setIsLoading(false)
-        return
-      }
-      if (!selectedAreaCodes.length) {
-        setError(t('opsAiNumber.errors.areaCodeRequired'))
-        setIsLoading(false)
-        return
-      }
-    }
-    
     setIsLoading(true)
 
     try {
@@ -276,7 +293,7 @@ export default function ProfileSetupPage() {
 
       // Send Twilio number request to SheetDB only when completing setup (step 3)
       // SheetDB Create API expects { data: [row, ...] } — column names must match the Google Sheet header row
-      if (step === 3 && selectedState && selectedAreaCodes.length) {
+      if (selectedState && selectedAreaCodes.length) {
         try {
           const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
           if (sheetDbUrl) {
@@ -325,7 +342,7 @@ export default function ProfileSetupPage() {
       </div>
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4 py-12">
-        <div className="w-full max-w-3xl">
+        <div className={`w-full ${step === 3 ? "max-w-6xl" : "max-w-3xl"}`}>
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
@@ -343,32 +360,70 @@ export default function ProfileSetupPage() {
             </p>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                    s < step ? "bg-blue-500 text-white" :
-                    s === step ? "bg-blue-500 text-white ring-4 ring-blue-200" :
-                    "bg-gray-200 text-gray-500"
-                  }`}>
-                    {s < step ? (
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : s}
+          {/* Progress — 3 steps: clean stepper with filled track */}
+          <div className="mb-10 w-full max-w-md mx-auto">
+            <div className="relative flex items-start justify-between">
+              <div className="absolute left-0 right-0 top-5 h-0.5 bg-slate-200 rounded-full" aria-hidden />
+              <div
+                className="absolute left-0 top-5 h-0.5 bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                style={{ width: step === 1 ? "0%" : step === 2 ? "50%" : "100%" }}
+                aria-hidden
+              />
+              {[1, 2, 3].map((s) => {
+                const isActive = s === step
+                const isComplete = s < step
+                return (
+                  <div key={s} className="relative z-10 flex flex-col items-center gap-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                        isComplete
+                          ? "border-blue-500 bg-blue-500 text-white"
+                          : isActive
+                            ? "border-blue-500 bg-white text-blue-600 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
+                            : "border-slate-200 bg-white text-slate-400"
+                      }`}
+                    >
+                      {isComplete ? (
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-sm font-semibold">{s}</span>
+                      )}
+                    </div>
+                    <span
+                      className={`max-w-[6rem] text-center text-xs font-medium leading-tight sm:text-sm ${
+                        isActive ? "text-slate-900" : isComplete ? "text-blue-600" : "text-slate-400"
+                      }`}
+                    >
+                      {s === 1 ? t("step1") : s === 2 ? t("step2") : t("step3")}
+                    </span>
                   </div>
-                  {s < 3 && <div className={`w-16 h-1 mx-2 rounded transition-all ${s < step ? "bg-blue-500" : "bg-gray-200"}`}></div>}
-                </div>
-              ))}
+                )
+              })}
             </div>
-            <div className="flex items-center justify-center gap-16 text-sm text-gray-600 max-w-md mx-auto">
-              <span className={`text-center ${step >= 1 ? "text-blue-600 font-medium" : ""}`}>{t('step1')}</span>
-              <span className={`text-center ${step >= 2 ? "text-blue-600 font-medium" : ""}`}>{t('step2')}</span>
-              <span className={`text-center ${step >= 3 ? "text-blue-600 font-medium" : ""}`}>{t('step3')}</span>
-            </div>
+            <p className="mt-4 text-center text-xs text-slate-500">
+              Step {step} of 3
+            </p>
           </div>
+
+          {/* Step 3: Full-width video outside the card (so it can be much bigger) */}
+          {step === 3 && (AI_ESTIMATOR_VIDEO_URL || AI_ESTIMATOR_VIDEO_URL_ES) && (
+            <div className="mb-6 w-full">
+              <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-black aspect-video w-full shadow-lg">
+                <video
+                  src={locale === 'es' ? AI_ESTIMATOR_VIDEO_URL_ES : AI_ESTIMATOR_VIDEO_URL}
+                  controls
+                  className="w-full h-full object-contain"
+                  playsInline
+                  preload="metadata"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-2">{t('aiEstimator.videoHint')}</p>
+            </div>
+          )}
 
           {/* Form Card */}
           <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
@@ -399,12 +454,12 @@ export default function ProfileSetupPage() {
                 </div>
               )}
 
-              {/* Step 1: Company Information */}
+              {/* Step 1: Company info & branding (company info + logo + website at bottom) */}
               {step === 1 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('companyInfo.title')}</h2>
-                    <p className="text-gray-600">{t('companyInfo.description')}</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('companyInfoAndBranding.title')}</h2>
+                    <p className="text-gray-600">{t('companyInfoAndBranding.description')}</p>
                   </div>
 
                   <div className="space-y-5">
@@ -514,64 +569,54 @@ export default function ProfileSetupPage() {
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Step 2: Branding */}
-              {step === 2 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('branding.title')}</h2>
-                    <p className="text-gray-600">{t('branding.description')}</p>
-                  </div>
-
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="logo" className="text-gray-700 font-medium">{t('branding.companyLogo')}</Label>
-                      <div className="flex items-start gap-4">
-                        {logoPreview && (
-                          <div className="relative w-24 h-24 rounded-xl border-2 border-blue-200 overflow-hidden flex-shrink-0">
-                            <Image
-                              src={logoPreview}
-                              alt="Logo preview"
-                              fill
-                              className="object-cover"
+                    {/* Branding at bottom of step 1 */}
+                    <div className="pt-6 mt-6 border-t border-gray-200 space-y-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="logo" className="text-gray-700 font-medium">{t('branding.companyLogo')}</Label>
+                        <div className="flex items-start gap-4">
+                          {logoPreview && (
+                            <div className="relative w-24 h-24 rounded-xl border-2 border-blue-200 overflow-hidden flex-shrink-0">
+                              <Image
+                                src={logoPreview}
+                                alt="Logo preview"
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <Input
+                              id="logo"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              disabled={isLoading}
+                              className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             />
+                            <p className="text-xs text-gray-500 mt-2">{t('branding.logoUploadHint')}</p>
                           </div>
-                        )}
-                        <div className="flex-1">
-                          <Input
-                            id="logo"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoChange}
-                            disabled={isLoading}
-                            className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">{t('branding.logoUploadHint')}</p>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}</Label>
-                      <Input
-                        id="website_url"
-                        type="url"
-                        placeholder={t('branding.websiteUrlPlaceholder')}
-                        value={formData.website_url}
-                        onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                        disabled={isLoading}
-                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}</Label>
+                        <Input
+                          id="website_url"
+                          type="url"
+                          placeholder={t('branding.websiteUrlPlaceholder')}
+                          value={formData.website_url}
+                          onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                          disabled={isLoading}
+                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 3: ContractorOpsAI Number */}
-              {step === 3 && (
+              {/* Step 2: ContractorOpsAI Number */}
+              {step === 2 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('opsAiNumber.title')}</h2>
@@ -690,6 +735,64 @@ export default function ProfileSetupPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: AI Estimator — intro in card; video is rendered above (outside card) */}
+              {step === 3 && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('aiEstimator.title')}</h2>
+                    <p className="text-gray-600">{t('aiEstimator.description')}</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-gray-700 font-medium">{t('aiEstimator.invoiceUploadTitle')}</Label>
+                    <p className="text-sm text-gray-600">{t('aiEstimator.invoiceUploadDescription')}</p>
+                    <input
+                      id="invoice-upload"
+                      type="file"
+                      accept=".pdf,image/*"
+                      multiple
+                      onChange={handleInvoiceFilesChange}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="invoice-upload"
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 py-8 px-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                    >
+                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-600">{t('aiEstimator.chooseInvoices')}</span>
+                      <span className="text-xs text-gray-500">{t('aiEstimator.invoiceFormats')}</span>
+                    </label>
+                    {invoiceFiles.length > 0 && (
+                      <ul className="space-y-2 mt-3">
+                        {invoiceFiles.map((file, index) => (
+                          <li
+                            key={`${file.name}-${index}`}
+                            className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white py-2 px-3 text-sm"
+                          >
+                            <span className="truncate text-gray-700">{file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0 h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                              onClick={() => removeInvoiceFile(index)}
+                              aria-label={tCommon('delete')}
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="text-xs text-gray-500">{t('aiEstimator.invoiceOptional')}</p>
                   </div>
                 </div>
               )}

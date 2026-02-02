@@ -195,172 +195,168 @@ export function SettingsTabs() {
         </div>
       )}
 
-      {/* Business Settings */}
+      {/* Business Settings — single ID-style card: logo + business info */}
       <TabsContent value="business" className="space-y-6">
-        {/* Logo Section */}
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('companyLogo')}</h2>
-          <div className="space-y-4">
-            {logoPreview && (
-              <div className="flex items-center gap-4">
-                <div className="relative h-24 w-24 rounded-lg border-2 border-border overflow-hidden bg-muted">
-                  <Image
-                    src={logoPreview}
-                    alt="Company logo"
-                    fill
-                    className="object-contain p-2"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">{t('currentLogo')}</p>
-                  {profile?.logo_url && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {logoFile ? t('newLogoSelected') : t('clickToChange')}
-                    </p>
+        <Card className="overflow-hidden border-2 border-border/80 shadow-sm">
+          <div className="p-6">
+            <h2 className="sr-only">{t('businessInfo')}</h2>
+            {/* ID-style layout: photo left, details right */}
+            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
+              {/* Photo / logo area — no "Company Logo" label */}
+              <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
+                <div className="relative h-28 w-28 rounded-xl border-2 border-border overflow-hidden bg-muted flex items-center justify-center">
+                  {logoPreview ? (
+                    <Image
+                      src={logoPreview}
+                      alt=""
+                      fill
+                      className="object-contain p-2"
+                    />
+                  ) : (
+                    <span className="text-3xl font-bold text-muted-foreground">
+                      {(formData.company_name || "?").charAt(0).toUpperCase()}
+                    </span>
                   )}
                 </div>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="logo-upload">{t('uploadNewLogo')}</Label>
-              <input
-                ref={fileInputRef}
-                id="logo-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleLogoChange}
-                className="hidden"
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSaving}
-                >
-                  {t('chooseFile')}
-                </Button>
-                {logoFile && (
+                <input
+                  ref={fileInputRef}
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                   <Button
                     type="button"
-                    onClick={handleUploadLogo}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={isSaving}
                   >
-                    {isSaving ? t('uploading') : t('uploadLogo')}
+                    {t('chooseFile')}
                   </Button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Recommended: Square image, at least 200x200px. PNG or JPG format.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('businessInfo')}</h2>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="business-name">{t('companyName')} *</Label>
-                <Input
-                  id="business-name"
-                  placeholder="Your Company Name"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="business-email">{t('businessEmail')} *</Label>
-                <Input
-                  id="business-email"
-                  type="email"
-                  placeholder="contact@yourcompany.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="business-phone">{t('phoneNumber')}</Label>
-                <Input
-                  id="business-phone"
-                  placeholder="(555) 123-4567"
-                  value={formData.phone_number}
-                  onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="business-website">{t('website')}</Label>
-                <Input
-                  id="business-website"
-                  placeholder="https://yourcompany.com"
-                  value={formData.website_url}
-                  onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="business-address">{t('businessAddress')}</Label>
-                <Input
-                  id="business-address"
-                  placeholder="123 Main Street, City, State ZIP"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="default-zip">{t('defaultZipCode')}</Label>
-                <Input
-                  id="default-zip"
-                  placeholder="90210"
-                  value={formData.default_zip_code}
-                  onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contractor-ops-ai-number">{t('contractorOpsAiNumber')}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="contractor-ops-ai-number"
-                    readOnly
-                    className="bg-muted cursor-text select-all"
-                    value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : ""}
-                    placeholder={t('contractorOpsAiNumberPlaceholder')}
-                  />
-                  {contractorOpsAiNumber && (
+                  {logoFile && (
                     <Button
                       type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        navigator.clipboard.writeText(contractorOpsAiNumber)
-                      }}
-                      title="Copy"
+                      size="sm"
+                      onClick={handleUploadLogo}
+                      disabled={isSaving}
                     >
-                      <Copy className="h-4 w-4" />
+                      {isSaving ? t('uploading') : t('uploadLogo')}
                     </Button>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground text-center sm:text-left max-w-[11rem]">
+                  Square, 200×200px min. PNG or JPG.
+                </p>
+              </div>
+
+              {/* Business details — ID-style lines */}
+              <div className="flex-1 min-w-0 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="business-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('companyName')} *</Label>
+                    <Input
+                      id="business-name"
+                      placeholder="Your Company Name"
+                      value={formData.company_name}
+                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                      disabled={isSaving}
+                      className="font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="business-email" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('businessEmail')} *</Label>
+                    <Input
+                      id="business-email"
+                      type="email"
+                      placeholder="contact@yourcompany.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="business-phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('phoneNumber')}</Label>
+                    <Input
+                      id="business-phone"
+                      placeholder="(555) 123-4567"
+                      value={formData.phone_number}
+                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contractor-ops-ai-number" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('contractorOpsAiNumber')}</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="contractor-ops-ai-number"
+                        readOnly
+                        className="bg-muted cursor-text select-all font-mono text-sm"
+                        value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : ""}
+                        placeholder={t('contractorOpsAiNumberPlaceholder')}
+                      />
+                      {contractorOpsAiNumber && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => navigator.clipboard.writeText(contractorOpsAiNumber)}
+                          title="Copy"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="business-address" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('businessAddress')}</Label>
+                    <Input
+                      id="business-address"
+                      placeholder="123 Main Street, City, State ZIP"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="default-zip" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('defaultZipCode')}</Label>
+                    <Input
+                      id="default-zip"
+                      placeholder="90210"
+                      value={formData.default_zip_code}
+                      onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
+                      disabled={isSaving}
+                      className="font-mono"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="business-website" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('website')}</Label>
+                    <Input
+                      id="business-website"
+                      placeholder="https://yourcompany.com"
+                      value={formData.website_url}
+                      onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-6 flex gap-2">
-            <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? t('saving') : t('saveChanges')}
-            </Button>
-            <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              {tCommon('cancel')}
-            </Button>
+
+            <div className="mt-6 pt-6 border-t flex gap-2">
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? t('saving') : t('saveChanges')}
+              </Button>
+              <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
+                {tCommon('cancel')}
+              </Button>
+            </div>
           </div>
         </Card>
 

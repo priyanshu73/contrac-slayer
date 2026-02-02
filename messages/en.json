@@ -438,9 +438,9 @@
   "profileSetup": {
     "welcome": "Welcome to ContractorOps AI",
     "subtitle": "Let's set up your business profile in just a few steps",
-    "step1": "Company Info",
-    "step2": "Branding",
-    "step3": "OpsAI Number",
+    "step1": "Company Info & Branding",
+    "step2": "OpsAI Number",
+    "step3": "AI Estimator",
     "companyInfo": {
       "title": "Company Information",
       "description": "Tell us about your business",
@@ -476,6 +476,10 @@
         "emailRequired": "Business email is required"
       }
     },
+    "companyInfoAndBranding": {
+      "title": "Company Info & Branding",
+      "description": "Tell us about your business and add your logo and website"
+    },
     "branding": {
       "title": "Branding & Online Presence",
       "description": "Make your business stand out",
@@ -504,6 +508,17 @@
         "stateRequired": "Please select a state",
         "areaCodeRequired": "Please select at least one area code"
       }
+    },
+    "aiEstimator": {
+      "title": "Meet your AI Estimator",
+      "description": "Our AI learns your pricing and project types to generate accurate, tailored estimates. Watch how it works below.",
+      "videoTitle": "How it works",
+      "videoHint": "See how the AI estimator helps you create quotes faster.",
+      "invoiceUploadTitle": "Upload past invoices (optional)",
+      "invoiceUploadDescription": "If you have existing invoices, please upload them. We'll use them to be more accurate and tailor estimates to your work, rates, and materials.",
+      "chooseInvoices": "Choose files or drag and drop",
+      "invoiceFormats": "PDF or images (PNG, JPG)",
+      "invoiceOptional": "Optional — you can skip and add invoices later from settings."
     },
     "buttons": {
       "back": "Back",

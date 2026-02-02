@@ -830,46 +830,60 @@ export function PersonalizedQuoteView({
                             Send Follow-up
                           </Button>
                         )}
-                        {/* Copy Quote Link Button */}
+                        {/* Copy Quote Link Button - wrapped in span so tooltip works when button is disabled */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              size="lg"
-                              className="w-full justify-start h-12 text-base"
-                              variant="outline"
-                              onClick={handleCopyQuoteLink}
-                              disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
-                            >
-                              {copiedLink ? (
-                                <>
-                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Link Copied!
-                                </>
-                              ) : generatingLink ? (
-                                <>
-                                  <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Generating...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                  </svg>
-                                  {currentJob.quote_public_link ? "Copy Quote Link" : "Generate & Copy Link"}
-                                </>
-                              )}
-                            </Button>
+                            <span className="inline-block w-full">
+                              <Button
+                                size="lg"
+                                className="w-full justify-start h-12 text-base"
+                                variant="outline"
+                                onClick={handleCopyQuoteLink}
+                                disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
+                              >
+                                {copiedLink ? (
+                                  <>
+                                    <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Link Copied!
+                                  </>
+                                ) : generatingLink ? (
+                                  <>
+                                    <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                    {currentJob.quote_public_link ? "Copy Quote Link" : "Generate & Copy Link"}
+                                  </>
+                                )}
+                              </Button>
+                            </span>
                           </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-xs">
+                          <TooltipContent
+                            side="left"
+                            className={
+                              !getQuoteLinkUrl() && !currentJob.signature?.contractor_signed_at
+                                ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
+                                : "max-w-xs"
+                            }
+                          >
                             {getQuoteLinkUrl() ? (
                               <p className="font-mono text-xs break-all">{getQuoteLinkUrl()}</p>
                             ) : !currentJob.signature?.contractor_signed_at ? (
-                              <p>Please sign the quote first before generating a public link.</p>
+                              <p className="flex items-center gap-2 font-medium">
+                                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Sign the quote first to generate a public link.
+                              </p>
                             ) : (
                               <p>Click to generate and copy the quote link.</p>
                             )}

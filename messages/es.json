@@ -438,9 +438,9 @@
   "profileSetup": {
     "welcome": "Bienvenido a ContractorOps AI",
     "subtitle": "Configuremos el perfil de su negocio en solo unos pasos",
-    "step1": "Información de la Empresa",
-    "step2": "Marca",
-    "step3": "Número OpsAI",
+    "step1": "Info de Empresa y Marca",
+    "step2": "Número OpsAI",
+    "step3": "Estimador IA",
     "companyInfo": {
       "title": "Información de la Empresa",
       "description": "Cuéntenos sobre su negocio",
@@ -476,6 +476,10 @@
         "emailRequired": "El correo empresarial es requerido"
       }
     },
+    "companyInfoAndBranding": {
+      "title": "Info de Empresa y Marca",
+      "description": "Cuéntenos sobre su negocio y agregue su logo y sitio web"
+    },
     "branding": {
       "title": "Marca y Presencia en Línea",
       "description": "Haga que su negocio se destaque",
@@ -504,6 +508,17 @@
         "stateRequired": "Por favor seleccione un estado",
         "areaCodeRequired": "Por favor seleccione al menos un código de área"
       }
+    },
+    "aiEstimator": {
+      "title": "Conozca su Estimador IA",
+      "description": "Nuestra IA aprende sus precios y tipos de proyecto para generar estimados precisos y personalizados. Vea cómo funciona a continuación.",
+      "videoTitle": "Cómo funciona",
+      "videoHint": "Vea cómo el estimador IA le ayuda a crear cotizaciones más rápido.",
+      "invoiceUploadTitle": "Subir facturas anteriores (opcional)",
+      "invoiceUploadDescription": "Si tiene facturas existentes, súbalas. Las usaremos para ser más precisos y adaptar las estimaciones a su trabajo, tarifas y materiales.",
+      "chooseInvoices": "Elegir archivos o arrastrar y soltar",
+      "invoiceFormats": "PDF o imágenes (PNG, JPG)",
+      "invoiceOptional": "Opcional — puede omitir y agregar facturas después desde configuración."
     },
     "buttons": {
       "back": "Regresar",
