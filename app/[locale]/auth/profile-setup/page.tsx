@@ -264,7 +264,7 @@ export default function ProfileSetupPage() {
         await api.uploadLogo(logoFile)
       }
 
-      // Set up NeetoCal team member (and let backend optionally create a calendar link)
+      // Set up NeetoCal team member and create a permanent scheduling link
       // NeetoCal expects `emails: string[]` for the Team Members API.
       try {
         const meetingName = `Meeting with ${formData.company_name}`
@@ -280,7 +280,9 @@ export default function ProfileSetupPage() {
             host_email: formData.email,
             description: `Schedule a consultation with ${formData.company_name}`,
           },
-          create_one_off_link: true,
+          // Always use regular meeting slug, never one-off links
+          // One-off links are temporary/private, not for permanent scheduling
+          create_one_off_link: false,
           save_calendar_link_to_profile: true,
         })
       } catch (calendarErr) {
