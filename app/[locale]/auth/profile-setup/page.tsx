@@ -57,7 +57,7 @@ export default function ProfileSetupPage() {
 
   const AI_ESTIMATOR_VIDEO_URL =
     process.env.NEXT_PUBLIC_AI_ESTIMATOR_VIDEO_URL ||
-    "https://res.cloudinary.com/du4slyinf/video/upload/v1770016910/AI_Estimator_English_gbugne.mp4"
+    "https://player.cloudinary.com/embed/?cloud_name=du4slyinf&public_id=AI_Estimator_English_jnlpte"
 
   // Use a dedicated Spanish onboarding video when locale is 'es'
   const AI_ESTIMATOR_VIDEO_URL_ES =
@@ -418,22 +418,36 @@ export default function ProfileSetupPage() {
           </div>
 
           {/* Step 3: Full-width video outside the card (so it can be much bigger) */}
-          {step === 3 && (AI_ESTIMATOR_VIDEO_URL || AI_ESTIMATOR_VIDEO_URL_ES) && (
-            <div className="mb-6 w-full">
-              <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-black aspect-video w-full shadow-lg">
-                <video
-                  src={locale === 'es' ? AI_ESTIMATOR_VIDEO_URL_ES : AI_ESTIMATOR_VIDEO_URL}
-                  controls
-                  className="w-full h-full object-contain"
-                  playsInline
-                  preload="metadata"
-                >
-                  Your browser does not support the video tag.
-                </video>
+          {step === 3 && (AI_ESTIMATOR_VIDEO_URL || AI_ESTIMATOR_VIDEO_URL_ES) && (() => {
+            const videoUrl = locale === 'es' ? AI_ESTIMATOR_VIDEO_URL_ES : AI_ESTIMATOR_VIDEO_URL
+            const isEmbed = videoUrl.includes('player.cloudinary.com/embed')
+            return (
+              <div className="mb-6 w-full">
+                <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-black aspect-video w-full shadow-lg">
+                  {isEmbed ? (
+                    <iframe
+                      src={videoUrl}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title="AI Estimator video"
+                    />
+                  ) : (
+                    <video
+                      src={videoUrl}
+                      controls
+                      className="w-full h-full object-contain"
+                      playsInline
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 text-center mt-2">{t('aiEstimator.videoHint')}</p>
               </div>
-              <p className="text-xs text-gray-500 text-center mt-2">{t('aiEstimator.videoHint')}</p>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Form Card */}
           <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
