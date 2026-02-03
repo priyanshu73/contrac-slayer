@@ -57,11 +57,11 @@ export default function ProfileSetupPage() {
 
   const AI_ESTIMATOR_VIDEO_URL =
     process.env.NEXT_PUBLIC_AI_ESTIMATOR_VIDEO_URL ||
-    "https://player.cloudinary.com/embed/?cloud_name=du4slyinf&public_id=AI_Estimator_English_jnlpte"
+    "https://res.cloudinary.com/du4slyinf/video/upload/AI_Estimator_English_jnlpte.mp4"
 
   // Use a dedicated Spanish onboarding video when locale is 'es'
   const AI_ESTIMATOR_VIDEO_URL_ES =
-    "https://res.cloudinary.com/du4slyinf/video/upload/v1770017275/0201_2_w2nerd.mov"
+    "https://res.cloudinary.com/du4slyinf/video/upload/0201_2_w2nerd.mp4"
 
   // If user already has a contractor profile, they should never see onboarding again.
   // AuthGuard treats /auth/* as public, so we enforce this redirect here.
