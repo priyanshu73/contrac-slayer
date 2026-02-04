@@ -399,12 +399,23 @@ class ApiClient {
     })
   }
 
-  async getClients(skip = 0, limit = 20) {
+  async getClients(skip = 0, limit = 20, status?: string) {
     const params = new URLSearchParams()
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
+    if (status) params.append('status', status)
 
-    return this.request(`/clients?${params.toString()}`)
+    const res = await this.request<any>(`/clients?${params.toString()}`)
+
+    // Safety filter: never show archived clients in normal UI pickers/lists unless explicitly requested.
+    const isArchivedFilter = String(status ?? '').toUpperCase() === 'ARCHIVED'
+    const isNotArchived = (c: any) => String(c?.status ?? '').toUpperCase() !== 'ARCHIVED'
+
+    if (!isArchivedFilter) {
+      if (Array.isArray(res)) return res.filter(isNotArchived)
+      if (res && Array.isArray(res.items)) return { ...res, items: res.items.filter(isNotArchived) }
+    }
+    return res
   }
 
   async getClient(clientId: number) {

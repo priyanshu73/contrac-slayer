@@ -100,10 +100,16 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
         router.push("/clients")
       }
     } catch (err: any) {
-      setError(err.message || "Failed to create client. Please try again.")
+      const msg = String(err?.message || "")
+      // Friendly hint when phone conflicts with an archived client
+      const friendly =
+        msg.toLowerCase().includes("archived") && msg.toLowerCase().includes("unarchive")
+          ? msg
+          : (err.message || "Failed to create client. Please try again.")
+      setError(friendly)
       toast({
         title: "Error",
-        description: err.message || "Failed to create client. Please try again.",
+        description: friendly,
         variant: "destructive",
       })
     } finally {

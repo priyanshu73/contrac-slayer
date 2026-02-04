@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
@@ -12,6 +12,7 @@ import { Check, Sparkles, Zap, Shield, Clock } from "lucide-react"
 export default function BillingPage() {
   const locale = useLocale()
   const router = useRouter()
+  const t = useTranslations("billing")
   const { user, loading } = useAuth()
   const [isLoading, setIsLoading] = useState<"monthly" | "yearly" | null>(null)
   const [error, setError] = useState("")
@@ -53,14 +54,14 @@ export default function BillingPage() {
   }
 
   const features = [
-    "AI-Powered Quote Generation",
-    "Real-time Material Pricing",
-    "Unlimited Quotes & Invoices",
-    "Client Management",
-    "Lead Tracking & CRM",
-    "Calendar Integration",
-    "Email Notifications",
-    "Mobile Friendly",
+    t("features.aiQuoteGeneration"),
+    t("features.realtimePricing"),
+    t("features.unlimitedQuotes"),
+    t("features.clientManagement"),
+    t("features.leadTracking"),
+    t("features.calendarIntegration"),
+    t("features.emailNotifications"),
+    t("features.mobileFriendly"),
   ]
 
   return (
@@ -70,13 +71,13 @@ export default function BillingPage() {
         <div className="text-center mb-10 md:mb-16">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
-            14-Day Free Trial
+            {t("freeTrial")}
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Start Growing Your Business
+            {t("pageTitle")}
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Get full access to all features. Cancel anytime. No credit card charged during trial.
+            {t("pageSubtitle")}
           </p>
         </div>
 
@@ -94,16 +95,16 @@ export default function BillingPage() {
           {/* Monthly Plan */}
           <Card className="p-6 md:p-8 relative">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-2">Monthly</h2>
+              <h2 className="text-xl font-semibold mb-2">{t("monthly")}</h2>
               <p className="text-muted-foreground text-sm">
-                Flexible month-to-month billing
+                {t("monthlyDescription")}
               </p>
             </div>
             
             <div className="mb-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold">$139</span>
-                <span className="text-muted-foreground">/month</span>
+                <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
             </div>
 
@@ -117,10 +118,10 @@ export default function BillingPage() {
               {isLoading === "monthly" ? (
                 <span className="flex items-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Processing...
+                  {t("processing")}
                 </span>
               ) : (
-                "Start Free Trial"
+                t("startFreeTrial")
               )}
             </Button>
 
@@ -139,24 +140,24 @@ export default function BillingPage() {
             {/* Best Value Badge */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
               <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium whitespace-nowrap">
-                Best Value - Save $480/year
+                {t("bestValue")}
               </span>
             </div>
 
             <div className="mb-6 pt-2">
-              <h2 className="text-xl font-semibold mb-2">Yearly</h2>
+              <h2 className="text-xl font-semibold mb-2">{t("yearly")}</h2>
               <p className="text-muted-foreground text-sm">
-                Save 29% with annual billing
+                {t("yearlyDescription")}
               </p>
             </div>
             
             <div className="mb-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold">$99</span>
-                <span className="text-muted-foreground">/month</span>
+                <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Billed annually ($1,188/year)
+                {t("billedAnnually")}
               </p>
             </div>
 
@@ -169,10 +170,10 @@ export default function BillingPage() {
               {isLoading === "yearly" ? (
                 <span className="flex items-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Processing...
+                  {t("processing")}
                 </span>
               ) : (
-                "Start Free Trial"
+                t("startFreeTrial")
               )}
             </Button>
 
@@ -193,27 +194,27 @@ export default function BillingPage() {
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Clock className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-semibold">14-Day Free Trial</h3>
+            <h3 className="font-semibold">{t("trustBadges.freeTrial")}</h3>
             <p className="text-sm text-muted-foreground">
-              Full access to all features during your trial
+              {t("trustBadges.freeTrialDescription")}
             </p>
           </div>
           <div className="flex flex-col items-center gap-2">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Zap className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-semibold">Cancel Anytime</h3>
+            <h3 className="font-semibold">{t("trustBadges.cancelAnytime")}</h3>
             <p className="text-sm text-muted-foreground">
-              No long-term contracts or commitments
+              {t("trustBadges.cancelAnytimeDescription")}
             </p>
           </div>
           <div className="flex flex-col items-center gap-2">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-semibold">Secure Payments</h3>
+            <h3 className="font-semibold">{t("trustBadges.securePayments")}</h3>
             <p className="text-sm text-muted-foreground">
-              Powered by Stripe for your security
+              {t("trustBadges.securePaymentsDescription")}
             </p>
           </div>
         </div>

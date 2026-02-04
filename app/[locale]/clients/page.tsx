@@ -14,11 +14,13 @@ export default function ClientsPage() {
   const [profile, setProfile] = useState<{ time_zone?: string; calendar_link?: string } | null>(null)
   const [createAppointmentOpen, setCreateAppointmentOpen] = useState(false)
   const [createAppointmentClientId, setCreateAppointmentClientId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const tClients = useTranslations("clients")
 
   useEffect(() => {
     fetchClients()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArchived])
 
   useEffect(() => {
     let cancelled = false
@@ -38,7 +40,7 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     try {
       setLoading(true)
-      const data = await api.getClients(0, 100) // Get up to 100 clients
+      const data = await api.getClients(0, 100, showArchived ? "ARCHIVED" : undefined) // Get up to 100 clients
       setClients(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error("Failed to fetch clients:", error)
@@ -65,7 +67,7 @@ export default function ClientsPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <ClientsSearch />
+              <ClientsSearch showArchived={showArchived} onShowArchivedChange={setShowArchived} />
             </div>
             <Button size="sm" asChild>
               <a href="/clients/new">
@@ -76,7 +78,12 @@ export default function ClientsPage() {
               </a>
             </Button>
           </div>
-          <ClientsList clients={clients} loading={loading} onScheduleClick={handleScheduleClick} />
+          <ClientsList
+            clients={clients}
+            loading={loading}
+            onScheduleClick={handleScheduleClick}
+            onClientArchived={fetchClients}
+          />
         </div>
 
         <CreateAppointmentDialog

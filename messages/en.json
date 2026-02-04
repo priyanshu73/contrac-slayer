@@ -305,6 +305,7 @@
     "paid": "Paid",
     "overdue": "Overdue",
     "active": "Active",
+    "archived": "Archived",
     "completed": "Completed",
     "requests": "Requests",
     "calls": "Calls",
@@ -364,6 +365,8 @@
     "addClient": "Add Client",
     "addNewClient": "Add New Client",
     "createNewClientProfile": "Create a new client profile",
+    "detailTitle": "Client Details",
+    "detailSubtitle": "View and manage client",
     "clientInformation": "Client Information",
     "name": "Name",
     "email": "Email",
@@ -532,6 +535,49 @@
       "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
       "anErrorOccurred": "An error occurred",
       "completeProfileToGetStarted": "Complete your profile to get started."
+    }
+  },
+  "billing": {
+    "freeTrial": "14-Day Free Trial",
+    "pageTitle": "Start Growing Your Business",
+    "pageSubtitle": "Get full access to all features. Cancel anytime. No credit card charged during trial.",
+    "monthly": "Monthly",
+    "monthlyDescription": "Flexible month-to-month billing",
+    "yearly": "Yearly",
+    "yearlyDescription": "Save 29% with annual billing",
+    "bestValue": "Best Value - Save $480/year",
+    "perMonth": "/month",
+    "billedAnnually": "Billed annually ($1,188/year)",
+    "startFreeTrial": "Start Free Trial",
+    "processing": "Processing...",
+    "features": {
+      "aiQuoteGeneration": "AI-Powered Quote Generation",
+      "realtimePricing": "Real-time Material Pricing",
+      "unlimitedQuotes": "Unlimited Quotes & Invoices",
+      "clientManagement": "Client Management",
+      "leadTracking": "Lead Tracking & CRM",
+      "calendarIntegration": "Calendar Integration",
+      "emailNotifications": "Email Notifications",
+      "mobileFriendly": "Mobile Friendly"
+    },
+    "trustBadges": {
+      "freeTrial": "14-Day Free Trial",
+      "freeTrialDescription": "Full access to all features during your trial",
+      "cancelAnytime": "Cancel Anytime",
+      "cancelAnytimeDescription": "No long-term contracts or commitments",
+      "securePayments": "Secure Payments",
+      "securePaymentsDescription": "Powered by Stripe for your security"
+    },
+    "success": {
+      "activating": "Activating Your Subscription",
+      "activatingDescription": "Please wait while we set up your account. This usually takes just a few seconds...",
+      "welcomeAboard": "Welcome Aboard!",
+      "subscriptionActive": "Your subscription is now active. You have full access to all features.",
+      "trialStarted": "Your 14-day free trial has started.",
+      "goToDashboard": "Go to Dashboard",
+      "paymentReceived": "Payment Received",
+      "paymentReceivedDescription": "Your payment was successful! Your subscription should be active shortly. If you don't see access in a minute, please refresh the page or contact support.",
+      "refreshPage": "Refresh Page"
     }
   }
 }

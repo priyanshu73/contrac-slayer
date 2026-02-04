@@ -28,13 +28,14 @@ import { useLanguage } from "@/hooks/useLanguage"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
-  const { refreshUser } = useAuth()
+  const { refreshUser, user, loading } = useAuth()
   const t = useTranslations('profileSetup')
   const tCommon = useTranslations('common')
   const locale = useLocale()
   const { changeLanguage, isChanging } = useLanguage()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [submitProgress, setSubmitProgress] = useState("")
   const [step, setStep] = useState(1)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -50,7 +51,6 @@ export default function ProfileSetupPage() {
     contractor_type: "",
   })
   const [otherContractorType, setOtherContractorType] = useState("")
-  const [isFetchingTaxRate, setIsFetchingTaxRate] = useState(false)
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
@@ -63,107 +63,37 @@ export default function ProfileSetupPage() {
   const AI_ESTIMATOR_VIDEO_URL_ES =
     "https://res.cloudinary.com/du4slyinf/video/upload/v1770017275/0201_2_w2nerd.mov"
 
-  // Fetch tax rate from zipcode API when step 1 has zip (direct client fetch — no Next API route)
+  // If user already has a contractor profile, they should never see onboarding again.
+  // AuthGuard treats /auth/* as public, so we enforce this redirect here.
   useEffect(() => {
-    const fetchTaxRate = async () => {
-      if (step !== 1 || !formData.default_zip_code) return
-      const apiKey = process.env.NEXT_PUBLIC_API_NINJA_KEY
-      if (!apiKey) {
-        console.warn('NEXT_PUBLIC_API_NINJA_KEY not set; skipping zipcode lookup')
-        return
-      }
-      setIsFetchingTaxRate(true)
-      try {
-        const response = await fetch(
-          `https://api.api-ninjas.com/v1/zipcode?zip=${encodeURIComponent(formData.default_zip_code)}`,
-          {
-            headers: { 'X-Api-Key': apiKey },
-          }
-        )
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(errorText || 'Failed to fetch zipcode data')
-        }
-        const data = await response.json()
+    if (loading) return
 
-        // Api-Ninjas returns an array, get the first result
-        if (Array.isArray(data) && data.length > 0) {
-            const zipData = data[0]
-            // Note: The API doesn't return tax rate directly, but we can use state information
-            // For now, we'll use a default tax rate lookup by state
-            // Common sales tax rates by state (approximate - can be enhanced with a proper tax API)
-            const stateTaxRates: Record<string, string> = {
-              'AL': '9.46',
-              'AK': '1.82',
-              'AZ': '8.52',
-              'AR': '9.46',
-              'CA': '8.99',
-              'CO': '7.89',
-              'CT': '6.35',
-              'DE': '0.00',
-              'FL': '6.98',
-              'GA': '7.49',
-              'HI': '4.50',
-              'ID': '6.03',
-              'IL': '8.96',
-              'IN': '7.00',
-              'IA': '6.94',
-              'KS': '8.69',
-              'KY': '6.00',
-              'LA': '10.11',
-              'ME': '5.50',
-              'MD': '6.00',
-              'MA': '6.25',
-              'MI': '6.00',
-              'MN': '8.14',
-              'MS': '7.06',
-              'MO': '8.44',
-              'MT': '0.00',
-              'NE': '6.98',
-              'NV': '8.24',
-              'NH': '0.00',
-              'NJ': '6.60',
-              'NM': '7.67',
-              'NY': '8.54',
-              'NC': '7.00',
-              'ND': '7.09',
-              'OH': '7.29',
-              'OK': '9.06',
-              'OR': '0.00',
-              'PA': '6.34',
-              'RI': '7.00',
-              'SC': '7.49',
-              'SD': '6.11',
-              'TN': '9.61',
-              'TX': '8.20',
-              'UT': '7.42',
-              'VT': '6.39',
-              'VA': '5.77',
-              'WA': '9.51',
-              'WV': '6.59',
-              'WI': '5.72',
-              'WY': '5.56',
-              'DC': '6.00'
-            }
-            
-            const state = zipData.state
-            if (state && stateTaxRates[state]) {
-              setFormData(prev => ({
-                ...prev,
-                default_sales_tax_rate: stateTaxRates[state]
-              }))
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching tax rate:', error)
-          // Keep default value if fetch fails
-        } finally {
-          setIsFetchingTaxRate(false)
-        }
+    // If not logged in, go to login
+    if (!user) {
+      router.replace(`/${locale}/auth/login`)
+      return
     }
 
-    fetchTaxRate()
-  }, [step, formData.default_zip_code])
+    let cancelled = false
+    ;(async () => {
+      try {
+        const profile = await api.getMyProfile()
+        if (!cancelled && profile) {
+          router.replace(`/${locale}/dashboard`)
+        }
+      } catch (err: any) {
+        // Expected when profile doesn't exist yet; ignore.
+        const msg = String(err?.message ?? "").toLowerCase()
+        if (msg && !msg.includes("not found") && !msg.includes("contractor profile")) {
+          console.warn("Unexpected error checking contractor profile:", err)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [loading, user, router, locale])
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -223,8 +153,18 @@ export default function ProfileSetupPage() {
     e.preventDefault()
     setError("")
     setIsLoading(true)
+    setSubmitProgress("Creating profile...")
 
     try {
+      // Persist zipcode so we can derive tax rate after onboarding (single lookup post-redirect)
+      try {
+        if (formData.default_zip_code?.trim()) {
+          localStorage.setItem("contractorops_pending_zip", formData.default_zip_code.trim())
+        }
+      } catch {
+        // ignore (storage might be blocked)
+      }
+
       // Format contractor_type: if "other", format as "other - {name}"
       let contractorType: string | null = null
       if (formData.contractor_type && formData.contractor_type.trim()) {
@@ -235,6 +175,7 @@ export default function ProfileSetupPage() {
             if (formattedType.length > 50) {
               setError(t('errors.contractorTypeTooLong'))
               setIsLoading(false)
+              setSubmitProgress("")
               return
             }
             contractorType = formattedType
@@ -246,7 +187,8 @@ export default function ProfileSetupPage() {
         }
       }
 
-      // Create profile
+      // Step 1: Create profile (required)
+      setSubmitProgress("Creating profile...")
       await api.createContractorProfile({
         company_name: formData.company_name,
         email: formData.email,
@@ -259,57 +201,65 @@ export default function ProfileSetupPage() {
         contractor_type: contractorType,
       })
 
-      // Upload logo if provided
-      if (logoFile) {
-        await api.uploadLogo(logoFile)
-      }
-
-      // Set up NeetoCal team member and create a permanent scheduling link
-      // NeetoCal expects `emails: string[]` for the Team Members API.
-      try {
-        const meetingName = `Meeting with ${formData.company_name}`
-        await api.createNeetoCalTeamMember({
-          team_member_payload: {
-            emails: [formData.email],
-            name: formData.company_name,
-            time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          meeting_payload: {
-            name: meetingName,
-            duration: 30, // 30 minute meetings by default
-            host_email: formData.email,
-            description: `Schedule a consultation with ${formData.company_name}`,
-          },
-          // Always use regular meeting slug, never one-off links
-          // One-off links are temporary/private, not for permanent scheduling
-          create_one_off_link: false,
-          save_calendar_link_to_profile: true,
-        })
-      } catch (calendarErr) {
-        // Log but don't fail profile creation if calendar setup fails
-        console.error("Failed to set up calendar:", calendarErr)
-      }
-
-      // Refresh user data to include profile
+      // Step 2: Refresh user to get profile data
+      setSubmitProgress("Loading profile data...")
       await refreshUser()
 
-      // Upload step 3 attachments (invoices/samples) to attachments table as SUPPORT_TICKET, uploaded_by = contractor uuid
-      if (invoiceFiles.length > 0) {
-        try {
-          await api.uploadOnboardingAttachments(invoiceFiles)
-        } catch (uploadErr) {
-          console.error("Failed to upload onboarding attachments:", uploadErr)
-          // Don't block redirect; attachments are optional
-        }
+      // Step 3: Run independent operations in parallel for better performance
+      setSubmitProgress("Uploading files and completing setup...")
+      const parallelOperations: Promise<any>[] = []
+
+      // Upload logo
+      if (logoFile) {
+        parallelOperations.push(
+          api.uploadLogo(logoFile).catch(err => {
+            console.error("Logo upload failed:", err)
+            return null
+          })
+        )
       }
 
-      // Send Twilio number request to SheetDB only when completing setup (step 3)
-      // SheetDB Create API expects { data: [row, ...] } — column names must match the Google Sheet header row
+      // Upload invoice attachments
+      if (invoiceFiles.length > 0) {
+        parallelOperations.push(
+          api.uploadOnboardingAttachments(invoiceFiles).catch(err => {
+            console.error("Failed to upload onboarding attachments:", err)
+            return null
+          })
+        )
+      }
+
+      // Set up NeetoCal team member and calendar
+      if (formData.email) {
+        const meetingName = `Meeting with ${formData.company_name}`
+        parallelOperations.push(
+          api.createNeetoCalTeamMember({
+            team_member_payload: {
+              emails: [formData.email],
+              name: formData.company_name,
+              time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            meeting_payload: {
+              name: meetingName,
+              duration: 30,
+              host_email: formData.email,
+              description: `Schedule a consultation with ${formData.company_name}`,
+            },
+            create_one_off_link: false,
+            save_calendar_link_to_profile: true,
+          }).catch(err => {
+            console.error("Failed to set up calendar:", err)
+            return null
+          })
+        )
+      }
+
+      // Submit Twilio number request to SheetDB
       if (selectedState && selectedAreaCodes.length) {
-        try {
-          const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
-          if (sheetDbUrl) {
-            const res = await fetch(sheetDbUrl, {
+        const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
+        if (sheetDbUrl) {
+          parallelOperations.push(
+            fetch(sheetDbUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -324,22 +274,22 @@ export default function ProfileSetupPage() {
                   },
                 ],
               }),
+            }).catch(err => {
+              console.error("Failed to submit Twilio number request to SheetDB:", err)
+              return null
             })
-            if (!res.ok) {
-              const text = await res.text()
-              console.warn("SheetDB Twilio request save failed:", res.status, text)
-            } else {
-              console.log("SheetDB Twilio request saved successfully", res.status)
-            }
-          }
-        } catch (sheetDbErr) {
-          console.error("Failed to submit Twilio number request to SheetDB:", sheetDbErr)
+          )
         }
       }
 
+      // Wait for all parallel operations to complete
+      await Promise.allSettled(parallelOperations)
+
+      setSubmitProgress("Finalizing setup...")
       router.push("/dashboard")
     } catch (err: any) {
       setError(t('errors.completeProfileToGetStarted'))
+      setSubmitProgress("")
     } finally {
       setIsLoading(false)
     }
@@ -430,6 +380,7 @@ export default function ProfileSetupPage() {
                     <iframe
                       src={videoUrl}
                       className="w-full h-full"
+                      loading="lazy"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                       title="AI Estimator video"
@@ -477,6 +428,13 @@ export default function ProfileSetupPage() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   <span>{error}</span>
+                </div>
+              )}
+
+              {isLoading && submitProgress && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                  <span className="font-medium">{submitProgress}</span>
                 </div>
               )}
 
@@ -545,7 +503,19 @@ export default function ProfileSetupPage() {
                         id="default_zip_code"
                         placeholder={t('companyInfo.defaultZipCodePlaceholder')}
                         value={formData.default_zip_code}
-                        onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
+                        onChange={(e) => {
+                          const nextZip = e.target.value
+                          setFormData({ ...formData, default_zip_code: nextZip })
+                          try {
+                            if (nextZip?.trim()) {
+                              localStorage.setItem("contractorops_pending_zip", nextZip.trim())
+                            } else {
+                              localStorage.removeItem("contractorops_pending_zip")
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        }}
                         disabled={isLoading}
                         maxLength={10}
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"

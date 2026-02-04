@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { CheckCircle2, Loader2 } from "lucide-react"
 export default function BillingSuccessPage() {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("billing.success")
   const { user, refreshUser } = useAuth()
   const [isActivating, setIsActivating] = useState(true)
   const [pollCount, setPollCount] = useState(0)
@@ -59,9 +60,9 @@ export default function BillingSuccessPage() {
                 <Loader2 className="h-8 w-8 text-primary animate-spin" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Activating Your Subscription</h1>
+            <h1 className="text-2xl font-bold mb-2">{t("activating")}</h1>
             <p className="text-muted-foreground mb-6">
-              Please wait while we set up your account. This usually takes just a few seconds...
+              {t("activatingDescription")}
             </p>
             <div className="h-1 bg-muted rounded-full overflow-hidden">
               <div 
@@ -77,17 +78,17 @@ export default function BillingSuccessPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Welcome Aboard!</h1>
+            <h1 className="text-2xl font-bold mb-2">{t("welcomeAboard")}</h1>
             <p className="text-muted-foreground mb-6">
-              Your subscription is now active. You have full access to all features.
+              {t("subscriptionActive")}
               {user.stripe_subscription_status === "trialing" && (
                 <span className="block mt-2 text-sm">
-                  Your 14-day free trial has started.
+                  {t("trialStarted")}
                 </span>
               )}
             </p>
             <Button onClick={handleContinue} size="lg" className="w-full">
-              Go to Dashboard
+              {t("goToDashboard")}
             </Button>
           </>
         ) : (
@@ -97,14 +98,13 @@ export default function BillingSuccessPage() {
                 <CheckCircle2 className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Payment Received</h1>
+            <h1 className="text-2xl font-bold mb-2">{t("paymentReceived")}</h1>
             <p className="text-muted-foreground mb-6">
-              Your payment was successful! Your subscription should be active shortly. 
-              If you don't see access in a minute, please refresh the page or contact support.
+              {t("paymentReceivedDescription")}
             </p>
             <div className="space-y-3">
               <Button onClick={handleContinue} size="lg" className="w-full">
-                Go to Dashboard
+                {t("goToDashboard")}
               </Button>
               <Button 
                 onClick={() => window.location.reload()} 
@@ -112,7 +112,7 @@ export default function BillingSuccessPage() {
                 size="lg" 
                 className="w-full"
               >
-                Refresh Page
+                {t("refreshPage")}
               </Button>
             </div>
           </>

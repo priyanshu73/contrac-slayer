@@ -1,21 +1,42 @@
 "use client"
 
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Calendar } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Calendar, Trash2, RotateCcw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { api } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 interface ClientsListProps {
   clients?: any[]
   loading?: boolean
   /** When user clicks "Schedule a call" on a client card, open create-appointment for that client. */
   onScheduleClick?: (client: { id: number; name?: string; email?: string }) => void
+  /** Called after a client is archived from the list (so parent can refetch). */
+  onClientArchived?: () => void
 }
 
-export function ClientsList({ clients = [], loading = false, onScheduleClick }: ClientsListProps) {
+export function ClientsList({ clients = [], loading = false, onScheduleClick, onClientArchived }: ClientsListProps) {
   const tClients = useTranslations("clients")
+  const tCommon = useTranslations("common")
+  const { toast } = useToast()
+  const [archiveTarget, setArchiveTarget] = useState<any | null>(null)
+  const [archiving, setArchiving] = useState(false)
+  const [restoreTarget, setRestoreTarget] = useState<any | null>(null)
+  const [restoring, setRestoring] = useState(false)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,14 +91,45 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick }: 
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold leading-tight">{client.name || client.full_name || 'Unknown'}</h3>
-                {client.status && (
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(client.status)}`}
-                  >
-                    {client.status}
-                  </span>
-                )}
+                <h3 className="font-semibold leading-tight">{client.name || client.full_name || "Unknown"}</h3>
+                <div className="flex items-center gap-2">
+                  {client.status && (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(client.status)}`}
+                    >
+                      {client.status}
+                    </span>
+                  )}
+                  {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                      title="Unarchive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setRestoreTarget(client)
+                      }}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      title={tCommon("delete")}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setArchiveTarget(client)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" aria-label={tCommon("delete")} />
+                    </Button>
+                  )}
+                </div>
               </div>
               {client.email && (
                 <p className="mt-1 text-sm text-muted-foreground">{client.email}</p>
@@ -173,6 +225,103 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick }: 
           </div>
         </Card>
       ))}
+
+      {/* Delete (Archive) Confirmation */}
+      <AlertDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive client?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will archive <strong>{archiveTarget?.name || archiveTarget?.full_name || "this client"}</strong>. You
+              can still view archived clients from the clients list. This does not remove their quotes or history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiving}>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!archiveTarget?.id) return
+                setArchiving(true)
+                try {
+                  await api.deleteClient(Number(archiveTarget.id))
+                  toast({
+                    title: "Client archived",
+                    description: `${archiveTarget?.name || archiveTarget?.full_name || "Client"} has been archived.`,
+                  })
+                  setArchiveTarget(null)
+                  onClientArchived?.()
+                } catch (err: any) {
+                  toast({
+                    title: "Error",
+                    description: err?.message || "Failed to archive client.",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setArchiving(false)
+                }
+              }}
+              disabled={archiving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {archiving ? "Archiving…" : "Archive client"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unarchive Confirmation */}
+      <AlertDialog
+        open={!!restoreTarget}
+        onOpenChange={(open) => {
+          if (!open) setRestoreTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unarchive client?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will restore <strong>{restoreTarget?.name || restoreTarget?.full_name || "this client"}</strong> back
+              to your active clients list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={restoring}>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!restoreTarget?.id) return
+                setRestoring(true)
+                try {
+                  await api.updateClient(Number(restoreTarget.id), { status: "ACTIVE" })
+                  toast({
+                    title: "Client restored",
+                    description: `${restoreTarget?.name || restoreTarget?.full_name || "Client"} has been restored.`,
+                  })
+                  setRestoreTarget(null)
+                  onClientArchived?.()
+                } catch (err: any) {
+                  toast({
+                    title: "Error",
+                    description: err?.message || "Failed to restore client.",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setRestoring(false)
+                }
+              }}
+              disabled={restoring}
+            >
+              {restoring ? "Restoring…" : "Unarchive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
