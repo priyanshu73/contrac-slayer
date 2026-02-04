@@ -12,15 +12,22 @@ export function Pricing() {
   const { referralId } = useReferral()
   const signupUrl = buildSignupUrl(locale, referralId)
 
-  const features = [
+  const basicFeatures = [
     "AI-Powered Quote Generation",
-    "Real-time Material Pricing",
-    "Unlimited Quotes & Invoices",
     "Client Management",
     "Lead Tracking & CRM",
     "Calendar Integration",
     "Email Notifications",
-    "Mobile Friendly",
+  ]
+
+  const premiumFeatures = [
+    "AI-Powered Quote Generation",
+    "Client Management",
+    "Lead Tracking & CRM",
+    "Calendar Integration",
+    "Email Notifications",
+    "Social Lead Capture",
+    "On-Site Meeting Recording",
   ]
 
   return (
@@ -70,7 +77,7 @@ export function Pricing() {
             </Button>
 
             <ul className="space-y-4">
-              {features.slice(0, 5).map((feature) => (
+              {basicFeatures.map((feature) => (
                 <li key={feature} className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary shrink-0" />
                   <span>{feature}</span>
@@ -116,7 +123,7 @@ export function Pricing() {
             </Button>
 
             <ul className="space-y-4">
-              {features.map((feature) => (
+              {premiumFeatures.map((feature) => (
                 <li key={feature} className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary shrink-0" />
                   <span>{feature}</span>
