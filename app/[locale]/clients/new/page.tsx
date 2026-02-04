@@ -3,36 +3,40 @@
 import { AddClientForm } from "@/components/add-client-form"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "next-intl"
+import { ArrowLeft, UserPlus } from "lucide-react"
 
 export default function NewClientPage() {
   const tClients = useTranslations('clients')
   
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild className="hover:bg-slate-100">
               <a href="/clients">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ArrowLeft className="h-5 w-5 text-slate-600" />
               </a>
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold leading-none">{tClients('addNewClient')}</h1>
-              <p className="text-sm text-muted-foreground">
-                {tClients('createNewClientProfile')}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <UserPlus className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-slate-900">{tClients('addNewClient')}</h1>
+                <p className="text-sm text-slate-500">
+                  {tClients('createNewClientProfile')}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-        <div className="max-w-3xl mx-auto">
-          <AddClientForm />
-        </div>
+      {/* Main Content */}
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-6">
+        <AddClientForm />
       </main>
     </div>
   )

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
+import { User, Mail, Phone, MapPin, FileText, AlertCircle, Plus, Loader2 } from "lucide-react"
 
 export type CreatedClient = { id: number; name: string; email: string }
 
@@ -71,7 +71,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
 
     try {
       // Prepare client data - only essential fields
-      const clientData: any = {
+      const clientData: Record<string, string> = {
         name: formData.name.trim(),
         email: formData.email.trim(),
       }
@@ -99,13 +99,14 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       } else {
         router.push("/clients")
       }
-    } catch (err: any) {
-      const msg = String(err?.message || "")
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      const msg = String(errorObj?.message || "")
       // Friendly hint when phone conflicts with an archived client
       const friendly =
         msg.toLowerCase().includes("archived") && msg.toLowerCase().includes("unarchive")
           ? msg
-          : (err.message || "Failed to create client. Please try again.")
+          : (errorObj.message || "Failed to create client. Please try again.")
       setError(friendly)
       toast({
         title: "Error",
@@ -121,117 +122,142 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Error Display */}
       {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-2 text-red-700">
-            <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        </Card>
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
       )}
 
-      {/* Contact Information */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">{tClients('clientInformation')}</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              {tClients('name')} <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              placeholder="John Smith"
-              required
-            />
-          </div>
+      {/* Contact Information Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">{tClients('clientInformation')}</h2>
+          <p className="text-sm text-slate-500 mb-6">Enter the client&apos;s contact details</p>
+          
+          <div className="space-y-5">
+            {/* Name & Email - 2 column grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {tClients('name')} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    placeholder="John Smith"
+                    className="pl-10 h-11"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">
-              {tClients('email')} <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              placeholder="john.smith@example.com"
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {tClients('email')} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="john@example.com"
+                    className="pl-10 h-11"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">{tClients('phone')}</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              placeholder="(555) 123-4567"
-            />
-          </div>
+            {/* Phone */}
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                {tClients('phone')}
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleChange("phone", e.target.value)}
+                  placeholder="(555) 123-4567"
+                  className="pl-10 h-11"
+                />
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">{tClients('address')}</Label>
-            <Textarea
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-              placeholder="123 Main Street, City, State ZIP"
-              className="min-h-[80px]"
-            />
-          </div>
+            {/* Address */}
+            <div className="space-y-2">
+              <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                {tClients('address')}
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                  placeholder="123 Main Street, City, State ZIP"
+                  className="pl-10 min-h-[80px] resize-none"
+                />
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="billing_address">{tClients('billingAddress')}</Label>
-            <Textarea
-              id="billing_address"
-              value={formData.billing_address}
-              onChange={(e) => handleChange("billing_address", e.target.value)}
-              placeholder={tClients('billingAddressHint')}
-              className="min-h-[80px]"
-            />
+            {/* Billing Address */}
+            <div className="space-y-2">
+              <Label htmlFor="billing_address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                {tClients('billingAddress')}
+              </Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Textarea
+                  id="billing_address"
+                  value={formData.billing_address}
+                  onChange={(e) => handleChange("billing_address", e.target.value)}
+                  placeholder={tClients('billingAddressHint')}
+                  className="pl-10 min-h-[80px] resize-none"
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button 
-          type="submit" 
-          size="lg" 
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {tCommon('loading')}
-            </>
-          ) : (
-            <>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {tClients('createClient')}
-            </>
-          )}
-        </Button>
-        {!embedded && (
+        {/* Actions - Inside card footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3">
           <Button 
-            type="button" 
-            size="lg" 
-            variant="outline"
-            onClick={() => router.push("/clients")}
+            type="submit" 
             disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700"
           >
-            {tCommon('cancel')}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {tCommon('loading')}
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                {tClients('createClient')}
+              </>
+            )}
           </Button>
-        )}
+          {!embedded && (
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={() => router.push("/clients")}
+              disabled={loading}
+            >
+              {tCommon('cancel')}
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   )

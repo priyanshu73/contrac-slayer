@@ -2087,25 +2087,33 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                     </div>
                     <div>
                       <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1.5 block">
-                        Labor Charge Type
+                        Labor Rate Type
                       </Label>
                       <Select
-                        value={laborChargeType}
-                        onValueChange={(value) => setLaborChargeType(value as LaborChargeType)}
+                        value={
+                          // Map DB values to UI: PER_UNIT + SQ_FT = "PER_SF"
+                          laborChargeType === LaborChargeType.PER_UNIT && laborUnitType === UnitType.SQ_FT
+                            ? "PER_SF"
+                            : laborChargeType
+                        }
+                        onValueChange={(value) => {
+                          if (value === "PER_SF") {
+                            setLaborChargeType(LaborChargeType.PER_UNIT)
+                            setLaborUnitType(UnitType.SQ_FT)
+                          } else {
+                            setLaborChargeType(value as LaborChargeType)
+                            setLaborUnitType(undefined)
+                          }
+                        }}
                         disabled={loadingMarkup}
                       >
                         <SelectTrigger id="labor-charge-type-desktop" className="bg-background">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={LaborChargeType.HOURLY}>Hourly Rate</SelectItem>
+                          <SelectItem value={LaborChargeType.HOURLY}>Per Hour</SelectItem>
                           <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
-                          <SelectItem value={LaborChargeType.CREW_PER_DAY}>Crew Per Day</SelectItem>
-                          <SelectItem value={LaborChargeType.PER_UNIT}>Per Unit</SelectItem>
-                          <SelectItem value={LaborChargeType.PER_ROOM}>Per Room</SelectItem>
-                          <SelectItem value={LaborChargeType.PER_CUBIC_YARD}>Per Cubic Yard</SelectItem>
-                          <SelectItem value={LaborChargeType.FLAT_RATE}>Flat Rate</SelectItem>
-                          <SelectItem value={LaborChargeType.TIME_AND_MATERIALS}>Time & Materials</SelectItem>
+                          <SelectItem value="PER_SF">Per sf</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
