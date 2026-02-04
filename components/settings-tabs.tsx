@@ -76,7 +76,6 @@ export function SettingsTabs() {
   const locale = useLocale()
   const t = useTranslations('settings')
   const tAuth = useTranslations('auth')
-  const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -230,10 +229,6 @@ export function SettingsTabs() {
     }
   }
 
-  const handleCancel = () => {
-    setFormData(initialFormData)
-  }
-
   const getRateSuffix = () => {
     if (formData.default_labor_charge_type === LaborChargeType.PER_UNIT && formData.default_labor_unit_type === UnitType.SQ_FT) {
       return "/sq ft"
@@ -258,16 +253,16 @@ export function SettingsTabs() {
     <TooltipProvider>
       <div className="min-h-screen bg-slate-50">
         {/* Horizontal Tabs */}
-        <div className="bg-white border-b border-slate-200 px-6 py-3">
-          <div className="flex">
+        <div className="px-12 pt-6 pb-4">
+          <div className="flex gap-2">
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
-                className={`flex-1 py-3 text-sm font-medium text-center border-2 rounded-lg mx-1 first:ml-0 last:mr-0 transition-colors ${
+                className={`flex-1 py-2.5 text-sm font-medium text-center rounded-full transition-colors ${
                   activeSection === item.id
-                    ? "border-blue-500 text-slate-900 bg-white"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                    ? "border-2 border-blue-500 text-slate-900 bg-white"
+                    : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
                 }`}
               >
                 {item.label}
@@ -293,205 +288,194 @@ export function SettingsTabs() {
         )}
 
         {/* Main Content */}
-        <div className="p-6 pb-24">
+        <div className="px-12 py-6">
             {/* Business Section */}
             {activeSection === "business" && (
               <div className="space-y-6">
-                {/* Profile Header Card */}
+                {/* Business Information Card - Combined */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-6">
-                    <div className="flex items-center gap-5">
-                      {/* Logo - Square with rounded corners */}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSaving}
-                        className="relative group flex-shrink-0"
-                      >
-                        <div className={`w-20 h-20 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm ${
+                    <div className="flex flex-col sm:flex-row gap-6">
+                      {/* Logo Section - Left Side */}
+                      <div className="flex flex-col items-center sm:items-start flex-shrink-0">
+                        <div className={`w-28 h-28 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 ${
                           isSaving ? "opacity-50" : ""
                         }`}>
                           {logoPreview ? (
                             <Image
                               src={logoPreview}
                               alt="Company logo"
-                              width={80}
-                              height={80}
+                              width={112}
+                              height={112}
                               className="w-full h-full object-contain"
                             />
                           ) : (
-                            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                              <span className="text-2xl font-bold text-slate-400">
+                            <div className="w-full h-full bg-slate-50 flex items-center justify-center">
+                              <span className="text-3xl font-bold text-slate-300">
                                 {formData.company_name?.charAt(0)?.toUpperCase() || "C"}
                               </span>
                             </div>
                           )}
                         </div>
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Pencil className="h-5 w-5 text-white" />
-                        </div>
-                        {isSaving && (
-                          <div className="absolute inset-0 rounded-xl bg-white/80 flex items-center justify-center">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                          </div>
-                        )}
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                        className="hidden"
-                      />
-
-                      {/* Company Info */}
-                      <div className="flex-1 min-w-0">
-                        <h2 className="text-xl font-bold text-slate-900 truncate">
-                          {formData.company_name || "Your Company"}
-                        </h2>
-                        <p className="text-sm text-slate-500 mt-0.5 truncate">{formData.email}</p>
-                        <p className="text-xs text-slate-400 mt-2">Click logo to upload. Square, 200×200px min.</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSaving}
+                          className="mt-3 text-sm"
+                        >
+                          Choose File
+                        </Button>
+                        <p className="text-xs text-slate-400 mt-2 text-center sm:text-left">
+                          Square, 200×200px min.<br />PNG or JPG.
+                        </p>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
                       </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Business Details Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-1">Business Information</h3>
-                    <p className="text-sm text-slate-500 mb-6">Your company details and contact information</p>
-
-                    {/* Form Fields */}
-                    <div className="space-y-6">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="company-name" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('companyName')} *
-                          </Label>
-                          <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      {/* Form Fields - Right Side */}
+                      <div className="flex-1 space-y-5">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="company-name" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('companyName')} *
+                            </Label>
                             <Input
                               id="company-name"
                               placeholder="Your Company Name"
                               value={formData.company_name}
                               onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                               disabled={isSaving}
-                              className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('businessEmail')} *
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="contact@company.com"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
                             />
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('businessEmail')} *
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="contact@company.com"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            disabled={isSaving}
-                            className="h-11 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="phone" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('phoneNumber')}
-                          </Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('phoneNumber')}
+                            </Label>
                             <Input
                               id="phone"
                               placeholder="(555) 123-4567"
                               value={formData.phone_number}
                               onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                               disabled={isSaving}
-                              className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="h-10 border-slate-200"
                             />
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="contractorops-number" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            ContractorOpsAI Number
-                          </Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input
-                              id="contractorops-number"
-                              value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
-                              readOnly
-                              disabled
-                              className="h-11 pl-10 bg-slate-50 border-slate-200 text-slate-700 font-mono"
-                            />
-                            {contractorOpsAiNumber && (
-                              <button
-                                type="button"
-                                onClick={() => navigator.clipboard.writeText(contractorOpsAiNumber)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
-                                title="Copy number"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
-                            )}
+                          <div className="space-y-2 bg-gradient-to-br from-blue-50 to-sky-50 -m-3 p-3 rounded-xl border border-blue-200 shadow-sm">
+                            <Label htmlFor="contractorops-number" className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                              ContractorOpsAI Number
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="contractorops-number"
+                                value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
+                                readOnly
+                                disabled
+                                className="h-10 bg-white border-blue-300 text-slate-900 font-mono font-medium pr-10"
+                              />
+                              {contractorOpsAiNumber && (
+                                <button
+                                  type="button"
+                                  onClick={() => navigator.clipboard.writeText(contractorOpsAiNumber)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700 transition-colors"
+                                  title="Copy number"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('website')}
-                          </Label>
-                          <div className="relative">
-                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        {/* Business Address - Full Width */}
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('businessAddress')}
+                            </Label>
                             <Input
-                              id="website"
-                              placeholder="https://yourcompany.com"
-                              value={formData.website_url}
-                              onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                              id="address"
+                              placeholder="123 Main Street, City, State ZIP"
+                              value={formData.address}
+                              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                               disabled={isSaving}
-                              className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="h-10 border-slate-200"
                             />
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="default-zip" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('defaultZipCode')}
-                          </Label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <div className="space-y-2">
+                            <Label htmlFor="default-zip" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('defaultZipCode')}
+                            </Label>
                             <Input
                               id="default-zip"
                               placeholder="90210"
                               value={formData.default_zip_code}
                               onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
                               disabled={isSaving}
-                              className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="h-10 border-slate-200"
                             />
                           </div>
                         </div>
-                      </div>
 
-                      {/* Full width address */}
-                      <div className="space-y-2">
-                        <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                          {t('businessAddress')}
-                        </Label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            id="address"
-                            placeholder="123 Main Street, City, State ZIP"
-                            value={formData.address}
-                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                            disabled={isSaving}
-                            className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('website')}
+                            </Label>
+                            <Input
+                              id="website"
+                              placeholder="https://yourcompany.com"
+                              value={formData.website_url}
+                              onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Save/Cancel Buttons */}
+                        <div className="flex gap-3 pt-2">
+                          <Button
+                            type="button"
+                            onClick={handleSaveProfile}
+                            disabled={isSaving || !isDirty}
+                          >
+                            {isSaving ? "Saving..." : "Save Changes"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setFormData(initialFormData)
+                            }}
+                            disabled={isSaving || !isDirty}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -645,6 +629,27 @@ export function SettingsTabs() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Save/Cancel Buttons for Pricing */}
+                    <div className="flex gap-3 pt-4 mt-4 border-t border-slate-100">
+                      <Button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={isSaving || !isDirty}
+                      >
+                        {isSaving ? "Saving..." : "Save Changes"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setFormData(initialFormData)
+                        }}
+                        disabled={isSaving || !isDirty}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -790,39 +795,6 @@ export function SettingsTabs() {
           </div>
 
         {/* Fixed Bottom Save Bar - Only shows when dirty */}
-        {isDirty && activeSection === "business" && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-4 shadow-lg z-20">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-600">
-                You have unsaved changes
-              </p>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                  className="border-slate-300"
-                >
-                  {tCommon('cancel')}
-                </Button>
-                <Button
-                  onClick={handleSaveProfile}
-                  disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isSaving ? (
-                    <span className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      {t('saving')}
-                    </span>
-                  ) : (
-                    t('saveChanges')
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </TooltipProvider>
   )

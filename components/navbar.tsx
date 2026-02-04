@@ -149,7 +149,7 @@ export function Navbar() {
           {/* User Menu */}
           <div className="flex items-center gap-2 md:gap-4">
             <div className="hidden md:block text-sm text-muted-foreground">
-              {user.full_name}
+              {user.contractor_profile?.company_name || user.email}
             </div>
             <Link href={`/${locale}/settings`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9" title={t('settings')}>
