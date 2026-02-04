@@ -50,9 +50,9 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
 
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 animate-pulse">
+          <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 animate-pulse">
             <div className="flex items-start gap-3">
               <div className="h-12 w-12 rounded-xl bg-slate-100" />
               <div className="flex-1 space-y-2">
@@ -92,11 +92,11 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {clients.map((client) => (
         <div 
           key={client.id} 
-          className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md hover:border-slate-200 transition-all"
+          className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md hover:border-slate-200 transition-all"
         >
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">

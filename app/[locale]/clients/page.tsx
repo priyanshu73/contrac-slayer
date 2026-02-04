@@ -65,8 +65,8 @@ export default function ClientsPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Main Content */}
-      <main className="px-4 sm:px-6 py-6 pb-24 md:pb-6">
-        <div className="space-y-4">
+      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
+        <div className="max-w-7xl mx-auto space-y-4">
           {/* Search & Filters with Add Button */}
           <div className="flex items-center gap-3">
             <div className="flex-1">

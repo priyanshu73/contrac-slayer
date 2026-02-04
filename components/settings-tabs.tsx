@@ -253,13 +253,13 @@ export function SettingsTabs() {
     <TooltipProvider>
       <div className="min-h-screen bg-slate-50">
         {/* Horizontal Tabs */}
-        <div className="px-12 pt-6 pb-4">
-          <div className="flex gap-2">
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 pt-4 sm:pt-6 pb-3 sm:pb-4">
+          <div className="max-w-6xl mx-auto flex gap-1.5 sm:gap-2">
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
-                className={`flex-1 py-2.5 text-sm font-medium text-center rounded-full transition-colors ${
+                className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-center rounded-full transition-colors ${
                   activeSection === item.id
                     ? "border-2 border-blue-500 text-slate-900 bg-white"
                     : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
@@ -288,17 +288,18 @@ export function SettingsTabs() {
         )}
 
         {/* Main Content */}
-        <div className="px-12 py-6">
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6 pb-24 sm:pb-6">
+          <div className="max-w-6xl mx-auto">
             {/* Business Section */}
             {activeSection === "business" && (
               <div className="space-y-6">
                 {/* Business Information Card - Combined */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="p-6">
-                    <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                       {/* Logo Section - Left Side */}
                       <div className="flex flex-col items-center sm:items-start flex-shrink-0">
-                        <div className={`w-28 h-28 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 ${
+                        <div className={`w-20 h-20 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 ${
                           isSaving ? "opacity-50" : ""
                         }`}>
                           {logoPreview ? (
@@ -340,8 +341,8 @@ export function SettingsTabs() {
                       </div>
 
                       {/* Form Fields - Right Side */}
-                      <div className="flex-1 space-y-5">
-                        <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="flex-1 space-y-4 sm:space-y-5">
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="company-name" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                               {t('companyName')} *
@@ -371,7 +372,7 @@ export function SettingsTabs() {
                           </div>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="phone" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                               {t('phoneNumber')}
@@ -385,8 +386,8 @@ export function SettingsTabs() {
                               className="h-10 border-slate-200"
                             />
                           </div>
-                          <div className="space-y-2 bg-gradient-to-br from-blue-50 to-sky-50 -m-3 p-3 rounded-xl border border-blue-200 shadow-sm">
-                            <Label htmlFor="contractorops-number" className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                          <div className="space-y-2">
+                            <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
                               ContractorOpsAI Number
                             </Label>
                             <div className="relative">
@@ -395,7 +396,7 @@ export function SettingsTabs() {
                                 value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
                                 readOnly
                                 disabled
-                                className="h-10 bg-white border-blue-300 text-slate-900 font-mono font-medium pr-10"
+                                className="h-10 bg-blue-50 border-blue-200 text-slate-900 font-mono font-medium pr-10"
                               />
                               {contractorOpsAiNumber && (
                                 <button
@@ -411,8 +412,8 @@ export function SettingsTabs() {
                           </div>
                         </div>
 
-                        {/* Business Address - Full Width */}
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        {/* Business Address & Zip */}
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                               {t('businessAddress')}
@@ -441,20 +442,19 @@ export function SettingsTabs() {
                           </div>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                              {t('website')}
-                            </Label>
-                            <Input
-                              id="website"
-                              placeholder="https://yourcompany.com"
-                              value={formData.website_url}
-                              onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                              disabled={isSaving}
-                              className="h-10 border-slate-200"
-                            />
-                          </div>
+                        {/* Website */}
+                        <div className="space-y-2">
+                          <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {t('website')}
+                          </Label>
+                          <Input
+                            id="website"
+                            placeholder="https://yourcompany.com"
+                            value={formData.website_url}
+                            onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                            disabled={isSaving}
+                            className="h-10 border-slate-200"
+                          />
                         </div>
 
                         {/* Save/Cancel Buttons */}
@@ -484,17 +484,15 @@ export function SettingsTabs() {
 
                 {/* Pricing & Rates Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900">Pricing & Rates</h3>
-                        <p className="text-sm text-slate-500 mt-1">Set your default labor rates and pricing preferences</p>
-                      </div>
+                  <div className="p-4 sm:p-6">
+                    <div className="mb-4 sm:mb-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">Pricing & Rates</h3>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1">Set your default labor rates and pricing preferences</p>
                     </div>
 
                     {/* Labor Rate Highlight Card */}
-                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-5 mb-6 border border-blue-100">
-                      <div className="flex items-start justify-between">
+                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 border border-blue-100">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-slate-600">Labor Rate</span>
@@ -567,7 +565,7 @@ export function SettingsTabs() {
                     </div>
 
                     {/* Tax & Markup */}
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Label htmlFor="tax-rate" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -658,8 +656,8 @@ export function SettingsTabs() {
             {/* Billing Section */}
             {activeSection === "billing" && (
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Subscription</h3>
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Subscription</h3>
                   
                   {user?.has_access ? (
                     <div className="space-y-4">
@@ -770,9 +768,9 @@ export function SettingsTabs() {
             {/* Language Section */}
             {activeSection === "language" && (
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('language')}</h3>
-                  <p className="text-sm text-slate-500 mb-6">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">{t('language')}</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">
                     {t('chooseLanguageDesc')}
                   </p>
                   <div className="max-w-sm">
@@ -783,7 +781,7 @@ export function SettingsTabs() {
             )}
 
             {/* Logout Section */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-200">
               <button
                 onClick={logout}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors"
@@ -793,8 +791,7 @@ export function SettingsTabs() {
               </button>
             </div>
           </div>
-
-        {/* Fixed Bottom Save Bar - Only shows when dirty */}
+        </div>
       </div>
     </TooltipProvider>
   )
