@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
@@ -131,7 +132,7 @@ export function RecentLeadsReal() {
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>{formatTime(lead.created_at)}</span>
-                    {lead.phone && <span>{lead.phone}</span>}
+                    {lead.phone && <span>{formatPhoneForDisplay(lead.phone)}</span>}
                   </div>
                   <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="font-medium">View</span>

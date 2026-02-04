@@ -112,6 +112,19 @@ function hhmmToApiTime(hhmm: string): string {
   return `${pad2(hh12raw)}:${pad2(mm)} ${ap}`
 }
 
+/** Parse NeetoCal slot start_time (e.g. "09:00", "09:00:00", or "2025-01-15T09:00:00Z") to HH:MM. */
+function parseSlotStartToHHMM(raw: string): string | null {
+  if (!raw || typeof raw !== "string") return null
+  const s = raw.trim()
+  const match = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/) || s.match(/T(\d{1,2}):(\d{2})/)
+  if (match) {
+    const hh = parseInt(match[1], 10)
+    const mm = parseInt(match[2], 10)
+    if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) return `${pad2(hh)}:${pad2(mm)}`
+  }
+  return null
+}
+
 function dateKeyLocal(d: Date) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
@@ -528,6 +541,9 @@ export default function CalendarPage() {
   const [rescheduleDate, setRescheduleDate] = useState<string>("")
   const [rescheduleTime, setRescheduleTime] = useState<string>("09:00")
   const [rescheduleReason, setRescheduleReason] = useState<string>("")
+  const [rescheduleError, setRescheduleError] = useState<string>("")
+  const [rescheduleSlotTimeOptions, setRescheduleSlotTimeOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = useState(false)
   const [rescheduling, setRescheduling] = useState(false)
   const [cancelling, setCancelling] = useState(false)
 
@@ -903,6 +919,7 @@ export default function CalendarPage() {
 
   const openRescheduleDialog = () => {
     if (!activeBooking) return
+    setRescheduleError("")
     const start = bookingStartDate(activeBooking)
     if (start) {
       setRescheduleDate(dateKeyLocal(start))
@@ -916,6 +933,53 @@ export default function CalendarPage() {
     setRescheduleDialogOpen(true)
   }
 
+  const rescheduleTimeZone = activeBooking?.time_zone || profile?.time_zone || timeZone || browserTz || "America/New_York"
+  const hasRescheduleCalendarLink = Boolean(profile?.calendar_link)
+
+  useEffect(() => {
+    if (!rescheduleDialogOpen || !rescheduleDate.trim() || !hasRescheduleCalendarLink) {
+      setRescheduleSlotTimeOptions([])
+      return
+    }
+    const [y, m, d] = rescheduleDate.split("-").map(Number)
+    if (!y || !m) return
+    setRescheduleSlotsLoading(true)
+    api
+      .getNeetoSlots({
+        time_zone: rescheduleTimeZone,
+        year: String(y),
+        month: String(m),
+        day: d ? String(d) : undefined,
+      })
+      .then((res: any) => {
+        const rawSlots = res?.slots ?? res?.data?.slots ?? []
+        const startTimes = new Set<string>()
+        const targetDate = rescheduleDate
+        for (const dayEntry of rawSlots) {
+          if (dayEntry.date !== targetDate) continue
+          const slotMap = dayEntry.slots ?? {}
+          for (const slot of Object.values(slotMap) as Array<{ start_time?: string }>) {
+            const hhmm = parseSlotStartToHHMM(slot?.start_time ?? "")
+            if (hhmm) startTimes.add(hhmm)
+          }
+        }
+        const sorted = Array.from(startTimes).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b))
+        setRescheduleSlotTimeOptions(sorted.map((v) => ({ value: v, label: hhmmToLabel(v) })))
+      })
+      .catch(() => setRescheduleSlotTimeOptions([]))
+      .finally(() => setRescheduleSlotsLoading(false))
+  }, [rescheduleDialogOpen, rescheduleDate, hasRescheduleCalendarLink, rescheduleTimeZone])
+
+  useEffect(() => {
+    if (!rescheduleDialogOpen) return
+    if (rescheduleSlotTimeOptions.length === 0) {
+      setRescheduleTime("")
+      return
+    }
+    const currentInList = rescheduleSlotTimeOptions.some((o) => o.value === rescheduleTime)
+    if (!currentInList) setRescheduleTime(rescheduleSlotTimeOptions[0].value)
+  }, [rescheduleDialogOpen, rescheduleSlotTimeOptions])
+
   const onRescheduleSubmit = async () => {
     if (!activeBooking) return
     const sid = bookingSid(activeBooking)
@@ -927,13 +991,18 @@ export default function CalendarPage() {
       toast({ description: tCalendar("selectDate"), variant: "destructive" as any })
       return
     }
-    const timeZoneToUse = activeBooking?.time_zone || profile?.time_zone || timeZone || browserTz || "America/New_York"
+    if (!rescheduleTime) {
+      toast({ description: "Please select an available time.", variant: "destructive" as any })
+      return
+    }
+    const timeZoneToUse = rescheduleTimeZone
     const displayName = activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "Client"
     const email = activeBooking?.email && !isPlaceholderEmail(activeBooking.email) ? String(activeBooking.email) : ""
     if (!email) {
       toast({ description: "Client email is required to reschedule.", variant: "destructive" as any })
       return
     }
+    setRescheduleError("")
     setRescheduling(true)
     try {
       await api.rescheduleNeetoBooking(sid, {
@@ -950,7 +1019,9 @@ export default function CalendarPage() {
       setActiveBooking(null)
       await load()
     } catch (e: any) {
-      toast({ description: e?.message || "Failed to reschedule", variant: "destructive" as any })
+      const msg = e?.message || "Failed to reschedule"
+      setRescheduleError(msg)
+      toast({ description: msg, variant: "destructive" as any })
     } finally {
       setRescheduling(false)
     }
@@ -1118,28 +1189,55 @@ export default function CalendarPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <Dialog open={rescheduleDialogOpen} onOpenChange={(open) => { setRescheduleDialogOpen(open); if (!open) setRescheduleError("") }}>
           <DialogContent className="sm:max-w-[400px] p-0 gap-0 overflow-hidden">
             <div className="px-6 pt-6 pb-4 border-b">
               <DialogTitle className="text-xl font-semibold">{tCalendar("rescheduleBookingTitle")}</DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">{tCalendar("rescheduleBookingDescription")}</p>
             </div>
             <div className="px-6 py-5 space-y-4">
+              {rescheduleError ? (
+                <Alert variant="destructive" className="mb-0">
+                  <AlertCircleIcon className="h-4 w-4" />
+                  <AlertDescription className="text-sm">{rescheduleError}</AlertDescription>
+                </Alert>
+              ) : null}
               <div className="space-y-2">
                 <label className="text-sm font-medium">{tCalendar("newDate")}</label>
                 <Input
                   type="date"
                   value={rescheduleDate}
-                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleError("") }}
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">{tCalendar("newTime")}</label>
-                <Input
-                  type="time"
-                  value={rescheduleTime}
-                  onChange={(e) => setRescheduleTime(e.target.value || "09:00")}
-                />
+                <Select
+                  value={rescheduleTime || undefined}
+                  onValueChange={(v) => { setRescheduleTime(v || ""); setRescheduleError("") }}
+                  disabled={!hasRescheduleCalendarLink || rescheduleSlotsLoading || !rescheduleDate.trim()}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={
+                        !rescheduleDate.trim()
+                          ? tCalendar("selectDate")
+                          : rescheduleSlotsLoading
+                            ? "Loading..."
+                            : rescheduleSlotTimeOptions.length === 0
+                              ? "No available slots"
+                              : undefined
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rescheduleSlotTimeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">{tCalendar("rescheduleReason")}</label>
@@ -1154,7 +1252,17 @@ export default function CalendarPage() {
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setRescheduleDialogOpen(false)}>
                   {tCommon("cancel")}
                 </Button>
-                <Button type="button" className="flex-1" onClick={onRescheduleSubmit} disabled={rescheduling}>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={onRescheduleSubmit}
+                  disabled={
+                    rescheduling ||
+                    rescheduleSlotsLoading ||
+                    !rescheduleTime ||
+                    (Boolean(rescheduleDate.trim()) && rescheduleSlotTimeOptions.length === 0)
+                  }
+                >
                   {rescheduling ? tCommon("saving") : tCalendar("rescheduleBooking")}
                 </Button>
               </div>

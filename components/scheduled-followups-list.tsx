@@ -94,7 +94,7 @@ const statusColors: Record<FollowupStatus, string> = {
 }
 
 export function ScheduledFollowupsList({ contractorId, statusFilter = "all" }: ScheduledFollowupsListProps) {
-  const t = useTranslations("messaging")
+  const t = useTranslations("scheduling")
   const [followups, setFollowups] = useState<ScheduledFollowup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [spNotFound, setSpNotFound] = useState(false)

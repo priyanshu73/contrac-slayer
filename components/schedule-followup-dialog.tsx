@@ -61,7 +61,7 @@ export function ScheduleFollowupDialog({
   onOpenChange,
   onScheduled,
 }: ScheduleFollowupDialogProps) {
-  const t = useTranslations("messaging.dialog")
+  const t = useTranslations("scheduling.dialog")
   const [clients, setClients] = useState<Client[]>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [selectedClient, setSelectedClient] = useState<string>("")

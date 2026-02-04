@@ -1,8 +1,10 @@
 import { ClientDetail } from "@/components/client-detail"
 import { Button } from "@/components/ui/button"
+import { getTranslations } from "next-intl/server"
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function ClientDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { id, locale } = await params
+  const tClients = await getTranslations({ locale, namespace: "clients" })
   
   return (
     <div className="min-h-screen bg-background">
@@ -10,15 +12,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
-              <a href="/clients">
+              <a href={`/${locale}/clients`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </a>
             </Button>
             <div>
-              <h1 className="text-lg font-semibold leading-none">Client Details</h1>
-              <p className="text-sm text-muted-foreground">View and manage client</p>
+              <h1 className="text-lg font-semibold leading-none">{tClients("detailTitle")}</h1>
+              <p className="text-sm text-muted-foreground">{tClients("detailSubtitle")}</p>
             </div>
           </div>
         </div>

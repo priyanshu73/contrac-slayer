@@ -23,8 +23,18 @@ class ApiClient {
     if (typeof detail === 'string') return detail
     if (typeof detail === 'object') {
       const maybe = detail as Record<string, any>
-      if (typeof maybe.message === 'string') return maybe.message
-      if (typeof maybe.error === 'string') return maybe.error
+      if (typeof maybe.message === 'string' && maybe.message.trim()) return maybe.message
+      if (typeof maybe.error === 'string' && maybe.error.trim()) return maybe.error
+      // Backend may return { message, neetocal } for NeetoCal 422; prefer message, else extract from neetocal
+      const neetocal = maybe.neetocal
+      if (neetocal != null) {
+        if (typeof neetocal === 'string' && neetocal.trim()) return neetocal.trim()
+        if (typeof neetocal === 'object') {
+          const nc = neetocal as Record<string, any>
+          if (typeof nc.error === 'string' && nc.error.trim()) return nc.error
+          if (typeof nc.message === 'string' && nc.message.trim()) return nc.message
+        }
+      }
       try {
         return JSON.stringify(detail)
       } catch {
@@ -70,6 +80,9 @@ class ApiClient {
         throw new Error(this.formatApiErrorDetail(detail))
       }
 
+      if (response.status === 204) {
+        return undefined as T
+      }
       return response.json()
     } catch (error) {
       clearTimeout(timeoutId)
@@ -186,6 +199,25 @@ class ApiClient {
       throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload logo')
     }
 
+    return response.json()
+  }
+
+  /** Upload onboarding step 3 attachments (invoices/samples). Stored as SUPPORT_TICKET with contractor uuid. */
+  async uploadOnboardingAttachments(files: File[]): Promise<{ attachments_uploaded: number }> {
+    if (!files.length) return { attachments_uploaded: 0 }
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+    const response = await fetch(`${this.baseURL}/contractors/profile/onboarding-attachments`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload attachments')
+    }
     return response.json()
   }
 
@@ -367,12 +399,23 @@ class ApiClient {
     })
   }
 
-  async getClients(skip = 0, limit = 20) {
+  async getClients(skip = 0, limit = 20, status?: string) {
     const params = new URLSearchParams()
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
+    if (status) params.append('status', status)
 
-    return this.request(`/clients?${params.toString()}`)
+    const res = await this.request<any>(`/clients?${params.toString()}`)
+
+    // Safety filter: never show archived clients in normal UI pickers/lists unless explicitly requested.
+    const isArchivedFilter = String(status ?? '').toUpperCase() === 'ARCHIVED'
+    const isNotArchived = (c: any) => String(c?.status ?? '').toUpperCase() !== 'ARCHIVED'
+
+    if (!isArchivedFilter) {
+      if (Array.isArray(res)) return res.filter(isNotArchived)
+      if (res && Array.isArray(res.items)) return { ...res, items: res.items.filter(isNotArchived) }
+    }
+    return res
   }
 
   async getClient(clientId: number) {
@@ -387,6 +430,12 @@ class ApiClient {
     return this.request(`/clients/${clientId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    })
+  }
+
+  async deleteClient(clientId: number): Promise<void> {
+    await this.request<void>(`/clients/${clientId}`, {
+      method: 'DELETE',
     })
   }
 

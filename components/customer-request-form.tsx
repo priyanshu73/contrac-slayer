@@ -12,6 +12,7 @@ import { Upload, X, Check, CalendarDays, Sparkles } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
+import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface PrefillData {
@@ -177,7 +178,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
               {contractor.phone_number && (
                 <>
                   <span>•</span>
-                  <span>{contractor.phone_number}</span>
+                  <span>{formatPhoneForDisplay(contractor.phone_number)}</span>
                 </>
               )}
               <span>•</span>

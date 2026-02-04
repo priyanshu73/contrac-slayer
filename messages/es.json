@@ -8,7 +8,7 @@
     "calendar": "Calendario",
     "settings": "Configuración",
     "actions": "Acciones",
-    "messaging": "Mensajería",
+    "scheduling": "Programación",
     "moreComingSoon": "Más próximamente"
   },
   "common": {
@@ -169,9 +169,9 @@
     "clientMessages": "Mensajes de Clientes",
     "clientMessagesDesc": "Nuevos mensajes de clientes"
   },
-  "messaging": {
-    "pageTitle": "Mensajería",
-    "pageDescription": "Programe seguimientos y administre la configuración de mensajería",
+  "scheduling": {
+    "pageTitle": "Programación",
+    "pageDescription": "Programe seguimientos y administre la configuración de programación",
     "tabs": {
       "settings": "Configuración",
       "scheduled": "Programados",
@@ -305,6 +305,7 @@
     "paid": "Pagado",
     "overdue": "Vencido",
     "active": "Activo",
+    "archived": "Archivado",
     "completed": "Completado",
     "requests": "Solicitudes",
     "calls": "Llamadas",
@@ -364,6 +365,8 @@
     "addClient": "Agregar Cliente",
     "addNewClient": "Agregar Nuevo Cliente",
     "createNewClientProfile": "Crear un nuevo perfil de cliente",
+    "detailTitle": "Detalles del Cliente",
+    "detailSubtitle": "Ver y administrar cliente",
     "clientInformation": "Información del Cliente",
     "name": "Nombre",
     "email": "Correo Electrónico",
@@ -438,9 +441,9 @@
   "profileSetup": {
     "welcome": "Bienvenido a ContractorOps AI",
     "subtitle": "Configuremos el perfil de su negocio en solo unos pasos",
-    "step1": "Información de la Empresa",
-    "step2": "Marca",
-    "step3": "Número OpsAI",
+    "step1": "Info de Empresa y Marca",
+    "step2": "Número OpsAI",
+    "step3": "Estimador IA",
     "companyInfo": {
       "title": "Información de la Empresa",
       "description": "Cuéntenos sobre su negocio",
@@ -476,6 +479,10 @@
         "emailRequired": "El correo empresarial es requerido"
       }
     },
+    "companyInfoAndBranding": {
+      "title": "Info de Empresa y Marca",
+      "description": "Cuéntenos sobre su negocio y agregue su logo y sitio web"
+    },
     "branding": {
       "title": "Marca y Presencia en Línea",
       "description": "Haga que su negocio se destaque",
@@ -505,6 +512,17 @@
         "areaCodeRequired": "Por favor seleccione al menos un código de área"
       }
     },
+    "aiEstimator": {
+      "title": "Conozca su Estimador IA",
+      "description": "Nuestra IA aprende sus precios y tipos de proyecto para generar estimados precisos y personalizados. Vea cómo funciona a continuación.",
+      "videoTitle": "Cómo funciona",
+      "videoHint": "Vea cómo el estimador IA le ayuda a crear cotizaciones más rápido.",
+      "invoiceUploadTitle": "Subir facturas anteriores (opcional)",
+      "invoiceUploadDescription": "Si tiene facturas existentes, súbalas. Las usaremos para ser más precisos y adaptar las estimaciones a su trabajo, tarifas y materiales.",
+      "chooseInvoices": "Elegir archivos o arrastrar y soltar",
+      "invoiceFormats": "PDF o imágenes (PNG, JPG)",
+      "invoiceOptional": "Opcional — puede omitir y agregar facturas después desde configuración."
+    },
     "buttons": {
       "back": "Regresar",
       "continue": "Continuar",
@@ -517,6 +535,49 @@
       "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
       "anErrorOccurred": "Ocurrió un error",
       "completeProfileToGetStarted": "Complete su perfil para comenzar."
+    }
+  },
+  "billing": {
+    "freeTrial": "Prueba Gratis de 14 Días",
+    "pageTitle": "Comience a Hacer Crecer Su Negocio",
+    "pageSubtitle": "Obtenga acceso completo a todas las funciones. Cancele en cualquier momento. No se cobra tarjeta de crédito durante la prueba.",
+    "monthly": "Mensual",
+    "monthlyDescription": "Facturación mensual flexible",
+    "yearly": "Anual",
+    "yearlyDescription": "Ahorre 29% con facturación anual",
+    "bestValue": "Mejor Valor - Ahorre $480/año",
+    "perMonth": "/mes",
+    "billedAnnually": "Facturado anualmente ($1,188/año)",
+    "startFreeTrial": "Iniciar Prueba Gratis",
+    "processing": "Procesando...",
+    "features": {
+      "aiQuoteGeneration": "Generación de Cotizaciones con IA",
+      "realtimePricing": "Precios de Materiales en Tiempo Real",
+      "unlimitedQuotes": "Cotizaciones y Facturas Ilimitadas",
+      "clientManagement": "Gestión de Clientes",
+      "leadTracking": "Seguimiento de Prospectos y CRM",
+      "calendarIntegration": "Integración de Calendario",
+      "emailNotifications": "Notificaciones por Correo",
+      "mobileFriendly": "Compatible con Móviles"
+    },
+    "trustBadges": {
+      "freeTrial": "Prueba Gratis de 14 Días",
+      "freeTrialDescription": "Acceso completo a todas las funciones durante su prueba",
+      "cancelAnytime": "Cancele en Cualquier Momento",
+      "cancelAnytimeDescription": "Sin contratos a largo plazo ni compromisos",
+      "securePayments": "Pagos Seguros",
+      "securePaymentsDescription": "Impulsado por Stripe para su seguridad"
+    },
+    "success": {
+      "activating": "Activando Su Suscripción",
+      "activatingDescription": "Por favor espere mientras configuramos su cuenta. Esto generalmente toma solo unos segundos...",
+      "welcomeAboard": "¡Bienvenido a Bordo!",
+      "subscriptionActive": "Su suscripción está ahora activa. Tiene acceso completo a todas las funciones.",
+      "trialStarted": "Su prueba gratis de 14 días ha comenzado.",
+      "goToDashboard": "Ir al Panel de Control",
+      "paymentReceived": "Pago Recibido",
+      "paymentReceivedDescription": "¡Su pago fue exitoso! Su suscripción debería estar activa en breve. Si no ve acceso en un minuto, actualice la página o contacte a soporte.",
+      "refreshPage": "Actualizar Página"
     }
   }
 }

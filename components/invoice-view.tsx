@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { formatPhoneForDisplay } from "@/lib/utils"
 
 interface Invoice {
   id: number
@@ -138,7 +139,7 @@ export function InvoiceView({
               <p className="text-sm text-muted-foreground">{invoice.client.email}</p>
             )}
             {invoice.client.phone && (
-              <p className="text-sm text-muted-foreground">{invoice.client.phone}</p>
+              <p className="text-sm text-muted-foreground">{formatPhoneForDisplay(invoice.client.phone)}</p>
             )}
           </div>
         </div>
