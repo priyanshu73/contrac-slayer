@@ -58,6 +58,9 @@
     "welcome": "Bienvenido de nuevo",
     "quickActions": "Acciones Rápidas",
     "recentLeads": "Prospectos Recientes",
+    "recentQuotes": "Cotizaciones",
+    "createQuote": "Crear Cotización",
+    "noQuotesYet": "No hay cotizaciones aún. ¡Crea tu primera cotización!",
     "upcomingJobs": "Trabajos Próximos",
     "viewAll": "Ver Todo",
     "stats": {
@@ -80,6 +83,7 @@
     "contractorOpsNumber": {
       "title": "Tu número ContractorOps AI",
       "description": "Tu línea de IA dedicada para llamadas, mensajes y seguimiento de prospectos.",
+      "subtitle": "Tu Línea de IA",
       "notSet": "No configurado",
       "setUp": "Configurar",
       "numberCopied": "¡Número copiado!",
@@ -88,6 +92,7 @@
     "quoteRequest": {
       "title": "Formulario de Solicitud de Cotización",
       "description": "Copie el enlace para compartir con clientes",
+      "shareWithCustomers": "Compartir con clientes",
       "copy": "Copiar",
       "copied": "Copiado",
       "linkCopied": "¡Enlace Copiado!",

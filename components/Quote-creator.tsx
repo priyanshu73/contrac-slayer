@@ -2059,46 +2059,30 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="markup-ai-desktop" className="text-sm font-medium mb-1.5 block">
-                        Markup Percentage
+                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1.5 block">
+                        Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
                       </Label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
                         <Input
-                          id="markup-ai-desktop"
+                          id="labor-rate-ai-desktop"
                           type="number"
                           min="0"
-                          max="100"
-                          step="0.1"
-                          value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
+                          step="0.01"
+                          value={laborRateValue === 0 ? "" : laborRateValue}
                           onChange={(e) => {
                             const val = e.target.value
-                            if (val === "" || val === "-") {
-                              setMarkupPercentage(0)
+                            if (val === "") {
+                              setLaborRateValue(0)
                             } else {
-                              const num = parseFloat(val)
-                              if (!isNaN(num)) {
-                                setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                              }
+                              const num = parseFloat(val) || 0
+                              setLaborRateValue(Math.max(0, num))
                             }
                           }}
-                          onBlur={(e) => {
-                            const val = e.target.value
-                            if (val === "" || val === "-") {
-                              setMarkupPercentage(0)
-                            } else {
-                              const num = parseFloat(val)
-                              if (!isNaN(num)) {
-                                setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                              } else {
-                                setMarkupPercentage(0)
-                              }
-                            }
-                          }}
-                          placeholder="20"
-                          className="bg-background"
+                          placeholder="75"
+                          className="bg-background pl-7"
                           disabled={loadingMarkup}
                         />
-                        <span className="text-sm text-muted-foreground">%</span>
                       </div>
                     </div>
                     <div>
@@ -2124,34 +2108,6 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                           <SelectItem value={LaborChargeType.TIME_AND_MATERIALS}>Time & Materials</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1.5 block">
-                        Labor Rate
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">$</span>
-                        <Input
-                          id="labor-rate-ai-desktop"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={laborRateValue === 0 ? "" : laborRateValue}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val === "") {
-                              setLaborRateValue(0)
-                            } else {
-                              const num = parseFloat(val) || 0
-                              setLaborRateValue(Math.max(0, num))
-                            }
-                          }}
-                          placeholder="75.00"
-                          className="bg-background"
-                          disabled={loadingMarkup}
-                        />
-                        <span className="text-sm text-muted-foreground">{getRateLabelSuffix(laborChargeType, laborUnitType)}</span>
-                      </div>
                     </div>
                   </div>
                   {(() => {

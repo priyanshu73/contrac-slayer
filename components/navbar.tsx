@@ -9,7 +9,6 @@ import {
   ChevronDown,
   LayoutDashboard,
   MessageSquare,
-  FileText,
   Calendar,
   Users,
   Zap,
@@ -38,7 +37,6 @@ export function Navbar() {
   const navLinks = [
     { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
-    { href: `/${locale}/quotes`, label: t('quotes'), icon: FileText },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
     { href: `/${locale}/clients`, label: t('clients'), icon: Users },
   ]
