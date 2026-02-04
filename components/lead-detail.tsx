@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
-import { Lead } from "@/lib/types"
+import { Lead, Measurements } from "@/lib/types"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
 import { Languages, Loader2, RotateCcw } from "lucide-react"
@@ -469,6 +469,83 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             <p className="text-xs mt-3 text-green-600 dark:text-green-400 italic">
               ✓ {tTranslation('translated')}
             </p>
+          )}
+        </Card>
+      )}
+
+      {/* Measurements Card */}
+      {lead.measurements && lead.measurements.items && lead.measurements.items.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/10">
+              <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">{tLeads('measurements')}</h3>
+              <p className="text-sm text-muted-foreground">
+                {lead.measurements.items.length} {lead.measurements.items.length === 1 ? 'measurement' : 'measurements'} from quote request
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid gap-3 sm:grid-cols-2">
+            {lead.measurements.items.map((item, index) => (
+              <div key={index} className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800/50 p-4">
+                {/* Type Badge */}
+                <div className="absolute top-3 right-3">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${
+                    item.type === 'dimensions' 
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : item.type === 'square_footage'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  }`}>
+                    {item.type === 'dimensions' ? 'L×W' : item.type === 'square_footage' ? 'Area' : 'Linear'}
+                  </span>
+                </div>
+                
+                {/* Name */}
+                <p className="font-semibold text-base mb-3 pr-16">{item.name || 'Measurement'}</p>
+                
+                {/* Value */}
+                <div className="flex items-end gap-2">
+                  {item.type === 'dimensions' ? (
+                    <>
+                      <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                        {item.length} <span className="text-muted-foreground font-normal">×</span> {item.width}
+                      </span>
+                      <span className="text-sm text-muted-foreground mb-1">{item.unit || 'ft'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{item.value}</span>
+                      <span className="text-sm text-muted-foreground mb-1">
+                        {item.unit || (item.type === 'square_footage' ? 'sq ft' : 'ft')}
+                      </span>
+                    </>
+                  )}
+                </div>
+                
+                {/* Calculated Area for Dimensions */}
+                {item.type === 'dimensions' && item.length && item.width && (
+                  <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <p className="text-sm text-muted-foreground">
+                      Total Area: <span className="font-semibold text-primary">{item.length * item.width} sq {item.unit || 'ft'}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Total Summary */}
+          {lead.measurements.items.length > 1 && (
+            <div className="mt-4 pt-4 border-t flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total measurements</span>
+              <span className="font-semibold">{lead.measurements.items.length} items</span>
+            </div>
           )}
         </Card>
       )}

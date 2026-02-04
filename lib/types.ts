@@ -205,6 +205,8 @@ export interface Lead {
   created_at: string
   updated_at?: string
   attachments?: Attachment[]
+  measurements?: Measurements
+  contractor_ai_call_lead_id?: number
 }
 
 export interface LeadCreate {

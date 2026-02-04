@@ -382,6 +382,7 @@
     "fromCall": "De Llamada",
     "projectDescription": "Descripción del Proyecto",
     "fromQuoteRequest": "De Solicitud de Cotización",
+    "measurements": "Medidas",
     "callHistoryAndTranscripts": "Historial de Llamadas y Transcripciones",
     "callCustomer": "Llamar al Cliente",
     "createQuote": "Crear Cotización",

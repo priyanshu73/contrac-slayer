@@ -768,8 +768,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       }
       
       // Extract measurements from lead (if available)
-      if ((lead as any).measurements) {
-        setMeasurements((lead as any).measurements as Measurements)
+      if (lead.measurements) {
+        setMeasurements(lead.measurements)
       }
     } catch (error) {
       console.error("Failed to fetch lead data:", error)
@@ -1295,15 +1295,28 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
           </Card>
 
           {/* Measurements Input */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Project Measurements (Optional)</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Adding measurements helps generate more accurate estimates. Measurements can come from the lead or be entered manually.
-            </p>
-            <MeasurementsInput
-              value={measurements}
-              onChange={setMeasurements}
-            />
+          <Card className="overflow-hidden">
+            <div className="px-6 py-4 border-b bg-slate-50/80 dark:bg-slate-800/50">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/10">
+                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Project Measurements</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Add measurements for more accurate estimates
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <MeasurementsInput
+                value={measurements}
+                onChange={setMeasurements}
+              />
+            </div>
           </Card>
 
           {/* Material Search */}
