@@ -9,10 +9,14 @@ export function ClientsSearch({
   showArchived = false,
   onToggleArchived,
   onShowArchivedChange,
+  searchQuery = "",
+  onSearchChange,
 }: {
   showArchived?: boolean
   onToggleArchived?: () => void
   onShowArchivedChange?: (showArchived: boolean) => void
+  searchQuery?: string
+  onSearchChange?: (query: string) => void
 }) {
   const t = useTranslations('search')
   const tFilters = useTranslations('filters')
@@ -50,7 +54,9 @@ export function ClientsSearch({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input 
           placeholder={t('searchClients')} 
-          className="pl-10 h-10 border-slate-200 bg-white" 
+          className="pl-10 h-10 border-slate-200 bg-white"
+          value={searchQuery || ""}
+          onChange={(e) => onSearchChange?.(e.target.value)}
         />
       </div>
     </div>
