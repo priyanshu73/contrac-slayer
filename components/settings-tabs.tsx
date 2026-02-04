@@ -24,46 +24,101 @@ function SettingsSkeleton() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Tabs Skeleton */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3">
-        <div className="flex gap-2">
+      <div className="px-4 sm:px-8 md:px-12 lg:px-16 pt-4 sm:pt-6 pb-3 sm:pb-4">
+        <div className="max-w-6xl mx-auto flex gap-1.5 sm:gap-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-1 h-10 bg-slate-100 rounded-lg animate-pulse" />
+            <div key={i} className="flex-1 h-9 sm:h-10 bg-slate-200 rounded-full animate-pulse" />
           ))}
         </div>
       </div>
       
       {/* Content Skeleton */}
-      <div className="p-6">
-        {/* Profile Card Skeleton */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-6">
-            <div className="w-24 h-24 rounded-full bg-slate-200 animate-pulse mx-auto sm:mx-0" />
-            <div className="flex-1 space-y-4">
-              <div className="h-7 w-48 bg-slate-200 rounded animate-pulse mx-auto sm:mx-0" />
-              <div className="h-4 w-32 bg-slate-100 rounded animate-pulse mx-auto sm:mx-0" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
-                    <div className="h-11 bg-slate-100 rounded-lg animate-pulse" />
-                  </div>
-                ))}
+      <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Business Card Skeleton */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+              {/* Logo Skeleton */}
+              <div className="flex flex-col items-center sm:items-start flex-shrink-0">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-lg bg-slate-200 animate-pulse" />
+                <div className="h-8 w-24 bg-slate-100 rounded mt-3 animate-pulse" />
+                <div className="h-3 w-28 bg-slate-100 rounded mt-2 animate-pulse" />
+              </div>
+              
+              {/* Form Fields Skeleton */}
+              <div className="flex-1 space-y-4 sm:space-y-5">
+                {/* Row 1 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 2 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 3 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Website */}
+                <div className="space-y-2">
+                  <div className="h-3 w-16 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+                {/* Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <div className="h-10 w-28 bg-slate-200 rounded-lg animate-pulse" />
+                  <div className="h-10 w-20 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Pricing Card Skeleton */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-          <div className="h-6 w-32 bg-slate-200 rounded animate-pulse mb-6" />
-          <div className="bg-slate-100 rounded-xl p-5 mb-6 animate-pulse h-32" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[1, 2].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
-                <div className="h-11 bg-slate-100 rounded-lg animate-pulse" />
+          
+          {/* Pricing Card Skeleton */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+            <div className="mb-4 sm:mb-6">
+              <div className="h-5 w-32 bg-slate-200 rounded animate-pulse" />
+              <div className="h-3 w-64 bg-slate-100 rounded mt-2 animate-pulse" />
+            </div>
+            {/* Labor Rate Highlight */}
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 border border-blue-100">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                  <div className="h-4 w-20 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-8 w-24 bg-slate-200 rounded mt-2 animate-pulse" />
+                </div>
+                <div className="h-8 w-28 bg-white rounded-lg animate-pulse" />
               </div>
-            ))}
+              <div className="h-11 bg-white rounded-lg mt-4 animate-pulse" />
+            </div>
+            {/* Tax & Markup */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-11 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+              ))}
+            </div>
+            {/* Buttons */}
+            <div className="flex gap-3 pt-4 mt-4 border-t border-slate-100">
+              <div className="h-10 w-28 bg-slate-200 rounded-lg animate-pulse" />
+              <div className="h-10 w-20 bg-slate-100 rounded-lg animate-pulse" />
+            </div>
           </div>
         </div>
       </div>
@@ -486,8 +541,8 @@ export function SettingsTabs() {
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
                     <div className="mb-4 sm:mb-6">
-                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">Pricing & Rates</h3>
-                      <p className="text-xs sm:text-sm text-slate-500 mt-1">Set your default labor rates and pricing preferences</p>
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">{t('pricingRates')}</h3>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1">{t('pricingRatesDesc')}</p>
                     </div>
 
                     {/* Labor Rate Highlight Card */}
@@ -495,13 +550,13 @@ export function SettingsTabs() {
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-slate-600">Labor Rate</span>
+                            <span className="text-sm font-medium text-slate-600">{t('defaultLaborRateValue')}</span>
                             <Tooltip>
                               <TooltipTrigger>
                                 <Info className="h-3.5 w-3.5 text-slate-400" />
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="max-w-xs text-xs">Your default hourly, daily, or per-square-foot rate for labor on quotes</p>
+                                <p className="max-w-xs text-xs">{t('laborRateTooltip')}</p>
                               </TooltipContent>
                             </Tooltip>
                           </div>
@@ -569,14 +624,14 @@ export function SettingsTabs() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Label htmlFor="tax-rate" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            Sales Tax Rate
+                            {t('salesTaxRate')}
                           </Label>
                           <Tooltip>
                             <TooltipTrigger>
                               <Info className="h-3.5 w-3.5 text-slate-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs text-xs">Applied to taxable items on quotes and invoices</p>
+                              <p className="max-w-xs text-xs">{t('salesTaxTooltip')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
@@ -599,14 +654,14 @@ export function SettingsTabs() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Label htmlFor="markup" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            Default Markup
+                            {t('defaultMarkup')}
                           </Label>
                           <Tooltip>
                             <TooltipTrigger>
                               <Info className="h-3.5 w-3.5 text-slate-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs text-xs">Your profit margin added on top of material costs</p>
+                              <p className="max-w-xs text-xs">{t('markupTooltip')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
