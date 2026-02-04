@@ -2,18 +2,19 @@
 // COMMON TYPES & ENUMS
 // ============================================
 
-export type JobStatus = 
-  | 'DRAFT'
-  | 'SENT'
-  | 'VIEWED'
-  | 'CUSTOMER_MODIFIED'
-  | 'ACCEPTED'
-  | 'REJECTED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'INVOICED'
-  | 'PAID'
-  | 'CANCELLED'
+export enum JobStatus {
+  DRAFT = 'DRAFT',
+  SENT = 'SENT',
+  VIEWED = 'VIEWED',
+  CUSTOMER_MODIFIED = 'CUSTOMER_MODIFIED',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  INVOICED = 'INVOICED',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED'
+}
 
 export type LeadStatus = 
   | 'NEW'
@@ -168,6 +169,18 @@ export interface ContractorProfile {
   updated_at?: string
 }
 
+// Simplified contractor info for nested responses (e.g., in Job)
+export interface ContractorInfo {
+  id: number
+  uuid?: string
+  company_name: string
+  address?: string
+  phone_number?: string
+  email: string
+  logo_url?: string
+  website_url?: string
+}
+
 // ============================================
 // LEADS
 // ============================================
@@ -295,6 +308,7 @@ export interface Job {
   created_at: string
   updated_at?: string
   client?: Client
+  contractor?: ContractorInfo
   items?: JobItem[]
   variants?: QuoteVariant[]
   // Signature fields
