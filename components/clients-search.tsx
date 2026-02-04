@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "next-intl"
+import { Search } from "lucide-react"
 
 export function ClientsSearch({
   showArchived = false,
@@ -17,13 +18,16 @@ export function ClientsSearch({
   const tFilters = useTranslations('filters')
   
   return (
-    <div className="flex items-center gap-2">
-      <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      {/* Filter Tabs */}
+      <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-1">
         <Button
           type="button"
           size="sm"
-          variant={!showArchived ? "secondary" : "ghost"}
-          className="h-8 px-3"
+          variant={!showArchived ? "default" : "ghost"}
+          className={`h-8 px-4 rounded-md transition-all ${
+            showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
+          }`}
           onClick={() => (onShowArchivedChange ? onShowArchivedChange(false) : onToggleArchived?.())}
         >
           {tFilters("active")}
@@ -31,28 +35,23 @@ export function ClientsSearch({
         <Button
           type="button"
           size="sm"
-          variant={showArchived ? "secondary" : "ghost"}
-          className="h-8 px-3"
+          variant={showArchived ? "default" : "ghost"}
+          className={`h-8 px-4 rounded-md transition-all ${
+            !showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
+          }`}
           onClick={() => (onShowArchivedChange ? onShowArchivedChange(true) : onToggleArchived?.())}
         >
           {tFilters("archived")}
         </Button>
       </div>
+      
+      {/* Search Input */}
       <div className="relative flex-1">
-        <svg
-          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-        <Input placeholder={t('searchClients')} className="pl-10" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Input 
+          placeholder={t('searchClients')} 
+          className="pl-10 h-10 border-slate-200 bg-white" 
+        />
       </div>
     </div>
   )
