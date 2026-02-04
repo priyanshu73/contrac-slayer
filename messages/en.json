@@ -382,6 +382,7 @@
     "fromCall": "From Call",
     "projectDescription": "Project Description",
     "fromQuoteRequest": "From Quote Request",
+    "measurements": "Measurements",
     "callHistoryAndTranscripts": "Call History & Transcripts",
     "callCustomer": "Call Customer",
     "createQuote": "Create Quote",

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, contractorAI } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
@@ -191,6 +192,7 @@ interface UnifiedLead {
   
   // Request-specific data
   attachments?: Array<{ id: number }>
+  measurements?: Measurements
   
   // Consolidation tracking
   contractor_ai_call_lead_id?: number // Reference to consolidated call lead in contractor-ai
@@ -417,6 +419,7 @@ export function UnifiedLeads() {
         converted_to_client_id: lead.converted_to_client_id,
         created_at: lead.created_at,
         attachments: lead.attachments,
+        measurements: lead.measurements,
         source: lead.source,
         priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low',
         // Consolidation tracking - if this lead was consolidated with a call lead
@@ -1367,6 +1370,60 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         {tTranslation('translated')}
                       </p>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Measurements from quote request */}
+              {lead.measurements && lead.measurements.items && lead.measurements.items.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                    <span>{tLeads('measurements')}</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      {lead.measurements.items.length} {lead.measurements.items.length === 1 ? 'item' : 'items'}
+                    </Badge>
+                  </h3>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {lead.measurements.items.map((item, index) => (
+                      <div key={index} className="relative p-3 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-900/50 border">
+                        {/* Type Badge */}
+                        <span className={`absolute top-2 right-2 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
+                          item.type === 'dimensions' 
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                            : item.type === 'square_footage'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                        }`}>
+                          {item.type === 'dimensions' ? 'L×W' : item.type === 'square_footage' ? 'Area' : 'Linear'}
+                        </span>
+                        
+                        <p className="text-xs md:text-sm font-medium mb-1 pr-12">{item.name || 'Measurement'}</p>
+                        
+                        <div className="flex items-baseline gap-1">
+                          {item.type === 'dimensions' ? (
+                            <>
+                              <span className="text-lg md:text-xl font-bold">
+                                {item.length} <span className="text-muted-foreground font-normal text-sm">×</span> {item.width}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{item.unit || 'ft'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-lg md:text-xl font-bold">{item.value}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {item.unit || (item.type === 'square_footage' ? 'sq ft' : 'ft')}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        
+                        {item.type === 'dimensions' && item.length && item.width && (
+                          <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+                            = <span className="font-medium text-primary">{item.length * item.width} sq {item.unit || 'ft'}</span>
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
