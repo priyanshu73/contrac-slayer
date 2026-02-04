@@ -471,7 +471,8 @@ class ApiClient {
     measurements?: any
     lead_id?: number
     location_zip_code?: string
-    labor_rate_per_hour?: number
+    labor_charge_type?: string
+    labor_rate_value?: number
     markup_percentage?: number
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)

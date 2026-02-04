@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -14,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI } from "@/lib/api"
-import { Lead, ContractorProfile, Client, Measurements } from "@/lib/types"
+import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
@@ -394,11 +395,34 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   const [projectType, setProjectType] = useState("")
   const [projectTitle, setProjectTitle] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiLoadingStage, setAiLoadingStage] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
+  
+  // AI loading stage messages
+  const aiLoadingMessages = [
+    "Analyzing project description...",
+    "Identifying required materials...",
+    "Calculating quantities...",
+    "Estimating labor costs...",
+    "Finalizing line items...",
+  ]
+  
+  // Progress through loading stages
+  useEffect(() => {
+    if (aiLoading) {
+      setAiLoadingStage(0)
+      const interval = setInterval(() => {
+        setAiLoadingStage(prev => (prev + 1) % aiLoadingMessages.length)
+      }, 5000) // Change every 5 seconds
+      return () => clearInterval(interval)
+    } else {
+      setAiLoadingStage(0)
+    }
+  }, [aiLoading])
   
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -426,7 +450,9 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
   // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
-  const [laborRatePerHour, setLaborRatePerHour] = useState<number>(75) // Default $75/hr, will be updated from profile
+  const [laborChargeType, setLaborChargeType] = useState<LaborChargeType>(LaborChargeType.HOURLY) // Default to hourly
+  const [laborRateValue, setLaborRateValue] = useState<number>(75) // Default $75, will be updated from profile
+  const [laborUnitType, setLaborUnitType] = useState<UnitType | undefined>(undefined)
   const [loadingMarkup, setLoadingMarkup] = useState(!quoteId) // Only loading if not editing (no quoteId)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
@@ -648,9 +674,17 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         setInitialTaxRate(8.25) // Default if not in profile
       }
       // Store labor rate for calculations
-      if (profile?.default_labor_rate_per_hour !== undefined && profile.default_labor_rate_per_hour !== null) {
-        const parsed = parseFloat(profile.default_labor_rate_per_hour)
-        setLaborRatePerHour(isNaN(parsed) ? 75 : parsed)
+      if (profile?.default_labor_rate_value !== undefined && profile.default_labor_rate_value !== null) {
+        const parsed = parseFloat(String(profile.default_labor_rate_value))
+        setLaborRateValue(isNaN(parsed) ? 75 : parsed)
+      }
+      // Store labor charge type
+      if (profile?.default_labor_charge_type) {
+        setLaborChargeType(profile.default_labor_charge_type)
+      }
+      // Store labor unit type
+      if (profile?.default_labor_unit_type) {
+        setLaborUnitType(profile.default_labor_unit_type)
       }
     } catch (error) {
       console.error("Failed to fetch contractor markup:", error)
@@ -893,7 +927,8 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         measurements: measurements.items.length > 0 ? measurements : undefined,
         lead_id: leadId ? parseInt(leadId, 10) : undefined,
         location_zip_code: zipCode,
-        labor_rate_per_hour: laborRatePerHour, // Send labor rate from form
+        labor_charge_type: laborChargeType, // Send labor charge type from form
+        labor_rate_value: laborRateValue, // Send unified labor rate from form
         markup_percentage: markupPercentage, // Send markup from form
       }) as any
       
@@ -1355,12 +1390,12 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                         const wordCount = desc ? desc.split(/\s+/).length : 0
                         const tooShort = desc.length < 30 || wordCount < 6
                         return (
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex flex-col gap-2 w-full">
                         <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                           {aiLoading ? (
                             <span className="inline-flex items-center gap-2">
-                              <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
-                              Generating AI Estimate...
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              {aiLoadingMessages[aiLoadingStage]}
                             </span>
                           ) : (
                             <>
@@ -1371,7 +1406,20 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                             </>
                           )}
                         </Button>
-                        {tooShort && (
+                        {aiLoading && (
+                          <div className="w-full space-y-2">
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary transition-all duration-1000 ease-out"
+                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                              This usually takes 15-30 seconds
+                            </p>
+                          </div>
+                        )}
+                        {!aiLoading && tooShort && (
                           <p className="text-xs text-muted-foreground w-full">
                             Please add at least 30 characters and 6 words for better results.
                           </p>
@@ -1444,6 +1492,28 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         </div>
 
         <div className="space-y-3">
+          {/* Skeleton Loading when AI is generating */}
+          {aiLoading && items.length === 0 && (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="animate-pulse flex gap-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="h-10 w-10 bg-muted rounded shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="h-8 w-16 bg-muted rounded" />
+                    <div className="h-8 w-20 bg-muted rounded" />
+                  </div>
+                </div>
+              ))}
+              <p className="text-sm text-center text-muted-foreground py-2">
+                AI is generating line items...
+              </p>
+            </div>
+          )}
+          
           {items.map((item, index) => (
             <div key={index} className="relative pb-3 border-b border-border last:border-b-0">
               {/* Delete Button - Mobile: Top Right */}
@@ -2032,8 +2102,32 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                       </div>
                     </div>
                     <div>
+                      <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1.5 block">
+                        Labor Charge Type
+                      </Label>
+                      <Select
+                        value={laborChargeType}
+                        onValueChange={(value) => setLaborChargeType(value as LaborChargeType)}
+                        disabled={loadingMarkup}
+                      >
+                        <SelectTrigger id="labor-charge-type-desktop" className="bg-background">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={LaborChargeType.HOURLY}>Hourly Rate</SelectItem>
+                          <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
+                          <SelectItem value={LaborChargeType.CREW_PER_DAY}>Crew Per Day</SelectItem>
+                          <SelectItem value={LaborChargeType.PER_UNIT}>Per Unit</SelectItem>
+                          <SelectItem value={LaborChargeType.PER_ROOM}>Per Room</SelectItem>
+                          <SelectItem value={LaborChargeType.PER_CUBIC_YARD}>Per Cubic Yard</SelectItem>
+                          <SelectItem value={LaborChargeType.FLAT_RATE}>Flat Rate</SelectItem>
+                          <SelectItem value={LaborChargeType.TIME_AND_MATERIALS}>Time & Materials</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1.5 block">
-                        Labor Rate (per hour)
+                        Labor Rate
                       </Label>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">$</span>
@@ -2042,21 +2136,21 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                           type="number"
                           min="0"
                           step="0.01"
-                          value={laborRatePerHour === 0 ? "" : laborRatePerHour}
+                          value={laborRateValue === 0 ? "" : laborRateValue}
                           onChange={(e) => {
                             const val = e.target.value
                             if (val === "") {
-                              setLaborRatePerHour(0)
+                              setLaborRateValue(0)
                             } else {
                               const num = parseFloat(val) || 0
-                              setLaborRatePerHour(Math.max(0, num))
+                              setLaborRateValue(Math.max(0, num))
                             }
                           }}
                           placeholder="75.00"
                           className="bg-background"
                           disabled={loadingMarkup}
                         />
-                        <span className="text-sm text-muted-foreground">/hr</span>
+                        <span className="text-sm text-muted-foreground">{getRateLabelSuffix(laborChargeType, laborUnitType)}</span>
                       </div>
                     </div>
                   </div>
@@ -2065,12 +2159,12 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                     const wordCount = desc ? desc.split(/\s+/).length : 0
                     const tooShort = desc.length < 30 || wordCount < 6
                     return (
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex flex-col gap-2 w-full">
                     <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                       {aiLoading ? (
                         <span className="inline-flex items-center gap-2">
-                          <span className="h-3 w-3 animate-ping rounded-full bg-purple-500" />
-                          Generating AI Estimate...
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          {aiLoadingMessages[aiLoadingStage]}
                         </span>
                       ) : (
                         <>
@@ -2081,7 +2175,20 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
                         </>
                       )}
                     </Button>
-                    {tooShort && (
+                    {aiLoading && (
+                      <div className="w-full space-y-2">
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-1000 ease-out"
+                            style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                          This usually takes 15-30 seconds
+                        </p>
+                      </div>
+                    )}
+                    {!aiLoading && tooShort && (
                       <p className="text-xs text-muted-foreground w-full">
                         Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
                       </p>

@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api } from "@/lib/api"
-import { ContractorProfile } from "@/lib/types"
+import { ContractorProfile, LaborChargeType, UnitType, getLaborChargeTypeLabel, getUnitTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
@@ -41,7 +42,10 @@ export function SettingsTabs() {
     address: "",
     website_url: "",
     default_zip_code: "",
-    default_labor_rate_per_hour: "",
+    default_labor_charge_type: LaborChargeType.HOURLY as LaborChargeType,
+    default_labor_rate_value: "",
+    default_labor_unit_type: "" as UnitType | "",
+    default_t_and_m_material_markup_percent: "",
     default_sales_tax_rate: "",
     default_markup_percentage: "",
     low_tier_markup: "",
@@ -70,7 +74,10 @@ export function SettingsTabs() {
         address: data.address || "",
         website_url: data.website_url || "",
         default_zip_code: data.default_zip_code || "",
-        default_labor_rate_per_hour: data.default_labor_rate_per_hour?.toString() || "",
+        default_labor_charge_type: data.default_labor_charge_type || LaborChargeType.HOURLY,
+        default_labor_rate_value: data.default_labor_rate_value?.toString() || "",
+        default_labor_unit_type: data.default_labor_unit_type || "",
+        default_t_and_m_material_markup_percent: data.default_t_and_m_material_markup_percent?.toString() || "",
         default_sales_tax_rate: data.default_sales_tax_rate?.toString() || "",
         default_markup_percentage: data.default_markup_percentage?.toString() || "",
         low_tier_markup: data.low_tier_markup?.toString() || "",
@@ -100,17 +107,32 @@ export function SettingsTabs() {
     }
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       setLogoFile(file)
       
-      // Create preview
+      // Create preview immediately
       const reader = new FileReader()
       reader.onloadend = () => {
         setLogoPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
+      
+      // Auto-upload the logo
+      try {
+        setIsSaving(true)
+        setError("")
+        await api.uploadLogo(file)
+        setSuccessMessage("Logo uploaded successfully!")
+        setLogoFile(null)
+        await loadProfile()
+        setTimeout(() => setSuccessMessage(""), 3000)
+      } catch (err: any) {
+        setError(err.message || "Failed to upload logo")
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -145,7 +167,7 @@ export function SettingsTabs() {
         address: formData.address || null,
         website_url: formData.website_url || null,
         default_zip_code: formData.default_zip_code || null,
-        default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
+        default_labor_rate_value: parseFloat(formData.default_labor_rate_value),
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
         default_markup_percentage: parseFloat(formData.default_markup_percentage),
         low_tier_markup: parseFloat(formData.low_tier_markup),
@@ -202,22 +224,40 @@ export function SettingsTabs() {
             <h2 className="sr-only">{t('businessInfo')}</h2>
             {/* ID-style layout: photo left, details right */}
             <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
-              {/* Photo / logo area — no "Company Logo" label */}
+              {/* Photo / logo area */}
               <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
-                <div className="relative h-28 w-28 rounded-xl border-2 border-border overflow-hidden bg-muted flex items-center justify-center">
-                  {logoPreview ? (
-                    <Image
-                      src={logoPreview}
-                      alt=""
-                      fill
-                      className="object-contain p-2"
-                    />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSaving}
+                  className="relative h-28 w-28 rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted flex items-center justify-center cursor-pointer hover:border-primary hover:bg-muted/80 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      <span className="text-xs text-muted-foreground">Uploading...</span>
+                    </div>
+                  ) : logoPreview ? (
+                    <>
+                      <Image
+                        src={logoPreview}
+                        alt="Company logo"
+                        fill
+                        className="object-contain p-2"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">Change</span>
+                      </div>
+                    </>
                   ) : (
-                    <span className="text-3xl font-bold text-muted-foreground">
-                      {(formData.company_name || "?").charAt(0).toUpperCase()}
-                    </span>
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors">
+                      <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs font-medium">Add Logo</span>
+                    </div>
                   )}
-                </div>
+                </button>
                 <input
                   ref={fileInputRef}
                   id="logo-upload"
@@ -226,29 +266,8 @@ export function SettingsTabs() {
                   onChange={handleLogoChange}
                   className="hidden"
                 />
-                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSaving}
-                  >
-                    {t('chooseFile')}
-                  </Button>
-                  {logoFile && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleUploadLogo}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? t('uploading') : t('uploadLogo')}
-                    </Button>
-                  )}
-                </div>
                 <p className="text-xs text-muted-foreground text-center sm:text-left max-w-[11rem]">
-                  Square, 200×200px min. PNG or JPG.
+                  Click to upload. Square, 200×200px min.
                 </p>
               </div>
 
@@ -360,117 +379,198 @@ export function SettingsTabs() {
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Pricing & Rates</h2>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="labor-rate">Default Labor Rate ($/hour)</Label>
-                <Input
-                  id="labor-rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="75.00"
-                  value={formData.default_labor_rate_per_hour}
-                  onChange={(e) => setFormData({ ...formData, default_labor_rate_per_hour: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tax-rate">Sales Tax Rate (%)</Label>
-                <Input
-                  id="tax-rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="8.25"
-                  value={formData.default_sales_tax_rate}
-                  onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-            </div>
+        <Card className="overflow-hidden border-2 border-border/80 shadow-sm">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold mb-1">Pricing & Rates</h2>
+            <p className="text-sm text-muted-foreground mb-6">Set your default labor rates and pricing preferences</p>
             
-            <div className="space-y-2">
-              <Label htmlFor="default-markup">Default Markup (%)</Label>
-              <Input
-                id="default-markup"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                placeholder="20.00"
-                value={formData.default_markup_percentage}
-                onChange={(e) => setFormData({ ...formData, default_markup_percentage: e.target.value })}
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Default markup percentage applied to materials and services
-              </p>
+            {/* Labor Settings */}
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="labor-charge-type" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Labor Charge Type</Label>
+                  <Select
+                    value={formData.default_labor_charge_type || LaborChargeType.HOURLY}
+                    onValueChange={(value) => setFormData({ ...formData, default_labor_charge_type: value as LaborChargeType })}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger id="labor-charge-type">
+                      <SelectValue placeholder="Select labor charge type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={LaborChargeType.HOURLY}>Hourly Rate</SelectItem>
+                      <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
+                      <SelectItem value={LaborChargeType.CREW_PER_DAY}>Crew Per Day</SelectItem>
+                      <SelectItem value={LaborChargeType.PER_UNIT}>Per Unit</SelectItem>
+                      <SelectItem value={LaborChargeType.PER_ROOM}>Per Room</SelectItem>
+                      <SelectItem value={LaborChargeType.PER_CUBIC_YARD}>Per Cubic Yard</SelectItem>
+                      <SelectItem value={LaborChargeType.FLAT_RATE}>Flat Rate</SelectItem>
+                      <SelectItem value={LaborChargeType.TIME_AND_MATERIALS}>Time & Materials</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="labor-rate-value" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Labor Rate ($
+                    {getRateLabelSuffix(
+                      formData.default_labor_charge_type as LaborChargeType || LaborChargeType.HOURLY,
+                      formData.default_labor_unit_type as UnitType
+                    )})
+                  </Label>
+                  <Input
+                    id="labor-rate-value"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="75.00"
+                    value={formData.default_labor_rate_value || ''}
+                    onChange={(e) => setFormData({ ...formData, default_labor_rate_value: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+
+                {/* Unit type selector - only shown for PER_UNIT */}
+                {formData.default_labor_charge_type === LaborChargeType.PER_UNIT && (
+                  <div className="space-y-2">
+                    <Label htmlFor="labor-unit-type" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Unit Type</Label>
+                    <Select
+                      value={formData.default_labor_unit_type || UnitType.SQ_FT}
+                      onValueChange={(value) => setFormData({ ...formData, default_labor_unit_type: value as UnitType })}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger id="labor-unit-type">
+                        <SelectValue placeholder="Select unit type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={UnitType.SQ_FT}>Square Feet</SelectItem>
+                        <SelectItem value={UnitType.LINEAR_FT}>Linear Feet</SelectItem>
+                        <SelectItem value={UnitType.SHEET}>Sheet</SelectItem>
+                        <SelectItem value={UnitType.PIECE}>Piece</SelectItem>
+                        <SelectItem value={UnitType.WINDOW}>Window</SelectItem>
+                        <SelectItem value={UnitType.DOOR}>Door</SelectItem>
+                        <SelectItem value={UnitType.CABINET}>Cabinet</SelectItem>
+                        <SelectItem value={UnitType.SQUARE_100_SQFT}>Square (100 sqft)</SelectItem>
+                        <SelectItem value={UnitType.ROOM}>Room</SelectItem>
+                        <SelectItem value={UnitType.CUBIC_YARD}>Cubic Yard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* T&M material markup - only shown for Time & Materials */}
+                {formData.default_labor_charge_type === LaborChargeType.TIME_AND_MATERIALS && (
+                  <div className="space-y-2">
+                    <Label htmlFor="t-and-m-markup" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">T&M Material Markup (%)</Label>
+                    <Input
+                      id="t-and-m-markup"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="15.00"
+                      value={formData.default_t_and_m_material_markup_percent || ''}
+                      onChange={(e) => setFormData({ ...formData, default_t_and_m_material_markup_percent: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Tax & Markup Settings */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="tax-rate" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sales Tax Rate (%)</Label>
+                  <Input
+                    id="tax-rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="8.25"
+                    value={formData.default_sales_tax_rate}
+                    onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="default-markup" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Markup (%)</Label>
+                  <Input
+                    id="default-markup"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="20.00"
+                    value={formData.default_markup_percentage}
+                    onChange={(e) => setFormData({ ...formData, default_markup_percentage: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+
+              {false && (
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold mb-3">Quote Tier Markups</h3>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="low-markup" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Low Tier (%)</Label>
+                    <Input
+                      id="low-markup"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="15.00"
+                      value={formData.low_tier_markup}
+                      onChange={(e) => setFormData({ ...formData, low_tier_markup: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mid-markup" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mid Tier (%)</Label>
+                    <Input
+                      id="mid-markup"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="30.00"
+                      value={formData.mid_tier_markup}
+                      onChange={(e) => setFormData({ ...formData, mid_tier_markup: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="high-markup" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">High Tier (%)</Label>
+                    <Input
+                      id="high-markup"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="50.00"
+                      value={formData.high_tier_markup}
+                      onChange={(e) => setFormData({ ...formData, high_tier_markup: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  These markups are used when generating multi-tier quotes for customers
+                </p>
+              </div>
+              )}
             </div>
 
-            {false && (
-            <div className="pt-4 border-t">
-              <h3 className="text-sm font-semibold mb-3">Quote Tier Markups</h3>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="low-markup">Low Tier (%)</Label>
-                  <Input
-                    id="low-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="15.00"
-                    value={formData.low_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, low_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mid-markup">Mid Tier (%)</Label>
-                  <Input
-                    id="mid-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="30.00"
-                    value={formData.mid_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, mid_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="high-markup">High Tier (%)</Label>
-                  <Input
-                    id="high-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="50.00"
-                    value={formData.high_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, high_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                These markups are used when generating multi-tier quotes for customers
-              </p>
+            <div className="mt-6 pt-6 border-t flex gap-2">
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? t('saving') : t('saveChanges')}
+              </Button>
+              <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
+                {tCommon('cancel')}
+              </Button>
             </div>
-            )}
-          </div>
-          <div className="mt-6 flex gap-2">
-            <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? t('saving') : t('saveChanges')}
-            </Button>
-            <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              {tCommon('cancel')}
-            </Button>
           </div>
         </Card>
       </TabsContent>
