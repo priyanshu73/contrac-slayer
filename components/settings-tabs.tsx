@@ -1,38 +1,145 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { api } from "@/lib/api"
-import { ContractorProfile } from "@/lib/types"
+import { ContractorProfile, LaborChargeType, UnitType } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil } from "lucide-react"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
+
+type SettingsSection = "business" | "billing" | "language"
+
+// Skeleton component for loading states
+function SettingsSkeleton() {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Tabs Skeleton */}
+      <div className="px-4 sm:px-8 md:px-12 lg:px-16 pt-4 sm:pt-6 pb-3 sm:pb-4">
+        <div className="max-w-6xl mx-auto flex gap-1.5 sm:gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-1 h-9 sm:h-10 bg-slate-200 rounded-full animate-pulse" />
+          ))}
+        </div>
+      </div>
+      
+      {/* Content Skeleton */}
+      <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Business Card Skeleton */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+              {/* Logo Skeleton */}
+              <div className="flex flex-col items-center sm:items-start flex-shrink-0">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-lg bg-slate-200 animate-pulse" />
+                <div className="h-8 w-24 bg-slate-100 rounded mt-3 animate-pulse" />
+                <div className="h-3 w-28 bg-slate-100 rounded mt-2 animate-pulse" />
+              </div>
+              
+              {/* Form Fields Skeleton */}
+              <div className="flex-1 space-y-4 sm:space-y-5">
+                {/* Row 1 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 2 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 3 */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Website */}
+                <div className="space-y-2">
+                  <div className="h-3 w-16 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+                {/* Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <div className="h-10 w-28 bg-slate-200 rounded-lg animate-pulse" />
+                  <div className="h-10 w-20 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Pricing Card Skeleton */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+            <div className="mb-4 sm:mb-6">
+              <div className="h-5 w-32 bg-slate-200 rounded animate-pulse" />
+              <div className="h-3 w-64 bg-slate-100 rounded mt-2 animate-pulse" />
+            </div>
+            {/* Labor Rate Highlight */}
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 border border-blue-100">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                  <div className="h-4 w-20 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-8 w-24 bg-slate-200 rounded mt-2 animate-pulse" />
+                </div>
+                <div className="h-8 w-28 bg-white rounded-lg animate-pulse" />
+              </div>
+              <div className="h-11 bg-white rounded-lg mt-4 animate-pulse" />
+            </div>
+            {/* Tax & Markup */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-11 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+              ))}
+            </div>
+            {/* Buttons */}
+            <div className="flex gap-3 pt-4 mt-4 border-t border-slate-100">
+              <div className="h-10 w-28 bg-slate-200 rounded-lg animate-pulse" />
+              <div className="h-10 w-20 bg-slate-100 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
   const locale = useLocale()
   const t = useTranslations('settings')
   const tAuth = useTranslations('auth')
-  const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isManagingSubscription, setIsManagingSubscription] = useState(false)
+  const [activeSection, setActiveSection] = useState<SettingsSection>("business")
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -41,18 +148,29 @@ export function SettingsTabs() {
     address: "",
     website_url: "",
     default_zip_code: "",
-    default_labor_rate_per_hour: "",
+    default_labor_charge_type: LaborChargeType.HOURLY as LaborChargeType,
+    default_labor_rate_value: "",
+    default_labor_unit_type: "" as UnitType | "",
+    default_t_and_m_material_markup_percent: "",
     default_sales_tax_rate: "",
     default_markup_percentage: "",
     low_tier_markup: "",
     mid_tier_markup: "",
     high_tier_markup: "",
   })
+
+  const [initialFormData, setInitialFormData] = useState(formData)
+  
   const CONTRACTOR_OPS_AI_NUMBER_KEY = "contractorOpsAiNumber"
   const [contractorOpsAiNumber, setContractorOpsAiNumber] = useState<string | null>(() => {
     if (typeof window === "undefined") return null
     return localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
   })
+
+  // Check if form has unsaved changes (dirty state)
+  const isDirty = useMemo(() => {
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData)
+  }, [formData, initialFormData])
 
   useEffect(() => {
     loadProfile()
@@ -63,22 +181,28 @@ export function SettingsTabs() {
       setIsLoading(true)
       const data = await api.getMyProfile()
       setProfile(data)
-      setFormData({
+      const newFormData = {
         company_name: data.company_name || "",
         email: data.email || "",
         phone_number: data.phone_number || "",
         address: data.address || "",
         website_url: data.website_url || "",
         default_zip_code: data.default_zip_code || "",
-        default_labor_rate_per_hour: data.default_labor_rate_per_hour?.toString() || "",
+        default_labor_charge_type: data.default_labor_charge_type || LaborChargeType.HOURLY,
+        default_labor_rate_value: data.default_labor_rate_value?.toString() || "",
+        default_labor_unit_type: (data.default_labor_unit_type || "") as UnitType | "",
+        default_t_and_m_material_markup_percent: data.default_t_and_m_material_markup_percent?.toString() || "",
         default_sales_tax_rate: data.default_sales_tax_rate?.toString() || "",
         default_markup_percentage: data.default_markup_percentage?.toString() || "",
         low_tier_markup: data.low_tier_markup?.toString() || "",
         mid_tier_markup: data.mid_tier_markup?.toString() || "",
         high_tier_markup: data.high_tier_markup?.toString() || "",
-      })
+      }
+      setFormData(newFormData)
+      setInitialFormData(newFormData)
       setLogoPreview(data.logo_url || null)
-      // Load ContractorOpsAI number: show from localStorage first, then fetch and cache
+      
+      // Load ContractorOpsAI number
       const cached = typeof window !== "undefined" ? localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY) : null
       if (cached) setContractorOpsAiNumber(cached)
       try {
@@ -100,35 +224,30 @@ export function SettingsTabs() {
     }
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
-      setLogoFile(file)
       
-      // Create preview
+      // Create preview immediately
       const reader = new FileReader()
       reader.onloadend = () => {
         setLogoPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
-    }
-  }
-
-  const handleUploadLogo = async () => {
-    if (!logoFile) return
-    
-    try {
-      setIsSaving(true)
-      setError("")
-      const result = await api.uploadLogo(logoFile)
-      setSuccessMessage("Logo uploaded successfully!")
-      setLogoFile(null)
-      await loadProfile()
-      setTimeout(() => setSuccessMessage(""), 3000)
-    } catch (err: any) {
-      setError(err.message || "Failed to upload logo")
-    } finally {
-      setIsSaving(false)
+      
+      // Auto-upload the logo
+      try {
+        setIsSaving(true)
+        setError("")
+        await api.uploadLogo(file)
+        setSuccessMessage("Logo uploaded successfully!")
+        await loadProfile()
+        setTimeout(() => setSuccessMessage(""), 3000)
+      } catch (err: any) {
+        setError(err.message || "Failed to upload logo")
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -145,7 +264,9 @@ export function SettingsTabs() {
         address: formData.address || null,
         website_url: formData.website_url || null,
         default_zip_code: formData.default_zip_code || null,
-        default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
+        default_labor_charge_type: formData.default_labor_charge_type,
+        default_labor_rate_value: parseFloat(formData.default_labor_rate_value),
+        default_labor_unit_type: formData.default_labor_unit_type || null,
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
         default_markup_percentage: parseFloat(formData.default_markup_percentage),
         low_tier_markup: parseFloat(formData.low_tier_markup),
@@ -163,610 +284,570 @@ export function SettingsTabs() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
-      </div>
-    )
+  const getRateSuffix = () => {
+    if (formData.default_labor_charge_type === LaborChargeType.PER_UNIT && formData.default_labor_unit_type === UnitType.SQ_FT) {
+      return "/sq ft"
+    }
+    if (formData.default_labor_charge_type === LaborChargeType.PER_DAY) {
+      return "/day"
+    }
+    return "/hr"
   }
 
+  if (isLoading) {
+    return <SettingsSkeleton />
+  }
+
+  const sidebarItems = [
+    { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "billing" as const, label: "Billing", icon: CreditCard },
+    { id: "language" as const, label: t('language'), icon: Globe },
+  ]
+
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="business" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-        <TabsTrigger value="business">{t('business')}</TabsTrigger>
-        <TabsTrigger value="billing">Billing</TabsTrigger>
-        <TabsTrigger value="language">{t('language')}</TabsTrigger>
-      </TabsList>
-
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="bg-green-500/10 text-green-500 px-4 py-3 rounded-lg text-sm">
-          {successMessage}
+    <TooltipProvider>
+      <div className="min-h-screen bg-slate-50">
+        {/* Horizontal Tabs */}
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 pt-4 sm:pt-6 pb-3 sm:pb-4">
+          <div className="max-w-6xl mx-auto flex gap-1.5 sm:gap-2">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-center rounded-full transition-colors ${
+                  activeSection === item.id
+                    ? "border-2 border-blue-500 text-slate-900 bg-white"
+                    : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
-      {error && (
-        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
 
-      {/* Business Settings — single ID-style card: logo + business info */}
-      <TabsContent value="business" className="space-y-6">
-        <Card className="overflow-hidden border-2 border-border/80 shadow-sm">
-          <div className="p-6">
-            <h2 className="sr-only">{t('businessInfo')}</h2>
-            {/* ID-style layout: photo left, details right */}
-            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
-              {/* Photo / logo area — no "Company Logo" label */}
-              <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
-                <div className="relative h-28 w-28 rounded-xl border-2 border-border overflow-hidden bg-muted flex items-center justify-center">
-                  {logoPreview ? (
-                    <Image
-                      src={logoPreview}
-                      alt=""
-                      fill
-                      className="object-contain p-2"
-                    />
-                  ) : (
-                    <span className="text-3xl font-bold text-muted-foreground">
-                      {(formData.company_name || "?").charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <input
-                  ref={fileInputRef}
-                  id="logo-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoChange}
-                  className="hidden"
-                />
-                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSaving}
-                  >
-                    {t('chooseFile')}
-                  </Button>
-                  {logoFile && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleUploadLogo}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? t('uploading') : t('uploadLogo')}
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground text-center sm:text-left max-w-[11rem]">
-                  Square, 200×200px min. PNG or JPG.
-                </p>
+        {/* Success/Error Messages - Fixed position */}
+        {(successMessage || error) && (
+          <div className="fixed top-16 right-6 z-50 animate-in slide-in-from-top-2">
+            {successMessage && (
+              <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg text-sm border border-emerald-200 shadow-lg">
+                {successMessage}
               </div>
+            )}
+            {error && (
+              <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 shadow-lg">
+                {error}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Business details — ID-style lines */}
-              <div className="flex-1 min-w-0 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="business-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('companyName')} *</Label>
-                    <Input
-                      id="business-name"
-                      placeholder="Your Company Name"
-                      value={formData.company_name}
-                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                      disabled={isSaving}
-                      className="font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="business-email" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('businessEmail')} *</Label>
-                    <Input
-                      id="business-email"
-                      type="email"
-                      placeholder="contact@yourcompany.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      disabled={isSaving}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="business-phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('phoneNumber')}</Label>
-                    <Input
-                      id="business-phone"
-                      placeholder="(555) 123-4567"
-                      value={formData.phone_number}
-                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contractor-ops-ai-number" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('contractorOpsAiNumber')}</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="contractor-ops-ai-number"
-                        readOnly
-                        className="bg-muted cursor-text select-all font-mono text-sm"
-                        value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : ""}
-                        placeholder={t('contractorOpsAiNumberPlaceholder')}
-                      />
-                      {contractorOpsAiNumber && (
+        {/* Main Content */}
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6 pb-24 sm:pb-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Business Section */}
+            {activeSection === "business" && (
+              <div className="space-y-6">
+                {/* Business Information Card - Combined */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                      {/* Logo Section - Left Side */}
+                      <div className="flex flex-col items-center sm:items-start flex-shrink-0">
+                        <div className={`w-20 h-20 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 ${
+                          isSaving ? "opacity-50" : ""
+                        }`}>
+                          {logoPreview ? (
+                            <Image
+                              src={logoPreview}
+                              alt="Company logo"
+                              width={112}
+                              height={112}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-slate-50 flex items-center justify-center">
+                              <span className="text-3xl font-bold text-slate-300">
+                                {formData.company_name?.charAt(0)?.toUpperCase() || "C"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon"
-                          onClick={() => navigator.clipboard.writeText(contractorOpsAiNumber)}
-                          title="Copy"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSaving}
+                          className="mt-3 text-sm"
                         >
-                          <Copy className="h-4 w-4" />
+                          Choose File
                         </Button>
-                      )}
+                        <p className="text-xs text-slate-400 mt-2 text-center sm:text-left">
+                          Square, 200×200px min.<br />PNG or JPG.
+                        </p>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
+                      </div>
+
+                      {/* Form Fields - Right Side */}
+                      <div className="flex-1 space-y-4 sm:space-y-5">
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="company-name" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('companyName')} *
+                            </Label>
+                            <Input
+                              id="company-name"
+                              placeholder="Your Company Name"
+                              value={formData.company_name}
+                              onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('businessEmail')} *
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="contact@company.com"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('phoneNumber')}
+                            </Label>
+                            <Input
+                              id="phone"
+                              placeholder="(555) 123-4567"
+                              value={formData.phone_number}
+                              onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                              ContractorOpsAI Number
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="contractorops-number"
+                                value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
+                                readOnly
+                                disabled
+                                className="h-10 bg-blue-50 border-blue-200 text-slate-900 font-mono font-medium pr-10"
+                              />
+                              {contractorOpsAiNumber && (
+                                <button
+                                  type="button"
+                                  onClick={() => navigator.clipboard.writeText(contractorOpsAiNumber)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700 transition-colors"
+                                  title="Copy number"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Business Address & Zip */}
+                        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('businessAddress')}
+                            </Label>
+                            <Input
+                              id="address"
+                              placeholder="123 Main Street, City, State ZIP"
+                              value={formData.address}
+                              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="default-zip" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('defaultZipCode')}
+                            </Label>
+                            <Input
+                              id="default-zip"
+                              placeholder="90210"
+                              value={formData.default_zip_code}
+                              onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Website */}
+                        <div className="space-y-2">
+                          <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {t('website')}
+                          </Label>
+                          <Input
+                            id="website"
+                            placeholder="https://yourcompany.com"
+                            value={formData.website_url}
+                            onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                            disabled={isSaving}
+                            className="h-10 border-slate-200"
+                          />
+                        </div>
+
+                        {/* Save/Cancel Buttons */}
+                        <div className="flex gap-3 pt-2">
+                          <Button
+                            type="button"
+                            onClick={handleSaveProfile}
+                            disabled={isSaving || !isDirty}
+                          >
+                            {isSaving ? "Saving..." : "Save Changes"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setFormData(initialFormData)
+                            }}
+                            disabled={isSaving || !isDirty}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="business-address" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('businessAddress')}</Label>
-                    <Input
-                      id="business-address"
-                      placeholder="123 Main Street, City, State ZIP"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="default-zip" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('defaultZipCode')}</Label>
-                    <Input
-                      id="default-zip"
-                      placeholder="90210"
-                      value={formData.default_zip_code}
-                      onChange={(e) => setFormData({ ...formData, default_zip_code: e.target.value })}
-                      disabled={isSaving}
-                      className="font-mono"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="business-website" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('website')}</Label>
-                    <Input
-                      id="business-website"
-                      placeholder="https://yourcompany.com"
-                      value={formData.website_url}
-                      onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                      disabled={isSaving}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="mt-6 pt-6 border-t flex gap-2">
-              <Button onClick={handleSaveProfile} disabled={isSaving}>
-                {isSaving ? t('saving') : t('saveChanges')}
-              </Button>
-              <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-                {tCommon('cancel')}
-              </Button>
-            </div>
-          </div>
-        </Card>
+                {/* Pricing & Rates Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <div className="mb-4 sm:mb-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">{t('pricingRates')}</h3>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1">{t('pricingRatesDesc')}</p>
+                    </div>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Pricing & Rates</h2>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="labor-rate">Default Labor Rate ($/hour)</Label>
-                <Input
-                  id="labor-rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="75.00"
-                  value={formData.default_labor_rate_per_hour}
-                  onChange={(e) => setFormData({ ...formData, default_labor_rate_per_hour: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tax-rate">Sales Tax Rate (%)</Label>
-                <Input
-                  id="tax-rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="8.25"
-                  value={formData.default_sales_tax_rate}
-                  onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="default-markup">Default Markup (%)</Label>
-              <Input
-                id="default-markup"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                placeholder="20.00"
-                value={formData.default_markup_percentage}
-                onChange={(e) => setFormData({ ...formData, default_markup_percentage: e.target.value })}
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Default markup percentage applied to materials and services
-              </p>
-            </div>
+                    {/* Labor Rate Highlight Card */}
+                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 border border-blue-100">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-600">{t('defaultLaborRateValue')}</span>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Info className="h-3.5 w-3.5 text-slate-400" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs text-xs">{t('laborRateTooltip')}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-3xl font-bold text-slate-900">
+                              ${formData.default_labor_rate_value || "0"}
+                            </span>
+                            <span className="text-lg text-slate-500">{getRateSuffix()}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-slate-200">
+                          <Select
+                            value={
+                              formData.default_labor_charge_type === LaborChargeType.PER_UNIT && formData.default_labor_unit_type === UnitType.SQ_FT
+                                ? "PER_SF"
+                                : formData.default_labor_charge_type || LaborChargeType.HOURLY
+                            }
+                            onValueChange={(value) => {
+                              if (value === "PER_SF") {
+                                setFormData({ 
+                                  ...formData, 
+                                  default_labor_charge_type: LaborChargeType.PER_UNIT,
+                                  default_labor_unit_type: UnitType.SQ_FT
+                                })
+                              } else {
+                                setFormData({ 
+                                  ...formData, 
+                                  default_labor_charge_type: value as LaborChargeType,
+                                  default_labor_unit_type: "" as UnitType | ""
+                                })
+                              }
+                            }}
+                            disabled={isSaving}
+                          >
+                            <SelectTrigger className="w-[120px] h-8 border-0 bg-transparent text-sm">
+                              <SelectValue placeholder="Rate type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={LaborChargeType.HOURLY}>Per Hour</SelectItem>
+                              <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
+                              <SelectItem value="PER_SF">Per sf</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="75.00"
+                            value={formData.default_labor_rate_value || ''}
+                            onChange={(e) => setFormData({ ...formData, default_labor_rate_value: e.target.value })}
+                            disabled={isSaving}
+                            className="h-11 pl-10 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-            {false && (
-            <div className="pt-4 border-t">
-              <h3 className="text-sm font-semibold mb-3">Quote Tier Markups</h3>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="low-markup">Low Tier (%)</Label>
-                  <Input
-                    id="low-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="15.00"
-                    value={formData.low_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, low_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mid-markup">Mid Tier (%)</Label>
-                  <Input
-                    id="mid-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="30.00"
-                    value={formData.mid_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, mid_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="high-markup">High Tier (%)</Label>
-                  <Input
-                    id="high-markup"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="50.00"
-                    value={formData.high_tier_markup}
-                    onChange={(e) => setFormData({ ...formData, high_tier_markup: e.target.value })}
-                    disabled={isSaving}
-                  />
+                    {/* Tax & Markup */}
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="tax-rate" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {t('salesTaxRate')}
+                          </Label>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3.5 w-3.5 text-slate-400" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs text-xs">{t('salesTaxTooltip')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="relative">
+                          <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            id="tax-rate"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            placeholder="8.25"
+                            value={formData.default_sales_tax_rate}
+                            onChange={(e) => setFormData({ ...formData, default_sales_tax_rate: e.target.value })}
+                            disabled={isSaving}
+                            className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="markup" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {t('defaultMarkup')}
+                          </Label>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3.5 w-3.5 text-slate-400" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs text-xs">{t('markupTooltip')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="relative">
+                          <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            id="markup"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            placeholder="20.00"
+                            value={formData.default_markup_percentage}
+                            onChange={(e) => setFormData({ ...formData, default_markup_percentage: e.target.value })}
+                            disabled={isSaving}
+                            className="h-11 pl-10 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Save/Cancel Buttons for Pricing */}
+                    <div className="flex gap-3 pt-4 mt-4 border-t border-slate-100">
+                      <Button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={isSaving || !isDirty}
+                      >
+                        {isSaving ? "Saving..." : "Save Changes"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setFormData(initialFormData)
+                        }}
+                        disabled={isSaving || !isDirty}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                These markups are used when generating multi-tier quotes for customers
-              </p>
-            </div>
             )}
-          </div>
-          <div className="mt-6 flex gap-2">
-            <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? t('saving') : t('saveChanges')}
-            </Button>
-            <Button variant="outline" onClick={loadProfile} disabled={isSaving}>
-              {tCommon('cancel')}
-            </Button>
-          </div>
-        </Card>
-      </TabsContent>
 
-      {/* Billing Settings */}
-      <TabsContent value="billing" className="space-y-6">
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Subscription</h2>
-          
-          {user?.has_access ? (
-            <div className="space-y-4">
-              {/* Current Plan Info */}
-              <div className="rounded-lg border border-border p-4 bg-muted/30">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.stripe_subscription_status === 'active' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : user.stripe_subscription_status === 'trialing'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  }`}>
-                    {user.stripe_subscription_status === 'trialing' ? 'Free Trial' : 
-                     user.stripe_subscription_status === 'active' ? 'Active' :
-                     user.stripe_subscription_status || 'Unknown'}
-                  </span>
+            {/* Billing Section */}
+            {activeSection === "billing" && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Subscription</h3>
+                  
+                  {user?.has_access ? (
+                    <div className="space-y-4">
+                      <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm text-slate-600">Status</span>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            user.stripe_subscription_status === 'active' 
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : user.stripe_subscription_status === 'trialing'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {user.stripe_subscription_status === 'trialing' ? 'Free Trial' : 
+                             user.stripe_subscription_status === 'active' ? 'Active' :
+                             user.stripe_subscription_status || 'Unknown'}
+                          </span>
+                        </div>
+                        
+                        {user.stripe_subscription_status === 'trialing' && user.stripe_trial_end && (
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-slate-600">Trial ends</span>
+                            <span className="text-sm font-medium text-slate-900">
+                              {new Date(user.stripe_trial_end).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {user.stripe_current_period_end && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-600">
+                              {user.stripe_subscription_status === 'trialing' ? 'First billing date' : 'Next billing date'}
+                            </span>
+                            <span className="text-sm font-medium text-slate-900">
+                              {new Date(user.stripe_current_period_end).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-sm text-slate-500">
+                        Manage your subscription, update payment method, or cancel your plan through the Stripe portal.
+                      </p>
+
+                      <Button
+                        onClick={async () => {
+                          setIsManagingSubscription(true)
+                          try {
+                            const baseUrl = window.location.origin
+                            const result = await api.createPortalSession({
+                              return_url: `${baseUrl}/${locale}/settings`,
+                            })
+                            window.location.href = result.url
+                          } catch (err: any) {
+                            setError(err.message || "Failed to open subscription portal")
+                            setIsManagingSubscription(false)
+                          }
+                        }}
+                        disabled={isManagingSubscription}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isManagingSubscription ? (
+                          <span className="flex items-center gap-2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Opening...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            Manage Subscription
+                            <ExternalLink className="h-3 w-3" />
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-600">Status</span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                            No active subscription
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-slate-500">
+                        Subscribe to get full access to all features including AI-powered quotes, lead management, and more.
+                      </p>
+
+                      <Button
+                        onClick={() => {
+                          window.location.href = `/${locale}/billing`
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <span className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          View Plans & Subscribe
+                        </span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                
-                {user.stripe_subscription_status === 'trialing' && user.stripe_trial_end && (
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Trial ends</span>
-                    <span className="text-sm font-medium">
-                      {new Date(user.stripe_trial_end).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
-                
-                {user.stripe_current_period_end && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {user.stripe_subscription_status === 'trialing' ? 'First billing date' : 'Next billing date'}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {new Date(user.stripe_current_period_end).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
               </div>
+            )}
 
-              <p className="text-sm text-muted-foreground">
-                Manage your subscription, update payment method, or cancel your plan through the Stripe portal.
-              </p>
+            {/* Language Section */}
+            {activeSection === "language" && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">{t('language')}</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">
+                    {t('chooseLanguageDesc')}
+                  </p>
+                  <div className="max-w-sm">
+                    <LanguageSelector />
+                  </div>
+                </div>
+              </div>
+            )}
 
-              <Button
-                onClick={async () => {
-                  setIsManagingSubscription(true)
-                  try {
-                    const baseUrl = window.location.origin
-                    const result = await api.createPortalSession({
-                      return_url: `${baseUrl}/${locale}/settings`,
-                    })
-                    window.location.href = result.url
-                  } catch (err: any) {
-                    setError(err.message || "Failed to open subscription portal")
-                    setIsManagingSubscription(false)
-                  }
-                }}
-                disabled={isManagingSubscription}
+            {/* Logout Section */}
+            <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-200">
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors"
               >
-                {isManagingSubscription ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Opening...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Manage Subscription
-                    <ExternalLink className="h-3 w-3" />
-                  </span>
-                )}
-              </Button>
+                <LogOut className="h-4 w-4" />
+                {tAuth('logout')}
+              </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border p-4 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
-                    No active subscription
-                  </span>
-                </div>
-              </div>
-              
-              <p className="text-sm text-muted-foreground">
-                Subscribe to get full access to all features including AI-powered quotes, lead management, and more.
-              </p>
-
-              <Button
-                onClick={() => {
-                  window.location.href = `/${locale}/billing`
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  View Plans & Subscribe
-                </span>
-              </Button>
-            </div>
-          )}
-        </Card>
-      </TabsContent>
-
-      {/* Integrations - Hidden for now, can be added back later by changing false to true */}
-      {false && (
-        <TabsContent value="integrations" className="space-y-6">
-          <Card className="p-6">
-            <h2 className="mb-4 text-lg font-semibold">Connected Integrations</h2>
-            <p className="mb-6 text-sm text-muted-foreground">
-              Manage your connected services and integrations to enhance your workflow.
-            </p>
-
-            <div className="space-y-4">
-              {/* Stripe Integration */}
-              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold">Stripe</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Accept payments and manage invoices</p>
-                    </div>
-                    <span className="rounded-full bg-[var(--status-active)]/10 px-2.5 py-1 text-xs font-medium text-[var(--status-active)]">
-                      Connected
-                    </span>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline">
-                      Configure
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Disconnect
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Email Integration */}
-              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold">Email Service</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Send invoices and notifications via email</p>
-                    </div>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                      Not Connected
-                    </span>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm">Connect</Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Calendar Integration */}
-              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold">Google Calendar</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Sync your jobs with Google Calendar</p>
-                    </div>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                      Not Connected
-                    </span>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm">Connect</Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* SMS Integration */}
-              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold">SMS Notifications</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Send text message reminders to clients</p>
-                    </div>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                      Not Connected
-                    </span>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm">Connect</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="border-primary/20 bg-primary/5 p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold">AI-Powered Features</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your AI Pricing Assistant is active and analyzing market rates to help you create competitive quotes.
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline">
-                    View AI Settings
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-      )}
-
-      {/* Language Settings */}
-      <TabsContent value="language" className="space-y-6">
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t('language')}</h2>
-          <p className="mb-6 text-sm text-muted-foreground">
-            {t('chooseLanguageDesc')}
-          </p>
-          <div className="max-w-sm">
-            <LanguageSelector />
           </div>
-        </Card>
-      </TabsContent>
-      </Tabs>
-
-      {/* Account Actions */}
-        <div className="space-y-4">
-          <div>
-            <h2 className="mb-2 text-lg font-semibold">{t('accountActions')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('signOutDesc')}
-            </p>
-          </div>
-          <Button 
-            onClick={logout} 
-            variant="outline"
-            className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive hover:text-destructive"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            {tAuth('logout')}
-          </Button>
         </div>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

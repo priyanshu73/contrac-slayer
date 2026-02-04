@@ -1,9 +1,7 @@
 "use client"
 
 import { StatsCardsReal } from "@/components/stats-cards-real"
-import { DashboardContractorOpsNumber } from "@/components/dashboard-contractor-ops-number"
-import { QuickActions } from "@/components/quick-actions"
-import { RecentLeadsReal } from "@/components/recent-leads-real"
+import { RecentQuotesReal } from "@/components/recent-quotes-real"
 import { UpcomingJobs } from "@/components/upcoming-jobs"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
@@ -17,18 +15,12 @@ export default function DashboardPage() {
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
-          {/* ContractorOps AI number - share with clients */}
-          <DashboardContractorOpsNumber />
-
           {/* Stats Overview */}
           <StatsCardsReal />
 
-          {/* Quick Actions */}
-          <QuickActions />
-
           {/* Recent Activity */}
           <div className="grid gap-6 md:grid-cols-2">
-            <RecentLeadsReal />
+            <RecentQuotesReal />
             <UpcomingJobs />
           </div>
         </div>

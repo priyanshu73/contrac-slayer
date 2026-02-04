@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -14,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Calendar, Trash2, RotateCcw } from "lucide-react"
+import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { api } from "@/lib/api"
@@ -39,23 +38,33 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
   const [restoring, setRestoring] = useState(false)
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "active":
-        return "bg-[var(--status-active)]/10 text-[var(--status-active)]"
-      case "inactive":
-        return "bg-muted text-muted-foreground"
+        return "bg-emerald-50 text-emerald-700 border-emerald-200"
+      case "archived":
+        return "bg-slate-100 text-slate-500 border-slate-200"
       default:
-        return "bg-muted text-muted-foreground"
+        return "bg-slate-100 text-slate-500 border-slate-200"
     }
   }
 
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="p-5 animate-pulse">
-            <div className="h-20 bg-muted rounded"></div>
-          </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 animate-pulse">
+            <div className="flex items-start gap-3">
+              <div className="h-12 w-12 rounded-xl bg-slate-100" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-32 bg-slate-100 rounded" />
+                <div className="h-3 w-24 bg-slate-100 rounded" />
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="h-3 w-full bg-slate-100 rounded" />
+              <div className="h-3 w-2/3 bg-slate-100 rounded" />
+            </div>
+          </div>
         ))}
       </div>
     )
@@ -63,39 +72,43 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
 
   if (clients.length === 0) {
     return (
-      <Card className="p-12 text-center">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-12 text-center">
         <div className="flex flex-col items-center justify-center gap-4">
-          <div className="rounded-full bg-muted p-6">
-            <svg className="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
+          <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
+            <Users className="h-8 w-8 text-slate-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold mb-1">No clients yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">No clients yet</h3>
+            <p className="text-sm text-slate-500 mb-4">
               Clients will appear here once you create quotes or invoices for them.
             </p>
+            <Button asChild>
+              <a href="/clients/new">Add your first client</a>
+            </Button>
           </div>
         </div>
-      </Card>
+      </div>
     )
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {clients.map((client) => (
-        <Card key={client.id} className="p-5 hover:shadow-md transition-shadow">
+        <div 
+          key={client.id} 
+          className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md hover:border-slate-200 transition-all"
+        >
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <span className="text-lg font-semibold">{(client.name || client.full_name || 'C').charAt(0).toUpperCase()}</span>
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold leading-tight">{client.name || client.full_name || "Unknown"}</h3>
-                <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-slate-900 leading-tight">{client.name || client.full_name || "Unknown"}</h3>
+                <div className="flex items-center gap-1">
                   {client.status && (
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(client.status)}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border ${getStatusColor(client.status)}`}
                     >
                       {client.status}
                     </span>
@@ -105,93 +118,65 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
                       title="Unarchive"
                       onClick={(e) => {
                         e.stopPropagation()
                         setRestoreTarget(client)
                       }}
                     >
-                      <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
+                      <RotateCcw className="h-3.5 w-3.5" aria-label="Unarchive" />
                     </Button>
                   ) : (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
                       title={tCommon("delete")}
                       onClick={(e) => {
                         e.stopPropagation()
                         setArchiveTarget(client)
                       }}
                     >
-                      <Trash2 className="h-4 w-4" aria-label={tCommon("delete")} />
+                      <Trash2 className="h-3.5 w-3.5" aria-label={tCommon("delete")} />
                     </Button>
                   )}
                 </div>
               </div>
               {client.email && (
-                <p className="mt-1 text-sm text-muted-foreground">{client.email}</p>
+                <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
               )}
             </div>
           </div>
 
           {(client.phone || client.address) && (
-            <div className="mt-4 space-y-2 text-sm">
+            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
               {client.phone && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <span>{formatPhoneForDisplay(client.phone)}</span>
                 </div>
               )}
               {client.address && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <span className="truncate flex-1">{client.address}</span>
-                  <Button variant="ghost" size="sm" asChild className="h-7 px-2 shrink-0">
-                    <a
-                      href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                        />
-                      </svg>
-                    </a>
-                  </Button>
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-slate-400 hover:text-primary transition-colors"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
                 </div>
               )}
             </div>
           )}
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
             <Button size="sm" className="flex-1" asChild>
               <Link href={`/clients/${client.id}`}>View Details</Link>
             </Button>
@@ -200,6 +185,7 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
               variant="outline"
               type="button"
               title={tClients("scheduleCall")}
+              className="border-slate-200 hover:bg-slate-50"
               onClick={(e) => {
                 e.stopPropagation()
                 onScheduleClick?.(client)
@@ -209,21 +195,14 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
               <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
             </Button>
             {client.phone && (
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="outline" className="border-slate-200 hover:bg-slate-50" asChild>
                 <a href={`tel:${client.phone}`}>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
+                  <Phone className="h-4 w-4" />
                 </a>
               </Button>
             )}
           </div>
-        </Card>
+        </div>
       ))}
 
       {/* Delete (Archive) Confirmation */}

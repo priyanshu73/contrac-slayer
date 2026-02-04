@@ -7,6 +7,7 @@ import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/compone
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useTranslations } from "next-intl"
+import { Plus } from "lucide-react"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([])
@@ -62,22 +63,24 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-slate-50">
+      {/* Main Content */}
+      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Search & Filters with Add Button */}
+          <div className="flex items-center gap-3">
             <div className="flex-1">
               <ClientsSearch showArchived={showArchived} onShowArchivedChange={setShowArchived} />
             </div>
-            <Button size="sm" asChild>
+            <Button asChild className="h-10">
               <a href="/clients/new">
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <Plus className="mr-2 h-4 w-4" />
                 {tClients("addClient")}
               </a>
             </Button>
           </div>
+          
+          {/* Clients Grid */}
           <ClientsList
             clients={clients}
             loading={loading}

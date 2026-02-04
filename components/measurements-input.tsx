@@ -87,7 +87,7 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => removeMeasurement(index)}
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
                   >
                     <X className="h-4 w-4" />
                   </Button>
