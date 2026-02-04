@@ -16,6 +16,7 @@ export default function ClientsPage() {
   const [createAppointmentOpen, setCreateAppointmentOpen] = useState(false)
   const [createAppointmentClientId, setCreateAppointmentClientId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const tClients = useTranslations("clients")
 
   useEffect(() => {
@@ -51,6 +52,22 @@ export default function ClientsPage() {
     }
   }
 
+  // Client-side filtering
+  const filteredClients = clients.filter((client) => {
+    if (!searchQuery) return true
+    
+    const query = searchQuery.toLowerCase()
+    const name = (client.name || client.full_name || "").toLowerCase()
+    const email = (client.email || "").toLowerCase()
+    const phone = (client.phone || "").toLowerCase()
+    const address = (client.address || "").toLowerCase()
+    
+    return name.includes(query) || 
+           email.includes(query) || 
+           phone.includes(query) ||
+           address.includes(query)
+  })
+
   const clientsForAppointment: CreateAppointmentClient[] = clients.map((c) => ({
     id: c.id,
     name: c.name || c.full_name || "",
@@ -70,7 +87,12 @@ export default function ClientsPage() {
           {/* Search & Filters with Add Button */}
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <ClientsSearch showArchived={showArchived} onShowArchivedChange={setShowArchived} />
+              <ClientsSearch 
+                showArchived={showArchived} 
+                onShowArchivedChange={setShowArchived}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
             </div>
             <Button asChild className="h-10">
               <a href="/clients/new">
@@ -82,7 +104,7 @@ export default function ClientsPage() {
           
           {/* Clients Grid */}
           <ClientsList
-            clients={clients}
+            clients={filteredClients}
             loading={loading}
             onScheduleClick={handleScheduleClick}
             onClientArchived={fetchClients}
