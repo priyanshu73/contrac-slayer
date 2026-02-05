@@ -818,6 +818,13 @@ class ApiClient {
       body: JSON.stringify({ address_id: addressId }),
     })
   }
+
+  async fetchPropertyInsightsDetails(addressId: number): Promise<{
+    address_id: number
+    property_metadata: Record<string, unknown> | null
+  }> {
+    return this.request(`/property-info/details?address_id=${encodeURIComponent(addressId)}`)
+  }
 }
 
 class ContractorAIClient {

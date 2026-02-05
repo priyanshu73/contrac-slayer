@@ -92,7 +92,13 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       
       // Add normalized address data if selected from Mapbox
       if (addressData) clientData.address_data = addressData
-      if (billingAddressData) clientData.billing_address_data = billingAddressData
+      if (billingSameAsAddress && addressData) {
+        // Link billing to same address id by sending same address data
+        clientData.billing_address_data = addressData
+        clientData.billing_address = formData.address.trim() || undefined
+      } else if (billingAddressData) {
+        clientData.billing_address_data = billingAddressData
+      }
 
       // Call API to create client
       const created = await api.createClient(clientData) as { id?: number; name?: string; email?: string } | undefined
