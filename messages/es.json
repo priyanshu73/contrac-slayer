@@ -389,7 +389,8 @@
     "markAsContacted": "Marcar como Contactado",
     "viewFullDetails": "Ver Detalles Completos",
     "noLeads": "No se encontraron prospectos",
-    "consolidated": "Consolidado"
+    "consolidated": "Consolidado",
+    "propertyInsights": "Datos del inmueble"
   },
   "clients": {
     "title": "Clientes",
@@ -405,6 +406,7 @@
     "address": "Dirección",
     "billingAddress": "Dirección de Facturación",
     "billingAddressHint": "Si es diferente a la dirección anterior",
+    "billingSameAsAddress": "Igual que la dirección anterior",
     "createClient": "Crear Cliente",
     "searchClients": "Buscar clientes por nombre, correo o teléfono...",
     "scheduleCall": "Programar una llamada"

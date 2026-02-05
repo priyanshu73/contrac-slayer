@@ -281,13 +281,13 @@ export function PersonalizedQuoteView({
 
   const quoteSignedByCustomer = Boolean(currentJob.signature?.customer_signed_at)
   const statusRequiresSignedQuote = (status: string) =>
-    status === "COMPLETED" || status === "PAID"
+    status === "ACCEPTED" || status === "IN_PROGRESS" || status === "COMPLETED" || status === "PAID"
 
   const handleStatusChange = async (newStatus: string) => {
     if (statusRequiresSignedQuote(newStatus) && !quoteSignedByCustomer) {
       toast({
         title: "Quote not signed",
-        description: "The customer must sign the quote before you can set status to Job Completed or Paid.",
+        description: "The customer must sign the quote before you can change the status to Accepted, Job In Progress, Job Completed, or Paid.",
         variant: "destructive",
       })
       return

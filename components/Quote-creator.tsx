@@ -382,13 +382,14 @@ function MaterialThumbnail({ src, alt, className, category, index }: {
 
 interface QuoteCreatorProps {
   leadId?: string | null
+  clientId?: string | null
   callLeadId?: string | null
   phone?: string | null
   quoteId?: string | null
   initialData?: any // Job/Quote data for editing
 }
 
-export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
@@ -484,6 +485,13 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
       fetchLeadData()
     }
   }, [leadId])
+
+  // Fetch client data if clientId is provided (e.g. /quotes/new?clientId=50)
+  useEffect(() => {
+    if (clientId) {
+      fetchClientData()
+    }
+  }, [clientId])
 
   // Fetch call lead data if callLeadId is provided
   // Also handle phone parameter if provided without callLeadId (fallback)
@@ -810,6 +818,30 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
     }
   }
 
+  const fetchClientData = async () => {
+    if (!clientId || isNaN(Number(clientId))) return
+    try {
+      setLoadingLead(true)
+      const data = await api.getClientDetails(parseInt(clientId, 10)) as {
+        id: number
+        name: string
+        email: string
+        phone?: string
+        address?: string
+        billing_address?: string
+      }
+      setSelectedClientId(data.id)
+      setClientName(data.name || "")
+      setClientEmail(data.email || "")
+      setClientPhone(data.phone || "")
+      setClientAddress(data.address || data.billing_address || "")
+    } catch (error) {
+      console.error("Failed to fetch client data:", error)
+    } finally {
+      setLoadingLead(false)
+    }
+  }
+
   const extractZipCode = (address: string): string | undefined => {
     // Extract 5-digit ZIP code from address
     const zipMatch = address.match(/\b\d{5}\b/)
@@ -929,7 +961,7 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         location_zip_code: zipCode,
         labor_charge_type: laborChargeType, // Send labor charge type from form
         labor_rate_value: laborRateValue, // Send unified labor rate from form
-        markup_percentage: markupPercentage, // Send markup from form
+        labor_unit_type: laborUnitType, // Send labor unit type from form when PER_UNIT
       }) as any
       
       // Validate response structure to prevent crashes

@@ -249,6 +249,12 @@ class ApiClient {
     formData.append('email', data.email)
     if (data.phone) formData.append('phone', data.phone)
     if (data.address) formData.append('address', data.address)
+    
+    // Add structured address data from Mapbox if available
+    if (data.address_data) {
+      formData.append('address_data', JSON.stringify(data.address_data))
+    }
+    
     if (data.project_type) formData.append('project_type', data.project_type)
     if (data.description) formData.append('description', data.description)
     
@@ -487,7 +493,7 @@ class ApiClient {
     location_zip_code?: string
     labor_charge_type?: string
     labor_rate_value?: number
-    markup_percentage?: number
+    labor_unit_type?: string
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)
     const startTime = Date.now()
@@ -797,6 +803,27 @@ class ApiClient {
     default_source: string
   }> {
     return this.request('/translate/languages')
+  }
+
+  // =========================
+  // Property Insights (RentCast)
+  // =========================
+  async fetchPropertyInsights(addressId: number): Promise<{
+    address_id: number
+    property_metadata: Record<string, unknown> | null
+    from_cache: boolean
+  }> {
+    return this.request('/property-info/fetch', {
+      method: 'POST',
+      body: JSON.stringify({ address_id: addressId }),
+    })
+  }
+
+  async fetchPropertyInsightsDetails(addressId: number): Promise<{
+    address_id: number
+    property_metadata: Record<string, unknown> | null
+  }> {
+    return this.request(`/property-info/details?address_id=${encodeURIComponent(addressId)}`)
   }
 }
 

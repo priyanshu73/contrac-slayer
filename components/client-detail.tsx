@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -34,9 +35,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { api } from "@/lib/api"
+import { formatAddressStreetForDisplay } from "@/lib/format-address"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2 } from "lucide-react"
+import { PropertyInsightsCard } from "@/components/property-insights-card"
 
 interface ClientDetailData {
   id: number
@@ -45,8 +48,10 @@ interface ClientDetailData {
   email: string
   phone?: string
   address?: string
+  address_data?: { id: number; street_line?: string } | null
   company_name?: string
   billing_address?: string
+  billing_address_data?: { id?: number; street_line?: string } | null
   tax_id?: string
   status: string
   notes?: string
@@ -107,6 +112,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [deleteDeleting, setDeleteDeleting] = useState(false)
+  const [billingSameAsAddress, setBillingSameAsAddress] = useState(true)
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -129,13 +135,17 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
   useEffect(() => {
     if (clientData && editOpen) {
+      const billing = clientData.billing_address ?? ""
+      const address = clientData.address ?? ""
+      const sameAs = !billing.trim() || billing === address
+      setBillingSameAsAddress(sameAs)
       setEditForm({
         name: clientData.name ?? "",
         email: clientData.email ?? "",
         phone: clientData.phone ?? "",
-        address: clientData.address ?? "",
+        address: address,
         company_name: clientData.company_name ?? "",
-        billing_address: clientData.billing_address ?? "",
+        billing_address: sameAs ? "" : billing,
         tax_id: clientData.tax_id ?? "",
         status: clientData.status ?? "ACTIVE",
         notes: clientData.notes ?? "",
@@ -179,7 +189,11 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       if (editForm.phone.trim()) payload.phone = editForm.phone.trim()
       if (editForm.address.trim()) payload.address = editForm.address.trim()
       if (editForm.company_name.trim()) payload.company_name = editForm.company_name.trim()
-      if (editForm.billing_address.trim()) payload.billing_address = editForm.billing_address.trim()
+      if (billingSameAsAddress) {
+        payload.billing_same_as_address = true
+      } else if (editForm.billing_address.trim()) {
+        payload.billing_address = editForm.billing_address.trim()
+      }
       if (editForm.tax_id.trim()) payload.tax_id = editForm.tax_id.trim()
       if (editForm.notes.trim()) payload.notes = editForm.notes.trim()
       if (editForm.preferred_contact_method.trim()) payload.preferred_contact_method = editForm.preferred_contact_method.trim()
@@ -371,10 +385,12 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               {clientData.address && (
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1">{clientData.address}</span>
+                  <span className="text-sm flex-1" title={clientData.address}>
+                    {formatAddressStreetForDisplay(clientData.address, clientData.address_data)}
+                  </span>
                   <Button variant="ghost" size="sm" asChild className="h-8 px-2">
                     <a
-                      href={`https://maps.google.com/?q=${encodeURIComponent(clientData.address)}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address)}`}
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -395,12 +411,12 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               {clientData.billing_address && clientData.billing_address !== clientData.address && (
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1">
-                    <span className="font-medium">Billing:</span> {clientData.billing_address}
+                  <span className="text-sm flex-1" title={clientData.billing_address}>
+                    <span className="font-medium">Billing:</span> {formatAddressStreetForDisplay(clientData.billing_address, clientData.billing_address_data)}
                   </span>
                   <Button variant="ghost" size="sm" asChild className="h-8 px-2">
                     <a
-                      href={`https://maps.google.com/?q=${encodeURIComponent(clientData.billing_address)}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`}
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -419,6 +435,17 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 </div>
               )}
             </div>
+
+            {/* Property insights (when normalized address is available: primary or billing) */}
+            {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
+              <div className="mt-4">
+                <PropertyInsightsCard
+                  addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
+                  title="Property insights"
+                  onRefresh={fetchClientDetails}
+                />
+              </div>
+            )}
 
             {/* Financial Summary */}
             <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-4">
@@ -749,13 +776,31 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-billing_address">Billing address</Label>
-              <Textarea
-                id="edit-billing_address"
-                value={editForm.billing_address}
-                onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))}
-                className="min-h-[80px]"
-              />
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="edit-billing_address">Billing address</Label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                  <Checkbox
+                    id="edit-billing-same-as"
+                    checked={billingSameAsAddress}
+                    onCheckedChange={(checked) => {
+                      setBillingSameAsAddress(checked === true)
+                      if (checked === true) setEditForm((f) => ({ ...f, billing_address: "" }))
+                    }}
+                  />
+                  <span>Same as above</span>
+                </label>
+              </div>
+              {billingSameAsAddress ? (
+                <p className="text-sm text-muted-foreground py-2">Using primary address above.</p>
+              ) : (
+                <Textarea
+                  id="edit-billing_address"
+                  value={editForm.billing_address}
+                  onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))}
+                  placeholder="Enter billing address if different"
+                  className="min-h-[80px]"
+                />
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

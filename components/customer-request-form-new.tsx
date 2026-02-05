@@ -14,6 +14,8 @@ import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { AddressData } from "@/lib/types/address"
 
 interface CustomerRequestFormProps {
   contractorUuid: string
@@ -34,6 +36,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState("")
+  const [addressData, setAddressData] = useState<AddressData | null>(null)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -53,7 +56,11 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
 
     try {
       const { api } = await import("@/lib/api")
-      await api.submitQuoteRequest(contractorUuid, formData, uploadedFiles, measurements)
+      const submissionData = {
+        ...formData,
+        ...(addressData && { address_data: addressData })
+      }
+      await api.submitQuoteRequest(contractorUuid, submissionData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")
@@ -271,16 +278,18 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="address">Project Address *</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="123 Main Street, City, State 12345"
-                required
-              />
-            </div>
+            <MapboxAddressInput
+              label="Project Address"
+              placeholder="Start typing the project address..."
+              required
+              onAddressSelect={(data) => {
+                setAddressData(data)
+                if (data) {
+                  setFormData({ ...formData, address: data.formatted_address || "" })
+                }
+              }}
+              defaultValue={formData.address}
+            />
           </div>
         </Card>
 
@@ -339,8 +348,8 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
             Adding measurements helps us provide more accurate estimates. You can add rooms, areas, or specific items that need work.
           </p>
           <MeasurementsInput
-            measurements={measurements}
-            onMeasurementsChange={setMeasurements}
+            value={measurements}
+            onChange={setMeasurements}
           />
         </Card>
 

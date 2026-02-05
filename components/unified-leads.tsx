@@ -13,8 +13,9 @@ import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound } from "lucide-react"
 import { TranslatableSection } from "@/components/translate-button"
+import { PropertyInsightsCard } from "@/components/property-insights-card"
 
 // ============================================
 // Translation Cache Utilities (localStorage)
@@ -163,6 +164,7 @@ interface UnifiedLead {
   email?: string
   phone?: string
   address?: string
+  address_data?: { id: number } | null
   
   // Project details
   project_type?: string
@@ -412,6 +414,7 @@ export function UnifiedLeads() {
         email: lead.email,
         phone: lead.phone,
         address: lead.address,
+        address_data: lead.address_data ?? undefined,
         project_type: lead.project_type,
         description: lead.description,
         estimated_value: lead.estimated_value,
@@ -1200,50 +1203,74 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           <>
             {/* Lead Details - Shows first on mobile, right side on desktop */}
             <div className="order-1 lg:order-2 w-full lg:w-80 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full">
-              {/* Contact Information */}
-              <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  {tLeads('contactInformation')}
-                </h3>
-                <div className="space-y-2 md:space-y-3">
-                  {lead.phone && (
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                      <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{formatPhoneForDisplay(lead.phone)}</span>
-                      <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
-                        <a href={`tel:${lead.phone}`}>{tCommon('call')}</a>
-                      </Button>
+              {/* Contact Information - minimal clean */}
+              <Card className="border border-border/80 bg-card rounded-lg">
+                <div className="p-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
+                  <dl className="space-y-2.5 text-sm">
+                    {lead.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                        <dt className="sr-only">Phone</dt>
+                        <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
+                        <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
+                          <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
+                        </Button>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                        <dt className="sr-only">Email</dt>
+                        <dd className="min-w-0 truncate">
+                          <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
+                        </dd>
+                      </div>
+                    )}
+                    {lead.address ? (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
+                        <dt className="sr-only">Address</dt>
+                        <dd className="min-w-0 break-words text-foreground">
+                          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
+                        </dd>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                        <dd className="text-muted-foreground italic">No address provided</dd>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                      <dt className="sr-only">Submitted</dt>
+                      <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
                     </div>
-                  )}
-                  {lead.email && (
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                      <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
-                    </div>
-                  )}
-                  {lead.address && (
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                      <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
-                  </div>
+                  </dl>
                 </div>
-              </div>
+              </Card>
+
+              {/* Property insights (when normalized address is available) */}
+              {(lead as any).address_data?.id && (
+                <PropertyInsightsCard
+                  addressId={(lead as any).address_data.id}
+                  title={tLeads('propertyInsights') || 'Property insights'}
+                />
+              )}
 
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (
-                <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
-                    <span className="shrink-0">{tLeads('aiSummary')}</span>
-                    {(lead as any).contractor_ai_call_lead_id && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
-                        {tLeads('fromCall')}
-                      </Badge>
-                    )}
+                <div className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
+                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
+                    {tLeads('aiSummary')}
+                  </h3>
+                  {(lead as any).contractor_ai_call_lead_id && (
+                    <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromCall')}</p>
+                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
+                      {translatedSummary || lead.summary_text}
+                    </p>
                     {locale === 'es' && (
                       <button
                         onClick={() => handleTranslate(
@@ -1253,44 +1280,36 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedSummary
                         )}
                         disabled={isTranslatingSummary}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
-                          translatedSummary 
-                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                        }`}
+                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                         title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                       >
                         {isTranslatingSummary ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : translatedSummary ? (
-                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <RotateCcw className="h-4 w-4" />
                         ) : (
-                          <Languages className="h-4 w-4 text-white" />
+                          <Languages className="h-4 w-4" />
                         )}
                       </button>
                     )}
-                  </h3>
-                  <div className="p-2.5 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
-                      {translatedSummary || lead.summary_text}
-                    </p>
-                    {translatedSummary && (
-                      <p className="text-[10px] mt-2 text-blue-600 dark:text-blue-400 italic">
-                        {tTranslation('translated')}
-                      </p>
-                    )}
                   </div>
+                  {translatedSummary && (
+                    <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                  )}
                 </div>
               )}
 
               {/* Project Description from quote request (for consolidated leads) */}
               {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
-                <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
-                    <span className="shrink-0">{tLeads('projectDescription')}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
-                      {tLeads('fromQuoteRequest')}
-                    </Badge>
+                <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
+                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
+                    {tLeads('projectDescription')}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromQuoteRequest')}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
+                      {translatedDescription || lead.description}
+                    </p>
                     {locale === 'es' && (
                       <button
                         onClick={() => handleTranslate(
@@ -1300,41 +1319,35 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedDescription
                         )}
                         disabled={isTranslatingDescription}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
-                          translatedDescription 
-                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                        }`}
+                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                         title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                       >
                         {isTranslatingDescription ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : translatedDescription ? (
-                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <RotateCcw className="h-4 w-4" />
                         ) : (
-                          <Languages className="h-4 w-4 text-white" />
+                          <Languages className="h-4 w-4" />
                         )}
                       </button>
                     )}
-                  </h3>
-                  <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
-                      {translatedDescription || lead.description}
-                    </p>
-                    {translatedDescription && (
-                      <p className="text-[10px] mt-2 text-purple-600 dark:text-purple-400 italic">
-                        {tTranslation('translated')}
-                      </p>
-                    )}
                   </div>
+                  {translatedDescription && (
+                    <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                  )}
                 </div>
               )}
 
               {/* Project Description for call-only leads (fallback) */}
               {lead.description && lead.type === 'call' && !lead.summary_text && (
-                <div>
-                  <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
-                    <span className="shrink-0">{tLeads('projectDescription')}</span>
+                <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
+                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-2">
+                    {tLeads('projectDescription')}
+                  </h3>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
+                      {translatedDescription || lead.description}
+                    </p>
                     {locale === 'es' && (
                       <button
                         onClick={() => handleTranslate(
@@ -1344,33 +1357,22 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           !!translatedDescription
                         )}
                         disabled={isTranslatingDescription}
-                        className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
-                          translatedDescription 
-                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                        }`}
+                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                         title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                       >
                         {isTranslatingDescription ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : translatedDescription ? (
-                          <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <RotateCcw className="h-4 w-4" />
                         ) : (
-                          <Languages className="h-4 w-4 text-white" />
+                          <Languages className="h-4 w-4" />
                         )}
                       </button>
                     )}
-                  </h3>
-                  <div className="p-2.5 md:p-4 rounded-lg bg-muted/30 border">
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
-                      {translatedDescription || lead.description}
-                    </p>
-                    {translatedDescription && (
-                      <p className="text-[10px] mt-2 text-muted-foreground italic">
-                        {tTranslation('translated')}
-                      </p>
-                    )}
                   </div>
+                  {translatedDescription && (
+                    <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                  )}
                 </div>
               )}
 
@@ -1461,39 +1463,60 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         ) : (
           /* Left Side - Lead Details (for request leads) */
           <div className="flex-1 overflow-y-auto space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
-            {/* Contact Information */}
-            <div>
-              <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                {tLeads('contactInformation')}
-              </h3>
-              <div className="space-y-2 md:space-y-3">
-                {lead.phone && (
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs md:text-sm flex-1 min-w-0 truncate">{formatPhoneForDisplay(lead.phone)}</span>
-                    <Button size="sm" variant="outline" asChild className="ml-auto h-7 md:h-9 text-xs md:text-sm px-2 md:px-3 shrink-0">
-                      <a href={`tel:${lead.phone}`}>{tCommon('call')}</a>
-                    </Button>
+            {/* Contact Information - minimal clean */}
+            <Card className="border border-border/80 bg-card rounded-lg">
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
+                <dl className="space-y-2.5 text-sm">
+                  {lead.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                      <dt className="sr-only">Phone</dt>
+                      <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
+                      <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
+                        <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
+                      </Button>
+                    </div>
+                  )}
+                  {lead.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                      <dt className="sr-only">Email</dt>
+                      <dd className="min-w-0 truncate">
+                        <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
+                      </dd>
+                    </div>
+                  )}
+                  {lead.address ? (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
+                      <dt className="sr-only">Address</dt>
+                      <dd className="min-w-0 break-words text-foreground">
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
+                      </dd>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                      <dd className="text-muted-foreground italic">No address provided</dd>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                    <dt className="sr-only">Submitted</dt>
+                    <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
                   </div>
-                )}
-                {lead.email && (
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                    <a href={`mailto:${lead.email}`} className="text-xs md:text-sm hover:underline truncate">{lead.email}</a>
-                  </div>
-                )}
-                {lead.address && (
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs md:text-sm flex-1 min-w-0 break-words">{lead.address}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 md:gap-3">
-                  <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs md:text-sm">{formatTime(lead.created_at)}</span>
-                </div>
+                </dl>
               </div>
-            </div>
+            </Card>
+
+            {/* Property insights (when normalized address is available) - request-only layout */}
+            {(lead as any).address_data?.id && (
+              <PropertyInsightsCard
+                addressId={(lead as any).address_data.id}
+                title={tLeads('propertyInsights') || 'Property insights'}
+              />
+            )}
 
             {/* AI Summary from contractor-ai (for consolidated leads) */}
             {lead.summary_text && (
@@ -1544,16 +1567,19 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
             )}
 
-            {/* Project Description from quote request */}
+            {/* Project Description from quote request - card with subtitle */}
             {lead.description && (
-              <div>
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
-                  <span className="shrink-0">{tLeads('projectDescription')}</span>
-                  {lead.type === 'request' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
-                      {tLeads('fromQuoteRequest')}
-                    </Badge>
-                  )}
+              <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
+                <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
+                  {tLeads('projectDescription')}
+                </h3>
+                {lead.type === 'request' && (
+                  <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromQuoteRequest')}</p>
+                )}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
+                    {translatedDescription || lead.description}
+                  </p>
                   {locale === 'es' && (
                     <button
                       onClick={() => handleTranslate(
@@ -1563,33 +1589,22 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         !!translatedDescription
                       )}
                       disabled={isTranslatingDescription}
-                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
-                        translatedDescription 
-                          ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                      }`}
+                      className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                       title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                     >
                       {isTranslatingDescription ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : translatedDescription ? (
-                        <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <RotateCcw className="h-4 w-4" />
                       ) : (
-                        <Languages className="h-4 w-4 text-white" />
+                        <Languages className="h-4 w-4" />
                       )}
                     </button>
                   )}
-                </h3>
-                <div className="p-2.5 md:p-4 rounded-lg bg-muted/50">
-                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words">
-                    {translatedDescription || lead.description}
-                  </p>
-                  {translatedDescription && (
-                    <p className="text-[10px] mt-2 text-purple-600 dark:text-purple-400 italic">
-                      {tTranslation('translated')}
-                    </p>
-                  )}
                 </div>
+                {translatedDescription && (
+                  <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                )}
               </div>
             )}
 
