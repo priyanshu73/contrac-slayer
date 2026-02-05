@@ -930,7 +930,6 @@ export function QuoteCreator({ leadId, callLeadId, phone, quoteId, initialData }
         labor_charge_type: laborChargeType, // Send labor charge type from form
         labor_rate_value: laborRateValue, // Send unified labor rate from form
         labor_unit_type: laborUnitType, // Send labor unit type from form when PER_UNIT
-        markup_percentage: markupPercentage, // Send markup from form
       }) as any
       
       // Validate response structure to prevent crashes
