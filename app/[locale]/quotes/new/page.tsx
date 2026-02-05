@@ -7,6 +7,14 @@ import { useSearchParams } from "next/navigation"
 export default function NewQuotePage() {
   const searchParams = useSearchParams()
   const leadId = searchParams.get("leadId")
+  const clientId = searchParams.get("clientId")
+
+  const subtitle =
+    clientId
+      ? "From client – basic info pre-filled"
+      : leadId
+        ? "From Lead - AI-powered pricing"
+        : "AI-powered pricing"
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,16 +30,14 @@ export default function NewQuotePage() {
             </Button>
             <div>
               <h1 className="text-lg font-semibold leading-none">Create Quote</h1>
-              <p className="text-sm text-muted-foreground">
-                {leadId ? "From Lead - AI-powered pricing" : "AI-powered pricing"}
-              </p>
+              <p className="text-sm text-muted-foreground">{subtitle}</p>
             </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
-        <QuoteCreator leadId={leadId} />
+        <QuoteCreator leadId={leadId} clientId={clientId} />
       </main>
     </div>
   )
