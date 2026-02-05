@@ -16,6 +16,7 @@ import {
 import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { formatAddressStreetForDisplay } from "@/lib/format-address"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
@@ -159,15 +160,17 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
                 </div>
               )}
               {client.address && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate flex-1">{client.address}</span>
+                <div className="flex items-start gap-2 text-sm text-slate-600">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                  <span className="flex-1 leading-snug truncate" title={client.address}>
+                    {formatAddressStreetForDisplay(client.address, client.address_data)}
+                  </span>
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`}
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-slate-400 hover:text-primary transition-colors"
+                    className="text-slate-400 hover:text-primary transition-colors shrink-0"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>

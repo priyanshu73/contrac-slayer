@@ -13,6 +13,8 @@ import { MeasurementsInput } from "@/components/measurements-input"
 import { Measurements } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { AddressData } from "@/lib/types/address"
 
 interface PrefillData {
   description?: string
@@ -55,6 +57,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState("")
+  const [addressData, setAddressData] = useState<AddressData | null>(null)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -74,7 +77,11 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
 
     try {
       const { api } = await import("@/lib/api")
-      await api.submitQuoteRequest(contractorUuid, formData, uploadedFiles, measurements)
+      const submissionData = {
+        ...formData,
+        ...(addressData && { address_data: addressData })
+      }
+      await api.submitQuoteRequest(contractorUuid, submissionData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")
@@ -326,22 +333,19 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Project Address <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="123 Main Street, City, State 12345"
-                    className="pl-10 h-11"
-                    required
-                  />
-                </div>
-              </div>
+              <MapboxAddressInput
+                label="Project Address"
+                placeholder="Start typing the project address..."
+                required
+                onAddressSelect={(data) => {
+                  setAddressData(data)
+                  if (data) {
+                    setFormData({ ...formData, address: data.formatted_address || "" })
+                  }
+                }}
+                defaultValue={formData.address}
+                className="space-y-2"
+              />
             </div>
           </div>
         </div>

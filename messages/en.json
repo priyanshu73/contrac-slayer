@@ -389,7 +389,8 @@
     "markAsContacted": "Mark as Contacted",
     "viewFullDetails": "View Full Details",
     "noLeads": "No leads found",
-    "consolidated": "Consolidated"
+    "consolidated": "Consolidated",
+    "propertyInsights": "Property insights"
   },
   "clients": {
     "title": "Clients",
@@ -405,6 +406,7 @@
     "address": "Address",
     "billingAddress": "Billing Address",
     "billingAddressHint": "If different from address above",
+    "billingSameAsAddress": "Same as above address",
     "createClient": "Create Client",
     "searchClients": "Search clients by name, email, or phone...",
     "scheduleCall": "Schedule a call"
