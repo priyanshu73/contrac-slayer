@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { useRouter, usePathname } from "next/navigation"
 import { api } from "@/lib/api"
 import { User, ContractorProfile } from "@/lib/types"
+import { clearContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 const PENDING_ZIP_STORAGE_KEY = "contractorops_pending_zip"
 
@@ -184,6 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Continue with logout even if API call fails
     }
     setUser(null)
+    // Clear cached ContractorOps AI number
+    clearContractorOpsNumber()
     // Redirect to login with current locale
     router.push("/en/auth/login")
   }

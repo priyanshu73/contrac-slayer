@@ -61,7 +61,7 @@
     "recentQuotes": "Quotes",
     "createQuote": "Create Quote",
     "noQuotesYet": "No quotes yet. Create your first quote!",
-    "upcomingJobs": "Upcoming Jobs",
+    "upcomingMeetings": "Upcoming Meetings",
     "viewAll": "View All",
     "stats": {
       "newLeads": "New Leads",
@@ -101,7 +101,7 @@
       "copyFailedDesc": "Please try again or copy manually."
     },
     "jobs": {
-      "noJobs": "No upcoming jobs scheduled"
+      "noMeetings": "No upcoming meetings scheduled"
     },
     "time": {
       "justNow": "Just now",

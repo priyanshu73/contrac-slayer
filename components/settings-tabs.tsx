@@ -16,6 +16,7 @@ import Image from "next/image"
 import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil } from "lucide-react"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 type SettingsSection = "business" | "billing" | "language"
 
@@ -161,11 +162,8 @@ export function SettingsTabs() {
 
   const [initialFormData, setInitialFormData] = useState(formData)
   
-  const CONTRACTOR_OPS_AI_NUMBER_KEY = "contractorOpsAiNumber"
-  const [contractorOpsAiNumber, setContractorOpsAiNumber] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
-  })
+  // Use centralized hook for ContractorOps AI number
+  const { number: contractorOpsAiNumber } = useContractorOpsNumber()
 
   // Check if form has unsaved changes (dirty state)
   const isDirty = useMemo(() => {
@@ -201,22 +199,6 @@ export function SettingsTabs() {
       setFormData(newFormData)
       setInitialFormData(newFormData)
       setLogoPreview(data.logo_url || null)
-      
-      // Load ContractorOpsAI number
-      const cached = typeof window !== "undefined" ? localStorage.getItem(CONTRACTOR_OPS_AI_NUMBER_KEY) : null
-      if (cached) setContractorOpsAiNumber(cached)
-      try {
-        const { twilio_number } = await api.getContractorOpsAiNumber()
-        if (twilio_number && typeof window !== "undefined") {
-          localStorage.setItem(CONTRACTOR_OPS_AI_NUMBER_KEY, twilio_number)
-          setContractorOpsAiNumber(twilio_number)
-        } else if (!twilio_number && typeof window !== "undefined") {
-          localStorage.removeItem(CONTRACTOR_OPS_AI_NUMBER_KEY)
-          setContractorOpsAiNumber(null)
-        }
-      } catch {
-        // Keep cached value if fetch fails
-      }
     } catch (err: any) {
       setError(err.message || "Failed to load profile")
     } finally {

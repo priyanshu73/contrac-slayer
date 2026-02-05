@@ -170,7 +170,7 @@ export function UpcomingJobs() {
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('upcomingJobs')}</h2>
+        <h2 className="text-lg font-semibold">{t('upcomingMeetings')}</h2>
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/${locale}/calendar`}>{t('viewAll')}</Link>
         </Button>
@@ -191,7 +191,7 @@ export function UpcomingJobs() {
               />
             </svg>
           </div>
-          <p className="text-sm text-muted-foreground">{t('jobs.noJobs')}</p>
+          <p className="text-sm text-muted-foreground">{t('jobs.noMeetings')}</p>
         </div>
       ) : (
         <div className="space-y-3">

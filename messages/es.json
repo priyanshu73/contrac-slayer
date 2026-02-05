@@ -61,7 +61,7 @@
     "recentQuotes": "Cotizaciones",
     "createQuote": "Crear Cotización",
     "noQuotesYet": "No hay cotizaciones aún. ¡Crea tu primera cotización!",
-    "upcomingJobs": "Trabajos Próximos",
+    "upcomingMeetings": "Próximas Reuniones",
     "viewAll": "Ver Todo",
     "stats": {
       "newLeads": "Nuevos Prospectos",
@@ -101,7 +101,7 @@
       "copyFailedDesc": "Por favor intente nuevamente o copie manualmente."
     },
     "jobs": {
-      "noJobs": "No hay trabajos programados próximamente"
+      "noMeetings": "No hay reuniones programadas próximamente"
     },
     "time": {
       "justNow": "Hace un momento",

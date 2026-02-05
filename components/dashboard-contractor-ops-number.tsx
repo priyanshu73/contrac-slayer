@@ -1,14 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 export function DashboardContractorOpsNumber() {
   const { user } = useAuth()
@@ -16,33 +16,8 @@ export function DashboardContractorOpsNumber() {
   const tQuote = useTranslations("dashboard.quoteRequest")
   const locale = useLocale()
   const { toast } = useToast()
-  const [twilioNumber, setTwilioNumber] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { number: twilioNumber, loading } = useContractorOpsNumber()
   const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!user?.contractor_profile) {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    api
-      .getContractorOpsAiNumber()
-      .then(({ twilio_number }) => {
-        if (!cancelled) {
-          setTwilioNumber(twilio_number ?? null)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setTwilioNumber(null)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [user?.contractor_profile])
 
   const handleCopy = async () => {
     if (!twilioNumber) return
