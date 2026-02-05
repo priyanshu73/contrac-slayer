@@ -10,6 +10,9 @@ import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { User, Mail, Phone, MapPin, FileText, AlertCircle, Plus, Loader2 } from "lucide-react"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { AddressData } from "@/lib/types/address"
 
 export type CreatedClient = { id: number; name: string; email: string }
 
@@ -36,6 +39,12 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
     address: "",
     billing_address: "",
   })
+  
+  // Normalized address data from Mapbox
+  const [addressData, setAddressData] = useState<AddressData | null>(null)
+  const [billingAddressData, setBillingAddressData] = useState<AddressData | null>(null)
+  // When true, billing address is same as address and billing fields are hidden
+  const [billingSameAsAddress, setBillingSameAsAddress] = useState(true)
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -71,7 +80,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
 
     try {
       // Prepare client data - only essential fields
-      const clientData: Record<string, string> = {
+      const clientData: Record<string, any> = {
         name: formData.name.trim(),
         email: formData.email.trim(),
       }
@@ -80,6 +89,10 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       if (formData.phone.trim()) clientData.phone = formData.phone.trim()
       if (formData.address.trim()) clientData.address = formData.address.trim()
       if (formData.billing_address.trim()) clientData.billing_address = formData.billing_address.trim()
+      
+      // Add normalized address data if selected from Mapbox
+      if (addressData) clientData.address_data = addressData
+      if (billingAddressData) clientData.billing_address_data = billingAddressData
 
       // Call API to create client
       const created = await api.createClient(clientData) as { id?: number; name?: string; email?: string } | undefined
@@ -192,38 +205,50 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
               </div>
             </div>
 
-            {/* Address */}
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                {tClients('address')}
-              </Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleChange("address", e.target.value)}
-                  placeholder="123 Main Street, City, State ZIP"
-                  className="pl-10 min-h-[80px] resize-none"
-                />
-              </div>
-            </div>
+            {/* Address - Using Mapbox Autocomplete */}
+            <MapboxAddressInput
+              label={tClients('address')}
+              placeholder="Start typing an address..."
+              onAddressSelect={(data) => {
+                setAddressData(data)
+                // Also update legacy field for backward compatibility
+                if (data) {
+                  handleChange("address", data.formatted_address || "")
+                }
+              }}
+              defaultValue={formData.address}
+              className="space-y-2"
+            />
 
-            {/* Billing Address */}
-            <div className="space-y-2">
-              <Label htmlFor="billing_address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                {tClients('billingAddress')}
-              </Label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Textarea
-                  id="billing_address"
-                  value={formData.billing_address}
-                  onChange={(e) => handleChange("billing_address", e.target.value)}
-                  placeholder={tClients('billingAddressHint')}
-                  className="pl-10 min-h-[80px] resize-none"
+            {/* Billing: same as above or separate */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="billing-same-as-address"
+                  checked={billingSameAsAddress}
+                  onCheckedChange={(checked) => setBillingSameAsAddress(checked === true)}
                 />
+                <Label
+                  htmlFor="billing-same-as-address"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {tClients('billingSameAsAddress')}
+                </Label>
               </div>
+              {!billingSameAsAddress && (
+                <MapboxAddressInput
+                  label={tClients('billingAddress')}
+                  placeholder="Start typing a billing address..."
+                  onAddressSelect={(data) => {
+                    setBillingAddressData(data)
+                    if (data) {
+                      handleChange("billing_address", data.formatted_address || "")
+                    }
+                  }}
+                  defaultValue={formData.billing_address}
+                  className="space-y-2"
+                />
+              )}
             </div>
           </div>
         </div>

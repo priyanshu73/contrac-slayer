@@ -47,6 +47,28 @@ export type InvoiceStatus =
 export type PricingTier = 'LOW' | 'MID' | 'HIGH'
 
 // ============================================
+// PROPERTY INSIGHTS (RentCast)
+// ============================================
+
+export interface PropertyMetadata {
+  /** From RentCast squareFootage (new cache) */
+  house_sqft?: number
+  /** Legacy/cache; prefer house_sqft */
+  building_sqft?: number
+  lot_sqft?: number
+  bedrooms?: number
+  bathrooms?: number
+  property_type?: string
+  year_built?: number
+}
+
+export interface PropertyInsightsResponse {
+  address_id: number
+  property_metadata: PropertyMetadata | null
+  from_cache: boolean
+}
+
+// ============================================
 // ATTACHMENTS
 // ============================================
 
