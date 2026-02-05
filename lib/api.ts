@@ -312,6 +312,20 @@ class ApiClient {
     return this.request(`/jobs?${params.toString()}`)
   }
 
+  async getJobStats(): Promise<{
+    active_jobs: number
+    total_revenue: number
+    total_jobs: number
+    draft_count: number
+    sent_count: number
+    accepted_count: number
+    in_progress_count: number
+    completed_count: number
+    paid_count: number
+  }> {
+    return this.request('/jobs/stats')
+  }
+
   async getJob(jobId: number) {
     return this.request(`/jobs/${jobId}`)
   }

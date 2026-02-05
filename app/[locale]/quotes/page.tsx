@@ -45,6 +45,8 @@ interface Quote {
   updated_at?: string
 }
 
+const ITEMS_PER_PAGE = 10
+
 export default function QuotesPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -56,21 +58,42 @@ export default function QuotesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    fetchQuotes()
+    // Reset to page 1 when filter changes
+    setCurrentPage(1)
+    fetchQuotes(1)
   }, [activeFilter])
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = async (page: number) => {
     try {
       setLoading(true)
-      const data = await api.getMyJobs(activeFilter, 0, 100)
-      setQuotes(data as Quote[])
+      const skip = (page - 1) * ITEMS_PER_PAGE
+      // Fetch one extra to check if there are more pages
+      const data = await api.getMyJobs(activeFilter, skip, ITEMS_PER_PAGE + 1) as Quote[]
+      
+      // Check if there are more pages
+      if (data.length > ITEMS_PER_PAGE) {
+        setHasMore(true)
+        setQuotes(data.slice(0, ITEMS_PER_PAGE))
+      } else {
+        setHasMore(false)
+        setQuotes(data)
+      }
     } catch (error) {
       console.error("Failed to fetch quotes:", error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    fetchQuotes(page)
+    // Scroll to top of page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const getStatusColor = (status: string) => {
@@ -109,13 +132,8 @@ export default function QuotesPage() {
     })
   }
 
-  const getCounts = () => {
-    return {
-      all: quotes.length,
-      draft: quotes.filter(q => q.status?.toUpperCase() === 'DRAFT').length,
-      sent: quotes.filter(q => q.status?.toUpperCase() === 'SENT').length,
-      accepted: quotes.filter(q => q.status?.toUpperCase() === 'ACCEPTED').length,
-    }
+  const handleRefresh = () => {
+    fetchQuotes(currentPage)
   }
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
@@ -137,8 +155,13 @@ export default function QuotesPage() {
       })
       setDeleteDialogOpen(false)
       setQuoteToDelete(null)
-      // Refresh the quotes list
-      fetchQuotes()
+      // Refresh the quotes list - go to page 1 if current page becomes empty
+      if (quotes.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1)
+        fetchQuotes(currentPage - 1)
+      } else {
+        fetchQuotes(currentPage)
+      }
     } catch (error) {
       console.error("Failed to delete quote:", error)
       toast({
@@ -151,18 +174,10 @@ export default function QuotesPage() {
     }
   }
 
-  const counts = getCounts()
-
   const getFilterLabel = (filter: string | undefined) => {
     if (filter === undefined) return t('all')
     const filterKey = filter.toLowerCase() as keyof typeof t
     return t(filterKey as any) || filter.charAt(0) + filter.slice(1).toLowerCase()
-  }
-
-  const getFilterCount = (filter: string | undefined) => {
-    if (filter === undefined) return counts.all
-    const key = filter.toLowerCase() as keyof typeof counts
-    return counts[key] || 0
   }
 
   return (
@@ -180,22 +195,14 @@ export default function QuotesPage() {
                 >
                   <SelectTrigger className="flex-1 min-w-0">
                     <SelectValue>
-                      {getFilterLabel(activeFilter)} ({getFilterCount(activeFilter)})
+                      {getFilterLabel(activeFilter)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">
-                      {t('all')} <span className="ml-2 text-muted-foreground">({counts.all})</span>
-                    </SelectItem>
-                    <SelectItem value="DRAFT">
-                      {t('draft')} <span className="ml-2 text-muted-foreground">({counts.draft})</span>
-                    </SelectItem>
-                    <SelectItem value="SENT">
-                      {t('sent')} <span className="ml-2 text-muted-foreground">({counts.sent})</span>
-                    </SelectItem>
-                    <SelectItem value="ACCEPTED">
-                      {t('accepted')} <span className="ml-2 text-muted-foreground">({counts.accepted})</span>
-                    </SelectItem>
+                    <SelectItem value="all">{t('all')}</SelectItem>
+                    <SelectItem value="DRAFT">{t('draft')}</SelectItem>
+                    <SelectItem value="SENT">{t('sent')}</SelectItem>
+                    <SelectItem value="ACCEPTED">{t('accepted')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -207,9 +214,6 @@ export default function QuotesPage() {
                   size="sm"
                 >
                   {t('all')}
-                  <Badge variant="secondary" className="ml-2">
-                    {counts.all}
-                  </Badge>
                 </Button>
                 <Button
                   variant={activeFilter === "DRAFT" ? "default" : "outline"}
@@ -217,9 +221,6 @@ export default function QuotesPage() {
                   size="sm"
                 >
                   {t('draft')}
-                  <Badge variant="secondary" className="ml-2">
-                    {counts.draft}
-                  </Badge>
                 </Button>
                 <Button
                   variant={activeFilter === "SENT" ? "default" : "outline"}
@@ -227,9 +228,6 @@ export default function QuotesPage() {
                   size="sm"
                 >
                   {t('sent')}
-                  <Badge variant="secondary" className="ml-2">
-                    {counts.sent}
-                  </Badge>
                 </Button>
                 <Button
                   variant={activeFilter === "ACCEPTED" ? "default" : "outline"}
@@ -237,9 +235,6 @@ export default function QuotesPage() {
                   size="sm"
                 >
                   {t('accepted')}
-                  <Badge variant="secondary" className="ml-2">
-                    {counts.accepted}
-                  </Badge>
                 </Button>
               </div>
             )}
@@ -363,6 +358,37 @@ export default function QuotesPage() {
                 </Card>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            {(currentPage > 1 || hasMore) && (
+              <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-4">
+                  Page {currentPage}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!hasMore || loading}
+                >
+                  Next
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </main>

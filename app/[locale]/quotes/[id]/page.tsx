@@ -25,10 +25,14 @@ export default function QuoteDetailPage() {
   const [isPublicView, setIsPublicView] = useState(false)
 
   useEffect(() => {
-    if (identifier && !authLoading) {
-      fetchJob()
-    }
-  }, [identifier, authLoading, user])
+    // Wait for auth to finish loading before fetching
+    // Note: We don't include `user` in deps to prevent double fetching
+    // when user object changes from null to populated
+    if (authLoading || !identifier) return
+    
+    fetchJob()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identifier, authLoading])
 
   const fetchJob = async () => {
     try {
