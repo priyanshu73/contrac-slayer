@@ -5,29 +5,31 @@ import { Card } from "@/components/ui/card"
 import { Check, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
 
 export function Pricing() {
   const locale = useLocale()
+  const t = useTranslations('landing')
   const { referralId } = useReferral()
   const signupUrl = buildSignupUrl(locale, referralId)
 
   const basicFeatures = [
-    "AI-Powered Quote Generation",
-    "Client Management",
-    "Lead Tracking & CRM",
-    "Calendar Integration",
-    "Email Notifications",
+    t('pricingBasic1'),
+    t('pricingBasic2'),
+    t('pricingBasic3'),
+    t('pricingBasic4'),
+    t('pricingBasic5'),
   ]
 
   const premiumFeatures = [
-    "AI-Powered Quote Generation",
-    "Client Management",
-    "Lead Tracking & CRM",
-    "Calendar Integration",
-    "Email Notifications",
-    "Social Lead Capture",
-    "On-Site Meeting Recording",
+    t('pricingBasic1'),
+    t('pricingBasic2'),
+    t('pricingBasic3'),
+    t('pricingBasic4'),
+    t('pricingBasic5'),
+    t('pricingPremium6'),
+    t('pricingPremium7'),
   ]
 
   return (
@@ -37,13 +39,13 @@ export function Pricing() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
-            14-Day Free Trial
+            {t('pricingTrialBadge')}
           </div>
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Simple, Transparent Pricing
+            {t('pricingTitle')}
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Start your free trial today.
+            {t('pricingSubtitle')}
           </p>
         </div>
 
@@ -52,16 +54,16 @@ export function Pricing() {
           {/* Monthly Plan */}
           <Card className="p-8 relative">
             <div className="mb-6">
-              <h3 className="text-2xl font-semibold mb-2">Monthly</h3>
+              <h3 className="text-2xl font-semibold mb-2">{t('monthly')}</h3>
               <p className="text-muted-foreground">
-                Flexible month-to-month billing
+                {t('monthlyDesc')}
               </p>
             </div>
             
             <div className="mb-8">
               <div className="flex items-baseline gap-1">
                 <span className="text-5xl font-bold">$139</span>
-                <span className="text-muted-foreground text-lg">/month</span>
+                <span className="text-muted-foreground text-lg">{t('perMonth')}</span>
               </div>
             </div>
 
@@ -72,7 +74,7 @@ export function Pricing() {
               asChild
             >
               <Link href={signupUrl}>
-                Start Free Trial
+                {t('startFreeTrial')}
               </Link>
             </Button>
 
@@ -91,24 +93,24 @@ export function Pricing() {
             {/* Best Value Badge */}
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
               <span className="bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-lg">
-                Best Value - Save $480/year
+                {t('bestValue')}
               </span>
             </div>
 
             <div className="mb-6 pt-2">
-              <h3 className="text-2xl font-semibold mb-2">Yearly</h3>
+              <h3 className="text-2xl font-semibold mb-2">{t('yearly')}</h3>
               <p className="text-muted-foreground">
-                Save 29% with annual billing
+                {t('yearlyDesc')}
               </p>
             </div>
             
             <div className="mb-8">
               <div className="flex items-baseline gap-1">
                 <span className="text-5xl font-bold">$99</span>
-                <span className="text-muted-foreground text-lg">/month</span>
+                <span className="text-muted-foreground text-lg">{t('perMonth')}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                Billed annually ($1,188/year)
+                {t('billedAnnually')}
               </p>
             </div>
 
@@ -118,7 +120,7 @@ export function Pricing() {
               asChild
             >
               <Link href={signupUrl}>
-                Start Free Trial
+                {t('startFreeTrial')}
               </Link>
             </Button>
 
@@ -136,7 +138,7 @@ export function Pricing() {
         {/* Trust badges */}
         <div className="mt-12 text-center">
           <p className="text-muted-foreground">
-            No credit card required • 14-day free trial • Cancel anytime
+            {t('pricingTrialCancel')}
           </p>
         </div>
       </div>

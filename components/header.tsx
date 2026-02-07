@@ -3,11 +3,15 @@
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useReferral, buildSignupUrl } from '@/contexts/ReferralContext'
+import { useLanguageContext } from '@/contexts/LanguageContext'
 
 export function Header() {
   const locale = useLocale()
+  const t = useTranslations('landing')
   const { referralId } = useReferral()
+  const { changeLanguage, isChanging } = useLanguageContext()
   const signupUrl = buildSignupUrl(locale, referralId)
 
   return (
@@ -26,26 +30,49 @@ export function Header() {
           </Link>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Features
+              {t('features')}
             </a>
             <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              How It Works
+              {t('howItWorks')}
             </a>
             <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Pricing
+              {t('pricing')}
             </a>
           </nav>
           <div className="flex items-center gap-3">
+            {/* Language toggle: 🇺🇸 English | 🇲🇽 Español */}
+            <div className="flex items-center rounded-lg border border-border bg-muted/30 p-0.5">
+              <button
+                type="button"
+                onClick={() => changeLanguage('en')}
+                disabled={isChanging}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${locale === 'en' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-label="English"
+              >
+                <span className="text-base leading-none" aria-hidden>🇺🇸</span>
+                {t('english')}
+              </button>
+              <button
+                type="button"
+                onClick={() => changeLanguage('es')}
+                disabled={isChanging}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${locale === 'es' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-label="Español"
+              >
+                <span className="text-base leading-none" aria-hidden>🇲🇽</span>
+                {t('espanol')}
+              </button>
+            </div>
             {/* Desktop: Sign In + Start Free Trial */}
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link href={`/${locale}/auth/login`}>Sign In</Link>
+              <Link href={`/${locale}/auth/login`}>{t('signIn')}</Link>
             </Button>
             <Button size="sm" className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-              <Link href={signupUrl}>Start Free Trial</Link>
+              <Link href={signupUrl}>{t('startFreeTrial')}</Link>
             </Button>
             {/* Mobile: Just Sign In (blue) */}
             <Button size="sm" className="sm:hidden bg-blue-600 text-white hover:bg-blue-700" asChild>
-              <Link href={`/${locale}/auth/login`}>Sign In</Link>
+              <Link href={`/${locale}/auth/login`}>{t('signIn')}</Link>
             </Button>
           </div>
         </div>

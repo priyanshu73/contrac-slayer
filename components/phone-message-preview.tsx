@@ -1,11 +1,14 @@
 "use client"
 
+import { useTranslations } from 'next-intl'
+
 /**
  * Mobile phone mockup showing iMessage-style conversation.
  * Illustrates "text-based, no app downloads" — clients use their built-in
  * Messages app; no separate app install required.
  */
 export function PhoneMessagePreview() {
+  const t = useTranslations('landing')
   return (
     <div className="relative mx-auto w-[312px] sm:w-[344px] md:w-[377px]">
       {/* Phone frame */}
@@ -17,8 +20,8 @@ export function PhoneMessagePreview() {
         <div className="relative overflow-hidden rounded-[1.75rem] sm:rounded-[2rem] bg-gray-50 dark:bg-gray-900 aspect-[9/19] min-h-[492px]">
           {/* Header */}
           <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-200/80 dark:border-gray-700/80">
-            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">ContractorOps AI</span>
-            <span className="text-base text-blue-600 dark:text-blue-400">Messages</span>
+            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">{t('phoneAppName')}</span>
+            <span className="text-base text-blue-600 dark:text-blue-400">{t('phoneMessages')}</span>
           </div>
 
           {/* Conversation */}
@@ -27,10 +30,8 @@ export function PhoneMessagePreview() {
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-200 dark:bg-gray-700 px-3 py-2">
                 <p className="text-base text-gray-900 dark:text-gray-100 leading-relaxed">
-                  Hi, I saw your missed call and listened to your voicemail. Sounds like an HVAC tune-up issue. Common
-                  causes include dirty filters, refrigerant leaks, or thermostat problems. I can come take a look. Did I
-                  miss anything? Feel free to upload photos/videos here:{" "}
-                  <span className="text-blue-600 dark:text-blue-400 underline">Upload Link</span>
+                  {t('phoneBubble1')}{" "}
+                  <span className="text-blue-600 dark:text-blue-400 underline">{t('phoneUploadLink')}</span>
                 </p>
               </div>
             </div>
@@ -38,7 +39,7 @@ export function PhoneMessagePreview() {
             {/* Outgoing - User */}
             <div className="flex justify-end">
               <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-blue-500 px-3 py-2">
-                <p className="text-base text-white leading-relaxed">Thanks! Just uploaded them.</p>
+                <p className="text-base text-white leading-relaxed">{t('phoneBubble2')}</p>
               </div>
             </div>
 
@@ -46,8 +47,8 @@ export function PhoneMessagePreview() {
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-200 dark:bg-gray-700 px-3 py-2">
                 <p className="text-base text-gray-900 dark:text-gray-100 leading-relaxed">
-                  Got it. You can book your appointment here:{" "}
-                  <span className="text-blue-600 dark:text-blue-400 underline">Booking Link</span>
+                  {t('phoneBubble3')}{" "}
+                  <span className="text-blue-600 dark:text-blue-400 underline">{t('phoneBookingLink')}</span>
                 </p>
               </div>
             </div>
@@ -56,7 +57,7 @@ export function PhoneMessagePreview() {
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-200 dark:bg-gray-700 px-3 py-2">
                 <p className="text-base text-gray-900 dark:text-gray-100 leading-relaxed">
-                  Thanks — see you tomorrow at 1 PM. Let me know if you need to cancel by call or text.
+                  {t('phoneBubble4')}
                 </p>
               </div>
             </div>
@@ -65,7 +66,7 @@ export function PhoneMessagePreview() {
           {/* iMessage-style input */}
           <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-3 pb-4 pt-2 bg-gray-50 dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-700/80">
             <div className="flex-1 rounded-2xl bg-gray-200 dark:bg-gray-700 px-4 py-2.5">
-              <span className="text-base text-gray-500 dark:text-gray-400">iMessage</span>
+              <span className="text-base text-gray-500 dark:text-gray-400">{t('phoneInputLabel')}</span>
             </div>
             <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">

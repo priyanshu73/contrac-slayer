@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { useTranslations } from 'next-intl';
 // framer-motion's intrinsic element typings can be strict in some TS configs.
 // Use a loose-typed alias so we can use motion elements with standard HTML props (className, href, etc.).
 const m = motion as any;
@@ -54,7 +55,8 @@ interface HeroSectionProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 't
 
 const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
   ({ className, slogan, title, subtitle, callToAction, backgroundImage, contactInfo, ...props }, ref) => {
-    
+    const t = useTranslations('landing');
+
     // Animation variants for the container to orchestrate children animations
     const containerVariants = {
       hidden: { opacity: 0 },
@@ -101,20 +103,20 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
                   <m.h1 className="text-6xl md:text-8xl font-bold tracking-tight text-balance mb-6 leading-tight" variants={itemVariants}>
                     {title ?? (
                       <>
-                        AI-Powered CRM for
-                        <span className="text-primary block mt-2">Modern Contractors</span>
+                        {t('heroTitle1')}
+                        <span className="text-primary block mt-2">{t('heroTitle2')}</span>
                       </>
                     )}
                   </m.h1>
 
                   <m.p className="text-2xl md:text-2xl text-muted-foreground text-balance max-w-3xl mb-10 leading-relaxed" variants={itemVariants}>
-                    {subtitle ?? 'Communicate with clients via SMS no app downloads required. AI listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by AI'}
+                    {subtitle ?? t('heroSubtitle')}
                   </m.p>
 
                   <div className="flex flex-col sm:flex-row gap-4 mb-12">
                     <Button size="lg" className="text-base px-8 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
                       <a href={callToAction?.href ?? 'https://cal.com/johnson-subedi/30min'} target="_blank" rel="noopener noreferrer">
-                        {callToAction?.text ?? 'Schedule a Demo'}
+                        {callToAction?.text ?? t('scheduleDemo')}
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </a>
                     </Button>
@@ -123,11 +125,11 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
                   <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-primary" />
-                      <span>14-day free trial</span>
+                      <span>{t('trialBadge')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-primary" />
-                      <span>Cancel anytime</span>
+                      <span>{t('cancelAnytime')}</span>
                     </div>
                   </div>
                 </m.header>

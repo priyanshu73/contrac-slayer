@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +15,8 @@ let lastOtpSentEmail: string | null = null
 
 export default function VerifyOTPPage() {
   const router = useRouter()
+  const locale = useLocale()
+  const t = useTranslations("auth")
   const searchParams = useSearchParams()
   const { refreshUser } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -31,7 +35,7 @@ export default function VerifyOTPPage() {
 
   useEffect(() => {
     if (!emailParam) {
-      router.push("/auth/signup")
+      router.push(`/${locale}/auth/signup`)
       return
     }
 
@@ -58,9 +62,9 @@ export default function VerifyOTPPage() {
 
         try {
           await api.sendOtp(emailParam)
-          setSuccess("OTP sent successfully! Check your email.")
+          setSuccess(t("otpSentSuccess"))
         } catch (err: any) {
-          setError(err.message || "Failed to send OTP")
+          setError(err.message || t("failedToSendOtp"))
           // Reset guards on error so user can try again (e.g., on reload)
           initialOtpSentRef.current = null
           lastOtpSentEmail = null
@@ -72,9 +76,9 @@ export default function VerifyOTPPage() {
       sendInitialOtp()
     } else if (fromLoginParam && !success) {
       // From login - OTP was already sent, just show message (only once)
-      setSuccess("Please enter the OTP sent to your email.")
+      setSuccess(t("enterOtpSent"))
     }
-  }, [emailParam, fromLoginParam, router, success])
+  }, [emailParam, fromLoginParam, locale, router, success])
 
   const sendOtp = async () => {
     if (!email) return
@@ -85,13 +89,13 @@ export default function VerifyOTPPage() {
 
     try {
       await api.sendOtp(email)
-      setSuccess("OTP sent successfully! Check your email.")
+      setSuccess(t("otpSentSuccess"))
       // Clear OTP boxes
       setOtp(["", "", "", "", "", ""])
       // Focus first input
       document.getElementById("otp-0")?.focus()
     } catch (err: any) {
-      setError(err.message || "Failed to send OTP")
+      setError(err.message || t("failedToSendOtp"))
     } finally {
       setIsSending(false)
     }
@@ -104,12 +108,12 @@ export default function VerifyOTPPage() {
 
     const otpString = otp.join("")
     if (!otpString || otpString.length !== 6) {
-      setError("Please enter a valid 6-digit OTP")
+      setError(t("pleaseEnterValidOtp"))
       return
     }
 
     if (!email) {
-      setError("Invalid session. Please sign up again.")
+      setError(t("invalidSessionSignUp"))
       return
     }
 
@@ -187,7 +191,7 @@ export default function VerifyOTPPage() {
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             </div>
           </div>
-          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">Verifying and logging you in...</p>
+          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">{t("verifyingAndLoggingIn")}</p>
         </div>
       </div>
     )
@@ -206,23 +210,23 @@ export default function VerifyOTPPage() {
         <div className="w-full max-w-md relative z-10">
           {/* Back button - goes to login if from login, otherwise signup */}
           <button
-            onClick={() => router.push(fromLogin ? "/auth/login" : "/auth/signup")}
+            onClick={() => router.push(fromLogin ? `/${locale}/auth/login` : `/${locale}/auth/signup`)}
             className="mb-8 flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span>Back to {fromLogin ? "login" : "signup"}</span>
+            <span>{fromLogin ? t("backToLogin") : t("backToSignup")}</span>
           </button>
 
           {/* Form Card */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                Verify Your Email
+                {t("verifyYourEmail")}
               </h1>
               <p className="text-gray-600 mt-2">
-                We've sent a 6-digit code to <span className="font-semibold">{email}</span>
+                {t("otpSentTo")} <span className="font-semibold">{email}</span>
               </p>
             </div>
 
@@ -265,7 +269,7 @@ export default function VerifyOTPPage() {
                     />
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 text-center">Enter the 6-digit code sent to your email</p>
+                <p className="text-xs text-gray-500 text-center">{t("enter6DigitCode")}</p>
               </div>
 
               <Button
@@ -276,10 +280,10 @@ export default function VerifyOTPPage() {
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Verifying...</span>
+                    <span>{t("verifying")}</span>
                   </div>
                 ) : (
-                  "Verify Email"
+                  t("verifyEmail")
                 )}
               </Button>
 
@@ -290,7 +294,7 @@ export default function VerifyOTPPage() {
                   disabled={isSending}
                   className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSending ? "Sending..." : "Resend OTP"}
+                  {isSending ? t("sending") : t("resendOtp")}
                 </button>
               </div>
             </form>

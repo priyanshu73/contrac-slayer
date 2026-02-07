@@ -1,39 +1,43 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ExternalLink, CheckCircle2 } from 'lucide-react'
 
 export function ProductRecommendations() {
+  const t = useTranslations('landing')
   const products = [
     {
-      name: 'Premium Hardwood Mulch',
+      name: t('productRecsMulchName'),
       store: 'Home Depot',
       sku: 'HD-MH-2CF',
       price: 4.98,
       unit: '2 cu. ft. bag',
       qty: 15,
       inStock: true,
-      reason: 'Perfect for 500 sq ft coverage',
+      reason: t('productRecsMulchReason'),
     },
     {
-      name: 'EasyFlex No-Dig Edging',
+      name: t('productRecsEdgingName'),
       store: "Lowe's",
       sku: 'LW-EDG-20FT',
       price: 17.98,
       unit: '20 ft roll',
       qty: 4,
       inStock: true,
-      reason: 'Durable plastic, 80ft needed',
+      reason: t('productRecsEdgingReason'),
     },
     {
-      name: 'DeWalt Landscaping Kit',
+      name: t('productRecsKitName'),
       store: 'Home Depot',
       sku: 'HD-DW-KIT',
       price: 149.00,
       unit: 'kit',
       qty: 1,
       inStock: false,
-      reason: 'Recommended for efficiency',
+      reason: t('productRecsKitReason'),
     },
   ]
   
@@ -43,11 +47,11 @@ export function ProductRecommendations() {
     <Card className="shadow-xl border-2 hover:shadow-2xl transition-shadow">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xl font-bold">AI Product Recommendations</h3>
-          <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">Smart Match</Badge>
+          <h3 className="text-xl font-bold">{t('productRecsTitle')}</h3>
+          <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">{t('productRecsSmartMatch')}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          For: Backyard Landscaping Project (500 sq ft)
+          {t('productRecsFor')}
         </p>
       </CardHeader>
       
@@ -72,7 +76,7 @@ export function ProductRecommendations() {
                   {!product.inStock && (
                     <>
                       <span>•</span>
-                      <Badge variant="outline" className="text-xs px-1.5 py-0">Out of Stock</Badge>
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">{t('productRecsOutOfStock')}</Badge>
                     </>
                   )}
                 </div>
@@ -86,12 +90,12 @@ export function ProductRecommendations() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                  Qty: {product.qty}
+                  {t('productRecsQty')} {product.qty}
                 </Badge>
                 <span className="text-xs text-muted-foreground">{product.reason}</span>
               </div>
               <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
-                View
+                {t('productRecsView')}
                 <ExternalLink className="h-3 w-3" />
               </Button>
             </div>
@@ -100,16 +104,16 @@ export function ProductRecommendations() {
         
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold">Estimated Materials Total</span>
+            <span className="font-semibold">{t('productRecsEstimatedTotal')}</span>
             <span className="text-xl font-bold text-primary">${totalCost.toFixed(2)}</span>
           </div>
           <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-            Add All to Cart
+            {t('productRecsAddAll')}
           </Button>
         </div>
         
         <div className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground">
-          <p><span className="font-medium">💡 AI Tip:</span> Save $47 by purchasing in bulk at Home Depot this week</p>
+          <p><span className="font-medium">💡 AI Tip:</span> {t('productRecsAiTip')}</p>
         </div>
       </CardContent>
     </Card>
