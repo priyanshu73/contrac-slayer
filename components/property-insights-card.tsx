@@ -182,21 +182,64 @@ export function PropertyInsightsCard({
   return (
     <>
     <Card
-      className={`overflow-hidden border border-border shadow-sm border-l-4 border-l-emerald-500 bg-[#ECFDF5]/50 dark:bg-emerald-950/25 rounded-lg animate-in fade-in duration-200 ${className ?? ""}`}
+      className={`overflow-hidden border border-border shadow-xs border-l-2 border-l-emerald-400/70 dark:border-l-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/15 rounded-md animate-in fade-in duration-200 ${className ?? ""}`}
     >
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 flex items-center gap-2" style={{ fontFamily: 'var(--font-sans)' }}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 dark:bg-emerald-500/25" aria-hidden>
-              <Home className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+      <div className="px-3 py-1">
+        <div className="flex items-center gap-6 flex-wrap">
+          <h3 className="text-sm font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400 flex items-center gap-1.5 shrink-0" style={{ fontFamily: 'var(--font-sans)' }}>
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 dark:bg-emerald-500/20" aria-hidden>
+              <Home className="h-3.5 w-3.5 text-emerald-600/80 dark:text-emerald-400/80" />
             </span>
-            {title}
+            {title}:
           </h3>
+          {loading && !hasData && (
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+              Loading…
+            </span>
+          )}
+          {unavailable && !hasData && !loading && (
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              Data unavailable
+            </span>
+          )}
+          {hasData && (() => {
+            const raw = insights as Record<string, unknown>
+            const sqft = raw.house_sqft ?? raw.building_sqft ?? raw.squareFootage
+            const beds = raw.bedrooms
+            const baths = raw.bathrooms
+            const hasSqft = sqft != null && (typeof sqft === "number" || (typeof sqft === "string" && /^\d+$/.test(sqft)))
+            const sqftNum = hasSqft ? Number(sqft) : null
+            return (
+              <>
+                {sqftNum != null && (
+                  <span className="flex items-center gap-1.5 text-sm text-foreground shrink-0">
+                    <span className="text-muted-foreground">Area:</span>
+                    <span className="tabular-nums">{sqftNum.toLocaleString()}</span>
+                  </span>
+                )}
+                {beds != null && (
+                  <span className="flex items-center gap-1.5 text-sm text-foreground shrink-0">
+                    <Bed className="h-4 w-4 text-muted-foreground" aria-hidden />
+                    <span className="tabular-nums">{Number(beds)} bed</span>
+                  </span>
+                )}
+                {baths != null && (
+                  <span className="flex items-center gap-1.5 text-sm text-foreground shrink-0">
+                    <Bath className="h-4 w-4 text-muted-foreground" aria-hidden />
+                    <span className="tabular-nums">{Number(baths)} bath</span>
+                  </span>
+                )}
+              </>
+            )
+          })()}
+          <span className="flex-1 min-w-0" aria-hidden />
           {!hasData && !unavailable && (
             <Button
               size="sm"
               variant="outline"
-              className="h-8 px-3 text-sm border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-md"
+              className="h-7 px-2.5 text-sm border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded shrink-0"
               onClick={fetchInsights}
               disabled={loading}
             >
@@ -207,59 +250,14 @@ export function PropertyInsightsCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-sm text-muted-foreground hover:text-foreground shrink-0"
+              className="h-7 px-2 text-sm text-muted-foreground hover:text-foreground shrink-0"
               onClick={openDetails}
             >
-              <FileText className="h-4 w-4 mr-1.5" />
+              <FileText className="h-4 w-4 mr-1" />
               View detailed
             </Button>
           )}
         </div>
-
-        {loading && !hasData && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground py-3 px-4 rounded-lg bg-[#F5F5F5] dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-500 shrink-0" />
-            <span>Loading property data…</span>
-          </div>
-        )}
-
-        {unavailable && !hasData && !loading && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground py-3 px-4 rounded-lg bg-[#F5F5F5] dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600">
-            <AlertCircle className="h-6 w-6 shrink-0 text-amber-500" />
-            <span>Data unavailable for this address.</span>
-          </div>
-        )}
-
-        {hasData && (() => {
-          const raw = insights as Record<string, unknown>
-          const sqft = raw.house_sqft ?? raw.building_sqft ?? raw.squareFootage
-          const beds = raw.bedrooms
-          const baths = raw.bathrooms
-          const hasSqft = sqft != null && (typeof sqft === "number" || (typeof sqft === "string" && /^\d+$/.test(sqft)))
-          const sqftNum = hasSqft ? Number(sqft) : null
-          return (
-            <dl className="grid grid-cols-3 gap-x-4 gap-y-0 text-sm">
-              {sqftNum != null && (
-                <div className="flex items-center gap-2 text-foreground">
-                  <Square className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                  <span className="tabular-nums">{sqftNum.toLocaleString()} sq ft</span>
-                </div>
-              )}
-              {beds != null && (
-                <div className="flex items-center gap-2 text-foreground">
-                  <Bed className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                  <span className="tabular-nums">{Number(beds)} bed</span>
-                </div>
-              )}
-              {baths != null && (
-                <div className="flex items-center gap-2 text-foreground">
-                  <Bath className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                  <span className="tabular-nums">{Number(baths)} bath</span>
-                </div>
-              )}
-            </dl>
-          )
-        })()}
       </div>
     </Card>
 
