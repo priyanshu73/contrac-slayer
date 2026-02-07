@@ -49,12 +49,12 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
-    
+
     // Create AbortController for timeout handling
     const controller = new AbortController()
     // Set timeout to 90 seconds (longer than backend timeout to get proper error)
     const timeoutId = setTimeout(() => controller.abort(), 90000)
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
@@ -86,7 +86,7 @@ class ApiClient {
       return response.json()
     } catch (error) {
       clearTimeout(timeoutId)
-      
+
       // Handle timeout/abort errors
       if (error instanceof Error) {
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
@@ -249,27 +249,27 @@ class ApiClient {
     formData.append('email', data.email)
     if (data.phone) formData.append('phone', data.phone)
     if (data.address) formData.append('address', data.address)
-    
+
     // Add structured address data from Mapbox if available
     if (data.address_data) {
       formData.append('address_data', JSON.stringify(data.address_data))
     }
-    
+
     if (data.project_type) formData.append('project_type', data.project_type)
     if (data.description) formData.append('description', data.description)
-    
+
     // Add measurements as JSON string if provided and has items with data
     // Only send if user has added at least one measurement entry (has type or other data)
     if (measurements && measurements.items && measurements.items.length > 0) {
       // Filter out completely empty entries (no type, no values, no name)
-      const validItems = measurements.items.filter(item => 
+      const validItems = measurements.items.filter(item =>
         item.type || item.length || item.width || item.value || item.name
       )
       if (validItems.length > 0) {
         formData.append('measurements', JSON.stringify({ items: validItems }))
       }
     }
-    
+
     if (files) {
       files.forEach((file) => {
         formData.append('files', file)
@@ -339,7 +339,7 @@ class ApiClient {
   async getJobByPublicLink(publicLink: string) {
     // Public endpoint - don't require authentication
     const url = `${this.baseURL}/jobs/public/${publicLink}`
-    
+
     const config: RequestInit = {
       method: 'GET',
       headers: {
@@ -381,7 +381,7 @@ class ApiClient {
 
   async deleteJob(jobId: number) {
     const url = `${this.baseURL}/jobs/${jobId}`
-    
+
     const config: RequestInit = {
       method: 'DELETE',
       headers: {
@@ -462,7 +462,7 @@ class ApiClient {
   async searchMaterials(query: string, zipCode?: string, maxResults = 10) {
     console.log(`🌐 API Client: Searching materials for "${query}"`)
     const startTime = Date.now()
-    
+
     const params = new URLSearchParams()
     params.append('query', query)
     if (zipCode) params.append('location_zip_code', zipCode)
@@ -470,7 +470,7 @@ class ApiClient {
 
     const url = `/intelligent/materials/search?${params.toString()}`
     console.log(`🌐 API Client: Making request to ${url}`)
-    
+
     try {
       const result = await this.request(url, {
         method: 'POST',
@@ -497,7 +497,7 @@ class ApiClient {
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)
     const startTime = Date.now()
-    
+
     try {
       const result = await this.request('/generate-estimate', {
         method: 'POST',
@@ -741,7 +741,7 @@ class ApiClient {
   // =========================
   // Billing / Stripe
   // =========================
-  
+
   async createCheckoutSession(data: {
     plan: 'monthly' | 'yearly'
     success_url: string
@@ -825,7 +825,58 @@ class ApiClient {
   }> {
     return this.request(`/property-info/details?address_id=${encodeURIComponent(addressId)}`)
   }
+
+  // =========================
+  // Project Templates for AI Estimator
+  // =========================
+
+  /**
+   * Get project templates for the current contractor (filtered by their trade/contractor_type)
+   */
+  async getTemplates(): Promise<Array<{
+    id: number
+    trade: string
+    project_type: string
+  }>> {
+    return this.request('/templates')
+  }
+
+  /**
+   * Get all available templates (for admin or testing)
+   */
+  async getAllTemplates(): Promise<Array<{
+    id: number
+    trade: string
+    project_type: string
+  }>> {
+    return this.request('/templates/all')
+  }
+
+  /**
+   * Get a single template with its variables
+   */
+  async getTemplate(templateId: number): Promise<{
+    id: number
+    trade: string
+    project_type: string
+    prompt_template: string
+    variables: Array<{
+      id: number
+      variable_name: string
+      display_label: string
+      input_type: string
+      options?: string[]
+      unit?: string
+      is_required: boolean
+      display_order: number
+      placeholder?: string
+      help_text?: string
+    }>
+  }> {
+    return this.request(`/templates/${templateId}`)
+  }
 }
+
 
 class ContractorAIClient {
   private baseURL: string
@@ -845,16 +896,16 @@ class ContractorAIClient {
     if (!this.baseURL) {
       throw new Error('Contractor AI API URL is not configured')
     }
-    
+
     // Ensure endpoint starts with / and combine with baseURL
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
     const url = `${this.baseURL}${normalizedEndpoint}`
-    
+
     // Create AbortController for timeout handling
     const controller = new AbortController()
     // Set timeout to 90 seconds
     const timeoutId = setTimeout(() => controller.abort(), 90000)
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
@@ -896,7 +947,7 @@ class ContractorAIClient {
       return data
     } catch (error) {
       clearTimeout(timeoutId)
-      
+
       console.error(`🌐 ContractorAI API: Request error for ${url}:`, error)
       if (error instanceof Error) {
         // Handle timeout/abort errors
@@ -1006,7 +1057,7 @@ class ContractorAIClient {
   // =========================
   // Follow-up System
   // =========================
-  
+
   async getFollowupSettings(spId: string) {
     return this.request(`/followup/settings/${spId}`)
   }

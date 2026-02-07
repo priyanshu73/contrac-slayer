@@ -31,15 +31,15 @@ export function StatsCardsReal() {
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const quoteRequestUrl = contractorUuid ? `${frontendUrl}/quote-request/${contractorUuid}` : ""
 
+  // Depend on contractorUuid (primitive) so we only fetch once per profile.
+  // Using [user] would re-run when auth sets a new user object reference and cause a second fetch.
   useEffect(() => {
-    // Only fetch stats if user has a contractor profile
-    // This prevents errors when user hasn't created profile yet
-    if (user?.contractor_profile) {
-      fetchStats()
-    } else {
+    if (!contractorUuid) {
       setStatsLoading(false)
+      return
     }
-  }, [user])
+    fetchStats()
+  }, [contractorUuid])
 
   const fetchStats = async () => {
     setStatsLoading(true)

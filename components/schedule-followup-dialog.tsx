@@ -55,6 +55,13 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   custom: "",
 }
 
+/** Time 1 hour from now in local time, formatted as HH:MM for the time input. */
+function getTimeOneHourFromNow(): string {
+  const d = new Date()
+  d.setHours(d.getHours() + 1)
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
 export function ScheduleFollowupDialog({
   contractorId,
   open,
@@ -68,7 +75,7 @@ export function ScheduleFollowupDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
   const [messageText, setMessageText] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>()
-  const [selectedTime, setSelectedTime] = useState("09:00")
+  const [selectedTime, setSelectedTime] = useState(() => getTimeOneHourFromNow())
   const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -95,8 +102,9 @@ export function ScheduleFollowupDialog({
         }
       }
       fetchClients()
-      // Default date to today when dialog opens
+      // Default date to today and time to 1 hour from now when dialog opens
       setSelectedDate((prev) => prev ?? new Date())
+      setSelectedTime(getTimeOneHourFromNow())
     }
   }, [open])
 
@@ -180,7 +188,7 @@ export function ScheduleFollowupDialog({
       setSelectedTemplate("")
       setMessageText("")
       setSelectedDate(undefined)
-      setSelectedTime("09:00")
+      setSelectedTime(getTimeOneHourFromNow())
       setClientComboboxOpen(false)
       setDatePopoverOpen(false)
       onOpenChange(false)

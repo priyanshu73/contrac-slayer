@@ -44,7 +44,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [billingAddressData, setBillingAddressData] = useState<AddressData | null>(null)
   // When true, billing address is same as address and billing fields are hidden
-  const [billingSameAsAddress, setBillingSameAsAddress] = useState(true)
+  const [billingSameAsAddress, setBillingSameAsAddress] = useState(false)
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
