@@ -4,9 +4,9 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
 
-const LANGUAGE_NAMES = {
-  en: 'English',
-  es: 'Español (México)'
+const LANGUAGE_OPTIONS = {
+  en: { name: 'English', flag: '🇺🇸' },
+  es: { name: 'Español (México)', flag: '🇲🇽' }
 } as const;
 
 export function LanguageSelector() {
@@ -25,13 +25,23 @@ export function LanguageSelector() {
       >
         <SelectTrigger className="w-full">
           <SelectValue>
-            {isChanging ? t('changing') : LANGUAGE_NAMES[currentLocale]}
+            {isChanging ? (
+              t('changing')
+            ) : (
+              <span className="flex items-center gap-2">
+                <span className="text-lg leading-none" aria-hidden>{LANGUAGE_OPTIONS[currentLocale].flag}</span>
+                {LANGUAGE_OPTIONS[currentLocale].name}
+              </span>
+            )}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {supportedLocales.map((locale) => (
             <SelectItem key={locale} value={locale}>
-              {LANGUAGE_NAMES[locale]}
+              <span className="flex items-center gap-2">
+                <span className="text-lg leading-none" aria-hidden>{LANGUAGE_OPTIONS[locale].flag}</span>
+                {LANGUAGE_OPTIONS[locale].name}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

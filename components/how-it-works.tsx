@@ -4,8 +4,10 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Sparkles, X, Plus, Package, Calendar, Check } from "lucide-react"
 import { PhoneMessagePreview } from "@/components/phone-message-preview"
+import { useTranslations } from "next-intl"
 
 export function HowItWorks() {
+  const t = useTranslations('landing')
   return (
     <section id="how-it-works" className="py-32 px-4 bg-white relative overflow-hidden dark:bg-background">
       <div className="absolute left-1/2 top-48 bottom-24 w-0.5 bg-gradient-to-b from-blue-200 via-teal-200 via-indigo-200 to-purple-200 hidden lg:block" />
@@ -14,10 +16,9 @@ export function HowItWorks() {
 
       <div className="container mx-auto max-w-[95rem] relative z-10">
         <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-balance">How it works</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-balance">{t('howItWorksTitle')}</h2>
           <p className="text-lg text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed">
-            ContractorOps AI provides a complete toolkit to grow your contracting business 10x faster without having to
-            work 10x harder.
+            {t('howItWorksSubtitle')}
           </p>
         </div>
 
@@ -35,12 +36,10 @@ export function HowItWorks() {
 
               <div className="lg:pl-16 order-first lg:order-last">
                 <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">AI Call & Text Listening</h3>
+                  <h3 className="text-4xl font-bold text-balance">{t('step1Title')}</h3>
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  Never miss a client. AI listens to calls, reads texts, and automatically follows up with personalized
-                  responses. It&apos;s text-based with no app downloads—clients use their built-in Messages; you capture
-                  every lead opportunity.
+                  {t('step1Body')}
                 </p>
               </div>
             </div>
@@ -55,14 +54,14 @@ export function HowItWorks() {
                 <Card className="p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-teal-950/20 dark:to-emerald-900/20 border-teal-200/40 dark:border-teal-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
                   <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-lg font-semibold">New Project Estimate</span>
+                      <span className="text-lg font-semibold">{t('step2NewProjectEstimate')}</span>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
                           className="h-9 gap-1.5 text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/50"
                         >
                           <Sparkles className="h-4 w-4" />
-                          Use AI
+                          {t('step2UseAI')}
                         </Button>
                         <Button size="sm" variant="ghost" className="h-9 w-9 p-0">
                           <X className="h-4 w-4" />
@@ -71,9 +70,7 @@ export function HowItWorks() {
                     </div>
 
                     <div className="bg-muted/50 rounded-lg p-4 min-h-28 text-lg text-foreground leading-relaxed mb-4">
-                      Backyard landscaping for Sarah Johnson. Need to install 1,200 sq ft of premium sod, build a 10x12
-                      paver patio with natural stone, and plant 3 shade trees (oak or maple). Include soil prep and
-                      grading.
+                      {t('step2ProjectDesc')}
                     </div>
 
                     <Button
@@ -81,7 +78,7 @@ export function HowItWorks() {
                       className="w-full bg-black hover:bg-gray-800 text-white text-base"
                       variant="default"
                     >
-                      Generate Estimate
+                      {t('step2GenerateEstimate')}
                     </Button>
                   </Card>
                 </Card>
@@ -89,11 +86,10 @@ export function HowItWorks() {
 
               <div className="lg:pr-16 lg:order-1">
                 <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">Describe Your Project</h3>
+                  <h3 className="text-4xl font-bold text-balance">{t('step2DescribeTitle')}</h3>
                 </div>
                   <p className="text-xl text-muted-foreground leading-relaxed">
-                    Provide your project description and images. Our AI understands your requirements and prepares a
-                    comprehensive estimate based on your inputs.
+                    {t('step2DescribeBody')}
                   </p>
               </div>
             </div>
@@ -109,7 +105,7 @@ export function HowItWorks() {
                   <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between pb-3 border-b">
-                        <span className="font-semibold text-lg">Backyard Landscaping Project</span>
+                        <span className="font-semibold text-lg">{t('step3ProjectTitle')}</span>
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                           <Plus className="h-5 w-5" />
                         </Button>
@@ -118,40 +114,40 @@ export function HowItWorks() {
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between text-lg">
                           <div className="flex-1">
-                            <div className="font-medium">Premium Sod Installation</div>
-                            <div className="text-base text-muted-foreground">1,200 sq ft @ $1.35/sq ft</div>
+                            <div className="font-medium">{t('step3Line1')}</div>
+                            <div className="text-base text-muted-foreground">{t('step3Line1Detail')}</div>
                           </div>
                           <div className="font-semibold">$1,620.00</div>
                         </div>
 
                         <div className="flex items-start justify-between text-lg">
                           <div className="flex-1">
-                            <div className="font-medium">Paver Patio (10x12)</div>
-                            <div className="text-base text-muted-foreground">120 sq ft @ $18.50/sq ft</div>
+                            <div className="font-medium">{t('step3Line2')}</div>
+                            <div className="text-base text-muted-foreground">{t('step3Line2Detail')}</div>
                           </div>
                           <div className="font-semibold">$2,220.00</div>
                         </div>
 
                         <div className="flex items-start justify-between text-lg">
                           <div className="flex-1">
-                            <div className="font-medium">Shade Trees - Oak</div>
-                            <div className="text-base text-muted-foreground">3 units @ $185.00 ea</div>
+                            <div className="font-medium">{t('step3Line3')}</div>
+                            <div className="text-base text-muted-foreground">{t('step3Line3Detail')}</div>
                           </div>
                           <div className="font-semibold">$555.00</div>
                         </div>
 
                         <div className="flex items-start justify-between text-lg">
                           <div className="flex-1">
-                            <div className="font-medium">Soil Prep & Grading</div>
-                            <div className="text-base text-muted-foreground">1,200 sq ft</div>
+                            <div className="font-medium">{t('step3Line4')}</div>
+                            <div className="text-base text-muted-foreground">{t('step3Line4Detail')}</div>
                           </div>
                           <div className="font-semibold">$480.00</div>
                         </div>
 
                         <div className="flex items-start justify-between text-lg">
                           <div className="flex-1">
-                            <div className="font-medium">Labor - Installation</div>
-                            <div className="text-base text-muted-foreground">24 hrs @ $55.00/hr</div>
+                            <div className="font-medium">{t('step3Line5')}</div>
+                            <div className="text-base text-muted-foreground">{t('step3Line5Detail')}</div>
                           </div>
                           <div className="font-semibold">$1,320.00</div>
                         </div>
@@ -159,7 +155,7 @@ export function HowItWorks() {
 
                       <div className="pt-3 border-t">
                         <div className="flex items-center justify-between font-bold">
-                          <span className="text-lg">Total Estimate</span>
+                          <span className="text-lg">{t('step3TotalEstimate')}</span>
                           <span className="text-amber-600 text-2xl">$6,195.00</span>
                         </div>
                       </div>
@@ -170,10 +166,10 @@ export function HowItWorks() {
 
               <div className="lg:pl-16 order-first lg:order-last">
                 <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">AI Generates Instant Estimates</h3>
+                  <h3 className="text-4xl font-bold text-balance">{t('step3Title')}</h3>
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  AI analyzes your project description and instantly generates a competitive quote based on local market data.
+                  {t('step3Body')}
                 </p>
               </div>
             </div>
@@ -189,18 +185,18 @@ export function HowItWorks() {
                   <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b">
                       <Package className="h-6 w-6 text-orange-600" />
-                      <span className="font-semibold text-lg">AI Product Recommendations</span>
+                      <span className="font-semibold text-lg">{t('step4AiProductRecs')}</span>
                     </div>
 
                     <div className="space-y-3">
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-lg line-clamp-2">Flagstone Natural Paver 12x12</div>
-                          <div className="text-base text-muted-foreground mt-1">Perfect for your patio project</div>
+                          <div className="font-medium text-lg line-clamp-2">{t('step4Product1Name')}</div>
+                          <div className="text-base text-muted-foreground mt-1">{t('step4Product1Desc')}</div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-lg font-bold text-orange-600">$3.48/sq ft</span>
                             <Button size="sm" variant="outline" className="h-8 text-base px-4 bg-transparent">
-                              Add
+                              {t('step4Add')}
                             </Button>
                           </div>
                         </div>
@@ -208,12 +204,12 @@ export function HowItWorks() {
 
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-lg line-clamp-2">Red Oak Tree 7-8 ft Potted</div>
-                          <div className="text-base text-muted-foreground mt-1">Fast-growing shade tree</div>
+                          <div className="font-medium text-lg line-clamp-2">{t('step4Product2Name')}</div>
+                          <div className="text-base text-muted-foreground mt-1">{t('step4Product2Desc')}</div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-lg font-bold text-orange-600">$179.99</span>
                             <Button size="sm" variant="outline" className="h-8 text-base px-4 bg-transparent">
-                              Add
+                              {t('step4Add')}
                             </Button>
                           </div>
                         </div>
@@ -221,12 +217,12 @@ export function HowItWorks() {
 
                       <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-lg line-clamp-2">Premium Kentucky Bluegrass Sod</div>
-                          <div className="text-base text-muted-foreground mt-1">High-quality lawn grass</div>
+                          <div className="font-medium text-lg line-clamp-2">{t('step4Product3Name')}</div>
+                          <div className="text-base text-muted-foreground mt-1">{t('step4Product3Desc')}</div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-lg font-bold text-orange-600">$179.99</span>
                             <Button size="sm" variant="outline" className="h-8 text-base px-4 bg-transparent">
-                              Add
+                              {t('step4Add')}
                             </Button>
                           </div>
                         </div>
@@ -238,10 +234,10 @@ export function HowItWorks() {
 
               <div className="lg:pr-16 lg:order-1">
                 <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">Smart Product Suggestions</h3>
+                  <h3 className="text-4xl font-bold text-balance">{t('step4SmartSuggestions')}</h3>
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  AI recommends the best products for your project needs with real-time pricing and availability.
+                  {t('step4Body')}
                 </p>
               </div>
             </div>
@@ -322,11 +318,10 @@ export function HowItWorks() {
 
               <div className="lg:pl-16 order-first lg:order-last">
                 <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">AI-Powered Scheduling</h3>
+                  <h3 className="text-4xl font-bold text-balance">{t('step5Title')}</h3>
                 </div>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  AI automatically detects scheduling conversations in your SMS and helps book meetings instantly. 
-                  Customers receive a calendar link to select times based on your availability—no back-and-forth needed.
+                  {t('step5Body')}
                 </p>
               </div>
             </div>

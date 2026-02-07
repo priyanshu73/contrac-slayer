@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { InvoicePreview } from "@/components/invoice-preview";
 import { AIConversationPreview } from "@/components/ai-conversation-preview";
 import { ProductRecommendations } from "@/components/product-recommendations";
@@ -8,6 +9,7 @@ import ProjectManagementCard from "@/components/project-management-card";
 import { FileText, MessageSquare, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function Features() {
+  const t = useTranslations('landing');
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const scroll = (dir: number) => {
@@ -62,33 +64,29 @@ export function Features() {
   const slides = [
     {
       id: "invoices",
-      title: "Instant Invoice Generation",
-      body:
-        "Describe your project and upload photos, and our AI generates accurate invoices with material lists and labor estimates in seconds.",
+      title: t('featuresInvoiceTitle'),
+      body: t('featuresInvoiceBody'),
       icon: <FileText className="h-6 w-6 text-primary" />,
       preview: <InvoicePreview />,
     },
     {
       id: "calls",
-      title: "AI Call & Text Listening",
-      body:
-        "Capture every lead: AI transcribes calls and texts, generates responses, and offers scheduling links so you never miss an opportunity.",
+      title: t('featuresCallsTitle'),
+      body: t('featuresCallsBody'),
       icon: <MessageSquare className="h-6 w-6 text-accent" />,
       preview: <AIConversationPreview />,
     },
     {
       id: "products",
-      title: "Smart Product Suggestions",
-      body:
-        "Get job-specific product recommendations with pricing and availability from major retailers so you can order with confidence.",
+      title: t('featuresProductsTitle'),
+      body: t('featuresProductsBody'),
       icon: <ShoppingCart className="h-6 w-6 text-chart-3" />,
       preview: <ProductRecommendations />,
     },
     {
       id: "pm",
-      title: "Project Management",
-      body:
-        "Keep projects on track with task lists, assignees, due dates and simple reporting, built to work with your estimates.",
+      title: t('featuresPmTitle'),
+      body: t('featuresPmBody'),
       icon: null,
       preview: <ProjectManagementCard />,
     },
@@ -98,8 +96,8 @@ export function Features() {
     <section id="features" className="py-20 px-4 bg-white relative overflow-hidden dark:bg-background">
       <div className="container mx-auto max-w-8xl">
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-3 text-balance">Everything You Need to Scale Your Business</h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">Powerful AI-driven tools that automate estimates, follow-ups, product selection, and project management.</p>
+          <h2 className="text-4xl md:text-5xl font-bold mb-3 text-balance">{t('featuresSectionTitle')}</h2>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">{t('featuresSectionSubtitle')}</p>
         </div>
 
         <div className="relative">

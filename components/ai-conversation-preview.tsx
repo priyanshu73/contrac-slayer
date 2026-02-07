@@ -1,35 +1,39 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatPhoneForDisplay } from '@/lib/utils'
 import { Phone, MessageSquare } from 'lucide-react'
 
 export function AIConversationPreview() {
+  const t = useTranslations('landing')
   const messages = [
     {
-      type: 'call',
+      type: 'call' as const,
       timestamp: '10:23 AM',
-      content: 'Hi, I need some landscaping work done for my backyard. About 500 sq ft of mulch and new edging.',
+      content: t('leadCaptureCallContent'),
       speaker: 'Sarah Johnson',
       phone: '(512) 555-0198',
     },
     {
-      type: 'ai-analysis',
-      content: 'Lead captured: Landscaping project, 500 sq ft mulch + edging',
-      tags: ['High Priority', 'Residential', 'Austin Area'],
+      type: 'ai-analysis' as const,
+      content: t('leadCaptureAnalysis'),
+      tags: [t('leadCaptureTagHigh'), t('leadCaptureTagResidential'), t('leadCaptureTagAustin')],
     },
     {
-      type: 'text',
+      type: 'text' as const,
       timestamp: '10:25 AM',
-      content: 'Hi Sarah! Thanks for reaching out. I\'d love to help with your backyard project. I can schedule a free estimate this week—how about Thursday at 2 PM?',
+      content: t('leadCaptureAiMessage'),
       sender: 'ContractorOps AI',
-      status: 'Delivered',
+      status: t('leadCaptureDelivered'),
     },
     {
-      type: 'text',
+      type: 'text' as const,
       timestamp: '10:31 AM',
-      content: 'Thursday at 2 works perfect! See you then.',
+      content: t('leadCaptureSarahReply'),
       sender: 'Sarah Johnson',
-      status: 'Received',
+      status: t('leadCaptureReceived'),
     },
   ]
   
@@ -37,10 +41,10 @@ export function AIConversationPreview() {
     <Card className="shadow-xl border-2 hover:shadow-2xl transition-shadow bg-card">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xl font-bold">AI Lead Capture</h3>
-          <Badge variant="secondary" className="bg-accent/10 text-accent">Live</Badge>
+          <h3 className="text-xl font-bold">{t('leadCaptureTitle')}</h3>
+          <Badge variant="secondary" className="bg-accent/10 text-accent">{t('leadCaptureLive')}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">Real-time conversation monitoring</p>
+        <p className="text-sm text-muted-foreground">{t('leadCaptureSubtitle')}</p>
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -50,7 +54,7 @@ export function AIConversationPreview() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Phone className="h-3.5 w-3.5" />
-                  <span>Incoming Call - {msg.timestamp}</span>
+                  <span>{t('leadCaptureIncomingCall')} - {msg.timestamp}</span>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3 border-l-4 border-accent">
                   <div className="flex items-start justify-between mb-2">
@@ -104,7 +108,7 @@ export function AIConversationPreview() {
         ))}
         
         <div className="pt-2 text-center">
-          <p className="text-xs text-muted-foreground">AI auto-responded in 2 minutes</p>
+          <p className="text-xs text-muted-foreground">{t('leadCaptureAutoResponded')}</p>
         </div>
       </CardContent>
     </Card>

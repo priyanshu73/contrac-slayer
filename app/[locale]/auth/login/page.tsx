@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +14,8 @@ import { ToastAction } from "@/components/ui/toast"
 
 export default function LoginPage() {
   const router = useRouter()
+  const locale = useLocale()
+  const t = useTranslations("auth")
   const { login, refreshUser } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -29,9 +33,9 @@ export default function LoginPage() {
     try {
       await login(formData.email, formData.password)
       await refreshUser()
-      router.push("/dashboard")
+      router.push(`/${locale}/dashboard`)
     } catch (err: any) {
-      const errorMessage = err.message || "Invalid credentials"
+      const errorMessage = err.message || t("invalidCredentials")
       
       // Check if error is about email verification
       if (errorMessage.toLowerCase().includes("email not verified") || errorMessage.toLowerCase().includes("verify your email")) {
@@ -40,21 +44,21 @@ export default function LoginPage() {
           await api.sendOtp(formData.email)
           // Show toast with verify email option
           toast({
-            title: "Email Not Verified",
-            description: "An OTP was sent to your email. Please verify your email to continue.",
+            title: t("emailNotVerified"),
+            description: t("otpSentDescription"),
             variant: "default",
             action: (
               <ToastAction
-                altText="Verify Email"
-                onClick={() => router.push(`/auth/verify-otp?email=${encodeURIComponent(formData.email)}&fromLogin=true`)}
+                altText={t("verifyEmail")}
+                onClick={() => router.push(`/${locale}/auth/verify-otp?email=${encodeURIComponent(formData.email)}&fromLogin=true`)}
                 className="bg-blue-600 hover:bg-blue-700 text-white border-0"
               >
-                Verify Email
+                {t("verifyEmail")}
               </ToastAction>
             ),
           })
         } catch (otpErr: any) {
-          setError(otpErr.message || "Failed to send verification code")
+          setError(otpErr.message || t("failedToSendVerification"))
         }
       } else {
         setError(errorMessage)
@@ -104,36 +108,12 @@ export default function LoginPage() {
           </div>
           <div className="bg-gradient-to-br from-blue-500/15 to-sky-500/15 backdrop-blur-sm rounded-2xl p-6 inline-block shadow-2xl border border-blue-300/20">
             <h2 className="text-5xl font-bold leading-tight text-white" style={{ textShadow: '0 6px 20px rgba(0,0,0,0.6), 0 3px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)' }}>
-              Welcome back to your command center
+              {t("welcomeBackCommandCenter")}
             </h2>
           </div>
           <p className="text-xl text-white font-medium bg-gradient-to-br from-blue-500/15 to-sky-500/15 backdrop-blur-sm rounded-xl p-4 inline-block shadow-xl border border-blue-300/20" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
-            Manage your contracting business with confidence. All your tools in one place.
+            {t("manageBusiness")}
           </p>
-          <div className="flex gap-6 pt-8">
-            <div className="flex items-center gap-3 bg-gradient-to-br from-blue-500/20 to-sky-500/20 backdrop-blur-md rounded-xl p-4 shadow-xl border border-blue-300/30">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-sky-500 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white" style={{ textShadow: '0 4px 8px rgba(0,0,0,0.5)' }}>500+</div>
-                <div className="text-white text-sm font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Contractors</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-md rounded-xl p-4 shadow-xl border border-yellow-300/30">
-              <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white" style={{ textShadow: '0 4px 8px rgba(0,0,0,0.5)' }}>4.9/5</div>
-                <div className="text-white text-sm font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Rating</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -166,22 +146,22 @@ export default function LoginPage() {
         <div className="w-full max-w-md relative z-10">
           {/* Back to Home */}
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(`/${locale}`)}
             className="mb-8 flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span>Back to home</span>
+            <span>{t("backToHome")}</span>
           </button>
 
           {/* Form Card */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                Welcome Back
+                {t("welcomeBack")}
               </h1>
-              <p className="text-gray-600 mt-2">Log in to your contractor account</p>
+              <p className="text-gray-600 mt-2">{t("loginSubtitle")}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -195,11 +175,11 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+                <Label htmlFor="email" className="text-gray-700 font-medium">{t("emailAddress")}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@company.com"
+                  placeholder={t("emailPlaceholder")}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -209,7 +189,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+                <Label htmlFor="password" className="text-gray-700 font-medium">{t("password")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -230,24 +210,24 @@ export default function LoginPage() {
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Logging in...</span>
+                    <span>{t("loggingIn")}</span>
                   </div>
                 ) : (
-                  "Log In"
+                  t("logIn")
                 )}
               </Button>
             </form>
 
             <div className="mt-8 space-y-3 text-center">
               <p className="text-sm text-gray-600">
-                <a href="/auth/forgot-password" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-                  Forgot password?
+                <a href={`/${locale}/auth/forgot-password`} className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+                  {t("forgotPassword")}
                 </a>
               </p>
               <p className="text-sm text-gray-600">
-                Don't have an account?{" "}
-                <a href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-                  Sign up for free
+                {t("dontHaveAccount")}{" "}
+                <a href={`/${locale}/auth/signup`} className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+                  {t("signUpForFree")}
                 </a>
               </p>
             </div>

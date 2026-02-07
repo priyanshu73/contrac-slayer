@@ -1,50 +1,54 @@
+"use client";
+
 import React from "react";
+import { useTranslations } from "next-intl";
 
 export function ProjectManagementCard() {
+  const t = useTranslations("landing");
   const rows = [
     {
       id: 1,
-      name: "Install patio pavers",
+      name: t("pmTask1"),
       assignee: "Miguel Cruz",
-      status: "Scheduled",
+      status: t("pmStatusScheduled"),
       due: "2025-06-12",
-      project: "Backyard Renovation",
+      project: t("pmProject1"),
       color: "green",
     },
     {
       id: 2,
-      name: "Build retaining wall (Oak St.)",
+      name: t("pmTask2"),
       assignee: "Sam Patel",
-      status: "In Progress",
+      status: t("pmStatusInProgress"),
       due: "2025-06-20",
-      project: "Retaining Wall - Oak St",
+      project: t("pmProject2"),
       color: "blue",
     },
     {
       id: 3,
-      name: "Landscape front yard (sod + plants)",
+      name: t("pmTask3"),
       assignee: "Jasmine Lee",
-      status: "Needs Review",
+      status: t("pmStatusNeedsReview"),
       due: "2025-06-08",
-      project: "Front Yard Refresh",
+      project: t("pmProject3"),
       color: "yellow",
     },
     {
       id: 4,
-      name: "Replace driveway (gravel → asphalt)",
+      name: t("pmTask4"),
       assignee: "Tom Nguyen",
-      status: "Pending",
+      status: t("pmStatusPending"),
       due: "2025-06-30",
-      project: "Driveway Replacement",
+      project: t("pmProject4"),
       color: "gray",
     },
     {
       id: 5,
-      name: "Install irrigation system",
+      name: t("pmTask5"),
       assignee: "Crew A",
-      status: "In Progress",
+      status: t("pmStatusInProgress"),
       due: "2025-07-05",
-      project: "Irrigation Upgrade",
+      project: t("pmProject5"),
       color: "blue",
     },
   ];
@@ -63,45 +67,38 @@ export function ProjectManagementCard() {
   };
 
   const getStatusStyles = (status: string) => {
-    switch (status) {
-      case "Scheduled":
-        return "bg-blue-50 text-blue-700 border border-blue-200";
-      case "In Progress":
-        return "bg-purple-50 text-purple-700 border border-purple-200";
-      case "Needs Review":
-        return "bg-yellow-50 text-yellow-700 border border-yellow-200";
-      case "Pending":
-        return "bg-gray-50 text-gray-700 border border-gray-200";
-      default:
-        return "bg-gray-50 text-gray-700 border border-gray-200";
-    }
+    if (status === t("pmStatusScheduled")) return "bg-blue-50 text-blue-700 border border-blue-200";
+    if (status === t("pmStatusInProgress")) return "bg-purple-50 text-purple-700 border border-purple-200";
+    if (status === t("pmStatusNeedsReview")) return "bg-yellow-50 text-yellow-700 border border-yellow-200";
+    if (status === t("pmStatusPending")) return "bg-gray-50 text-gray-700 border border-gray-200";
+    return "bg-gray-50 text-gray-700 border border-gray-200";
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 h-full flex flex-col">
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">Filter by:</span>
+          <span className="text-sm text-gray-600">{t("pmFilterBy")}</span>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">👤 Assignee</button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">ℹ️ Status</button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">📅 Due Date</button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">📁 Project</button>
+            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">👤 {t("pmAssignee")}</button>
+            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">ℹ️ {t("pmStatus")}</button>
+            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">📅 {t("pmDueDate")}</button>
+            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">📁 {t("pmProject")}</button>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="px-3 py-2 rounded-md border border-gray-200 text-sm bg-white">Import</button>
-          <button className="px-4 py-2 rounded-md bg-orange-500 text-white text-sm font-semibold">+ Add New Task</button>
+          <button className="px-3 py-2 rounded-md border border-gray-200 text-sm bg-white">{t("pmImport")}</button>
+          <button className="px-4 py-2 rounded-md bg-orange-500 text-white text-sm font-semibold">{t("pmAddNewTask")}</button>
         </div>
       </div>
 
       <div className="grid grid-cols-[2.5fr_1.4fr_1.8fr_1fr_1.5fr] bg-gray-50 text-gray-600 text-sm px-4 py-3 border-t border-b border-gray-200">
-        <div className="font-medium">Task Name</div>
-        <div className="font-medium">Assignee</div>
-        <div className="font-medium text-center">Status</div>
-        <div className="font-medium">Due Date</div>
-        <div className="font-medium">Project</div>
+        <div className="font-medium">{t("pmTaskName")}</div>
+        <div className="font-medium">{t("pmAssignee")}</div>
+        <div className="font-medium text-center">{t("pmStatus")}</div>
+        <div className="font-medium">{t("pmDueDate")}</div>
+        <div className="font-medium">{t("pmProject")}</div>
       </div>
 
       <div className="flex-1 overflow-auto">
