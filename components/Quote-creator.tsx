@@ -74,22 +74,22 @@ const COMMON_UNITS = [
   { value: "sq ft", label: "Square Feet (sq ft)" },
   { value: "sq yd", label: "Square Yards (sq yd)" },
   { value: "sq m", label: "Square Meters (sq m)" },
-  
+
   // Volume units
   { value: "cu ft", label: "Cubic Feet (cu ft)" },
   { value: "cu yd", label: "Cubic Yards (cu yd)" },
   { value: "cu m", label: "Cubic Meters (cu m)" },
-  
+
   // Weight units
   { value: "lb", label: "Pounds (lb)" },
   { value: "kg", label: "Kilograms (kg)" },
   { value: "ton", label: "Tons" },
-  
+
   // Length units
   { value: "linear ft", label: "Linear Feet" },
   { value: "linear yd", label: "Linear Yards" },
   { value: "m", label: "Meters (m)" },
-  
+
   // Count units
   { value: "each", label: "Each" },
   { value: "piece", label: "Piece" },
@@ -97,7 +97,7 @@ const COMMON_UNITS = [
   { value: "box", label: "Box" },
   { value: "pallet", label: "Pallet" },
   { value: "bag", label: "Bag" },
-  
+
   // Time units
   { value: "hour", label: "Hour" },
   { value: "day", label: "Day" },
@@ -107,7 +107,7 @@ const COMMON_UNITS = [
 // Smart unit suggestions based on description
 function getSuggestedUnits(description: string): string[] {
   const desc = description.toLowerCase()
-  
+
   if (desc.includes('paver') || desc.includes('tile') || desc.includes('flooring')) {
     return ['sq ft', 'each', 'pallet']
   }
@@ -123,7 +123,7 @@ function getSuggestedUnits(description: string): string[] {
   if (desc.includes('labor') || desc.includes('installation')) {
     return ['hour', 'sq ft', 'each']
   }
-  
+
   return ['each', 'sq ft', 'cu ft', 'lb', 'hour']
 }
 
@@ -146,17 +146,17 @@ function getRateNumber(rate: LineItem["rate"]): number {
 function UnitSelector({ value, onChange, description }: { value: string; onChange: (value: string) => void; description: string }) {
   const [isCustom, setIsCustom] = useState(false)
   const [customValue, setCustomValue] = useState("")
-  
+
   const suggestedUnits = getSuggestedUnits(description)
   const commonUnitValues = COMMON_UNITS.map(unit => unit.value)
-  
+
   useEffect(() => {
     if (value && !commonUnitValues.includes(value)) {
       setIsCustom(true)
       setCustomValue(value)
     }
   }, [value, commonUnitValues])
-  
+
   const handleSelect = (selectedValue: string) => {
     if (selectedValue === "custom") {
       setIsCustom(true)
@@ -166,18 +166,18 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
       onChange(selectedValue)
     }
   }
-  
+
   const handleCustomChange = (newValue: string) => {
     setCustomValue(newValue)
     onChange(newValue)
   }
-  
+
   const handleCustomClose = () => {
     setIsCustom(false)
     setCustomValue("")
     onChange("")
   }
-  
+
   // Filter out suggested units from common units to avoid duplicates
   const remainingUnits = COMMON_UNITS.filter(unit => !suggestedUnits.includes(unit.value))
 
@@ -203,14 +203,14 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
                 {remainingUnits.length > 0 && <div className="border-t my-1"></div>}
               </>
             )}
-            
+
             {/* Remaining common units (excluding suggested ones) */}
             {remainingUnits.map(unit => (
               <SelectItem key={unit.value} value={unit.value}>
                 {unit.label}
               </SelectItem>
             ))}
-            
+
             {/* Custom option */}
             <div className="border-t my-1"></div>
             <SelectItem value="custom">
@@ -244,7 +244,7 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
 function getItemIcon(description: string, category?: string, index: number = 0) {
   const desc = description.toLowerCase()
   const cat = category?.toLowerCase() || ""
-  
+
   // Icon set with 5 different colorful abstract designs
   const icons = [
     // Icon 1: Blue gradient with tools
@@ -260,7 +260,7 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
       <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
       <path d="M35 50 L45 50 M55 50 L65 50 M50 40 L50 60" stroke="white" strokeWidth="2" strokeOpacity="0.6" />
     </svg>,
-    
+
     // Icon 2: Orange/Red gradient with construction
     <svg key="icon2" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -275,7 +275,7 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
       <rect x="55" y="35" width="15" height="15" rx="2" fill="white" fillOpacity="0.4" />
       <path d="M40 55 L60 55" stroke="white" strokeWidth="3" strokeOpacity="0.5" />
     </svg>,
-    
+
     // Icon 3: Green gradient with geometric shapes
     <svg key="icon3" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -289,7 +289,7 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
       <circle cx="65" cy="35" r="12" fill="white" fillOpacity="0.3" />
       <path d="M35 47 L65 47 L50 65 Z" fill="white" fillOpacity="0.4" />
     </svg>,
-    
+
     // Icon 4: Purple/Pink gradient with abstract design
     <svg key="icon4" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -304,7 +304,7 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
       <circle cx="60" cy="55" r="6" fill="white" fillOpacity="0.5" />
       <path d="M50 30 L50 70 M30 50 L70 50" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
     </svg>,
-    
+
     // Icon 5: Teal/Cyan gradient with modern design
     <svg key="icon5" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -319,7 +319,7 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
       <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
     </svg>
   ]
-  
+
   // Select icon based on category or description keywords
   if (cat.includes("material") || desc.includes("paver") || desc.includes("stone") || desc.includes("brick")) {
     return icons[0] // Blue gradient
@@ -336,9 +336,9 @@ function getItemIcon(description: string, category?: string, index: number = 0) 
 }
 
 // Material Thumbnail Component with colorful fallback icons
-function MaterialThumbnail({ src, alt, className, category, index }: { 
-  src?: string; 
-  alt: string; 
+function MaterialThumbnail({ src, alt, className, category, index }: {
+  src?: string;
+  alt: string;
   className?: string;
   category?: string;
   index?: number;
@@ -402,7 +402,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
-  
+
   // AI loading stage messages
   const aiLoadingMessages = [
     "Analyzing project description...",
@@ -411,7 +411,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     "Estimating labor costs...",
     "Finalizing line items...",
   ]
-  
+
   // Progress through loading stages
   useEffect(() => {
     if (aiLoading) {
@@ -424,30 +424,30 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       setAiLoadingStage(0)
     }
   }, [aiLoading])
-  
+
   // Client information states
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientPhone, setClientPhone] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [loadingLead, setLoadingLead] = useState(false)
-  
+
   // Client matching states
   const [allClients, setAllClients] = useState<Client[]>([])
   const [matchingClients, setMatchingClients] = useState<Client[]>([])
   const [showClientSuggestions, setShowClientSuggestions] = useState(false)
   const [loadingClients, setLoadingClients] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
-  
+
   // Additional details states
   const [notes, setNotes] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [paymentTerms, setPaymentTerms] = useState("")
-  
+
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  
+
   // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
@@ -457,15 +457,46 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [loadingMarkup, setLoadingMarkup] = useState(!quoteId) // Only loading if not editing (no quoteId)
   const [showSubstitute, setShowSubstitute] = useState(false)
   const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null)
-  
+
   // Track initial tax rate from profile to detect changes
   const [initialTaxRate, setInitialTaxRate] = useState<number | null>(null)
-  
+
   // Inline search states for line items
   const [searchingItemIndex, setSearchingItemIndex] = useState<number | null>(null)
   const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({})
   const [itemSearchResults, setItemSearchResults] = useState<Record<number, MaterialResult[]>>({})
   const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({})
+
+  // Template system states
+  type TemplateListItem = { id: number; trade: string; project_type: string }
+  type TemplateVariable = {
+    id: number
+    variable_name: string
+    display_label: string
+    input_type: string
+    options?: string[]
+    unit?: string
+    is_required: boolean
+    display_order: number
+    placeholder?: string
+    help_text?: string
+  }
+  type TemplateDetail = {
+    id: number
+    trade: string
+    project_type: string
+    prompt_template: string
+    variables: TemplateVariable[]
+  }
+  const [templates, setTemplates] = useState<TemplateListItem[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateDetail | null>(null)
+  const [loadingTemplateDetail, setLoadingTemplateDetail] = useState(false)
+  const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({})
+  const [generatedPrompt, setGeneratedPrompt] = useState("")
+  const [showPromptPreview, setShowPromptPreview] = useState(false)
+  const [isCustomProject, setIsCustomProject] = useState(false)
 
   // Fetch contractor profile to get default markup and tax rate
   useEffect(() => {
@@ -478,6 +509,96 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   useEffect(() => {
     fetchClients()
   }, [])
+
+  // Fetch templates on mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoadingTemplates(true)
+      try {
+        const data = await api.getTemplates()
+        setTemplates(data)
+      } catch (error) {
+        console.error('Failed to fetch templates:', error)
+        // Silently fail - templates are optional
+      } finally {
+        setLoadingTemplates(false)
+      }
+    }
+    fetchTemplates()
+  }, [])
+
+  // Fetch template details when a template is selected
+  useEffect(() => {
+    if (!selectedTemplateId) {
+      setSelectedTemplate(null)
+      setTemplateVariables({})
+      setGeneratedPrompt('')
+      return
+    }
+    const fetchTemplateDetail = async () => {
+      setLoadingTemplateDetail(true)
+      try {
+        const data = await api.getTemplate(selectedTemplateId)
+        setSelectedTemplate(data)
+        // Initialize variables with empty values
+        const initialVars: Record<string, string> = {}
+        data.variables.forEach((v) => {
+          initialVars[v.variable_name] = ''
+        })
+        setTemplateVariables(initialVars)
+        // Set project type from template
+        setProjectType(data.project_type)
+        setProjectTitle(data.project_type)
+      } catch (error) {
+        console.error('Failed to fetch template detail:', error)
+        toast({
+          title: 'Failed to load template',
+          description: 'Please try again or use custom project type',
+          variant: 'destructive',
+        })
+      } finally {
+        setLoadingTemplateDetail(false)
+      }
+    }
+    fetchTemplateDetail()
+  }, [selectedTemplateId])
+
+  // Generate prompt when template variables change
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setGeneratedPrompt('')
+      return
+    }
+    let prompt = selectedTemplate.prompt_template
+    Object.entries(templateVariables).forEach(([key, value]) => {
+      prompt = prompt.replace(new RegExp(`\\{${key}\\}`, 'g'), value || `[${key}]`)
+    })
+    setGeneratedPrompt(prompt)
+    // Also update service description with the generated prompt
+    setServiceDescription(prompt)
+  }, [templateVariables, selectedTemplate])
+
+  // Handle template selection change
+  const handleTemplateChange = (value: string) => {
+    if (value === 'custom') {
+      setSelectedTemplateId(null)
+      setIsCustomProject(true)
+      setProjectType('')
+      setServiceDescription('')
+    } else {
+      setIsCustomProject(false)
+      setSelectedTemplateId(parseInt(value, 10))
+    }
+  }
+
+  // Handle template variable change
+  const handleVariableChange = (variableName: string, value: string) => {
+    setTemplateVariables((prev) => ({
+      ...prev,
+      [variableName]: value,
+    }))
+  }
+
 
   // Fetch lead data if leadId is provided
   useEffect(() => {
@@ -507,9 +628,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Match clients when name, email, or phone changes
   useEffect(() => {
     if (selectedClientId) return // Don't match if a client is already selected
-    
+
     const matches: Client[] = []
-    
+
     if (allClients.length === 0) {
       setMatchingClients([])
       setShowClientSuggestions(false)
@@ -544,10 +665,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (nameClean.length >= 3) {
       allClients.forEach(client => {
         const clientNameClean = (client.name || '').toLowerCase()
-        
+
         // Name match: check if names are similar (contains or starts with)
         const nameMatch = clientNameClean.includes(nameClean) || nameClean.includes(clientNameClean)
-        
+
         if (nameMatch) {
           // Avoid duplicates
           if (!matches.find(m => m.id === client.id)) {
@@ -561,13 +682,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (emailClean.length >= 5 && emailClean.includes('@')) {
       allClients.forEach(client => {
         const clientEmailClean = (client.email || '').toLowerCase()
-        
+
         // Email match: exact match, or entered email contains client email or vice versa
         // This handles cases like "john" matching "john@example.com"
-        const emailMatch = clientEmailClean === emailClean || 
-                          clientEmailClean.includes(emailClean) || 
-                          emailClean.includes(clientEmailClean)
-        
+        const emailMatch = clientEmailClean === emailClean ||
+          clientEmailClean.includes(emailClean) ||
+          emailClean.includes(clientEmailClean)
+
         if (emailMatch) {
           // Avoid duplicates
           if (!matches.find(m => m.id === client.id)) {
@@ -591,7 +712,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (initialData && quoteId && !hasLoadedInitialData) {
       // Reset selected client when loading existing quote
       setSelectedClientId(null)
-      
+
       // Set client information - handle both nested client object and flat structure
       const client = initialData.client
       setClientName(client?.name || initialData.client_name || "")
@@ -616,7 +737,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Load additional details
       setNotes(initialData.customer_notes || "")
       setPaymentTerms(initialData.payment_terms || "")
-      
+
       // Handle due date or quote expiration date
       const dateValue = initialData.due_date || initialData.quote_expiration_date
       if (dateValue) {
@@ -641,7 +762,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           applyTax: item.is_taxable !== false, // Preserve tax status from backend, default to true if undefined
         }))
         setItems(lineItems)
-        
+
         // If editing and items have markup, use the first item's markup
         const firstItem = initialData.items[0]
         if (firstItem?.markup_percentage !== undefined && firstItem.markup_percentage !== null) {
@@ -649,7 +770,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
         }
       }
-      
+
       // Mark as loaded and ensure loadingMarkup is false for editing
       setHasLoadedInitialData(true)
       setLoadingMarkup(false)
@@ -727,7 +848,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     setSelectedClientId(client.id)
     setShowClientSuggestions(false)
     setMatchingClients([])
-    
+
     toast({
       title: "Client selected",
       description: `Using existing client: ${client.name}`,
@@ -739,7 +860,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (selectedClientId) {
       setSelectedClientId(null)
     }
-    
+
     if (field === 'name') setClientName(value)
     else if (field === 'email') setClientEmail(value)
     else if (field === 'phone') setClientPhone(value)
@@ -748,33 +869,33 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   const fetchLeadData = async () => {
     if (!leadId || isNaN(Number(leadId))) return
-    
+
     try {
       setLoadingLead(true)
       const data = await api.getLead(parseInt(leadId, 10))
       const lead = data as Lead
-      
+
       // Reset selected client when loading from lead
       setSelectedClientId(null)
-      
+
       // Auto-fill client information
       setClientName(lead.name || "")
       setClientEmail(lead.email || "")
       setClientPhone(lead.phone || "")
       setClientAddress(lead.address || "")
-      
+
       // Pre-fill service description if available
       if (lead.description) {
         setServiceDescription(lead.description)
       }
-      
+
       // Pre-fill project type if available
       if (lead.project_type) {
         setProjectType(lead.project_type)
         // Use project_type as title
         setProjectTitle(lead.project_type)
       }
-      
+
       // Extract measurements from lead (if available)
       if (lead.measurements) {
         setMeasurements(lead.measurements)
@@ -788,21 +909,21 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   const fetchCallLeadData = async () => {
     if (!callLeadId) return
-    
+
     try {
       setLoadingLead(true)
       const data = await contractorAI.getLead(callLeadId)
       const lead = data as any
-      
+
       // Reset selected client when loading from call lead
       setSelectedClientId(null)
-      
+
       // Auto-fill client information from call lead
       setClientName(lead.name || `Customer ${lead.phone_number?.slice(-4) || ''}`)
       setClientEmail(lead.email || "")
       setClientPhone(lead.phone_number || phone || "")
       setClientAddress(lead.location || "")
-      
+
       // Pre-fill service description if available (use summary_text from call lead)
       if (lead.summary_text) {
         setServiceDescription(lead.summary_text)
@@ -879,7 +1000,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (searchingItemIndex === null) return
 
     const query = itemSearchQueries[searchingItemIndex] || ""
-    
+
     if (!query.trim() || query.trim().length < 3) {
       setItemSearchResults(prev => ({ ...prev, [searchingItemIndex]: [] }))
       setItemSearchLoading(prev => ({ ...prev, [searchingItemIndex]: false }))
@@ -895,7 +1016,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   const performInlineSearch = async (index: number, query: string) => {
     setItemSearchLoading(prev => ({ ...prev, [index]: true }))
-    
+
     try {
       const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
       const response = await api.searchMaterials(query, zipCode, 10) as MaterialSearchResponse
@@ -928,10 +1049,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       searchResults: [material],
     }
     setItems(updatedItems)
-    
+
     // Close search mode
     handleCancelSearch(index)
-    
+
     toast({
       title: "Item added",
       description: `${material.name || "Item"} has been added to your quote`,
@@ -947,7 +1068,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       })
       return
     }
-    
+
     setAiLoading(true)
     try {
       const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
@@ -963,12 +1084,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         labor_rate_value: laborRateValue, // Send unified labor rate from form
         labor_unit_type: laborUnitType, // Send labor unit type from form when PER_UNIT
       }) as any
-      
+
       // Validate response structure to prevent crashes
       if (!response || typeof response !== 'object') {
         throw new Error('Invalid response from server. Please try again.')
       }
-      
+
       // Log for debugging
       console.log("📐 Estimate generation request:", {
         description: serviceDescription.substring(0, 50) + "...",
@@ -977,7 +1098,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         measurements_count: measurements.items.length,
         lead_id: leadId,
       })
-      
+
       // Safely convert response line items to LineItem format
       const lineItems = Array.isArray(response.line_items) ? response.line_items : []
       const newItems: LineItem[] = lineItems.map((item: any, idx: number) => ({
@@ -995,14 +1116,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         category: item.category, // Include category for icon selection
         applyTax: true, // Default to applying tax on all AI-generated items
       }))
-      
+
       // Auto-fill line items directly
       setItems(newItems)
-      
+
       // Safely store assumptions and warnings
       setAssumptions(Array.isArray(response.assumptions) ? response.assumptions : [])
       setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
-      
+
       toast({
         title: "Estimate generated",
         description: `Generated ${newItems.length} line items with AI`,
@@ -1061,42 +1182,42 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (!clientName.trim()) return "Client name is required"
     if (!clientEmail.trim()) return "Client email is required"
     // Address is now optional - removed validation
-    
+
     // Check if at least one line item has description and rate
-    const validItems = items.filter(item => 
-      item.description.trim() && 
-      (item.quantity || 0) > 0 && 
+    const validItems = items.filter(item =>
+      item.description.trim() &&
+      (item.quantity || 0) > 0 &&
       getRateNumber(item.rate) > 0
     )
-    
+
     if (validItems.length === 0) {
       return "At least one line item with description, quantity, and rate is required"
     }
-    
+
     return null
   }
 
   const handleCreateQuote = async () => {
     // Clear previous errors
     setCreateError(null)
-    
+
     // Validate form
     const validationError = validateForm()
     if (validationError) {
       setCreateError(validationError)
       return
     }
-    
+
     setIsCreatingQuote(true)
-    
+
     try {
       // Filter out empty items
-      const validItems = items.filter(item => 
-        item.description.trim() && 
-        (item.quantity || 0) > 0 && 
+      const validItems = items.filter(item =>
+        item.description.trim() &&
+        (item.quantity || 0) > 0 &&
         getRateNumber(item.rate) > 0
       )
-      
+
       // Prepare job data
       const jobData = {
         lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null, // Link to original lead if creating from lead
@@ -1123,7 +1244,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           markup_percentage: markupPercentage,
         }))
       }
-      
+
       let response
       if (quoteId) {
         // Update existing quote
@@ -1140,7 +1261,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           description: "Quote has been successfully created",
         })
       }
-      
+
       // Update profile's default tax rate if it has changed
       if (initialTaxRate !== null && Math.abs(taxRate - initialTaxRate) > 0.01) {
         try {
@@ -1158,7 +1279,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           console.error("Failed to update profile tax rate:", profileError)
         }
       }
-      
+
       // Success! Redirect to quote details page
       if (response && (response as any).id) {
         window.location.href = `/quotes/${(response as any).id}`
@@ -1168,11 +1289,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       } else {
         throw new Error("Invalid response from server")
       }
-      
+
     } catch (error: any) {
       console.error(`Failed to ${quoteId ? 'update' : 'create'} quote:`, error)
       setCreateError(
-        error.message || 
+        error.message ||
         `Failed to ${quoteId ? 'update' : 'create'} quote. Please check your information and try again.`
       )
     } finally {
@@ -1184,13 +1305,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const baseSubtotal = items.reduce((sum, item) => {
     return sum + ((item.quantity || 0) * getRateNumber(item.rate))
   }, 0)
-  
+
   // Calculate markup amount
   const markupAmount = baseSubtotal * (markupPercentage / 100)
-  
+
   // Calculate subtotal with markup
   const subtotal = baseSubtotal + markupAmount
-  
+
   // Calculate taxable subtotal (only items where applyTax is true or undefined)
   const taxableSubtotal = items.reduce((sum, item) => {
     const itemTotal = (item.quantity || 0) * getRateNumber(item.rate)
@@ -1201,7 +1322,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
     return sum
   }, 0)
-  
+
   // Calculate tax using contractor's tax rate on taxable items only
   const tax = taxableSubtotal * (taxRate / 100)
   const total = subtotal + tax
@@ -1243,9 +1364,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="client-name">Client Name *</Label>
-                <Input 
-                  id="client-name" 
-                  placeholder="John Smith" 
+                <Input
+                  id="client-name"
+                  placeholder="John Smith"
                   value={clientName}
                   onChange={(e) => handleClientFieldChange('name', e.target.value)}
                   disabled={loadingLead}
@@ -1253,9 +1374,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client-email">Email *</Label>
-                <Input 
-                  id="client-email" 
-                  type="email" 
+                <Input
+                  id="client-email"
+                  type="email"
                   placeholder="john@example.com"
                   value={clientEmail}
                   onChange={(e) => handleClientFieldChange('email', e.target.value)}
@@ -1264,9 +1385,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client-phone">Phone</Label>
-                <Input 
-                  id="client-phone" 
-                  type="tel" 
+                <Input
+                  id="client-phone"
+                  type="tel"
                   placeholder="(555) 123-4567"
                   value={clientPhone}
                   onChange={(e) => handleClientFieldChange('phone', e.target.value)}
@@ -1275,8 +1396,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client-address">Address</Label>
-                <Input 
-                  id="client-address" 
+                <Input
+                  id="client-address"
                   placeholder="123 Oak Street, Springfield, IL"
                   value={clientAddress}
                   onChange={(e) => handleClientFieldChange('address', e.target.value)}
@@ -1284,7 +1405,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 />
               </div>
             </div>
-            
+
             {/* Client Suggestions */}
             {showClientSuggestions && matchingClients.length > 0 && (
               <div className="mt-4 border rounded-lg bg-background shadow-lg">
@@ -1384,22 +1505,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             <Collapsible open={isMobileAiOpen} onOpenChange={setIsMobileAiOpen}>
               <div className="border rounded-lg overflow-hidden">
                 <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between p-4 bg-primary/5 hover:bg-primary/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-semibold text-sm">AI Line Items Assistant</h3>
-                        <p className="text-xs text-muted-foreground">Generate line items with AI</p>
-                      </div>
+                  <button className="w-full flex items-center justify-between p-3 bg-primary/5 hover:bg-primary/10 transition-colors">
+                    <div className="text-left">
+                      <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
+                      <p className="text-xs text-muted-foreground">Generate line items with AI</p>
                     </div>
-                    <svg 
+                    <svg
                       className={`h-5 w-5 transition-transform text-muted-foreground ${isMobileAiOpen ? 'rotate-180' : ''}`}
-                      fill="none" 
-                      stroke="currentColor" 
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -1407,72 +1521,152 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="p-4 border-t bg-background">
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
-                          Project Type (Optional)
-                        </Label>
-                        <Input
-                          id="project-type-mobile"
-                          placeholder="e.g., Patio Installation, Deck Construction"
-                          value={projectType}
-                          onChange={(e) => {
-                            setProjectType(e.target.value)
-                            setProjectTitle(e.target.value)
-                          }}
-                          className="bg-background"
-                        />
-                      </div>
-                      <Textarea
-                        placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
-                        value={serviceDescription}
-                        onChange={(e) => setServiceDescription(e.target.value)}
-                        className="min-h-[80px] bg-background"
-                      />
+                  <div className="p-3 border-t bg-background">
+                    <div className="space-y-2">
+                      {/* Template Selector (Mobile) */}
+                      {templates.length > 0 && (
+                        <div>
+                          <Label htmlFor="template-select-mobile" className="text-sm font-medium mb-1 block">
+                            Project Template
+                          </Label>
+                          <Select
+                            value={selectedTemplateId ? String(selectedTemplateId) : isCustomProject ? 'custom' : ''}
+                            onValueChange={handleTemplateChange}
+                            disabled={loadingTemplates}
+                          >
+                            <SelectTrigger id="template-select-mobile" className="bg-background">
+                              <SelectValue placeholder={loadingTemplates ? "Loading..." : "Select project type..."} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {templates.map((t) => (
+                                <SelectItem key={t.id} value={String(t.id)}>
+                                  {t.project_type}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="custom">✏️ Custom Project</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {/* Dynamic Variable Form (Mobile) */}
+                      {selectedTemplate && !isCustomProject && (
+                        <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
+                          {loadingTemplateDetail ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              Loading...
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {selectedTemplate.variables.map((v) => (
+                                <div key={v.id}>
+                                  <Label htmlFor={`var-mobile-${v.variable_name}`} className="text-xs font-medium">
+                                    {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
+                                    {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
+                                  </Label>
+                                  {v.input_type === 'select' && v.options ? (
+                                    <Select
+                                      value={templateVariables[v.variable_name] || ''}
+                                      onValueChange={(val) => handleVariableChange(v.variable_name, val)}
+                                    >
+                                      <SelectTrigger id={`var-mobile-${v.variable_name}`} className="bg-background h-8 text-sm">
+                                        <SelectValue placeholder={`Select...`} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {v.options.map((opt) => (
+                                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      id={`var-mobile-${v.variable_name}`}
+                                      type={v.input_type === 'number' ? 'number' : 'text'}
+                                      placeholder={v.placeholder || ''}
+                                      value={templateVariables[v.variable_name] || ''}
+                                      onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
+                                      className="bg-background h-8 text-sm"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Custom Project (Mobile) */}
+                      {(isCustomProject || !selectedTemplate) && (
+                        <>
+                          <div>
+                            <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
+                              Project Type (Optional)
+                            </Label>
+                            <Input
+                              id="project-type-mobile"
+                              placeholder="e.g., Patio Installation, Deck Construction"
+                              value={projectType}
+                              onChange={(e) => {
+                                setProjectType(e.target.value)
+                                setProjectTitle(e.target.value)
+                              }}
+                              className="bg-background"
+                            />
+                          </div>
+                          <Textarea
+                            placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
+                            value={serviceDescription}
+                            onChange={(e) => setServiceDescription(e.target.value)}
+                            className="min-h-[80px] bg-background"
+                          />
+                        </>
+                      )}
+
                       {(() => {
                         const desc = serviceDescription.trim()
                         const wordCount = desc ? desc.split(/\s+/).length : 0
                         const tooShort = desc.length < 30 || wordCount < 6
                         return (
-                      <div className="flex flex-col gap-2 w-full">
-                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                          {aiLoading ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              {aiLoadingMessages[aiLoadingStage]}
-                            </span>
-                          ) : (
-                            <>
-                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                              </svg>
-                              Generate AI Estimate
-                            </>
-                          )}
-                        </Button>
-                        {aiLoading && (
-                          <div className="w-full space-y-2">
-                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-primary transition-all duration-1000 ease-out"
-                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                              This usually takes 15-30 seconds
-                            </p>
+                          <div className="flex flex-col gap-2 w-full">
+                            <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                              {aiLoading ? (
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  {aiLoadingMessages[aiLoadingStage]}
+                                </span>
+                              ) : (
+                                <>
+                                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                  </svg>
+                                  Generate AI Estimate
+                                </>
+                              )}
+                            </Button>
+                            {aiLoading && (
+                              <div className="w-full space-y-2">
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary transition-all duration-1000 ease-out"
+                                    style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                                  />
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center">
+                                  This usually takes 15-30 seconds
+                                </p>
+                              </div>
+                            )}
+                            {!aiLoading && tooShort && (
+                              <p className="text-xs text-muted-foreground w-full">
+                                Please add at least 30 characters and 6 words for better results.
+                              </p>
+                            )}
                           </div>
-                        )}
-                        {!aiLoading && tooShort && (
-                          <p className="text-xs text-muted-foreground w-full">
-                            Please add at least 30 characters and 6 words for better results.
-                          </p>
-                        )}
-                      </div>
                         )
                       })()}
-                      
+
                       {/* Display Measurements if available */}
                       {measurements.items && measurements.items.length > 0 && (
                         <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
@@ -1514,312 +1708,59 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
           {/* Line Items */}
           <Card className="p-4 sm:p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Line Items</h2>
-          <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
-            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Item
-          </Button>
-        </div>
-
-        {/* Table Header - Desktop */}
-        <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
-          <div></div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
-          <div></div>
-        </div>
-
-        <div className="space-y-3">
-          {/* Skeleton Loading when AI is generating */}
-          {aiLoading && items.length === 0 && (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="animate-pulse flex gap-4 p-4 border rounded-lg bg-muted/30">
-                  <div className="h-10 w-10 bg-muted rounded shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <div className="h-8 w-16 bg-muted rounded" />
-                    <div className="h-8 w-20 bg-muted rounded" />
-                  </div>
-                </div>
-              ))}
-              <p className="text-sm text-center text-muted-foreground py-2">
-                AI is generating line items...
-              </p>
-            </div>
-          )}
-          
-          {items.map((item, index) => (
-            <div key={index} className="relative pb-3 border-b border-border last:border-b-0">
-              {/* Delete Button - Mobile: Top Right */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => removeItem(index)}
-                className="absolute top-0 right-0 sm:hidden h-7 w-7 text-muted-foreground hover:text-destructive"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold">Line Items</h2>
+              <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
+                Add Item
               </Button>
+            </div>
 
-              {/* Mobile Layout */}
-              <div className="block sm:hidden space-y-3">
-                {/* Description */}
-                <div>
-                  <Textarea
-                    id={`item-desc-${index}`}
-                    value={item.description}
-                    onChange={(e) => updateItem(index, "description", e.target.value)}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement
-                      target.style.height = 'auto'
-                      target.style.height = `${Math.min(target.scrollHeight, 150)}px`
-                    }}
-                    ref={(textarea) => {
-                      if (textarea) {
-                        textarea.style.height = 'auto'
-                        textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`
-                      }
-                    }}
-                    placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                    className="min-h-[60px] max-h-[150px] resize-none text-sm"
-                    rows={2}
-                  />
-                  {item.brand && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {item.brand} {item.model && `- ${item.model}`}
-                    </p>
-                  )}
-                  {item.confidence && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        item.confidence === "high" ? "bg-green-100 text-green-700" :
-                        item.confidence === "medium" ? "bg-yellow-100 text-yellow-700" :
-                        "bg-orange-100 text-orange-700"
-                      }`}>
-                        {item.confidence} confidence
-                      </span>
-                      {item.productSource && (
-                        <span className="text-[10px] text-muted-foreground">
-                          • {item.productSource}
-                        </span>
-                      )}
+            {/* Table Header - Desktop */}
+            <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
+              <div></div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
+              <div></div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Skeleton Loading when AI is generating */}
+              {aiLoading && items.length === 0 && (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="animate-pulse flex gap-4 p-4 border rounded-lg bg-muted/30">
+                      <div className="h-10 w-10 bg-muted rounded shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <div className="h-8 w-16 bg-muted rounded" />
+                        <div className="h-8 w-20 bg-muted rounded" />
+                      </div>
                     </div>
-                  )}
+                  ))}
+                  <p className="text-sm text-center text-muted-foreground py-2">
+                    AI is generating line items...
+                  </p>
                 </div>
-                
-                {/* Unit, Qty, Rate Row */}
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  <div className="col-span-2">
-                    <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                      Unit
-                    </Label>
-                    <UnitSelector
-                      value={item.unitOfMeasure || ""}
-                      onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                      description={item.description}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                      Quantity
-                    </Label>
-                    <Input
-                      id={`item-qty-${index}`}
-                      type="number"
-                      min="0"
-                      value={item.quantity === 0 ? "" : item.quantity.toString()}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                      }}
-                      placeholder="0"
-                      className="h-9 text-center text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                      Rate
-                    </Label>
-                    <Input
-                      id={`item-rate-${index}`}
-                      type="text"
-                      inputMode="decimal"
-                      pattern="^[0-9]*[.]?[0-9]*$"
-                      value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
-                      onChange={(e) => {
-                        const val = sanitizeDecimalInput(e.target.value)
-                        updateItem(index, "rate", val)
-                      }}
-                      onBlur={() => {
-                        const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
-                        if (!s || s === ".") return
-                        const n = Number.parseFloat(s)
-                        if (!Number.isFinite(n)) return
-                        updateItem(index, "rate", Math.round(n * 100) / 100)
-                      }}
-                      placeholder="0.00"
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
-                    <span className="text-xs text-muted-foreground">Total</span>
-                    <span className="text-sm font-semibold">
-                      ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
-                    <span className="text-xs text-muted-foreground">Apply Tax</span>
-                    <Checkbox
-                      checked={item.applyTax !== false}
-                      onCheckedChange={(checked) => {
-                        const updatedItems = [...items]
-                        updatedItems[index] = {
-                          ...updatedItems[index],
-                          applyTax: checked === true
-                        }
-                        setItems(updatedItems)
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Desktop Layout - Table Style */}
-              <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-start">
-                {/* Image */}
-                <div className="pt-1">
-                  <MaterialThumbnail
-                    src={item.thumbnailUrl || item.imageUrl}
-                    alt={item.description}
-                    className="w-10 h-10 flex-shrink-0 rounded"
-                    category={item.category}
-                    index={index}
-                  />
-                </div>
-                
-                {/* Description */}
-                <div className="min-w-0 pr-2">
-                  <Textarea
-                    id={`item-desc-${index}`}
-                    value={item.description}
-                    onChange={(e) => updateItem(index, "description", e.target.value)}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement
-                      target.style.height = 'auto'
-                      target.style.height = `${Math.min(target.scrollHeight, 200)}px`
-                    }}
-                    ref={(textarea) => {
-                      if (textarea) {
-                        textarea.style.height = 'auto'
-                        textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
-                      }
-                    }}
-                    placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                    className="min-h-[40px] max-h-[200px] text-sm w-full resize-none overflow-y-auto"
-                    rows={1}
-                  />
-                  {item.brand && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                      {item.brand} {item.model && `- ${item.model}`}
-                    </p>
-                  )}
-                </div>
-                
-                {/* Unit */}
-                <div className="pt-1">
-                  <UnitSelector
-                    value={item.unitOfMeasure || ""}
-                    onChange={(value) => updateItem(index, "unitOfMeasure", value)}
-                    description={item.description}
-                  />
-                </div>
-                
-                {/* Qty */}
-                <div className="pt-1">
-                  <Input
-                    id={`item-qty-${index}`}
-                    type="number"
-                    min="0"
-                    value={item.quantity === 0 ? "" : item.quantity.toString()}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                    }}
-                    placeholder="0"
-                    className="h-8 text-center text-sm"
-                  />
-                </div>
-                
-                {/* Rate */}
-                <div className="pt-1">
-                  <Input
-                    id={`item-rate-${index}`}
-                    type="text"
-                    inputMode="decimal"
-                    pattern="^[0-9]*[.]?[0-9]*$"
-                    value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
-                    onChange={(e) => {
-                      const val = sanitizeDecimalInput(e.target.value)
-                      updateItem(index, "rate", val)
-                    }}
-                    onBlur={() => {
-                      const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
-                      if (!s || s === ".") return
-                      const n = Number.parseFloat(s)
-                      if (!Number.isFinite(n)) return
-                      updateItem(index, "rate", Math.round(n * 100) / 100)
-                    }}
-                    placeholder="0.00"
-                    className="h-8 text-sm text-right"
-                  />
-                </div>
-                
-                {/* Total */}
-                <div className="text-right pt-1">
-                  <span className="text-sm font-semibold">
-                    ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
-                  </span>
-                </div>
-                
-                {/* Apply Tax Checkbox */}
-                <div className="flex justify-center pt-1">
-                  <Checkbox
-                    checked={item.applyTax !== false}
-                    onCheckedChange={(checked) => {
-                      const updatedItems = [...items]
-                      updatedItems[index] = {
-                        ...updatedItems[index],
-                        applyTax: checked === true
-                      }
-                      setItems(updatedItems)
-                    }}
-                  />
-                </div>
-                
-                {/* Delete Button */}
-                <div className="flex justify-center pt-1">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+              )}
+
+              {items.map((item, index) => (
+                <div key={index} className="relative pb-3 border-b border-border last:border-b-0">
+                  {/* Delete Button - Mobile: Top Right */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => removeItem(index)}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    className="absolute top-0 right-0 sm:hidden h-7 w-7 text-muted-foreground hover:text-destructive"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -1830,281 +1771,630 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       />
                     </svg>
                   </Button>
+
+                  {/* Mobile Layout */}
+                  <div className="block sm:hidden space-y-3">
+                    {/* Description */}
+                    <div>
+                      <Textarea
+                        id={`item-desc-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${Math.min(target.scrollHeight, 150)}px`
+                        }}
+                        ref={(textarea) => {
+                          if (textarea) {
+                            textarea.style.height = 'auto'
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`
+                          }
+                        }}
+                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                        className="min-h-[60px] max-h-[150px] resize-none text-sm"
+                        rows={2}
+                      />
+                      {item.brand && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {item.brand} {item.model && `- ${item.model}`}
+                        </p>
+                      )}
+                      {item.confidence && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${item.confidence === "high" ? "bg-green-100 text-green-700" :
+                            item.confidence === "medium" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-orange-100 text-orange-700"
+                            }`}>
+                            {item.confidence} confidence
+                          </span>
+                          {item.productSource && (
+                            <span className="text-[10px] text-muted-foreground">
+                              • {item.productSource}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Unit, Qty, Rate Row */}
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div className="col-span-2">
+                        <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                          Unit
+                        </Label>
+                        <UnitSelector
+                          value={item.unitOfMeasure || ""}
+                          onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                          description={item.description}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                          Quantity
+                        </Label>
+                        <Input
+                          id={`item-qty-${index}`}
+                          type="number"
+                          min="0"
+                          value={item.quantity === 0 ? "" : item.quantity.toString()}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                          }}
+                          placeholder="0"
+                          className="h-9 text-center text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                          Rate
+                        </Label>
+                        <Input
+                          id={`item-rate-${index}`}
+                          type="text"
+                          inputMode="decimal"
+                          pattern="^[0-9]*[.]?[0-9]*$"
+                          value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
+                          onChange={(e) => {
+                            const val = sanitizeDecimalInput(e.target.value)
+                            updateItem(index, "rate", val)
+                          }}
+                          onBlur={() => {
+                            const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
+                            if (!s || s === ".") return
+                            const n = Number.parseFloat(s)
+                            if (!Number.isFinite(n)) return
+                            updateItem(index, "rate", Math.round(n * 100) / 100)
+                          }}
+                          placeholder="0.00"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
+                        <span className="text-xs text-muted-foreground">Total</span>
+                        <span className="text-sm font-semibold">
+                          ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
+                        <span className="text-xs text-muted-foreground">Apply Tax</span>
+                        <Checkbox
+                          checked={item.applyTax !== false}
+                          onCheckedChange={(checked) => {
+                            const updatedItems = [...items]
+                            updatedItems[index] = {
+                              ...updatedItems[index],
+                              applyTax: checked === true
+                            }
+                            setItems(updatedItems)
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout - Table Style */}
+                  <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-start">
+                    {/* Image */}
+                    <div className="pt-1">
+                      <MaterialThumbnail
+                        src={item.thumbnailUrl || item.imageUrl}
+                        alt={item.description}
+                        className="w-10 h-10 flex-shrink-0 rounded"
+                        category={item.category}
+                        index={index}
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div className="min-w-0 pr-2">
+                      <Textarea
+                        id={`item-desc-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${Math.min(target.scrollHeight, 200)}px`
+                        }}
+                        ref={(textarea) => {
+                          if (textarea) {
+                            textarea.style.height = 'auto'
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+                          }
+                        }}
+                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                        className="min-h-[40px] max-h-[200px] text-sm w-full resize-none overflow-y-auto"
+                        rows={1}
+                      />
+                      {item.brand && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                          {item.brand} {item.model && `- ${item.model}`}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Unit */}
+                    <div className="pt-1">
+                      <UnitSelector
+                        value={item.unitOfMeasure || ""}
+                        onChange={(value) => updateItem(index, "unitOfMeasure", value)}
+                        description={item.description}
+                      />
+                    </div>
+
+                    {/* Qty */}
+                    <div className="pt-1">
+                      <Input
+                        id={`item-qty-${index}`}
+                        type="number"
+                        min="0"
+                        value={item.quantity === 0 ? "" : item.quantity.toString()}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
+                        }}
+                        placeholder="0"
+                        className="h-8 text-center text-sm"
+                      />
+                    </div>
+
+                    {/* Rate */}
+                    <div className="pt-1">
+                      <Input
+                        id={`item-rate-${index}`}
+                        type="text"
+                        inputMode="decimal"
+                        pattern="^[0-9]*[.]?[0-9]*$"
+                        value={typeof item.rate === "string" ? item.rate : (item.rate === 0 ? "" : item.rate.toFixed(2))}
+                        onChange={(e) => {
+                          const val = sanitizeDecimalInput(e.target.value)
+                          updateItem(index, "rate", val)
+                        }}
+                        onBlur={() => {
+                          const s = typeof items[index]?.rate === "string" ? items[index].rate.trim() : ""
+                          if (!s || s === ".") return
+                          const n = Number.parseFloat(s)
+                          if (!Number.isFinite(n)) return
+                          updateItem(index, "rate", Math.round(n * 100) / 100)
+                        }}
+                        placeholder="0.00"
+                        className="h-8 text-sm text-right"
+                      />
+                    </div>
+
+                    {/* Total */}
+                    <div className="text-right pt-1">
+                      <span className="text-sm font-semibold">
+                        ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Apply Tax Checkbox */}
+                    <div className="flex justify-center pt-1">
+                      <Checkbox
+                        checked={item.applyTax !== false}
+                        onCheckedChange={(checked) => {
+                          const updatedItems = [...items]
+                          updatedItems[index] = {
+                            ...updatedItems[index],
+                            applyTax: checked === true
+                          }
+                          setItems(updatedItems)
+                        }}
+                      />
+                    </div>
+
+                    {/* Delete Button */}
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Markup Settings */}
+            <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label htmlFor="markup-percentage" className="text-sm font-medium">
+                    Markup Percentage
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Applied to all line items. Default from your profile settings.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="markup-percentage"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === "" || val === "-") {
+                        setMarkupPercentage(0)
+                      } else {
+                        const num = parseFloat(val)
+                        if (!isNaN(num)) {
+                          setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value
+                      if (val === "" || val === "-") {
+                        setMarkupPercentage(0)
+                      } else {
+                        const num = parseFloat(val)
+                        if (!isNaN(num)) {
+                          setMarkupPercentage(Math.max(0, Math.min(100, num)))
+                        } else {
+                          setMarkupPercentage(0)
+                        }
+                      }
+                    }}
+                    placeholder="0"
+                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    disabled={loadingMarkup}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Markup Settings */}
-        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Label htmlFor="markup-percentage" className="text-sm font-medium">
-                Markup Percentage
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Applied to all line items. Default from your profile settings.
-              </p>
+            {/* Tax Rate Settings */}
+            <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label htmlFor="tax-rate" className="text-sm font-medium">
+                    Tax Rate
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sales tax rate applied to subtotal. Default from your profile settings.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="tax-rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={taxRate === 0 ? "0" : taxRate.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === "" || val === "-") {
+                        setTaxRate(0)
+                      } else {
+                        const num = parseFloat(val)
+                        if (!isNaN(num)) {
+                          setTaxRate(Math.max(0, Math.min(100, num)))
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value
+                      if (val === "" || val === "-") {
+                        setTaxRate(0)
+                      } else {
+                        const num = parseFloat(val)
+                        if (!isNaN(num)) {
+                          setTaxRate(Math.max(0, Math.min(100, num)))
+                        } else {
+                          setTaxRate(0)
+                        }
+                      }
+                    }}
+                    placeholder="0.00"
+                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    disabled={loadingMarkup}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Input
-                id="markup-percentage"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (val === "" || val === "-") {
-                    setMarkupPercentage(0)
-                  } else {
-                    const num = parseFloat(val)
-                    if (!isNaN(num)) {
-                      setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                    }
-                  }
-                }}
-                onBlur={(e) => {
-                  const val = e.target.value
-                  if (val === "" || val === "-") {
-                    setMarkupPercentage(0)
-                  } else {
-                    const num = parseFloat(val)
-                    if (!isNaN(num)) {
-                      setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                    } else {
-                      setMarkupPercentage(0)
-                    }
-                  }
-                }}
-                placeholder="0"
-                className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                disabled={loadingMarkup}
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Tax Rate Settings */}
-        <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Label htmlFor="tax-rate" className="text-sm font-medium">
-                Tax Rate
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sales tax rate applied to subtotal. Default from your profile settings.
-              </p>
+            {/* Totals */}
+            <div className="mt-6 space-y-2 border-t border-border pt-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal (before markup)</span>
+                <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
+                <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-border pt-2">
+                <span className="text-muted-foreground font-medium">Subtotal (with markup)</span>
+                <span className="font-medium">${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
+                <span className="font-medium">${tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Input
-                id="tax-rate"
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={taxRate === 0 ? "0" : taxRate.toString()}
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (val === "" || val === "-") {
-                    setTaxRate(0)
-                  } else {
-                    const num = parseFloat(val)
-                    if (!isNaN(num)) {
-                      setTaxRate(Math.max(0, Math.min(100, num)))
-                    }
-                  }
-                }}
-                onBlur={(e) => {
-                  const val = e.target.value
-                  if (val === "" || val === "-") {
-                    setTaxRate(0)
-                  } else {
-                    const num = parseFloat(val)
-                    if (!isNaN(num)) {
-                      setTaxRate(Math.max(0, Math.min(100, num)))
-                    } else {
-                      setTaxRate(0)
-                    }
-                  }
-                }}
-                placeholder="0.00"
-                className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                disabled={loadingMarkup}
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Totals */}
-        <div className="mt-6 space-y-2 border-t border-border pt-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal (before markup)</span>
-            <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
-            <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm border-t border-border pt-2">
-            <span className="text-muted-foreground font-medium">Subtotal (with markup)</span>
-            <span className="font-medium">${subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
-            <span className="font-medium">${tax.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
-            <span>Total</span>
-            <span>${total.toFixed(2)}</span>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
           {/* Additional Details */}
           <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">Additional Details</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea 
-              id="notes" 
-              placeholder="Add any additional notes or terms..." 
-              className="min-h-[100px]"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="due-date">Valid Until</Label>
-              <Input 
-                id="due-date" 
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+            <h2 className="mb-4 text-lg font-semibold">Additional Details</h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Add any additional notes or terms..."
+                  className="min-h-[100px]"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="due-date">Valid Until</Label>
+                  <Input
+                    id="due-date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payment-terms">Payment Terms</Label>
+                  <Input
+                    id="payment-terms"
+                    placeholder="Net 30"
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-terms">Payment Terms</Label>
-              <Input 
-                id="payment-terms" 
-                placeholder="Net 30"
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
           {/* Error Display */}
           {createError && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-2 text-red-700">
-            <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-medium">Error:</span>
-            <span>{createError}</span>
-          </div>
-        </Card>
-      )}
-
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button 
-          size="lg" 
-          onClick={handleCreateQuote}
-          disabled={isCreatingQuote}
-        >
-          {isCreatingQuote ? (
-            <>
-              <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {quoteId ? "Updating Quote..." : "Creating Quote..."}
-            </>
-          ) : (
-            <>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {quoteId ? "Update Quote" : "Save Quote"}
-            </>
+            <Card className="p-4 border-red-200 bg-red-50">
+              <div className="flex items-center gap-2 text-red-700">
+                <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">Error:</span>
+                <span>{createError}</span>
+              </div>
+            </Card>
           )}
-        </Button>
-        {quoteId && (
-          <Button size="lg" variant="outline" asChild>
-            <a href={`/quotes/${quoteId}`}>
-              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              Preview Quote
-            </a>
-          </Button>
-        )}
-        <Button size="lg" variant="outline" asChild>
-          <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel          </a>
-        </Button>
-        </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              size="lg"
+              onClick={handleCreateQuote}
+              disabled={isCreatingQuote}
+            >
+              {isCreatingQuote ? (
+                <>
+                  <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {quoteId ? "Updating Quote..." : "Creating Quote..."}
+                </>
+              ) : (
+                <>
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {quoteId ? "Update Quote" : "Save Quote"}
+                </>
+              )}
+            </Button>
+            {quoteId && (
+              <Button size="lg" variant="outline" asChild>
+                <a href={`/quotes/${quoteId}`}>
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  Preview Quote
+                </a>
+              </Button>
+            )}
+            <Button size="lg" variant="outline" asChild>
+              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel          </a>
+            </Button>
+          </div>
         </div>
 
         {/* Right Column - AI Assistant */}
         <div className="hidden lg:block lg:w-[500px] xl:w-[500px] 2xl:w-[500px] space-y-6 pt-6 flex-shrink-0">
           {/* AI Line Items Assistant */}
-          <Card className="border-primary/20 bg-primary/5 p-6 sticky top-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold">AI Estimate Generator</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Generate detailed line items with AI-powered estimation
-                </p>
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1.5 block">
-                      Project Type (Optional)
-                    </Label>
-                    <Input
-                      id="project-type-desktop"
-                      placeholder="e.g., Patio Installation, Deck Construction"
-                      value={projectType}
-                      onChange={(e) => {
-                        setProjectType(e.target.value)
-                        setProjectTitle(e.target.value)
-                      }}
-                      className="bg-background"
-                    />
-                  </div>
-                  <Textarea
-                    placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
-                    value={serviceDescription}
-                    onChange={(e) => setServiceDescription(e.target.value)}
-                    className="min-h-[80px] bg-background"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+          <Card className="border-primary/20 bg-primary/5 p-4 sticky top-6">
+            <div>
+              <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {templates.length > 0 ? 'Select a project template or describe your project' : 'Describe your project to generate line items'}
+              </p>
+              <div className="mt-3 space-y-2">
+                  {/* Template Selector */}
+                  {templates.length > 0 && (
                     <div>
-                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
+                        Project Template
+                      </Label>
+                      <Select
+                        value={selectedTemplateId ? String(selectedTemplateId) : isCustomProject ? 'custom' : ''}
+                        onValueChange={handleTemplateChange}
+                        disabled={loadingTemplates}
+                      >
+                        <SelectTrigger id="template-select-desktop" className="bg-background">
+                          <SelectValue placeholder={loadingTemplates ? "Loading templates..." : "Select a project type..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((t) => (
+                            <SelectItem key={t.id} value={String(t.id)}>
+                              {t.project_type}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="custom">✏️ Custom Project</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Dynamic Variable Form (when template selected) */}
+                  {selectedTemplate && !isCustomProject && (
+                    <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
+                      {loadingTemplateDetail ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Loading variables...
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {selectedTemplate.variables.map((v) => (
+                            <div key={v.id}>
+                              <Label htmlFor={`var-${v.variable_name}`} className="text-xs font-medium">
+                                {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
+                                {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
+                              </Label>
+                              {v.input_type === 'select' && v.options ? (
+                                <Select
+                                  value={templateVariables[v.variable_name] || ''}
+                                  onValueChange={(val) => handleVariableChange(v.variable_name, val)}
+                                >
+                                  <SelectTrigger id={`var-${v.variable_name}`} className="bg-background h-8 text-sm">
+                                    <SelectValue placeholder={`Select ${v.display_label.toLowerCase()}...`} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {v.options.map((opt) => (
+                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  id={`var-${v.variable_name}`}
+                                  type={v.input_type === 'number' ? 'number' : 'text'}
+                                  placeholder={v.placeholder || ''}
+                                  value={templateVariables[v.variable_name] || ''}
+                                  onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
+                                  className="bg-background h-8 text-sm"
+                                />
+                              )}
+                              {v.help_text && <p className="text-xs text-muted-foreground mt-0.5">{v.help_text}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Prompt Preview Toggle */}
+                      <div className="pt-1.5 border-t border-border/50 mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowPromptPreview(!showPromptPreview)}
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                          {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt Preview
+                        </button>
+                        {showPromptPreview && (
+                          <div className="mt-1.5">
+                            <Textarea
+                              value={serviceDescription}
+                              onChange={(e) => setServiceDescription(e.target.value)}
+                              className="min-h-[64px] max-h-[140px] overflow-y-auto resize-y bg-background text-xs font-mono py-2 px-3"
+                              placeholder="AI prompt will appear here..."
+                            />
+                            <p className="text-[11px] text-muted-foreground mt-0.5">You can edit the prompt above before generating</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Project Description (when custom or no templates) */}
+                  {(isCustomProject || !selectedTemplate) && (
+                    <>
+                      <div>
+                        <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
+                          Project Type (Optional)
+                        </Label>
+                        <Input
+                          id="project-type-desktop"
+                          placeholder="e.g., Patio Installation, Deck Construction"
+                          value={projectType}
+                          onChange={(e) => {
+                            setProjectType(e.target.value)
+                            setProjectTitle(e.target.value)
+                          }}
+                          className="bg-background"
+                        />
+                      </div>
+                      <Textarea
+                        placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
+                        value={serviceDescription}
+                        onChange={(e) => setServiceDescription(e.target.value)}
+                        className="min-h-[80px] bg-background"
+                      />
+                    </>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1 block">
                         Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
                       </Label>
                       <div className="relative">
@@ -2131,7 +2421,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1 block">
                         Labor Rate Type
                       </Label>
                       <Select
@@ -2168,47 +2458,47 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     const wordCount = desc ? desc.split(/\s+/).length : 0
                     const tooShort = desc.length < 30 || wordCount < 6
                     return (
-                  <div className="flex flex-col gap-2 w-full">
-                    <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                      {aiLoading ? (
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          {aiLoadingMessages[aiLoadingStage]}
-                        </span>
-                      ) : (
-                        <>
-                          <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          Generate AI Estimate
-                        </>
-                      )}
-                    </Button>
-                    {aiLoading && (
-                      <div className="w-full space-y-2">
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary transition-all duration-1000 ease-out"
-                            style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center">
-                          This usually takes 15-30 seconds
-                        </p>
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                          {aiLoading ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              {aiLoadingMessages[aiLoadingStage]}
+                            </span>
+                          ) : (
+                            <>
+                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              Generate AI Estimate
+                            </>
+                          )}
+                        </Button>
+                        {aiLoading && (
+                          <div className="w-full space-y-2">
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary transition-all duration-1000 ease-out"
+                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                              This usually takes 15-30 seconds
+                            </p>
+                          </div>
+                        )}
+                        {!aiLoading && tooShort && (
+                          <p className="text-xs text-muted-foreground w-full">
+                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
+                          </p>
+                        )}
                       </div>
-                    )}
-                    {!aiLoading && tooShort && (
-                      <p className="text-xs text-muted-foreground w-full">
-                        Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
-                      </p>
-                    )}
-                  </div>
                     )
                   })()}
-                  
+
                   {/* Display Measurements if available */}
                   {measurements.items && measurements.items.length > 0 && (
-                    <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
+                    <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
                       <div className="flex items-center gap-2 mb-2">
                         <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -2240,7 +2530,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   )}
                 </div>
               </div>
-            </div>
           </Card>
 
           {/* Assumptions Display */}
@@ -2279,7 +2568,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </svg>
               </Button>
             </div>
-            
+
             <div className="space-y-3">
               {items[substituteItemIndex]?.searchResults?.map((substitute: any, index: number) => (
                 <div
@@ -2295,7 +2584,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       className="h-20 w-20"
                     />
                   </div>
-                  
+
                   {/* Substitute Details */}
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-foreground truncate">{substitute.name}</h4>
@@ -2312,7 +2601,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Select Button with Rate */}
                   <div className="flex flex-col items-end">
                     <Button size="sm" className="mb-1">
