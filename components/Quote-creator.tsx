@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -19,6 +21,8 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface LineItem {
   description: string
@@ -497,6 +501,24 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [generatedPrompt, setGeneratedPrompt] = useState("")
   const [showPromptPreview, setShowPromptPreview] = useState(false)
   const [isCustomProject, setIsCustomProject] = useState(false)
+  const [contractorType, setContractorType] = useState<string | null>(null)
+  const [templateComboOpen, setTemplateComboOpen] = useState(false)
+
+  // Sort and group templates - contractor type matches first, then rest
+  const sortedTemplates = [...templates].sort((a, b) => {
+    if (!contractorType) return 0
+    
+    const contractorTypeLower = contractorType.toLowerCase().trim()
+    const aMatchesType = a.trade.toLowerCase() === contractorTypeLower
+    const bMatchesType = b.trade.toLowerCase() === contractorTypeLower
+    
+    if (aMatchesType && !bMatchesType) return -1
+    if (!aMatchesType && bMatchesType) return 1
+    
+    // If both match or both don't match, sort by trade then project_type
+    if (a.trade !== b.trade) return a.trade.localeCompare(b.trade)
+    return a.project_type.localeCompare(b.project_type)
+  })
 
   // Fetch contractor profile to get default markup and tax rate
   useEffect(() => {
@@ -781,6 +803,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     try {
       setLoadingMarkup(true)
       const profile = await api.getMyProfile() as any
+      // Store contractor type for template sorting
+      if (profile?.contractor_type) {
+        setContractorType(profile.contractor_type)
+      }
       // Only set markup if we don't have initialData (not editing) or if initialData doesn't have markup
       // When editing, markup comes from initialData items, but we still need to load tax rate from profile
       if (!initialData && profile?.default_markup_percentage !== undefined && profile.default_markup_percentage !== null) {
@@ -1529,23 +1555,74 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           <Label htmlFor="template-select-mobile" className="text-sm font-medium mb-1 block">
                             Project Template
                           </Label>
-                          <Select
-                            value={selectedTemplateId ? String(selectedTemplateId) : isCustomProject ? 'custom' : ''}
-                            onValueChange={handleTemplateChange}
-                            disabled={loadingTemplates}
-                          >
-                            <SelectTrigger id="template-select-mobile" className="bg-background">
-                              <SelectValue placeholder={loadingTemplates ? "Loading..." : "Select project type..."} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {templates.map((t) => (
-                                <SelectItem key={t.id} value={String(t.id)}>
-                                  {t.project_type}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value="custom">✏️ Custom Project</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={templateComboOpen}
+                                className="w-full justify-between bg-background"
+                                disabled={loadingTemplates}
+                              >
+                                {loadingTemplates ? (
+                                  "Loading..."
+                                ) : isCustomProject ? (
+                                  "✏️ Custom Project"
+                                ) : selectedTemplateId ? (
+                                  (() => {
+                                    const template = templates.find((t) => t.id === selectedTemplateId)
+                                    return template ? `${template.project_type} (${template.trade})` : "Select project..."
+                                  })()
+                                ) : (
+                                  "Select project..."
+                                )}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search templates..." />
+                                <CommandList>
+                                  <CommandEmpty>No template found.</CommandEmpty>
+                                  <CommandGroup>
+                                    <CommandItem
+                                      value="custom"
+                                      onSelect={() => {
+                                        handleTemplateChange('custom')
+                                        setTemplateComboOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          isCustomProject ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      ✏️ Custom Project
+                                    </CommandItem>
+                                    {sortedTemplates.map((t) => (
+                                      <CommandItem
+                                        key={t.id}
+                                        value={`${t.project_type} ${t.trade}`}
+                                        onSelect={() => {
+                                          handleTemplateChange(String(t.id))
+                                          setTemplateComboOpen(false)
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       )}
 
@@ -2274,23 +2351,74 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
                         Project Template
                       </Label>
-                      <Select
-                        value={selectedTemplateId ? String(selectedTemplateId) : isCustomProject ? 'custom' : ''}
-                        onValueChange={handleTemplateChange}
-                        disabled={loadingTemplates}
-                      >
-                        <SelectTrigger id="template-select-desktop" className="bg-background">
-                          <SelectValue placeholder={loadingTemplates ? "Loading templates..." : "Select a project type..."} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {templates.map((t) => (
-                            <SelectItem key={t.id} value={String(t.id)}>
-                              {t.project_type}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="custom">✏️ Custom Project</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={templateComboOpen}
+                            className="w-full justify-between bg-background"
+                            disabled={loadingTemplates}
+                          >
+                            {loadingTemplates ? (
+                              "Loading templates..."
+                            ) : isCustomProject ? (
+                              "✏️ Custom Project"
+                            ) : selectedTemplateId ? (
+                              (() => {
+                                const template = templates.find((t) => t.id === selectedTemplateId)
+                                return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
+                              })()
+                            ) : (
+                              "Select a project type..."
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search templates..." />
+                            <CommandList>
+                              <CommandEmpty>No template found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="custom"
+                                  onSelect={() => {
+                                    handleTemplateChange('custom')
+                                    setTemplateComboOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      isCustomProject ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  ✏️ Custom Project
+                                </CommandItem>
+                                {sortedTemplates.map((t) => (
+                                  <CommandItem
+                                    key={t.id}
+                                    value={`${t.project_type} ${t.trade}`}
+                                    onSelect={() => {
+                                      handleTemplateChange(String(t.id))
+                                      setTemplateComboOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
 
