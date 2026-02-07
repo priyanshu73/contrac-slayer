@@ -136,7 +136,7 @@ export function Pricing() {
         {/* Trust badges */}
         <div className="mt-12 text-center">
           <p className="text-muted-foreground">
-            No credit card required • 14-day free trial • Cancel anytime
+            14-day free trial • Cancel anytime
           </p>
         </div>
       </div>

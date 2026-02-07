@@ -34,7 +34,7 @@ export function CTA() {
           </Button>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          No credit card required • 14-day free trial • Cancel anytime
+          14-day free trial • Cancel anytime
         </p>
       </div>
     </section>
