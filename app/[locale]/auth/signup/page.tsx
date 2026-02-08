@@ -149,7 +149,9 @@ export default function SignupPage() {
             animate={fadeUp.animate}
             transition={{ ...transition, delay: 0.1 }}
           >
-            <img src="/logo.png" alt="Logo" className="w-11 h-11 object-contain" />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white">
+              <img src="/logo1.png" alt="Logo" className="h-8 w-8 object-contain" />
+            </span>
             <span className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
               ContractorOps AI
             </span>

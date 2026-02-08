@@ -32,7 +32,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img 
-              src="/logo.png" 
+              src="/logo1.png" 
               alt="Logo" 
               className="w-8 h-8 object-contain"
             />
