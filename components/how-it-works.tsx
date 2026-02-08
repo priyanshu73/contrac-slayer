@@ -9,52 +9,51 @@ import { useTranslations } from "next-intl"
 export function HowItWorks() {
   const t = useTranslations('landing')
   return (
-    <section id="how-it-works" className="py-32 px-4 bg-white relative overflow-hidden dark:bg-background">
+    <section id="how-it-works" className="py-14 px-4 sm:py-20 md:py-32 bg-white relative overflow-hidden dark:bg-background">
       <div className="absolute left-1/2 top-48 bottom-24 w-0.5 bg-gradient-to-b from-blue-200 via-teal-200 via-indigo-200 to-purple-200 hidden lg:block" />
 
-      {/* The vertical timeline line */}
-
       <div className="container mx-auto max-w-[95rem] relative z-10">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-balance">{t('howItWorksTitle')}</h2>
-          <p className="text-lg text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed">
+        <div className="text-center mb-10 md:mb-20">
+          <h2 className="text-2xl font-bold mb-3 text-balance sm:text-3xl md:text-5xl md:mb-4">{t('howItWorksTitle')}</h2>
+          <p className="text-sm text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed sm:text-base md:text-lg">
             {t('howItWorksSubtitle')}
           </p>
         </div>
 
         <div className="max-w-[95rem] mx-auto relative">
-          <div className="space-y-16 lg:space-y-20">
+          <div className="space-y-10 sm:space-y-14 lg:space-y-20">
             {/* Step 1 */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
-              {/* Timeline circle for step 1 (aligned to this step) */}
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-blue-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
-              <div className="lg:pr-16 flex justify-center lg:justify-end">
-                <PhoneMessagePreview />
+              <div className="lg:pr-16 flex justify-center lg:justify-end order-last lg:order-none">
+                <div className="w-full max-w-[320px] lg:max-w-none">
+                  <PhoneMessagePreview />
+                </div>
               </div>
 
               <div className="lg:pl-16 order-first lg:order-last">
-                <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">{t('step1Title')}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
+                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-blue-400 bg-white items-center justify-center text-sm font-bold text-blue-600 shrink-0">1</span>
+                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step1Title')}</h3>
                 </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
                   {t('step1Body')}
                 </p>
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
-              {/* Timeline circle for step 2 (aligned to this step) */}
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-teal-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-teal-600">2</span>
               </div>
               <div className="lg:order-2 lg:pl-16">
-                <Card className="p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-teal-950/20 dark:to-emerald-900/20 border-teal-200/40 dark:border-teal-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-lg font-semibold">{t('step2NewProjectEstimate')}</span>
+                <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-teal-950/20 dark:to-emerald-900/20 border-teal-200/40 dark:border-teal-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <span className="text-base font-semibold sm:text-lg">{t('step2NewProjectEstimate')}</span>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
@@ -69,7 +68,7 @@ export function HowItWorks() {
                       </div>
                     </div>
 
-                    <div className="bg-muted/50 rounded-lg p-4 min-h-28 text-lg text-foreground leading-relaxed mb-4">
+                    <div className="bg-muted/50 rounded-lg p-3 sm:p-4 min-h-24 sm:min-h-28 text-sm sm:text-lg text-foreground leading-relaxed mb-3 md:mb-4">
                       {t('step2ProjectDesc')}
                     </div>
 
@@ -85,24 +84,24 @@ export function HowItWorks() {
               </div>
 
               <div className="lg:pr-16 lg:order-1">
-                <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">{t('step2DescribeTitle')}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
+                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-teal-400 bg-white items-center justify-center text-sm font-bold text-teal-600 shrink-0">2</span>
+                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step2DescribeTitle')}</h3>
                 </div>
-                  <p className="text-xl text-muted-foreground leading-relaxed">
-                    {t('step2DescribeBody')}
-                  </p>
+                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
+                  {t('step2DescribeBody')}
+                </p>
               </div>
             </div>
 
             {/* Step 3 */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
-              {/* Timeline circle for step 3 (aligned to this step) */}
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-indigo-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-indigo-600">3</span>
               </div>
-              <div className="lg:pr-16">
-                <Card className="p-5 bg-gradient-to-br from-[#E8E8F8] to-[#E0E0F5] dark:from-indigo-950/20 dark:to-purple-900/20 border-indigo-200/40 dark:border-indigo-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
+              <div className="lg:pr-16 order-last lg:order-none">
+                <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#E8E8F8] to-[#E0E0F5] dark:from-indigo-950/20 dark:to-purple-900/20 border-indigo-200/40 dark:border-indigo-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between pb-3 border-b">
                         <span className="font-semibold text-lg">{t('step3ProjectTitle')}</span>
@@ -112,51 +111,51 @@ export function HowItWorks() {
                       </div>
 
                       <div className="space-y-2.5">
-                        <div className="flex items-start justify-between text-lg">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between text-sm sm:text-lg">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium">{t('step3Line1')}</div>
-                            <div className="text-base text-muted-foreground">{t('step3Line1Detail')}</div>
+                            <div className="text-xs sm:text-base text-muted-foreground">{t('step3Line1Detail')}</div>
                           </div>
-                          <div className="font-semibold">$1,620.00</div>
+                          <div className="font-semibold shrink-0 ml-2">$1,620.00</div>
                         </div>
 
-                        <div className="flex items-start justify-between text-lg">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between text-sm sm:text-lg">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium">{t('step3Line2')}</div>
-                            <div className="text-base text-muted-foreground">{t('step3Line2Detail')}</div>
+                            <div className="text-xs sm:text-base text-muted-foreground">{t('step3Line2Detail')}</div>
                           </div>
-                          <div className="font-semibold">$2,220.00</div>
+                          <div className="font-semibold shrink-0 ml-2">$2,220.00</div>
                         </div>
 
-                        <div className="flex items-start justify-between text-lg">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between text-sm sm:text-lg">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium">{t('step3Line3')}</div>
-                            <div className="text-base text-muted-foreground">{t('step3Line3Detail')}</div>
+                            <div className="text-xs sm:text-base text-muted-foreground">{t('step3Line3Detail')}</div>
                           </div>
-                          <div className="font-semibold">$555.00</div>
+                          <div className="font-semibold shrink-0 ml-2">$555.00</div>
                         </div>
 
-                        <div className="flex items-start justify-between text-lg">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between text-sm sm:text-lg">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium">{t('step3Line4')}</div>
-                            <div className="text-base text-muted-foreground">{t('step3Line4Detail')}</div>
+                            <div className="text-xs sm:text-base text-muted-foreground">{t('step3Line4Detail')}</div>
                           </div>
-                          <div className="font-semibold">$480.00</div>
+                          <div className="font-semibold shrink-0 ml-2">$480.00</div>
                         </div>
 
-                        <div className="flex items-start justify-between text-lg">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between text-sm sm:text-lg">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium">{t('step3Line5')}</div>
-                            <div className="text-base text-muted-foreground">{t('step3Line5Detail')}</div>
+                            <div className="text-xs sm:text-base text-muted-foreground">{t('step3Line5Detail')}</div>
                           </div>
-                          <div className="font-semibold">$1,320.00</div>
+                          <div className="font-semibold shrink-0 ml-2">$1,320.00</div>
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t">
-                        <div className="flex items-center justify-between font-bold">
-                          <span className="text-lg">{t('step3TotalEstimate')}</span>
-                          <span className="text-amber-600 text-2xl">$6,195.00</span>
+                      <div className="pt-2 sm:pt-3 border-t">
+                        <div className="flex items-center justify-between font-bold text-base sm:text-lg">
+                          <span>{t('step3TotalEstimate')}</span>
+                          <span className="text-amber-600 text-xl sm:text-2xl">$6,195.00</span>
                         </div>
                       </div>
                     </div>
@@ -165,24 +164,24 @@ export function HowItWorks() {
               </div>
 
               <div className="lg:pl-16 order-first lg:order-last">
-                <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">{t('step3Title')}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
+                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-indigo-400 bg-white items-center justify-center text-sm font-bold text-indigo-600 shrink-0">3</span>
+                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step3Title')}</h3>
                 </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
                   {t('step3Body')}
                 </p>
               </div>
             </div>
 
             {/* Step 4 */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
-              {/* Timeline circle for step 4 (aligned to this step) */}
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-teal-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-teal-600">4</span>
               </div>
               <div className="lg:order-2 lg:pl-16">
-                <Card className="p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-teal-950/20 dark:to-emerald-900/20 border-teal-200/40 dark:border-teal-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
+                <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-teal-950/20 dark:to-emerald-900/20 border-teal-200/40 dark:border-teal-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b">
                       <Package className="h-6 w-6 text-orange-600" />
                       <span className="font-semibold text-lg">{t('step4AiProductRecs')}</span>
@@ -233,24 +232,24 @@ export function HowItWorks() {
               </div>
 
               <div className="lg:pr-16 lg:order-1">
-                <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">{t('step4SmartSuggestions')}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
+                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-teal-400 bg-white items-center justify-center text-sm font-bold text-teal-600 shrink-0">4</span>
+                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step4SmartSuggestions')}</h3>
                 </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
                   {t('step4Body')}
                 </p>
               </div>
             </div>
 
             {/* Step 5 - Smart Scheduling */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center relative">
-              {/* Timeline circle for step 5 (aligned to this step) */}
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
               <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-purple-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
                 <span className="text-2xl font-bold text-purple-600">5</span>
               </div>
-              <div className="lg:pr-16">
-                <Card className="p-5 bg-gradient-to-br from-[#F3E8FF] to-[#E9D5FF] dark:from-purple-950/20 dark:to-violet-900/20 border-purple-200/40 dark:border-purple-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <Card className="bg-background/95 backdrop-blur p-5 shadow-lg">
+              <div className="lg:pr-16 order-last lg:order-none">
+                <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#F3E8FF] to-[#E9D5FF] dark:from-purple-950/20 dark:to-violet-900/20 border-purple-200/40 dark:border-purple-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
                     {/* SMS Detection Banner */}
                     <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                       <div className="flex items-start gap-3">
@@ -317,10 +316,11 @@ export function HowItWorks() {
               </div>
 
               <div className="lg:pl-16 order-first lg:order-last">
-                <div className="flex items-center gap-4 mb-5">
-                  <h3 className="text-4xl font-bold text-balance">{t('step5Title')}</h3>
+                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
+                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-purple-400 bg-white items-center justify-center text-sm font-bold text-purple-600 shrink-0">5</span>
+                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step5Title')}</h3>
                 </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
                   {t('step5Body')}
                 </p>
               </div>

@@ -93,15 +93,15 @@ export function Features() {
   ];
 
   return (
-    <section id="features" className="py-20 px-4 bg-white relative overflow-hidden dark:bg-background">
+    <section id="features" className="py-14 px-3 sm:px-4 sm:py-20 md:py-20 bg-white relative overflow-hidden dark:bg-background">
       <div className="container mx-auto max-w-8xl">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-3 text-balance">{t('featuresSectionTitle')}</h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">{t('featuresSectionSubtitle')}</p>
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-2xl font-bold mb-2 text-balance sm:text-3xl md:text-5xl md:mb-3">{t('featuresSectionTitle')}</h2>
+          <p className="text-sm text-muted-foreground max-w-3xl mx-auto sm:text-base md:text-xl">{t('featuresSectionSubtitle')}</p>
         </div>
 
         <div className="relative">
-          {/* Nav buttons for large screens */}
+          {/* Nav buttons for large screens only */}
           <button
             aria-label="Prev"
             onClick={() => scroll(-1)}
@@ -121,28 +121,27 @@ export function Features() {
           <div className="w-full overflow-hidden">
             <div
               ref={scrollerRef}
-              className="flex gap-6 overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x pb-6 scroll-smooth px-8 md:px-16"
+              className="flex gap-4 md:gap-6 overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x pb-4 scroll-smooth px-2 sm:px-4 md:px-8 lg:px-16"
             >
               {slides.map((s) => (
-                <article key={s.id} className="snap-center flex-shrink-0 w-[min(92vw,84rem)] h-[64vh]">
-                  <div className="rounded-2xl p-6 bg-gradient-to-br from-white to-gray-50 dark:from-background dark:to-muted/10 shadow-lg h-full">
-                    <div className="grid lg:grid-cols-[1.6fr_1fr] gap-8 items-center h-full">
-                      {/* Left: laptop-like preview area (slightly larger) */}
-                      <div className="flex justify-center">
+                <article key={s.id} className="snap-center flex-shrink-0 w-[88vw] sm:w-[min(92vw,84rem)] min-h-0 md:w-[min(92vw,84rem)] lg:h-[64vh]">
+                  <div className="rounded-xl md:rounded-2xl p-4 sm:p-6 bg-gradient-to-br from-white to-gray-50 dark:from-background dark:to-muted/10 shadow-lg h-full flex flex-col">
+                    {/* Mobile: title + body on top, then compact preview */}
+                    <div className="flex flex-col lg:grid lg:grid-cols-[1.6fr_1fr] lg:gap-8 lg:items-center lg:h-full">
+                      <div className="order-2 lg:order-1 flex justify-center mt-4 lg:mt-0">
                         <div className={`w-full ${s.id === 'pm' ? 'max-w-[85rem]' : 'max-w-[52rem]'}`}>
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-sm overflow-hidden">
-                            {/* screen */}
-                            <div className="bg-white p-4 border-b border-gray-100">
-                              <div className="rounded-md overflow-hidden bg-white">
+                          <div className="rounded-lg md:rounded-xl border border-gray-200 bg-gray-50 shadow-sm overflow-hidden">
+                            <div className="bg-white p-2 sm:p-4 border-b border-gray-100">
+                              <div className="rounded-md overflow-hidden bg-white max-h-[200px] sm:max-h-[280px] lg:max-h-none">
                                 {s.preview}
                               </div>
                             </div>
-                            {/* keyboard area */}
-                            <div className="bg-gray-100 p-4">
+                            {/* keyboard area - hide on small mobile to save space */}
+                            <div className="bg-gray-100 p-2 sm:p-4 hidden sm:block">
                               <div className="mx-auto w-full max-w-[48rem]">
-                                <div className="grid grid-cols-12 gap-2">
+                                <div className="grid grid-cols-12 gap-1 sm:gap-2">
                                   {Array.from({ length: 12 }).map((_, i) => (
-                                    <div key={i} className="h-2 bg-gray-200 rounded-sm"></div>
+                                    <div key={i} className="h-1.5 sm:h-2 bg-gray-200 rounded-sm" />
                                   ))}
                                 </div>
                               </div>
@@ -150,15 +149,13 @@ export function Features() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Right: title + description (centered, larger) */}
-                      <div className="flex items-center h-full">
-                        <div>
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-lg flex items-center justify-center bg-muted/20">{s.icon}</div>
-                            <div>
-                              <h3 className="text-3xl md:text-4xl font-semibold">{s.title}</h3>
-                              <p className="mt-3 text-lg md:text-xl text-muted-foreground max-w-lg">{s.body}</p>
+                      <div className="order-1 lg:order-2 flex items-center lg:h-full">
+                        <div className="w-full">
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center bg-muted/20 shrink-0">{s.icon}</div>
+                            <div className="min-w-0">
+                              <h3 className="text-xl font-semibold sm:text-2xl md:text-4xl">{s.title}</h3>
+                              <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base md:text-xl max-w-lg">{s.body}</p>
                             </div>
                           </div>
                         </div>
@@ -169,6 +166,8 @@ export function Features() {
               ))}
             </div>
           </div>
+          {/* Mobile: swipe hint */}
+          <p className="text-center text-xs text-muted-foreground mt-3 lg:hidden">Swipe for more</p>
         </div>
       </div>
     </section>
