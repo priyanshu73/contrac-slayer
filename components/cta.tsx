@@ -14,7 +14,7 @@ export function CTA() {
   const signupUrl = buildSignupUrl(locale, referralId)
 
   return (
-    <section className="py-14 px-4 sm:py-20 md:py-24 bg-primary/5">
+    <section className="py-14 px-4 sm:py-20 md:py-24 bg-white dark:bg-background">
       <div className="container mx-auto max-w-4xl text-center px-2 sm:px-4">
         <h2 className="text-2xl font-bold mb-4 text-balance sm:text-3xl md:text-5xl md:mb-6">
           {t('ctaTitle')}
