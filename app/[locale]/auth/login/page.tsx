@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
 import { useTranslations } from "next-intl"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +12,12 @@ import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
+
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
+}
+const transition = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }
 
 export default function LoginPage() {
   const router = useRouter()
@@ -76,44 +83,80 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" style={{ animationDelay: "2s" }}></div>
       </div>
 
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-center px-16 overflow-hidden">
-        {/* Background Image */}
-        <div 
+      {/* Left Side - Intentional, grid-aligned, no glass */}
+      <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-center overflow-hidden">
+        {/* Background: image as texture + strong L→R dark gradient */}
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/hero1.jpg)' }}
-        >
-          {/* Darker overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/45 to-black/50"></div>
-          {/* Subtle fade transition to right */}
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-black/30 to-transparent"></div>
-        </div>
-        
-        {/* Elegant divider line */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-px h-64 bg-gradient-to-b from-transparent via-white/40 to-transparent z-20"></div>
+          style={{ backgroundImage: 'url(/hero2.webp)' }}
+        />
+        {/* 60–70% darker on left, fading to lighter toward center; image = texture */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.25) 75%, transparent 100%)',
+          }}
+        />
+        {/* Soft vignette for depth */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            boxShadow: 'inset 0 0 120px rgba(0,0,0,0.15)',
+          }}
+        />
+        {/* Fade into right (form side) */}
+        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/20 to-transparent pointer-events-none" />
 
-        {/* Content */}
-        <div className="relative z-10 space-y-6">
-          <div className="flex items-center gap-3 bg-gradient-to-br from-blue-500/25 to-sky-500/25 backdrop-blur-md rounded-2xl p-4 inline-flex shadow-2xl border border-blue-300/30">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-sky-500 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg p-2">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <span className="text-3xl font-bold text-white drop-shadow-2xl" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
+        {/* Vertical divider */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-px h-48 bg-white/30 z-10" />
+
+        {/* Content: centered in panel, not fully left-aligned */}
+        <div className="relative z-10 w-full max-w-md mx-auto px-10 text-center">
+          {/* Logo */}
+          <motion.div
+            className="flex items-center justify-center gap-3 mb-12"
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.1 }}
+          >
+            <img src="/logo.png" alt="Logo" className="w-11 h-11 object-contain" />
+            <span className="text-2xl font-bold text-white tracking-tight">
               ContractorOps AI
             </span>
-          </div>
-          <div className="bg-gradient-to-br from-blue-500/15 to-sky-500/15 backdrop-blur-sm rounded-2xl p-6 inline-block shadow-2xl border border-blue-300/20">
-            <h2 className="text-5xl font-bold leading-tight text-white" style={{ textShadow: '0 6px 20px rgba(0,0,0,0.6), 0 3px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)' }}>
-              {t("welcomeBackCommandCenter")}
-            </h2>
-          </div>
-          <p className="text-xl text-white font-medium bg-gradient-to-br from-blue-500/15 to-sky-500/15 backdrop-blur-sm rounded-xl p-4 inline-block shadow-xl border border-blue-300/20" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
+          </motion.div>
+
+          {/* Headline: huge, bold, no glass */}
+          <motion.h2
+            className="text-5xl lg:text-6xl font-extrabold leading-[1.1] text-white tracking-tight mb-6"
+            style={{
+              textShadow: '0 2px 20px rgba(0,0,0,0.4), 0 0 40px rgba(59, 130, 246, 0.08)',
+            }}
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.2 }}
+          >
+            {t("welcomeBackCommandCenter")} !
+          </motion.h2>
+
+          {/* Subtext: small, muted */}
+          <motion.p
+            className="text-xl text-white/80 font-normal max-w-sm leading-relaxed mb-10 mx-auto"
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.35 }}
+          >
             {t("manageBusiness")}
-          </p>
+          </motion.p>
+
+          {/* Micro trust line */}
+          <motion.p
+            className="text-xl text-white/50 font-medium mt-2"
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.5 }}
+          >
+            50+ Contractors and growing
+          </motion.p>
         </div>
       </div>
 
@@ -143,7 +186,12 @@ export default function LoginPage() {
           <div className="absolute top-[38%] right-[22%] w-2 h-2 bg-cyan-400 rounded-full animate-float-slow opacity-35" style={{ animationDelay: "2.8s" }}></div>
         </div>
 
-        <div className="w-full max-w-md relative z-10">
+        <motion.div
+          className="w-full max-w-md relative z-10"
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...transition, delay: 0.15 }}
+        >
           {/* Back to Home */}
           <button
             onClick={() => router.push(`/${locale}`)}
@@ -156,7 +204,12 @@ export default function LoginPage() {
           </button>
 
           {/* Form Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
+          <motion.div
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transition, delay: 0.25 }}
+          >
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                 {t("welcomeBack")}
@@ -231,8 +284,8 @@ export default function LoginPage() {
                 </a>
               </p>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* Animation CSS */}

@@ -2,15 +2,27 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
+}
+const transition = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }
+
 export default function SignupPage() {
   const router = useRouter()
+  const locale = useLocale()
   const searchParams = useSearchParams()
+  const t = useTranslations("auth")
+  const tForms = useTranslations("forms")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [referralId, setReferralId] = useState<string | null>(null)
@@ -20,6 +32,10 @@ export default function SignupPage() {
     confirmPassword: "",
     full_name: "",
   })
+  const [activeFeatureTab, setActiveFeatureTab] = useState(0)
+
+  const features = [t("signupFeature1"), t("signupFeature2"), t("signupFeature3"), t("signupFeature4")]
+  const featureTabLabels = [t("signupTabLeads"), t("signupTabQuotes"), t("signupTabCalendar"), t("signupTabInvoices")]
 
   // Get referral ID from URL params or sessionStorage
   useEffect(() => {
@@ -76,12 +92,12 @@ export default function SignupPage() {
     setError("")
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
+      setError(tForms("passwordsDoNotMatch"))
       return
     }
 
     if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters")
+      setError(tForms("passwordTooShort"))
       return
     }
 
@@ -110,80 +126,92 @@ export default function SignupPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" style={{ animationDelay: "2s" }}></div>
       </div>
 
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-center px-16 overflow-hidden">
+      {/* Left Side - Branding (centered like login, no full left-align) */}
+      <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: 'url(/signup.jpg)' }}
-        >
-          {/* Darker overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/45 to-black/50"></div>
-        </div>
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.25) 75%, transparent 100%)',
+          }}
+        />
+        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/20 to-transparent pointer-events-none" />
 
-        {/* Content */}
-        <div className="relative z-10 space-y-6">
-          <div className="flex items-center gap-3 bg-gradient-to-br from-blue-500/10 to-sky-500/10 backdrop-blur-md rounded-2xl p-4 inline-flex shadow-2xl border border-blue-300/20">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-sky-500 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg p-2">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <span className="text-3xl font-bold text-white drop-shadow-2xl" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
+        {/* Content: centered in panel */}
+        <div className="relative z-10 w-full max-w-md mx-auto px-10 text-center">
+          <motion.div
+            className="flex items-center justify-center gap-3 mb-10"
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.1 }}
+          >
+            <img src="/logo.png" alt="Logo" className="w-11 h-11 object-contain" />
+            <span className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
               ContractorOps AI
             </span>
-          </div>
-          <div className="bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-sm rounded-2xl p-6 inline-block shadow-2xl border border-blue-300/15">
-            <h2 className="text-5xl font-bold leading-tight text-white" style={{ textShadow: '0 6px 20px rgba(0,0,0,0.6), 0 3px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)' }}>
-              Join hundreds of successful contractors
-            </h2>
-          </div>
-          <p className="text-xl text-white font-medium bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-sm rounded-xl p-4 inline-block shadow-xl border border-blue-300/15 max-w-2xl" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)' }}>
-            Everything you need to manage and grow your landscaping business in one powerful platform.
-          </p>
-          
-          {/* Features List */}
-          <div className="space-y-3 pt-6">
-            <div className="inline-flex items-center gap-3 bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-md rounded-xl p-3 shadow-lg border border-blue-300/15">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-white text-lg font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Capture & manage leads with photo uploads</span>
+          </motion.div>
+
+          <motion.h2
+            className="text-5xl lg:text-6xl font-extrabold leading-[1.1] text-white tracking-tight mb-6"
+            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4), 0 0 40px rgba(59, 130, 246, 0.08)' }}
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.2 }}
+          >
+            {t("signupHeadline")}
+          </motion.h2>
+
+          <motion.p
+            className="text-xl text-white/80 font-normal max-w-sm leading-relaxed mb-8 mx-auto"
+            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.35 }}
+          >
+            {t("signupSubtitle")}
+          </motion.p>
+
+          {/* Features - tabs */}
+          <motion.div
+            className="w-full max-w-sm mx-auto"
+            initial={fadeUp.initial}
+            animate={fadeUp.animate}
+            transition={{ ...transition, delay: 0.5 }}
+          >
+            <div className="flex gap-1 p-1 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+              {featureTabLabels.map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setActiveFeatureTab(i)}
+                  className={`flex-1 min-w-0 py-2.5 px-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeFeatureTab === i
+                      ? 'bg-white text-blue-900 shadow-sm'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className="inline-flex items-center gap-3 bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-md rounded-xl p-3 shadow-lg border border-blue-300/15">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-white text-lg font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Create professional quotes in minutes</span>
-            </div>
-            <div className="inline-flex items-center gap-3 bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-md rounded-xl p-3 shadow-lg border border-blue-300/15">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-white text-lg font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Schedule jobs & manage your calendar</span>
-            </div>
-            <div className="inline-flex items-center gap-3 bg-gradient-to-br from-blue-500/8 to-sky-500/8 backdrop-blur-md rounded-xl p-3 shadow-lg border border-blue-300/15">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-white text-lg font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>Track invoices & get paid faster</span>
-            </div>
-          </div>
+            <p
+              className="mt-4 text-white/90 text-lg font-medium text-center min-h-[3rem] flex items-center justify-center"
+              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.35)' }}
+            >
+              {features[activeFeatureTab]}
+            </p>
+          </motion.div>
         </div>
       </div>
 
       {/* Right Side - Signup Form */}
       <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        {/* Subtle fade-in from left edge */}
+        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-blue-50/80 via-blue-50/40 to-transparent pointer-events-none z-0" />
         {/* Floating animated elements - More bubbles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* Small bubbles */}
@@ -205,7 +233,12 @@ export default function SignupPage() {
           <div className="absolute top-[38%] right-[22%] w-2 h-2 bg-cyan-400 rounded-full animate-float-slow opacity-35" style={{ animationDelay: "2.8s" }}></div>
         </div>
 
-        <div className="w-full max-w-md relative z-10">
+        <motion.div
+          className="w-full max-w-md relative z-10"
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...transition, delay: 0.15 }}
+        >
           {/* Back to Home */}
           <button
             onClick={() => router.push("/")}
@@ -218,12 +251,17 @@ export default function SignupPage() {
           </button>
 
           {/* Form Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8">
+          <motion.div
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-blue-100 p-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transition, delay: 0.25 }}
+          >
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                Create Your Account
+                {t("signupFormTitle")}
               </h1>
-              <p className="text-gray-600 mt-2">Start managing your contracting business today</p>
+              <p className="text-gray-600 mt-2">{t("signupFormSubtitle")}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -251,11 +289,11 @@ export default function SignupPage() {
           </div>
 
           <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+                <Label htmlFor="email" className="text-gray-700 font-medium">{t("emailAddress")}</Label>
             <Input
               id="email"
               type="email"
-                  placeholder="you@company.com"
+                  placeholder={t("emailPlaceholder")}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
@@ -277,11 +315,11 @@ export default function SignupPage() {
               disabled={isLoading}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
             />
-                <p className="text-xs text-gray-500">Must be at least 8 characters</p>
+                <p className="text-xs text-gray-500">{tForms("passwordTooShort")}</p>
           </div>
 
           <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">{t("confirmPassword")}</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -313,14 +351,14 @@ export default function SignupPage() {
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-            Already have an account?{" "}
-                <a href="/auth/login" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-              Log in
-            </a>
-          </p>
-        </div>
-          </div>
-        </div>
+                {t("alreadyHaveAccount")}{" "}
+                <a href={`/${locale}/auth/login`} className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+                  {t("logIn")}
+                </a>
+              </p>
+            </div>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* Animation CSS */}
