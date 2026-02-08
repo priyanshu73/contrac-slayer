@@ -35,7 +35,7 @@ export default function Home() {
   // Show landing page if not logged in
   if (!user) {
     return (
-      <div className="h-full">
+      <div className="h-full min-h-screen bg-black md:bg-transparent">
         <Header />
         <HeroSection
           backgroundImage="/hero2.webp"

@@ -6,8 +6,28 @@ import { Sparkles, X, Plus, Package, Calendar, Check } from "lucide-react"
 import { PhoneMessagePreview } from "@/components/phone-message-preview"
 import { useTranslations } from "next-intl"
 
+const STEP5_FALLBACKS: Record<string, string> = {
+  step5WithLabel: "With",
+  step5WhenLabel: "When",
+  step5WhereLabel: "Where",
+  step5TypeLabel: "Type",
+  step5WithValue: "Customer",
+  step5WhenValue: "Jan 20, 2026 at 1:00 PM",
+  step5WhereValue: "309 Washington St, Gettysburg, PA",
+  step5TypeValue: "Site visit or project discussion",
+}
+
 export function HowItWorks() {
   const t = useTranslations('landing')
+  const step5 = (key: string) => {
+    try {
+      const value = t(key as any)
+      if (typeof value !== 'string' || value === key) return STEP5_FALLBACKS[key] ?? key
+      return value
+    } catch {
+      return STEP5_FALLBACKS[key] ?? key
+    }
+  }
   return (
     <section id="how-it-works" className="py-14 px-4 sm:py-20 md:py-32 bg-white relative overflow-hidden dark:bg-background">
       <div className="absolute left-1/2 top-48 bottom-24 w-0.5 bg-gradient-to-b from-blue-200 via-teal-200 via-indigo-200 to-purple-200 hidden lg:block" />
@@ -250,65 +270,57 @@ export function HowItWorks() {
               <div className="lg:pr-16 order-last lg:order-none">
                 <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#F3E8FF] to-[#E9D5FF] dark:from-purple-950/20 dark:to-violet-900/20 border-purple-200/40 dark:border-purple-800/30 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
                   <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
-                    {/* SMS Detection Banner */}
-                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Calendar className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-base text-blue-900 dark:text-blue-100 mb-1">
-                            Meeting detected from your conversation!
-                          </div>
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
-                            Customer on 2026-01-20 at 1:00 PM @ 309 Washington Street, Gettysburg, PA
-                          </p>
-                          <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                            <span className="font-medium">Details:</span> Customer | 2026-01-20 | 1:00 PM | 309 Washington Street, 
-                            Gettysburg, PA | Site visit or project discussion
-                          </p>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+                      <Calendar className="h-6 w-6 text-purple-600" />
+                      <span className="font-semibold text-lg">{t('step5MeetingDetected')}</span>
                     </div>
 
-                    {/* Action Prompt */}
-                    <div className="mb-4">
-                      <p className="text-base text-muted-foreground">
-                        Reply <span className="font-semibold text-foreground">YES</span> to add to your calendar, or{" "}
-                        <span className="font-semibold text-foreground">NO</span> to skip.
+                    <dl className="bg-muted/50 rounded-lg p-3 sm:p-4 mb-4 space-y-2.5 text-sm sm:text-base">
+                      <div className="flex gap-2 sm:gap-3">
+                        <dt className="text-muted-foreground shrink-0 w-14 sm:w-16">{step5('step5WithLabel')}</dt>
+                        <dd className="font-medium text-foreground">{step5('step5WithValue')}</dd>
+                      </div>
+                      <div className="flex gap-2 sm:gap-3">
+                        <dt className="text-muted-foreground shrink-0 w-14 sm:w-16">{step5('step5WhenLabel')}</dt>
+                        <dd className="text-foreground">{step5('step5WhenValue')}</dd>
+                      </div>
+                      <div className="flex gap-2 sm:gap-3">
+                        <dt className="text-muted-foreground shrink-0 w-14 sm:w-16">{step5('step5WhereLabel')}</dt>
+                        <dd className="text-foreground">{step5('step5WhereValue')}</dd>
+                      </div>
+                      <div className="flex gap-2 sm:gap-3">
+                        <dt className="text-muted-foreground shrink-0 w-14 sm:w-16">{step5('step5TypeLabel')}</dt>
+                        <dd className="text-foreground">{step5('step5TypeValue')}</dd>
+                      </div>
+                    </dl>
+
+                    <p className="text-base text-muted-foreground mb-3 leading-relaxed">
+                      {t('step5ReplyPrompt')}
+                    </p>
+
+                    <div className="flex gap-3 mb-4">
+                      <Button className="flex-1 bg-black hover:bg-gray-800 text-white text-base h-11">
+                        <Check className="h-4 w-4 mr-2" />
+                        {t('step5Yes')}
+                      </Button>
+                      <Button variant="outline" className="flex-1 text-base h-11">
+                        {t('step5No')}
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2 py-3 px-3 rounded-lg bg-muted/30 border border-border/50">
+                      <Check className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <p className="text-sm text-muted-foreground">
+                        {t('step5MeetingScheduled')}
                       </p>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 mb-4">
-                      <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-base h-11">
-                        <Check className="h-4 w-4 mr-2" />
-                        YES
-                      </Button>
-                      <Button variant="outline" className="flex-1 text-base h-11">
-                        NO
-                      </Button>
-                    </div>
-
-                    {/* Success Confirmation */}
-                    <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                          <Check className="h-4 w-4 text-white" />
-                        </div>
-                        <p className="text-base font-semibold text-green-900 dark:text-green-100">
-                          Meeting scheduled with Customer on 2026-01-20 at 1:00 PM!
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Calendar Link Info */}
                     <div className="mt-4 pt-4 border-t">
                       <div className="flex items-start gap-2">
                         <Calendar className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm text-muted-foreground">
-                          Calendar link automatically sent to customer to book based on your availability
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {t('step5CalendarLinkSent')}
+                        </p>
                       </div>
                     </div>
                   </Card>
