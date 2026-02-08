@@ -14,28 +14,28 @@ export function CTA() {
   const signupUrl = buildSignupUrl(locale, referralId)
 
   return (
-    <section className="py-24 px-4 bg-primary/5">
-      <div className="container mx-auto max-w-4xl text-center">
-        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-balance">
+    <section className="py-14 px-4 sm:py-20 md:py-24 bg-primary/5">
+      <div className="container mx-auto max-w-4xl text-center px-2 sm:px-4">
+        <h2 className="text-2xl font-bold mb-4 text-balance sm:text-3xl md:text-5xl md:mb-6">
           {t('ctaTitle')}
         </h2>
-        <p className="text-xl text-muted-foreground mb-10 text-balance max-w-2xl mx-auto">
+        <p className="text-base text-muted-foreground mb-8 text-balance max-w-2xl mx-auto sm:text-lg md:text-xl md:mb-10">
           {t('ctaSubtitle')}
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button size="lg" className="text-base px-8 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 justify-center max-w-sm mx-auto sm:max-w-none">
+          <Button size="lg" className="w-full sm:w-auto text-base px-6 py-6 sm:px-8 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
             <Link href={signupUrl}>
               {t('ctaStartTrial')}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
-          <Button size="lg" variant="outline" className="text-base px-8" asChild>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-base px-6 py-6 sm:px-8" asChild>
             <a href="https://cal.com/johnson-subedi/30min" target="_blank" rel="noopener noreferrer">
               {t('ctaScheduleDemo')}
             </a>
           </Button>
         </div>
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="mt-5 text-sm text-muted-foreground">
           {t('ctaTrialCancel')}
         </p>
       </div>

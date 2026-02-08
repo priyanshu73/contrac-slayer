@@ -38,7 +38,8 @@ export default function Home() {
       <div className="h-full">
         <Header />
         <HeroSection
-          backgroundImage="/hero.png"
+          backgroundImage="/hero2.webp"
+          mobileBackgroundImage="/hero2.webp"
           contactInfo={{ website: "www.contractorops.ai", phone: "+1 (555) 123-4567", address: "20 Fieldstone Dr, Roswell, GA" }}
         />
         <HowItWorks />

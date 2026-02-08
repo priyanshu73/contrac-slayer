@@ -69,20 +69,19 @@ export function AIConversationPreview() {
             )}
             
             {msg.type === 'ai-analysis' && (
-              <div className="rounded-lg bg-primary/5 p-3 border border-primary/20">
-                <div className="flex items-start gap-2 mb-2">
-                  <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-                    <div className="h-2 w-2 rounded-full bg-primary-foreground animate-pulse" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium mb-2">{msg.content}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {msg.tags?.map((tag, j) => (
-                        <Badge key={j} variant="secondary" className="text-xs px-2 py-0.5">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+              <div className="rounded-xl bg-white dark:bg-gray-900/90 shadow-lg border border-gray-200/80 dark:border-gray-700/80 overflow-hidden max-w-[320px]">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{t('leadCaptureNotificationTitle')}</span>
+                </div>
+                <div className="p-3">
+                  <p className="text-sm text-gray-800 dark:text-gray-200 mb-2">{msg.content}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {msg.tags?.map((tag, j) => (
+                      <span key={j} className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
