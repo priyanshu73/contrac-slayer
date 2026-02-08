@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2, MessageSquare, Bot, FileText } from "lucide-react";
+import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { useTranslations } from 'next-intl';
 // framer-motion's intrinsic element typings can be strict in some TS configs.
 // Use a loose-typed alias so we can use motion elements with standard HTML props (className, href, etc.).
@@ -76,111 +76,92 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
     };
 
     /* ──────────────────────────────────────────────
-       MOBILE HERO — Full-screen immersive layout
+       MOBILE HERO — High-converting, brutal simplicity
+       Headline → Subline → CTA → Trial copy. Features below as stacked rows.
        ────────────────────────────────────────────── */
     if (!isDesktop) {
+      const mobileFeatures = [
+        { label: t('heroFeatureSmsLong') },
+        { label: t('heroFeatureAiLong') },
+        { label: t('heroFeatureInvoicesLong') },
+      ];
       return (
-        <m.section
+        <section
           ref={ref}
           className={cn(
-            "relative flex w-full flex-col overflow-hidden mt-14",
+            "relative flex w-full flex-col overflow-hidden mt-14 bg-background",
             className
           )}
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
           {...(props as any)}
         >
-          {/* Hero image — shorter height on mobile */}
-          <div className="relative w-full h-[420px] sm:h-[480px]">
-            {/* Background image */}
-            <m.div
-              className="absolute inset-0 bg-cover bg-center"
+          {/* Hero image — full viewport height, center-aligned text */}
+          <div className="relative w-full flex flex-col" style={{ minHeight: 'calc(100svh - 56px)' }}>
+            {/* Background image — no scale animation, just fade */}
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
               style={{ backgroundImage: `url(${mobileImage})` }}
-              initial={{ opacity: 0, scale: 1.06 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            />
+            {/* Dark overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.75))' }}
             />
 
-            {/* Multi-layer gradient overlay — stronger at top for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/25 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-
-            {/* Content positioned towards top of viewport */}
-            <div className="relative z-10 flex flex-col justify-start h-full px-5 pt-24 pb-8">
+            {/* Content — centered text, pushed to bottom */}
+            <div className="relative z-10 flex flex-col items-center justify-end flex-1 px-5 pt-20 text-center" style={{ paddingBottom: 'calc(var(--spacing) * 50)' }}>
               {/* Headline */}
-              <m.h1
-                className="text-[2rem] font-bold tracking-tight leading-[1.15] text-white mb-3 sm:text-4xl"
-                variants={itemVariants}
-              >
+              <h1 className="text-3xl font-bold leading-tight text-white mb-4">
                 {title ?? (
                   <>
-                    {t('heroTitle1')}{' '}
-                    <span className="text-blue-400 font-extrabold">{t('heroTitle2')}</span>
+                    <span className="block">{t('heroTitleMobileLine1')}</span>
+                    <span className="block text-blue-400">{t('heroTitleMobileLine2')}</span>
                   </>
                 )}
-              </m.h1>
+              </h1>
 
-              {/* Subtitle — single concise line */}
-              <m.p
-                className="text-[0.95rem] leading-relaxed text-white/80 mb-5 max-w-md sm:text-base"
-                variants={itemVariants}
-              >
-                {t('heroSubtitle1')}
-              </m.p>
+              {/* Subtext */}
+              <div className="mb-5 max-w-[340px]">
+                <p className="text-base text-white/90 leading-snug">
+                  {t('heroSubtitleMobile')}
+                </p>
+                <p className="text-base text-white/80 leading-snug mt-0.5">
+                  {t('heroSubtitleMobileLine2')}
+                </p>
+              </div>
 
-              {/* Feature pills row */}
-              <m.div
-                className="flex flex-wrap gap-2 mb-6"
-                variants={itemVariants}
-              >
-                {[
-                  { icon: MessageSquare, label: t('heroFeatureSms'), sub: t('heroFeatureSmsSub') },
-                  { icon: Bot, label: t('heroFeatureAi') },
-                  { icon: FileText, label: t('heroFeatureInvoices') },
-                ].map(({ icon: Icon, label, sub }) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/15 px-3 py-1.5 text-xs font-medium text-white/90"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                    {label}
-                    {sub && <span className="text-white/50">· {sub}</span>}
-                  </span>
-                ))}
-              </m.div>
-
-              {/* CTA Button */}
-              <m.div variants={itemVariants} className="mb-5">
+              {/* CTA */}
+              <div className="w-full max-w-[360px] mb-3">
                 <Button
                   size="lg"
-                  className="w-full max-w-xs text-base px-6 py-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all rounded-xl"
+                  className="w-full h-[52px] text-base rounded-xl font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg active:scale-[0.98] transition-transform"
                   asChild
                 >
                   <a href={callToAction?.href ?? 'https://cal.com/johnson-subedi/30min'} target="_blank" rel="noopener noreferrer">
                     {callToAction?.text ?? t('scheduleDemo')}
-                    <ArrowRight className="ml-2 h-5 w-5" />
                   </a>
                 </Button>
-              </m.div>
+              </div>
 
-              {/* Trust badges */}
-              <m.div
-                className="flex items-center gap-4 text-xs text-white/60"
-                variants={itemVariants}
-              >
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  {t('trialBadge')}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  {t('cancelAnytime')}
-                </span>
-              </m.div>
+              {/* Trial copy */}
+              <p className="text-sm text-white/60 mb-8">
+                {t('trialBadge')} • {t('cancelAnytime')}
+              </p>
+
+              {/* Feature bullets */}
+              <div className="flex flex-col items-center gap-3 w-full">
+                {mobileFeatures.map(({ label }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2.5 text-sm font-medium text-white/90 leading-relaxed"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </m.section>
+        </section>
       );
     }
 
@@ -251,7 +232,7 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
           style={{ backgroundImage: `url(${backgroundImage})` }}
           initial={{ clipPath: 'polygon(100% 0, 100% 0, 100% 100%, 100% 100%)' }}
           animate={{ clipPath: imageClipEnd }}
-          transition={{ duration: 1.2, ease: 'circOut' as const }}
+          transition={{ duration: 0.5, ease: 'circOut' as const }}
         />
       </m.section>
     );

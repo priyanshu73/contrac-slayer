@@ -84,7 +84,7 @@ export function Header() {
 
           {/* Mobile: Sign In + hamburger */}
           <div className="flex md:hidden items-center gap-2">
-            <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 shrink-0" asChild>
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0" asChild>
               <Link href={`/${locale}/auth/login`}>{t('signIn')}</Link>
             </Button>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

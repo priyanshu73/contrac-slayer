@@ -81,7 +81,7 @@ export default function LoginPage() {
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/imagee.jpg)' }}
+          style={{ backgroundImage: 'url(/hero1.jpg)' }}
         >
           {/* Darker overlay for better text readability */}
           <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/45 to-black/50"></div>
