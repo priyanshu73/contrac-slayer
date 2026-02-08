@@ -89,32 +89,60 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
         <section
           ref={ref}
           className={cn(
-            "relative flex w-full flex-col overflow-hidden mt-14 bg-background",
+            "relative flex w-full flex-col overflow-hidden bg-transparent",
             className
           )}
+          style={{
+            marginTop: 'calc(-4rem - env(safe-area-inset-top, 0px) - 8px)',
+          }}
           {...(props as any)}
         >
-          {/* Hero image — full viewport height, center-aligned text */}
-          <div className="relative w-full flex flex-col" style={{ minHeight: 'calc(100svh - 56px)' }}>
-            {/* Background image — no scale animation, just fade */}
+          {/* Hero image — full viewport, extends under header and into safe area on mobile */}
+          <div
+            className="relative w-full flex flex-col"
+            style={{
+              minHeight: 'calc(100svh + env(safe-area-inset-top, 0px) + 8px)',
+            }}
+          >
+            {/* Background image — extends into top safe area so no white strip */}
             <div
-              className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
-              style={{ backgroundImage: `url(${mobileImage})` }}
+              className="absolute bg-cover bg-center transition-opacity duration-700 left-0 right-0 bottom-0 w-full"
+              style={{
+                backgroundImage: `url(${mobileImage})`,
+                top: 'calc(-1 * (env(safe-area-inset-top, 0px) + 8px))',
+                height: 'calc(100% + env(safe-area-inset-top, 0px) + 8px)',
+              }}
             />
-            {/* Dark overlay */}
+            {/* Dark overlay — same extent as image */}
             <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.75))' }}
+              className="absolute left-0 right-0 bottom-0 w-full pointer-events-none"
+              style={{
+                background: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.75))',
+                top: 'calc(-1 * (env(safe-area-inset-top, 0px) + 8px))',
+                height: 'calc(100% + env(safe-area-inset-top, 0px) + 8px)',
+              }}
             />
 
-            {/* Content — centered text, pushed to bottom */}
-            <div className="relative z-10 flex flex-col items-center justify-end flex-1 px-5 pt-20 text-center" style={{ paddingBottom: 'calc(var(--spacing) * 50)' }}>
-              {/* Headline */}
+            {/* Content — logo + Ops AI at top, headline/CTA at bottom */}
+            <div className="relative z-10 flex flex-col flex-1 w-full">
+              {/* Top: logo + Ops AI, centered */}
+              <div className="flex flex-col items-center justify-center pt-40 pb-2 text-center">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white mb-3">
+                  <img src="/logo1.png" alt="Logo" className="h-9 w-9 object-contain" />
+                </span>
+                <span className="text-xl font-bold text-white">
+                  <span className="font-extrabold">Ops</span>
+                  <span className="font-extrabold"> AI</span>
+                </span>
+              </div>
+              {/* Bottom: headline, subtext, CTA */}
+              <div className="flex flex-col items-center justify-end flex-1 px-5 pt-4 text-center" style={{ paddingBottom: 'calc(var(--spacing) * 50)' }}>
+              {/* Headline — AI-Powered stays; Modern Contractors in warm accent (not blue) */}
               <h1 className="text-3xl font-bold leading-tight text-white mb-4">
                 {title ?? (
                   <>
-                    <span className="block">{t('heroTitleMobileLine1')}</span>
-                    <span className="block text-blue-400">{t('heroTitleMobileLine2')}</span>
+                    <span className="block">{t('heroTitle1')}</span>
+                    <span className="block text-white/95 font-extrabold">{t('heroTitle2')}</span>
                   </>
                 )}
               </h1>
@@ -129,11 +157,11 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
                 </p>
               </div>
 
-              {/* CTA */}
+              {/* CTA — dark gradient 3D-style, white text */}
               <div className="w-full max-w-[360px] mb-3">
                 <Button
                   size="lg"
-                  className="w-full h-[52px] text-base rounded-xl font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg active:scale-[0.98] transition-transform"
+                  className="w-full h-[52px] text-base rounded-xl font-semibold text-white bg-black hover:bg-black/90 shadow-lg transition-all border-0 ring-1 ring-white/10"
                   asChild
                 >
                   <a href={callToAction?.href ?? 'https://cal.com/johnson-subedi/30min'} target="_blank" rel="noopener noreferrer">
@@ -148,16 +176,17 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
               </p>
 
               {/* Feature bullets */}
-              <div className="flex flex-col items-center gap-3 w-full">
+              <div className="flex flex-col items-center gap-3 w-full max-w-[340px]">
                 {mobileFeatures.map(({ label }) => (
                   <div
                     key={label}
-                    className="flex items-center gap-2.5 text-sm font-medium text-white/90 leading-relaxed"
+                    className="flex items-center justify-center gap-2.5 text-sm font-medium text-white/90 leading-relaxed text-center"
                   >
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-white shrink-0" />
                     <span>{label}</span>
                   </div>
                 ))}
+              </div>
               </div>
             </div>
           </div>
@@ -203,7 +232,7 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
             <div className="flex flex-row gap-4 mb-12 justify-start">
               <Button
                 size="lg"
-                className="text-base px-8 py-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all"
+                className="text-base px-8 py-6 text-white bg-black hover:bg-black/90 shadow-lg ring-1 ring-white/10 transition-all border-0"
                 asChild
               >
                 <a href={callToAction?.href ?? 'https://cal.com/johnson-subedi/30min'} target="_blank" rel="noopener noreferrer">

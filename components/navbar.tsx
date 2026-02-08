@@ -28,9 +28,10 @@ export function Navbar() {
   const t = useTranslations('navigation')
   const locale = useLocale()
 
-  // Don't show navbar on auth pages (except profile-setup), public quote request pages, or homepage
+  // Don't show navbar on auth pages (except profile-setup), public quote request pages, or homepage (including locale home /en, /es)
   const isProfileSetup = pathname?.includes("/auth/profile-setup")
-  if (pathname === "/" || (pathname?.startsWith("/auth") && !isProfileSetup) || pathname?.startsWith("/quote-request")) {
+  const isHomepage = pathname === "/" || pathname?.match(/^\/[a-z]{2}$/)
+  if (isHomepage || (pathname?.startsWith("/auth") && !isProfileSetup) || pathname?.startsWith("/quote-request")) {
     return null
   }
 
