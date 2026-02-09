@@ -20,6 +20,7 @@ export function Pricing() {
     t('pricingBasic3'),
     t('pricingBasic4'),
     t('pricingBasic5'),
+    t('pricingWebsite'),
   ]
 
   const premiumFeatures = [
@@ -28,6 +29,7 @@ export function Pricing() {
     t('pricingBasic3'),
     t('pricingBasic4'),
     t('pricingBasic5'),
+    t('pricingWebsite'),
     t('pricingPremium6'),
     t('pricingPremium7'),
   ]
