@@ -327,6 +327,7 @@ export default function QuoteDetailPage() {
         onSignatureUpdate={handleSignatureUpdate}
         isContractor={false}
         isPublicView={true}
+        hideProjectDescription={true}
       />
     )
   }
@@ -345,6 +346,7 @@ export default function QuoteDetailPage() {
         onStatusUpdate={fetchJob}
         isContractor={true}
         isPublicView={false}
+        hideProjectDescription={true}
       />
     </AuthGuard>
   )
