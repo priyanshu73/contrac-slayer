@@ -30,6 +30,8 @@ interface PersonalizedQuoteViewProps {
   onStatusUpdate?: () => void
   isContractor?: boolean  // If true, hide customer signature button
   isPublicView?: boolean  // If true, this is a public customer view
+  /** Hide project description (e.g. when viewing quote by id/uuid to avoid exposing prompt text) */
+  hideProjectDescription?: boolean
 }
 
 const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
@@ -53,6 +55,7 @@ export function PersonalizedQuoteView({
   onStatusUpdate,
   isContractor = false,
   isPublicView = false,
+  hideProjectDescription = false,
 }: PersonalizedQuoteViewProps) {
   const isMobile = useIsMobile()
   const { toast } = useToast()
@@ -472,8 +475,8 @@ export function PersonalizedQuoteView({
               </div>
             </div>
 
-            {/* Project Description */}
-            {currentJob.job_description && (
+            {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
+            {!hideProjectDescription && currentJob.job_description && (
               <div className="mb-4 sm:mb-6 print:mb-4 p-2.5 sm:p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                   Project Description
