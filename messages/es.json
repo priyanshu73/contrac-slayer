@@ -614,7 +614,13 @@
   },
   "quotes": {
     "changeStatus": "Cambiar estado",
-    "statusUpdated": "Estado de la cotización actualizado a {status}."
+    "statusUpdated": "Estado de la cotización actualizado a {status}.",
+    "sendToClient": "Enviar al Cliente",
+    "sendToClientTooltipReady": "Abre el correo con el enlace de la cotización para enviar al cliente.",
+    "sendToClientTooltipSignFirst": "Firma la cotización primero para enviarla al cliente.",
+    "copyLinkTooltipSignFirst": "Firma la cotización primero para generar un enlace público.",
+    "copyLinkTooltipGenerate": "Generar y copiar enlace",
+    "copyLinkTooltipCopy": "Copiar enlace de cotización"
   },
   "forms": {
     "required": "Requerido",

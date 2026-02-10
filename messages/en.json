@@ -614,7 +614,13 @@
   },
   "quotes": {
     "changeStatus": "Change status",
-    "statusUpdated": "Quote status updated to {status}."
+    "statusUpdated": "Quote status updated to {status}.",
+    "sendToClient": "Send to Client",
+    "sendToClientTooltipReady": "Open email with quote link to send to client.",
+    "sendToClientTooltipSignFirst": "Sign the quote first to send to client.",
+    "copyLinkTooltipSignFirst": "Sign the quote first to generate a public link.",
+    "copyLinkTooltipGenerate": "Generate and copy link",
+    "copyLinkTooltipCopy": "Copy quote link"
   },
   "forms": {
     "required": "Required",
