@@ -1279,8 +1279,8 @@ export default function CalendarPage() {
           onClientCreated={refetchClients}
         />
 
-        <div className="min-h-screen bg-[#F8FAFC] dark:bg-muted/20">
-          <div className="mx-auto max-w-[1320px] px-6 py-6">
+        <div className="min-h-screen overflow-x-hidden bg-[#F8FAFC] dark:bg-muted/20">
+          <div className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 sm:py-6 min-w-0">
             <div className="space-y-4">
               {error ? (
                 <Alert variant="destructive">
@@ -1297,44 +1297,44 @@ export default function CalendarPage() {
               ) : null}
             </div>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-6">
-              <div className="flex items-center justify-between gap-3">
-                <TabsList className="h-auto gap-1 rounded-lg bg-[#F1F5F9] dark:bg-muted p-1">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4 sm:mt-6">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <TabsList className="h-auto min-w-0 flex-1 sm:flex-initial gap-0.5 sm:gap-1 rounded-lg bg-[#F1F5F9] dark:bg-muted p-1">
                   <TabsTrigger
                     value="calendar"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border"
+                    className="rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border flex-1 sm:flex-initial"
                   >
                     {tCalendar("title")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="availability"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border"
+                    className="rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-[#64748B] data-[state=active]:bg-white data-[state=active]:text-[#1E293B] data-[state=active]:shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[state=active]:border data-[state=active]:border-[#E2E8F0] dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:border-border flex-1 sm:flex-initial"
                   >
                     {tCalendar("setAvailability")}
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value="calendar" className="mt-6">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+              <TabsContent value="calendar" className="mt-4 sm:mt-6">
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] min-w-0">
               {bookingsLoading ? (
-                <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-5 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-2">
+                <Card className="min-w-0 rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-3 sm:p-5 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="space-y-2 min-w-0 flex-1">
                       <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-5 w-32 sm:w-48" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-10 w-10 rounded-md" />
-                      <Skeleton className="h-10 w-10 rounded-md" />
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-md" />
+                      <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-md" />
                     </div>
                   </div>
-                  <div className="mt-4 grid grid-cols-7 gap-2">
+                  <div className="mt-3 grid grid-cols-7 gap-0.5 sm:gap-2">
                     {Array.from({ length: 7 }).map((_, i) => (
-                      <Skeleton key={`h-${i}`} className="h-8 w-full" />
+                      <Skeleton key={`h-${i}`} className="h-6 sm:h-8 w-full rounded" />
                     ))}
                     {Array.from({ length: 35 }).map((_, i) => (
-                      <Skeleton key={`d-${i}`} className="h-10 w-10 rounded-xl" />
+                      <Skeleton key={`d-${i}`} className="aspect-square w-full min-w-0 rounded-md sm:rounded-xl" />
                     ))}
                   </div>
                 </Card>
@@ -1351,7 +1351,7 @@ export default function CalendarPage() {
                 />
               )}
 
-          <div className="space-y-6 lg:sticky lg:top-24 self-start rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+          <div className="min-w-0 space-y-4 sm:space-y-6 lg:sticky lg:top-24 self-start rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 sm:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
             {bookingsLoading ? (
               <>
                 <div className="flex items-start justify-between gap-3">
@@ -1380,14 +1380,14 @@ export default function CalendarPage() {
             ) : (
             <>
               {/* Header: actions on left, then date below */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-start gap-2">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={load}
                     disabled={bookingsLoading}
-                    className="h-10 w-10 rounded-lg shrink-0 border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
+                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg shrink-0 border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
                     aria-label={tCommon("refresh")}
                   >
                     <RefreshCwIcon className="h-4 w-4" />
@@ -1397,11 +1397,12 @@ export default function CalendarPage() {
                     size="sm"
                     onClick={() => setCreateAppointmentOpen(true)}
                     disabled={!calendarLink}
-                    className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)] h-10 px-4 font-medium"
+                    className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)] h-9 sm:h-10 px-3 sm:px-4 font-medium min-w-0 flex-1 sm:flex-initial"
                     aria-label={tCalendar("createAppointment")}
                   >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    {tCalendar("createAppointment")}
+                    <PlusIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
+                    <span className="sm:hidden">New</span>
                   </Button>
                 </div>
                 <div className="flex items-center gap-3 min-w-0">
@@ -1432,7 +1433,7 @@ export default function CalendarPage() {
               {/* Booking cards */}
               <div className="space-y-3">
                 {selectedDayBookings.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#E2E8F0] dark:border-border bg-[#FAFBFD] dark:bg-muted/20 py-10 px-4 text-center shadow-sm">
+                  <div className="rounded-xl border border-dashed border-[#E2E8F0] dark:border-border bg-[#FAFBFD] dark:bg-muted/20 py-6 sm:py-10 px-3 sm:px-4 text-center shadow-sm">
                     <p className="text-sm font-medium text-muted-foreground">
                       {tCommon("nothingScheduled")}
                     </p>
@@ -1442,12 +1443,13 @@ export default function CalendarPage() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="mt-4 rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
+                      className="mt-3 sm:mt-4 rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
                       onClick={() => setCreateAppointmentOpen(true)}
                       disabled={!calendarLink}
                     >
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      {tCalendar("createAppointment")}
+                      <PlusIcon className="h-4 w-4 mr-2 shrink-0" />
+                      <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
+                      <span className="sm:hidden">New</span>
                     </Button>
                   </div>
                 ) : (
@@ -1674,8 +1676,8 @@ export default function CalendarPage() {
                   </div>
           </TabsContent>
 
-          <TabsContent value="availability" className="mt-6">
-            <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+          <TabsContent value="availability" className="mt-4 sm:mt-6">
+            <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 sm:p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
               {availabilityLoading || !hasLoadedAvailability ? (
                 <>
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1753,120 +1755,118 @@ export default function CalendarPage() {
                 </>
               ) : (
                 <>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <div className="text-xl font-semibold">Weekly hours</div>
-                      <div className="text-sm text-muted-foreground">Set when you are typically available for meetings</div>
+                      <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Weekly hours</h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">Set when you’re typically available for meetings</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" className="rounded-lg hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)]" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
                         Reload
                       </Button>
-                      <Button type="button" className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
+                      <Button type="button" size="sm" className="rounded-lg bg-primary text-primary-foreground shadow-sm" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
                         {savingAvailability ? "Saving…" : "Save"}
                       </Button>
                     </div>
                   </div>
 
-                  <Separator className="my-6" />
+                  <Separator className="my-5" />
 
-                  <div className="grid gap-6">
-                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
-                  <div>
-                    <div className="text-sm font-semibold text-[#1E293B] dark:text-foreground">Apply uniform hours</div>
-                    <div className="text-sm text-[#6B7280] dark:text-gray-400 mt-0.5">Select days and apply the same start/end time.</div>
-                  </div>
+                  <div className="grid gap-5">
+                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-muted/30 dark:bg-muted/10 p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 sm:gap-5">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Apply uniform hours</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Select days, then set one time range to apply to all.</p>
+                    </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {WEEKDAYS.map((d) => (
-                      <button
-                        key={d.key}
-                        type="button"
-                        onClick={() => setQuickDays((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-sm font-medium transition",
-                          quickDays[d.key] ? "bg-primary text-primary-foreground border-primary" : "border-[#E5E7EB] dark:border-border bg-transparent hover:bg-muted/70"
-                        )}
-                      >
-                        {d.short}
-                      </button>
-                    ))}
-                </div>
+                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2 max-w-[280px] sm:max-w-none">
+                      {WEEKDAYS.map((d) => (
+                        <button
+                          key={d.key}
+                          type="button"
+                          onClick={() => setQuickDays((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
+                          className={cn(
+                            "aspect-square w-full min-w-0 rounded-full text-xs font-semibold transition-all",
+                            quickDays[d.key] ? "bg-primary text-primary-foreground shadow-sm" : "border border-[#E5E7EB] dark:border-border bg-background hover:bg-muted/60"
+                          )}
+                          title={d.label}
+                        >
+                          {d.short}
+                        </button>
+                      ))}
+                    </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="grid gap-2">
-                    <div className="text-sm font-medium">Start</div>
-                      <Select
-                        value={quickStart}
-                        onValueChange={(v) => {
-                          setQuickStart(v)
-                          // keep end >= start when possible
-                          if (hhmmToMinutes(quickEnd) < hhmmToMinutes(v)) setQuickEnd(v)
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeOptions.map((t) => (
-                            <SelectItem key={t.value} value={t.value}>
-                              {t.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="text-sm font-medium">End</div>
-                      <Select
-                        value={quickEnd}
-                        onValueChange={(v) => {
-                          setQuickEnd(v)
-                          if (hhmmToMinutes(v) < hhmmToMinutes(quickStart)) setQuickStart(v)
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeOptions.map((t) => (
-                            <SelectItem key={t.value} value={t.value}>
-                              {t.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="grid gap-2 sm:flex sm:flex-col sm:justify-end">
-                    <label className="text-sm font-medium">Current time zone</label>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={timeZone}
-                        onValueChange={(v) => {
-                          setTimeZone(v)
-                          setTimeZoneSource("manual")
-                        }}
-                      >
-                        <SelectTrigger className="w-full min-w-0">
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeZoneOptions.map((tz) => (
-                            <SelectItem key={tz} value={tz}>
-                              {tz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" variant="outline" className="rounded-lg shrink-0 h-10" onClick={applyUniformToSelectedDays}>
-                        Apply
-                      </Button>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+                      <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-2">
+                        <div className="grid gap-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Start</label>
+                          <Select
+                            value={quickStart}
+                            onValueChange={(v) => {
+                              setQuickStart(v)
+                              if (hhmmToMinutes(quickEnd) < hhmmToMinutes(v)) setQuickEnd(v)
+                            }}
+                          >
+                            <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeOptions.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">End</label>
+                          <Select
+                            value={quickEnd}
+                            onValueChange={(v) => {
+                              setQuickEnd(v)
+                              if (hhmmToMinutes(v) < hhmmToMinutes(quickStart)) setQuickStart(v)
+                            }}
+                          >
+                            <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeOptions.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 sm:ml-2">
+                        <label className="text-xs font-medium text-muted-foreground">Time zone</label>
+                        <div className="flex gap-2 min-w-0">
+                          <Select
+                            value={timeZone}
+                            onValueChange={(v) => {
+                              setTimeZone(v)
+                              setTimeZoneSource("manual")
+                            }}
+                          >
+                            <SelectTrigger className="h-9 flex-1 min-w-0 sm:w-[200px]">
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeZoneOptions.map((tz) => (
+                                <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" size="sm" className="rounded-lg shrink-0 h-9 bg-primary text-primary-foreground" onClick={applyUniformToSelectedDays}>
+                            Apply
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  </div>
                 </div>
 
-                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
+                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
                   {WEEKDAYS.map((d, idx) => {
                     const ranges = weeklyHours[d.key] || []
                     const isUnavailable = ranges.length === 0
@@ -1874,16 +1874,16 @@ export default function CalendarPage() {
                       <div
                         key={d.key}
                         className={cn(
-                          "py-5 px-4 md:py-6 md:px-5 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-muted/20",
-                          idx > 0 ? "border-t border-[#F3F4F6] dark:border-border" : ""
+                          "py-3 px-4 sm:py-4 sm:px-5 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10",
+                          idx > 0 ? "border-t border-[#E2E8F0] dark:border-border" : ""
                         )}
                       >
-                        <div className="flex items-start gap-4">
+                        <div className="flex items-start gap-3 sm:gap-4">
                           <div
                             className={cn(
-                              "mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                              "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-semibold sm:h-9 sm:w-9 sm:text-xs",
                               isUnavailable
-                                ? "border-2 border-[#E5E7EB] dark:border-border bg-transparent text-muted-foreground"
+                                ? "border border-[#E5E7EB] dark:border-border bg-transparent text-muted-foreground"
                                 : "bg-primary text-primary-foreground"
                             )}
                           >
@@ -1891,13 +1891,13 @@ export default function CalendarPage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-semibold text-foreground">{d.label}</div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium text-foreground">{d.label}</span>
                               <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="icon"
-                                className="h-9 w-9 border-[#E5E7EB] dark:border-border text-muted-foreground hover:text-foreground"
+                                className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
                                 onClick={() => addRangeForDay(d.key)}
                                 aria-label={`Add time range for ${d.label}`}
                               >
@@ -1906,11 +1906,11 @@ export default function CalendarPage() {
                             </div>
 
                             {isUnavailable ? (
-                              <div className="mt-2 text-sm text-muted-foreground">Unavailable</div>
+                              <p className="mt-1.5 text-xs text-muted-foreground">Unavailable</p>
                             ) : (
-                              <div className="mt-3 space-y-2">
+                              <div className="mt-2 space-y-2">
                                 {ranges.map((r, i) => (
-                                  <div key={i} className="flex flex-wrap items-center gap-3">
+                                  <div key={i} className="flex flex-wrap items-center gap-2">
                                     <Select
                                       value={r.start}
                                       onValueChange={(v) => {
@@ -1918,18 +1918,16 @@ export default function CalendarPage() {
                                         if (hhmmToMinutes(r.end) < hhmmToMinutes(v)) updateRangeForDay(d.key, i, "end", v)
                                       }}
                                     >
-                                      <SelectTrigger className="w-[160px]">
+                                      <SelectTrigger className="h-9 w-[120px] sm:w-[140px] text-xs">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {timeOptions.map((t) => (
-                                          <SelectItem key={t.value} value={t.value}>
-                                            {t.label}
-                                          </SelectItem>
+                                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    <span className="text-muted-foreground opacity-50 select-none">–</span>
+                                    <span className="text-muted-foreground/60 text-xs">–</span>
                                     <Select
                                       value={r.end}
                                       onValueChange={(v) => {
@@ -1937,41 +1935,38 @@ export default function CalendarPage() {
                                         if (hhmmToMinutes(v) < hhmmToMinutes(r.start)) updateRangeForDay(d.key, i, "start", v)
                                       }}
                                     >
-                                      <SelectTrigger className="w-[160px]">
+                                      <SelectTrigger className="h-9 w-[120px] sm:w-[140px] text-xs">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {timeOptions.map((t) => (
-                                          <SelectItem key={t.value} value={t.value}>
-                                            {t.label}
-                                          </SelectItem>
+                                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    <div className="inline-flex items-center gap-0.5">
+                                    <div className="inline-flex items-center">
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-11 w-11 min-w-[44px] min-h-[44px] rounded-md text-muted-foreground hover:text-foreground"
+                                        className="h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         onClick={() => removeRangeForDay(d.key, i)}
                                         aria-label={`Remove time range ${i + 1} for ${d.label}`}
                                       >
                                         <XIcon className="h-3.5 w-3.5" />
                                       </Button>
-
-                                      {i === ranges.length - 1 ? (
+                                      {i === ranges.length - 1 && (
                                         <Button
                                           type="button"
                                           variant="ghost"
                                           size="icon"
-                                          className="h-11 w-11 min-w-[44px] min-h-[44px] rounded-md text-muted-foreground hover:text-foreground"
+                                          className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
                                           onClick={() => copyDayToSelectedDays(d.key)}
                                           aria-label={`Copy ${d.label} hours to selected days`}
                                         >
                                           <CopyIcon className="h-3.5 w-3.5" />
                                         </Button>
-                                      ) : null}
+                                      )}
                                     </div>
                                   </div>
                                 ))}
@@ -1985,9 +1980,9 @@ export default function CalendarPage() {
                 </div>
 
                 {!activeAvailabilityId && (
-                  <div className="text-xs text-muted-foreground">
-                    No existing availability found yet (saving will create one).
-                  </div>
+                  <p className="text-xs text-muted-foreground/80">
+                    No availability saved yet. Set your hours above and click Save to create one.
+                  </p>
                 )}
               </div>
                 </>

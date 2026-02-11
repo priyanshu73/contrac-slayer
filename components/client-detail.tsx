@@ -346,193 +346,165 @@ export function ClientDetail({ clientId }: { clientId: string }) {
     )
   }
 
+  const hasPhone = Boolean(clientData.phone)
+
   return (
     <div className="space-y-6">
       {/* Client Info Card */}
-      <Card className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="text-2xl font-semibold">{clientData.name.charAt(0).toUpperCase()}</span>
+      <Card className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+          {/* Avatar + name block: compact on small screens */}
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:h-14 sm:w-14">
+              <span className="text-xl font-semibold sm:text-2xl">{clientData.name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-bold truncate sm:text-2xl">{clientData.name}</h2>
+                <Badge className={getStatusColor(clientData.status)}>{clientData.status}</Badge>
+              </div>
+              {clientData.company_name && (
+                <p className="text-sm text-muted-foreground truncate">{clientData.company_name}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">Client since {formatDate(clientData.created_at)}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-2xl font-bold">{clientData.name}</h2>
-                {clientData.company_name && (
-                  <p className="mt-1 text-sm text-muted-foreground">{clientData.company_name}</p>
-                )}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Client since {formatDate(clientData.created_at)}
-                </p>
-              </div>
-              <Badge className={getStatusColor(clientData.status)}>
-                {clientData.status}
-              </Badge>
-            </div>
 
-            {/* Contact Information */}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {clientData.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm">{formatPhoneForDisplay(clientData.phone)}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm">{clientData.email}</span>
-              </div>
-              {clientData.address && (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1" title={clientData.address}>
-                    {formatAddressStreetForDisplay(clientData.address, clientData.address_data)}
-                  </span>
-                  <Button variant="ghost" size="sm" asChild className="h-8 px-2">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                        />
-                      </svg>
-                      <span className="ml-1 text-xs">Directions</span>
-                    </a>
-                  </Button>
-                </div>
-              )}
-              {clientData.billing_address && clientData.billing_address !== clientData.address && (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1" title={clientData.billing_address}>
-                    <span className="font-medium">Billing:</span> {formatAddressStreetForDisplay(clientData.billing_address, clientData.billing_address_data)}
-                  </span>
-                  <Button variant="ghost" size="sm" asChild className="h-8 px-2">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                        />
-                      </svg>
-                      <span className="ml-1 text-xs">Directions</span>
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Property insights (when normalized address is available: primary or billing) */}
-            {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
-              <div className="mt-4">
-                <PropertyInsightsCard
-                  addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
-                  title="Property insights"
-                  onRefresh={fetchClientDetails}
-                />
-              </div>
+          {/* Contact: single compact row on desktop, stacked on mobile */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground border-t border-border pt-4 sm:border-t-0 sm:pt-0 sm:flex-1 sm:justify-end">
+            {clientData.phone && (
+              <a href={`tel:${clientData.phone}`} className="flex items-center gap-1.5 hover:text-foreground">
+                <Phone className="h-4 w-4 shrink-0" />
+                <span className="truncate">{formatPhoneForDisplay(clientData.phone)}</span>
+              </a>
             )}
-
-            {/* Financial Summary */}
-            <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Jobs</p>
-                <p className="mt-1 text-2xl font-bold">{clientData.total_jobs}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="mt-1 text-2xl font-bold">{formatCurrency(clientData.total_revenue)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Job Value</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {formatCurrency(clientData.average_job_value)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Quote Requests</p>
-                <p className="mt-1 text-2xl font-bold">{clientData.leads.length}</p>
-              </div>
-            </div>
-
-            {/* Additional Info */}
-            {(clientData.payment_terms || clientData.preferred_contact_method || clientData.referral_source) && (
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                {clientData.payment_terms && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Payment Terms</p>
-                    <p className="text-sm font-medium">{clientData.payment_terms}</p>
-                  </div>
-                )}
-                {clientData.preferred_contact_method && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Preferred Contact</p>
-                    <p className="text-sm font-medium capitalize">{clientData.preferred_contact_method}</p>
-                  </div>
-                )}
-                {clientData.referral_source && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Referral Source</p>
-                    <p className="text-sm font-medium">{clientData.referral_source}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Notes */}
-            {clientData.notes && (
-              <div className="mt-4 rounded-lg border border-border p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-                <p className="text-sm whitespace-pre-wrap">{clientData.notes}</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-              {clientData.phone && (
-                <Button variant="outline" asChild>
-                  <a href={`tel:${clientData.phone}`}>
-                    <Phone className="mr-2 h-4 w-4" />
-                    Call
+            <a href={`mailto:${clientData.email}`} className="flex items-center gap-1.5 hover:text-foreground min-w-0">
+              <Mail className="h-4 w-4 shrink-0" />
+              <span className="truncate">{clientData.email}</span>
+            </a>
+            {clientData.address && (
+              <span className="flex items-center gap-1.5 min-w-0 w-full sm:w-auto">
+                <MapPin className="h-4 w-4 shrink-0" />
+                <span className="truncate" title={clientData.address}>
+                  {formatAddressStreetForDisplay(clientData.address, clientData.address_data)}
+                </span>
+                <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0 shrink-0">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Directions"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
                   </a>
                 </Button>
-              )}
-              <Button variant="outline" asChild>
-                <a href={`mailto:${clientData.email}`}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email
-                </a>
-              </Button>
-              <Button variant="outline" asChild>
-                <a href={`/quotes/new?clientId=${clientData.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Create Quote
-                </a>
-              </Button>
-            </div>
+              </span>
+            )}
+            {clientData.billing_address && clientData.billing_address !== clientData.address && (
+              <span className="flex items-center gap-1.5 min-w-0 w-full sm:w-auto text-xs">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate" title={clientData.billing_address}>
+                  Billing: {formatAddressStreetForDisplay(clientData.billing_address, clientData.billing_address_data)}
+                </span>
+                <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0 shrink-0">
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Directions">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                  </a>
+                </Button>
+              </span>
+            )}
           </div>
+        </div>
+
+        {/* Property insights */}
+        {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
+          <div className="mt-4">
+            <PropertyInsightsCard
+              addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
+              title="Property insights"
+              onRefresh={fetchClientDetails}
+            />
+          </div>
+        )}
+
+        {/* Stats: single compact row */}
+        <div className="mt-4 grid grid-cols-4 gap-2 rounded-lg bg-muted/50 px-3 py-3">
+          <div className="min-w-0 text-center">
+            <p className="text-xs text-muted-foreground truncate">Total Jobs</p>
+            <p className="text-lg font-bold tabular-nums sm:text-xl">{clientData.total_jobs}</p>
+          </div>
+          <div className="min-w-0 text-center">
+            <p className="text-xs text-muted-foreground truncate">Revenue</p>
+            <p className="text-lg font-bold tabular-nums sm:text-xl">{formatCurrency(clientData.total_revenue)}</p>
+          </div>
+          <div className="min-w-0 text-center">
+            <p className="text-xs text-muted-foreground truncate">Avg Job</p>
+            <p className="text-lg font-bold tabular-nums sm:text-xl">{formatCurrency(clientData.average_job_value)}</p>
+          </div>
+          <div className="min-w-0 text-center">
+            <p className="text-xs text-muted-foreground truncate">Quotes</p>
+            <p className="text-lg font-bold tabular-nums sm:text-xl">{clientData.leads.length}</p>
+          </div>
+        </div>
+
+        {/* Additional Info - compact */}
+        {(clientData.payment_terms || clientData.preferred_contact_method || clientData.referral_source) && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            {clientData.payment_terms && (
+              <span><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{clientData.payment_terms}</span></span>
+            )}
+            {clientData.preferred_contact_method && (
+              <span><span className="text-muted-foreground">Contact:</span> <span className="font-medium capitalize">{clientData.preferred_contact_method}</span></span>
+            )}
+            {clientData.referral_source && (
+              <span><span className="text-muted-foreground">Referral:</span> <span className="font-medium">{clientData.referral_source}</span></span>
+            )}
+          </div>
+        )}
+
+        {/* Notes - compact */}
+        {clientData.notes && (
+          <div className="mt-3 rounded-lg border border-border px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground mb-0.5">Notes</p>
+            <p className="text-sm whitespace-pre-wrap">{clientData.notes}</p>
+          </div>
+        )}
+
+        {/* Action Buttons - single row, equal width */}
+        <div className={`mt-4 grid gap-2 ${hasPhone ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="w-full">
+            <Pencil className="mr-2 h-4 w-4 shrink-0" />
+            Edit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="w-full text-destructive hover:text-destructive hover:bg-destructive/10">
+            <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+            Delete
+          </Button>
+          {clientData.phone && (
+            <Button variant="outline" size="sm" asChild className="w-full">
+              <a href={`tel:${clientData.phone}`}>
+                <Phone className="mr-2 h-4 w-4 shrink-0" />
+                Call
+              </a>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" asChild className="w-full">
+            <a href={`mailto:${clientData.email}`}>
+              <Mail className="mr-2 h-4 w-4 shrink-0" />
+              Email
+            </a>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="w-full">
+            <a href={`/quotes/new?clientId=${clientData.id}`}>
+              <FileText className="mr-2 h-4 w-4 shrink-0" />
+              Create Quote
+            </a>
+          </Button>
         </div>
       </Card>
 

@@ -161,34 +161,34 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card md:hidden">
-        <div className="grid grid-cols-6 gap-0.5 px-1 py-1">
-          {navLinks.slice(0, 5).map((link) => {
+      {/* Mobile Bottom Navigation - 5 items: Dashboard, Leads, Calendar, Clients, Actions */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 w-full overflow-x-hidden border-t border-border bg-card md:hidden">
+        <div className="grid grid-cols-5 min-w-0 gap-1 p-2">
+          {navLinks.map((link) => {
             const isActive = pathname === link.href
             const Icon = link.icon
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 ${
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${
                   isActive ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="text-[10px] font-medium leading-tight">{link.label}</span>
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="truncate text-center text-xs font-medium leading-tight">{link.label}</span>
               </Link>
             )
           })}
           {/* Actions -> Scheduling on mobile */}
           <Link
             href={`/${locale}/actions/scheduling`}
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 ${
+            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${
               pathname?.startsWith(`/${locale}/actions`) ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
             }`}
           >
-            <Zap className="h-4 w-4 shrink-0" />
-            <span className="text-[10px] font-medium leading-tight">{t('actions')}</span>
+            <Zap className="h-5 w-5 shrink-0" />
+            <span className="truncate text-center text-xs font-medium leading-tight">{t('actions')}</span>
           </Link>
         </div>
       </div>
