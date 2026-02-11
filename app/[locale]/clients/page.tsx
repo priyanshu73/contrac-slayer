@@ -72,6 +72,7 @@ export default function ClientsPage() {
     id: c.id,
     name: c.name || c.full_name || "",
     email: c.email || "",
+    address: c.address_data?.formatted_address?.trim() || c.address?.trim() || undefined,
   }))
 
   const handleScheduleClick = (client: { id: number; name?: string; email?: string }) => {

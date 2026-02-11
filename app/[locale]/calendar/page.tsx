@@ -758,7 +758,7 @@ export default function CalendarPage() {
         id: c.id,
         name: c.name || "",
         email: c.email || "",
-        address: c.address?.trim() || undefined,
+        address: c.address_data?.formatted_address?.trim() || c.address?.trim() || undefined,
       })))
     }).catch(() => setClients([]))
   }, [])

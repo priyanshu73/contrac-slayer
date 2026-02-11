@@ -53,10 +53,10 @@ interface ClientDetailData {
   email: string
   phone?: string
   address?: string
-  address_data?: { id: number; street_line?: string } | null
+  address_data?: { id: number; street_line?: string; formatted_address?: string } | null
   company_name?: string
   billing_address?: string
-  billing_address_data?: { id?: number; street_line?: string } | null
+  billing_address_data?: { id?: number; street_line?: string; formatted_address?: string } | null
   tax_id?: string
   status: string
   notes?: string
@@ -382,49 +382,56 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </div>
           </div>
 
-          {/* Middle: Service address (and billing if different) */}
-          {(clientData.address?.trim() || clientData.address_data?.street_line?.trim() || (clientData.billing_address?.trim() && clientData.billing_address !== clientData.address)) && (
-            <div className="sm:flex-1 min-w-0 sm:border-x sm:border-border/60 sm:px-4 md:px-5 py-0 space-y-3">
-              {(clientData.address?.trim() || clientData.address_data?.street_line?.trim()) && (
-                <div>
-                  <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    Service address
-                  </p>
-                  <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
-                    {clientData.address?.trim() || clientData.address_data?.street_line || ""}
-                  </p>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address?.trim() || clientData.address_data?.street_line || "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
-                  >
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    Open in Maps
-                  </a>
-                </div>
-              )}
-              {clientData.billing_address?.trim() && clientData.billing_address !== clientData.address && (
-                <div>
-                  <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    Billing address
-                  </p>
-                  <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
-                    {clientData.billing_address}
-                  </p>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
-                  >
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    Open in Maps
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Middle: Service address (and billing if different) - prefer formatted_address when available */}
+          {(() => {
+            const serviceAddress = clientData.address_data?.formatted_address?.trim() || clientData.address?.trim() || clientData.address_data?.street_line?.trim() || ""
+            const billingAddress = clientData.billing_address_data?.formatted_address?.trim() || clientData.billing_address?.trim() || ""
+            const hasService = !!serviceAddress
+            const hasBilling = !!billingAddress && billingAddress !== serviceAddress
+            if (!hasService && !hasBilling) return null
+            return (
+              <div className="sm:flex-1 min-w-0 sm:border-x sm:border-border/60 sm:px-4 md:px-5 py-0 space-y-3">
+                {hasService && (
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                      Service address
+                    </p>
+                    <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
+                      {serviceAddress}
+                    </p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddress)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      Open in Maps
+                    </a>
+                  </div>
+                )}
+                {hasBilling && (
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                      Billing address
+                    </p>
+                    <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
+                      {billingAddress}
+                    </p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(billingAddress)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      Open in Maps
+                    </a>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Right: Phone & Email */}
           <div className="flex flex-col gap-2 sm:items-end min-w-0 shrink-0">
