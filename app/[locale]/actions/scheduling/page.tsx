@@ -62,21 +62,21 @@ export default function SchedulingPage() {
 
                   <TabsContent value="scheduled">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h2 className="text-2xl font-bold">{t("scheduledTitle")}</h2>
-                          <p className="text-muted-foreground">
-                            {t("scheduledDescription")}
-                          </p>
-                        </div>
-                        <Button onClick={() => setShowScheduleDialog(true)}>
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          {t("scheduleFollowup")}
-                        </Button>
+                      <div>
+                        <h2 className="text-2xl font-bold">{t("scheduledTitle")}</h2>
+                        <p className="text-muted-foreground">
+                          {t("scheduledDescription")}
+                        </p>
                       </div>
                       <ScheduledFollowupsList
                         contractorId={profile?.contractor_ai_sp_id}
                         statusFilter="pending"
+                        headerAction={
+                          <Button onClick={() => setShowScheduleDialog(true)}>
+                            <PlusIcon className="mr-2 h-4 w-4" />
+                            {t("scheduleFollowup")}
+                          </Button>
+                        }
                       />
                     </div>
                   </TabsContent>

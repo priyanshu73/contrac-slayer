@@ -22,9 +22,9 @@ export function ClientsSearch({
   const tFilters = useTranslations('filters')
   
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
       {/* Filter Tabs */}
-      <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-1">
+      <div className="inline-flex w-fit shrink-0 items-center rounded-lg border border-slate-200 bg-white p-1">
         <Button
           type="button"
           size="sm"
@@ -50,11 +50,11 @@ export function ClientsSearch({
       </div>
       
       {/* Search Input */}
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <div className="relative min-w-0 flex-1">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-slate-400" />
         <Input 
           placeholder={t('searchClients')} 
-          className="pl-10 h-10 border-slate-200 bg-white"
+          className="w-full pl-10 h-10 border-slate-200 bg-white"
           value={searchQuery || ""}
           onChange={(e) => onSearchChange?.(e.target.value)}
         />

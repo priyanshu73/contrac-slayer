@@ -110,7 +110,7 @@ const MEETING_SPOT_OPTIONS: Array<{ value: string; labelKey: string }> = [
   { value: "custom", labelKey: "meetingSpotCustom" },
 ]
 
-export type CreateAppointmentClient = { id: number; name: string; email: string }
+export type CreateAppointmentClient = { id: number; name: string; email: string; address?: string }
 
 export interface CreateAppointmentDialogProps {
   open: boolean
@@ -206,6 +206,13 @@ export function CreateAppointmentDialog({
     () => clients.find((c) => String(c.id) === clientId),
     [clients, clientId]
   )
+
+  // When meeting is in person and a client with address is selected, default location to client's address
+  useEffect(() => {
+    if (meetingSpot === "in_person" && selectedClient?.address?.trim()) {
+      setLocation(selectedClient.address.trim())
+    }
+  }, [meetingSpot, selectedClient?.id, selectedClient?.address])
 
   const onSubmit = useCallback(async () => {
     const client = clients.find((c) => String(c.id) === clientId)

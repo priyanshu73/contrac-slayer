@@ -11,17 +11,21 @@ export default function DashboardPage() {
   const tNav = useTranslations('navigation')
   const locale = useLocale()
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-background to-sky-50/40 pb-24 md:pb-6">
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
           {/* Stats Overview */}
           <StatsCardsReal />
 
-          {/* Recent Activity */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <RecentQuotesReal />
-            <UpcomingJobs />
+          {/* Recent Activity - Quotes and Upcoming Meetings equal width */}
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 min-w-0">
+            <div className="min-w-0">
+              <RecentQuotesReal />
+            </div>
+            <div className="min-w-0">
+              <UpcomingJobs />
+            </div>
           </div>
         </div>
       </main>

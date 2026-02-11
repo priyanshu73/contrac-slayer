@@ -35,10 +35,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { api } from "@/lib/api"
-import { formatAddressStreetForDisplay } from "@/lib/format-address"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, DollarSign, MoreHorizontal } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 
 interface ClientDetailData {
@@ -346,207 +351,155 @@ export function ClientDetail({ clientId }: { clientId: string }) {
     )
   }
 
+  const hasDetails = Boolean(
+    clientData.payment_terms || clientData.preferred_contact_method || clientData.referral_source || clientData.tax_id
+  )
+
   return (
-    <div className="space-y-6">
-      {/* Client Info Card */}
-      <Card className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="text-2xl font-semibold">{clientData.name.charAt(0).toUpperCase()}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-2xl font-bold">{clientData.name}</h2>
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* 1. Identity Card - Name | Service address (middle) | Phone & Email */}
+      <Card className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4 md:gap-6">
+          {/* Left: Name + meta */}
+          <div className="flex items-start gap-3 min-w-0 shrink-0">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary ring-2 ring-primary/10">
+              <span className="text-lg sm:text-xl font-bold">{clientData.name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-2 mb-0.5">
+                <h1 className="text-xl font-bold sm:text-2xl tracking-tight">{clientData.name}</h1>
+                <Badge className={getStatusColor(clientData.status)}>{clientData.status}</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0 text-sm text-muted-foreground">
                 {clientData.company_name && (
-                  <p className="mt-1 text-sm text-muted-foreground">{clientData.company_name}</p>
+                  <>
+                    <span className="font-medium">{clientData.company_name}</span>
+                    <span>·</span>
+                  </>
                 )}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Client since {formatDate(clientData.created_at)}
-                </p>
-              </div>
-              <Badge className={getStatusColor(clientData.status)}>
-                {clientData.status}
-              </Badge>
-            </div>
-
-            {/* Contact Information */}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {clientData.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm">{formatPhoneForDisplay(clientData.phone)}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm">{clientData.email}</span>
-              </div>
-              {clientData.address && (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1" title={clientData.address}>
-                    {formatAddressStreetForDisplay(clientData.address, clientData.address_data)}
-                  </span>
-                  <Button variant="ghost" size="sm" asChild className="h-8 px-2">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                        />
-                      </svg>
-                      <span className="ml-1 text-xs">Directions</span>
-                    </a>
-                  </Button>
-                </div>
-              )}
-              {clientData.billing_address && clientData.billing_address !== clientData.address && (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1" title={clientData.billing_address}>
-                    <span className="font-medium">Billing:</span> {formatAddressStreetForDisplay(clientData.billing_address, clientData.billing_address_data)}
-                  </span>
-                  <Button variant="ghost" size="sm" asChild className="h-8 px-2">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                        />
-                      </svg>
-                      <span className="ml-1 text-xs">Directions</span>
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Property insights (when normalized address is available: primary or billing) */}
-            {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
-              <div className="mt-4">
-                <PropertyInsightsCard
-                  addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
-                  title="Property insights"
-                  onRefresh={fetchClientDetails}
-                />
-              </div>
-            )}
-
-            {/* Financial Summary */}
-            <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Jobs</p>
-                <p className="mt-1 text-2xl font-bold">{clientData.total_jobs}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="mt-1 text-2xl font-bold">{formatCurrency(clientData.total_revenue)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Job Value</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {formatCurrency(clientData.average_job_value)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Quote Requests</p>
-                <p className="mt-1 text-2xl font-bold">{clientData.leads.length}</p>
+                <span>Client since {formatDate(clientData.created_at)}</span>
               </div>
             </div>
+          </div>
 
-            {/* Additional Info */}
-            {(clientData.payment_terms || clientData.preferred_contact_method || clientData.referral_source) && (
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                {clientData.payment_terms && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Payment Terms</p>
-                    <p className="text-sm font-medium">{clientData.payment_terms}</p>
-                  </div>
-                )}
-                {clientData.preferred_contact_method && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Preferred Contact</p>
-                    <p className="text-sm font-medium capitalize">{clientData.preferred_contact_method}</p>
-                  </div>
-                )}
-                {clientData.referral_source && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Referral Source</p>
-                    <p className="text-sm font-medium">{clientData.referral_source}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Notes */}
-            {clientData.notes && (
-              <div className="mt-4 rounded-lg border border-border p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-                <p className="text-sm whitespace-pre-wrap">{clientData.notes}</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-              {clientData.phone && (
-                <Button variant="outline" asChild>
-                  <a href={`tel:${clientData.phone}`}>
-                    <Phone className="mr-2 h-4 w-4" />
-                    Call
+          {/* Middle: Service address (and billing if different) */}
+          {(clientData.address?.trim() || clientData.address_data?.street_line?.trim() || (clientData.billing_address?.trim() && clientData.billing_address !== clientData.address)) && (
+            <div className="sm:flex-1 min-w-0 sm:border-x sm:border-border/60 sm:px-4 md:px-5 py-0 space-y-3">
+              {(clientData.address?.trim() || clientData.address_data?.street_line?.trim()) && (
+                <div>
+                  <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                    Service address
+                  </p>
+                  <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
+                    {clientData.address?.trim() || clientData.address_data?.street_line || ""}
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.address?.trim() || clientData.address_data?.street_line || "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
+                  >
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    Open in Maps
                   </a>
-                </Button>
+                </div>
               )}
-              <Button variant="outline" asChild>
-                <a href={`mailto:${clientData.email}`}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email
-                </a>
-              </Button>
-              <Button variant="outline" asChild>
-                <a href={`/quotes/new?clientId=${clientData.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Create Quote
-                </a>
-              </Button>
+              {clientData.billing_address?.trim() && clientData.billing_address !== clientData.address && (
+                <div>
+                  <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                    Billing address
+                  </p>
+                  <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
+                    {clientData.billing_address}
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientData.billing_address)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
+                  >
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    Open in Maps
+                  </a>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Right: Phone & Email */}
+          <div className="flex flex-col gap-2 sm:items-end min-w-0 shrink-0">
+            {clientData.phone && (
+              <Button variant="outline" size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
+                <a href={`tel:${clientData.phone}`}>
+                  <Phone className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                  {formatPhoneForDisplay(clientData.phone)}
+                </a>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
+              <a href={`mailto:${clientData.email}`}>
+                <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                Email
+              </a>
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* Quotes and Leads Tabs */}
-      <Card className="p-6">
-        <Tabs defaultValue="quotes">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="quotes">
-              Quotes ({clientData.quotes.length})
-            </TabsTrigger>
-            <TabsTrigger value="leads">
-              Quote Requests ({clientData.leads.length})
-            </TabsTrigger>
-          </TabsList>
+      {/* 2. Stats Grid - Individual cards with icons */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">Total Jobs</p>
+            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+          <p className="text-2xl font-bold tabular-nums sm:text-3xl">{clientData.total_jobs}</p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">Revenue</p>
+            <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+          <p className="text-2xl font-bold tabular-nums text-green-600 sm:text-3xl">
+            {formatCurrency(clientData.total_revenue)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">Avg Job</p>
+            <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+          <p className="text-2xl font-bold tabular-nums sm:text-3xl">
+            {formatCurrency(clientData.average_job_value)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">Quotes</p>
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+          <p className="text-2xl font-bold tabular-nums sm:text-3xl">{clientData.quotes.length}</p>
+        </Card>
+      </div>
+
+      {/* 3. Two-column: Tabs (left) + Client Details, Notes, Property Insights (right) */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Quotes and Leads - Segmented tabs */}
+          <Card className="p-6">
+            <Tabs defaultValue="quotes">
+              <div className="flex gap-2 p-1 bg-muted rounded-lg mb-6">
+                <TabsList className="w-full grid grid-cols-2 h-auto p-0 bg-transparent">
+                  <TabsTrigger value="quotes" className="flex-1 px-4 py-2.5 rounded-md font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    Quotes
+                    <Badge variant="secondary" className="ml-2">{clientData.quotes.length}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="leads" className="flex-1 px-4 py-2.5 rounded-md font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    Quote Requests
+                    <Badge variant="secondary" className="ml-2">{clientData.leads.length}</Badge>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
           {/* Quotes Tab */}
           <TabsContent value="quotes" className="mt-4 space-y-3">
@@ -703,8 +656,90 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               ))
             )}
           </TabsContent>
-        </Tabs>
-      </Card>
+            </Tabs>
+          </Card>
+        </div>
+
+        {/* Right column: Client Details, Notes, Property Insights */}
+        <div className="space-y-6">
+          {hasDetails && (
+            <Card className="p-5">
+              <h3 className="font-semibold mb-4">Client Details</h3>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                <div>
+                  <dt className="text-sm text-muted-foreground mb-1">Payment Terms</dt>
+                  <dd className="font-medium">{clientData.payment_terms || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground mb-1">Preferred Contact</dt>
+                  <dd className="font-medium capitalize">{clientData.preferred_contact_method || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground mb-1">Referral Source</dt>
+                  <dd className="font-medium">{clientData.referral_source || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground mb-1">Tax ID</dt>
+                  <dd className="font-medium font-mono text-sm">{clientData.tax_id || "—"}</dd>
+                </div>
+              </dl>
+            </Card>
+          )}
+
+          {clientData.notes && (
+            <Card className="p-5">
+              <h3 className="font-semibold mb-3">Notes</h3>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{clientData.notes}</p>
+            </Card>
+          )}
+
+          {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
+            <PropertyInsightsCard
+              addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
+              title="Property insights"
+              onRefresh={fetchClientDetails}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Floating action bar */}
+      <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 p-4 md:relative md:bottom-auto md:left-auto md:right-auto md:border-0 md:bg-transparent md:p-0 md:z-auto">
+        <div className="container mx-auto flex flex-wrap gap-3 md:flex-nowrap">
+          <Button size="lg" className="flex-1 min-w-0 md:flex-initial" asChild>
+            <a href={`/quotes/new?clientId=${clientData.id}`}>
+              <FileText className="mr-2 h-5 w-5 shrink-0" />
+              Create Quote
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild className="flex-1 min-w-0 md:flex-initial">
+            <a href={`mailto:${clientData.email}`}>
+              <Mail className="mr-2 h-5 w-5 shrink-0" />
+              Email
+            </a>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="lg" variant="outline" className="md:flex-initial">
+                <MoreHorizontal className="h-5 w-5 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
       {/* Edit Client Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

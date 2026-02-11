@@ -128,7 +128,6 @@ export default function QuotesPage() {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
     })
   }
 
@@ -184,8 +183,8 @@ export default function QuotesPage() {
     <div className="min-h-screen bg-background pb-24 md:pb-6">
       <main className="container mx-auto px-4 py-6">
         {/* Filters */}
-        <Card className="mb-6 p-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <Card className="mb-4 p-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
             {/* Mobile: Dropdown, Desktop: Buttons */}
             {isMobile ? (
               <div className="flex items-center gap-2">
@@ -251,34 +250,34 @@ export default function QuotesPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-5 bg-muted rounded w-1/3" />
-                  <div className="h-4 bg-muted rounded w-1/2" />
+              <Card key={i} className="p-3">
+                <div className="animate-pulse flex justify-between">
                   <div className="h-4 bg-muted rounded w-1/4" />
+                  <div className="h-4 bg-muted rounded w-16" />
                 </div>
+                <div className="h-3 bg-muted rounded w-1/2 mt-1.5" />
               </Card>
             ))}
           </div>
         ) : quotes.length === 0 ? (
           /* Empty State */
-          <Card className="p-12 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card className="p-8 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-2">No quotes yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
+                <h3 className="text-base font-semibold mb-1">No quotes yet</h3>
+                <p className="text-xs text-muted-foreground mb-3">
                   {activeFilter
                     ? `No ${activeFilter.toLowerCase()} quotes found`
                     : "Create your first quote to get started"}
                 </p>
-                <Button asChild>
+                <Button size="sm" asChild>
                   <a href="/quotes/new">Create Quote</a>
                 </Button>
               </div>
@@ -286,73 +285,67 @@ export default function QuotesPage() {
           </Card>
         ) : (
           /* Quotes List */
-          <div className="space-y-4">
+          <div className="space-y-2">
             {quotes.map((quote) => (
               <div
                 key={quote.id}
                 className="group relative"
               >
                 <Card 
-                  className="p-6 hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer"
+                  className="p-3 hover:shadow-md transition-all hover:border-primary/50 cursor-pointer"
                   onClick={() => router.push(`/quotes/${quote.id}`)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
+                  <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">
                           {quote.client?.name || 'Unknown Client'}
                         </h3>
-                        <Badge className={getStatusColor(quote.status)}>
+                        <Badge className={`shrink-0 text-[10px] px-1.5 py-0 ${getStatusColor(quote.status)}`}>
                           {quote.status}
                         </Badge>
                       </div>
-                      {quote.client?.email && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {quote.client.email}
-                        </p>
-                      )}
-                      {quote.client?.address && (
-                        <p className="text-sm text-muted-foreground">
-                          {quote.client.address}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                        <span>Created {formatDate(quote.created_at)}</span>
-                        {quote.updated_at && (
-                          <span>• Updated {formatDate(quote.updated_at)}</span>
+                      <div className="flex flex-wrap items-baseline gap-x-2 mt-0.5">
+                        {quote.client?.address && (
+                          <span className="text-xs text-muted-foreground truncate block">
+                            {quote.client.address}
+                          </span>
                         )}
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        Created {formatDate(quote.created_at)}
+                        {quote.updated_at && ` • Updated ${formatDate(quote.updated_at)}`}
+                      </p>
                     </div>
-                    <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
-                      <div className="text-2xl font-bold text-primary">
+                    <div className="flex items-center gap-2 justify-end text-right shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/quotes/${quote.id}`)
+                        }}
+                        title="View Details"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDeleteClick(e, quote)}
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </Button>
+                      <span className="text-base font-semibold text-primary tabular-nums min-w-[4.5rem] text-right">
                         {formatCurrency(quote.total_amount)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/quotes/${quote.id}`)
-                          }}
-                        >
-                          View Details
-                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={(e) => handleDeleteClick(e, quote)}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </Button>
-                      </div>
+                      </span>
                     </div>
                   </div>
                 </Card>

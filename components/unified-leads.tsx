@@ -7,13 +7,20 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { api, contractorAI } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound, Menu } from "lucide-react"
 import { TranslatableSection } from "@/components/translate-button"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 
@@ -1084,12 +1091,14 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const tCommon = useTranslations('common')
   const tTranslation = useTranslations('translation')
   const locale = useLocale()
+  const isMobile = useIsMobile()
   
   // Translation states for different sections
   const [translatedSummary, setTranslatedSummary] = useState<string | null>(null)
   const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
   const [isTranslatingSummary, setIsTranslatingSummary] = useState(false)
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false)
   
   // Reset translations when lead changes
   useEffect(() => {
@@ -1149,62 +1158,110 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     }
   }
 
+  const scrollToSection = (sectionId: string) => {
+    const el = document.getElementById(sectionId)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
+
   return (
     <Card className="h-full flex flex-col overflow-hidden border-0 shadow-lg">
-      {/* Header */}
-      <div className="p-3 md:p-6 border-b flex-shrink-0">
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Back button for mobile */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+      {/* Header - aligned single row; tight bottom padding on mobile to sit close to conversation */}
+      <div className="flex items-center gap-2 md:gap-4 px-3 pt-3 pb-2 md:p-6 border-b border-border flex-shrink-0 min-h-12 md:min-h-14">
+        {/* Left: back + hamburger (mobile) + avatar + name */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="lg:hidden shrink-0 h-8 w-8"
+            className="lg:hidden shrink-0 h-9 w-9"
+            aria-label={tCommon('back')}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          
-          <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="text-base md:text-lg font-semibold">{lead.name.charAt(0)}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
-              <h2 className="text-base md:text-xl font-semibold truncate">{lead.name}</h2>
+          {isCallOrMessagesLead && isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-9 w-9"
+              aria-label={tLeads('moreLeadInfo')}
+              onClick={() => setDetailsSheetOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          {!isMobile && isCallOrMessagesLead && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" aria-label={tLeads('moreLeadInfo')}>
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="bottom" className="w-56">
+                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-contact')}>
+                  <UserRound className="mr-2 h-4 w-4" />
+                  {tLeads('contactInformation')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-ai-summary')}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  {tLeads('aiSummary')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-call-history')}>
+                  <Phone className="mr-2 h-4 w-4" />
+                  {tLeads('callHistoryAndTranscripts')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-sm md:text-lg font-semibold truncate">{lead.name}</h2>
               {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id ? (
-                <Badge 
-                  variant="outline" 
-                  className="text-[10px] md:text-xs px-1.5 md:px-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
-                >
+                <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0 shrink-0 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
                   📞📝 {tLeads('consolidated')}
                 </Badge>
               ) : (
-                <Badge 
-                  variant="outline" 
-                  className={`text-[10px] md:text-xs px-1.5 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
-                >
+                <Badge variant="outline" className={`text-[10px] md:text-xs px-1.5 py-0 shrink-0 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
                   {lead.type === 'call' ? '📞 Call' : '📝 Request'}
                 </Badge>
               )}
             </div>
-            <p className="text-xs md:text-sm text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
               {lead.project_type || lead.service_type || "General inquiry"}
             </p>
           </div>
-          <Badge className={`${getStatusColor(lead.status)} text-[10px] md:text-xs px-2 md:px-3`}>
-            {lead.status}
-          </Badge>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-3 md:gap-6 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-20 lg:pb-0">
+      {/* Main Content Area - conversation extends to action bar; minimal bottom gap on mobile */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-6 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-1 lg:pb-0">
         {/* Show call lead layout for both call leads AND consolidated leads (request leads with call data) */}
         {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
           <>
-            {/* Lead Details - Shows first on mobile, right side on desktop */}
-            <div className="order-1 lg:order-2 w-full lg:w-80 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full">
+            {/* Conversation History - On mobile: only content, full height; minimal gap below header */}
+            <div className="order-1 lg:order-1 flex-1 flex flex-col min-h-0 border-t lg:border-t-0 lg:border-r border-border bg-card lg:bg-muted/10 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 pt-2 px-3 pb-2 md:p-4 border-b border-border bg-background flex-shrink-0">
+                <div>
+                  <h3 className="font-semibold mb-0.5 md:mb-1 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
+                    {tLeads('conversationHistory')}
+                  </h3>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
+                </div>
+                <Badge className={`${getStatusColor(lead.status)} text-[10px] md:text-xs px-2 py-1 shrink-0`}>
+                  {lead.status}
+                </Badge>
+              </div>
+              
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
+                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
+              </div>
+            </div>
+
+            {/* Lead Details - Desktop only; on mobile shown in side Sheet via hamburger */}
+            <div className="order-2 lg:order-2 hidden lg:block w-full lg:w-80 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full bg-background">
               {/* Contact Information - minimal clean */}
-              <Card className="border border-border/80 bg-card rounded-lg">
+              <Card id="lead-detail-contact" className="border border-border/80 bg-card rounded-lg">
                 <div className="p-4">
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
                   <dl className="space-y-2.5 text-sm">
@@ -1260,7 +1317,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (
-                <div className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
+                <div id="lead-detail-ai-summary" className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
                   <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
                     {tLeads('aiSummary')}
                   </h3>
@@ -1443,22 +1500,94 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               )}
 
               {/* Call History Section (for call leads and consolidated leads) */}
-              <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
+              <div id="lead-detail-call-history">
+                <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
+              </div>
             </div>
 
-            {/* Conversation History - Shows second on mobile, middle on desktop */}
-            <div className="order-2 lg:order-1 flex-1 border-t lg:border-t-0 lg:border-r bg-muted/10 flex flex-col min-h-0">
-              <div className="p-3 md:p-4 border-b bg-background flex-shrink-0">
-                <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                  {tLeads('conversationHistory')}
-                </h3>
-                <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
-              </div>
-              
-              <div className="flex-1 lg:overflow-y-auto min-h-[300px] lg:min-h-0 lg:max-h-full overscroll-contain">
-                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-              </div>
-            </div>
+            {/* Mobile: side Sheet with Contact, AI Summary, Call History (only way to access on mobile) */}
+            {isCallOrMessagesLead && (
+              <Sheet open={detailsSheetOpen} onOpenChange={setDetailsSheetOpen}>
+                <SheetContent side="left" className="w-[85%] max-w-sm p-0 flex flex-col">
+                  <SheetHeader className="p-4 border-b">
+                    <SheetTitle>{tLeads('moreLeadInfo')}</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <Card className="border border-border/80 bg-card rounded-lg">
+                      <div className="p-4">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
+                        <dl className="space-y-2.5 text-sm">
+                          {lead.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                              <dt className="sr-only">Phone</dt>
+                              <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
+                              <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
+                                <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
+                              </Button>
+                            </div>
+                          )}
+                          {lead.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                              <dt className="sr-only">Email</dt>
+                              <dd className="min-w-0 truncate">
+                                <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
+                              </dd>
+                            </div>
+                          )}
+                          {lead.address ? (
+                            <div className="flex items-start gap-2">
+                              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
+                              <dt className="sr-only">Address</dt>
+                              <dd className="min-w-0 break-words text-foreground">
+                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
+                              </dd>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                              <dd className="text-muted-foreground italic">No address provided</dd>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+                            <dt className="sr-only">Submitted</dt>
+                            <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </Card>
+                    {lead.summary_text && (
+                      <div className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4">
+                        <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
+                          {tLeads('aiSummary')}
+                        </h3>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
+                            {translatedSummary || lead.summary_text}
+                          </p>
+                          {locale === 'es' && (
+                            <button
+                              onClick={() => handleTranslate(lead.summary_text!, setTranslatedSummary, setIsTranslatingSummary, !!translatedSummary)}
+                              disabled={isTranslatingSummary}
+                              className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                              title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                            >
+                              {isTranslatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : translatedSummary ? <RotateCcw className="h-4 w-4" /> : <Languages className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </div>
+                        {translatedSummary && <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>}
+                      </div>
+                    )}
+                    <div>
+                      <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
           </>
         ) : (
           /* Left Side - Lead Details (for request leads) */
@@ -1632,32 +1761,20 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
             )}
 
-            {/* Call History with Transcripts (for consolidated leads) */}
+            {/* Call History with Transcripts (for consolidated leads - request-only layout; call/consolidated use main layout above) */}
             {(lead as any).contractor_ai_call_lead_id && lead.phone && (
-              <>
-                <CallHistorySection 
-                  key={`call-history-consolidated-${lead.phone}-${lead.id}`} 
-                  phoneNumber={normalizePhoneToE164(lead.phone)} 
-                  currentLeadId={lead.id} 
-                />
-
-                {/* Mobile Conversation View (for consolidated leads) */}
-                <div className="lg:hidden">
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                    {tLeads('conversationHistory')}
-                  </h3>
-                  <Card className="max-h-64 overflow-hidden">
-                    <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-                  </Card>
-                </div>
-              </>
+              <CallHistorySection 
+                key={`call-history-consolidated-${lead.phone}-${lead.id}`} 
+                phoneNumber={normalizePhoneToE164(lead.phone)} 
+                currentLeadId={lead.id} 
+              />
             )}
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="p-3 md:p-6 border-t bg-muted/20 flex-shrink-0">
+      {/* Action Buttons - compact on mobile to minimize gap above */}
+      <div className="px-3 pt-2 pb-3 md:p-6 border-t bg-muted/20 flex-shrink-0">
         <div className="flex gap-2 md:gap-3">
           {lead.phone && (
             <Button variant="default" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
@@ -1903,7 +2020,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 
   if (loading) {
     return (
-      <div className="p-4 space-y-3">
+      <div className="px-2 py-3 md:p-4 space-y-3">
         {/* Loading indicator with description */}
         <div className="flex items-center justify-center gap-2 py-4">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
@@ -1924,7 +2041,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 
   if (error) {
     return (
-      <div className="p-4 text-center text-destructive text-sm">
+      <div className="px-2 py-3 md:p-4 text-center text-destructive text-sm">
         {error}
       </div>
     )
@@ -1932,7 +2049,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
+      <div className="px-2 py-3 md:p-4 text-center text-muted-foreground">
         <Send className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p className="text-sm">No conversation history</p>
       </div>
@@ -1951,7 +2068,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
     <div className="flex flex-col h-full">
       {/* Translate All Header - only show when locale is 'es' */}
       {locale === 'es' && messages.length > 0 && (
-        <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
+        <div className="px-2 md:px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {allTranslated ? `✓ ${tTranslation('translated')}` : `${messages.length} mensajes`}
           </span>
@@ -1984,8 +2101,8 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
         </div>
       )}
       
-      {/* Messages List */}
-      <div className="flex-1 space-y-3 p-4 overflow-y-auto">
+      {/* Messages List - minimal horizontal padding on mobile so bubbles extend to edges */}
+      <div className="flex-1 space-y-3 px-2 py-3 md:px-4 md:py-4 overflow-y-auto min-h-0">
         {messages.map((msg) => {
           const isTranslated = !!translatedMessages[msg.id]
           const displayText = translatedMessages[msg.id] || msg.message_text
@@ -1997,7 +2114,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
               className={`flex ${isServiceProvider ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                className={`max-w-[85%] md:max-w-[80%] rounded-lg px-3 py-2 ${
                   isServiceProvider
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground'

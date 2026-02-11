@@ -85,8 +85,8 @@ export default function ClientsPage() {
       <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
         <div className="max-w-7xl mx-auto space-y-4">
           {/* Search & Filters with Add Button */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex-1 min-w-0 w-full">
               <ClientsSearch 
                 showArchived={showArchived} 
                 onShowArchivedChange={setShowArchived}
@@ -94,8 +94,8 @@ export default function ClientsPage() {
                 onSearchChange={setSearchQuery}
               />
             </div>
-            <Button asChild className="h-10">
-              <a href="/clients/new">
+            <Button asChild className="h-10 w-full shrink-0 sm:w-auto">
+              <a href="/clients/new" className="flex items-center justify-center">
                 <Plus className="mr-2 h-4 w-4" />
                 {tClients("addClient")}
               </a>
