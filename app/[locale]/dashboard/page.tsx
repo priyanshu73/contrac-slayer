@@ -18,10 +18,14 @@ export default function DashboardPage() {
           {/* Stats Overview */}
           <StatsCardsReal />
 
-          {/* Recent Activity */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <RecentQuotesReal />
-            <UpcomingJobs />
+          {/* Recent Activity - Quotes and Upcoming Meetings equal width */}
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 min-w-0">
+            <div className="min-w-0">
+              <RecentQuotesReal />
+            </div>
+            <div className="min-w-0">
+              <UpcomingJobs />
+            </div>
           </div>
         </div>
       </main>
