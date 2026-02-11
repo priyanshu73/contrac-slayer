@@ -534,7 +534,7 @@ export default function CalendarPage() {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null)
 
   const [createAppointmentOpen, setCreateAppointmentOpen] = useState(false)
-  const [clients, setClients] = useState<Array<{ id: number; name: string; email: string }>>([])
+  const [clients, setClients] = useState<Array<{ id: number; name: string; email: string; address?: string }>>([])
 
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
@@ -754,7 +754,12 @@ export default function CalendarPage() {
   const refetchClients = useCallback(() => {
     api.getClients(0, 500).then((data: any) => {
       const list = Array.isArray(data) ? data : []
-      setClients(list.map((c: any) => ({ id: c.id, name: c.name || "", email: c.email || "" })))
+      setClients(list.map((c: any) => ({
+        id: c.id,
+        name: c.name || "",
+        email: c.email || "",
+        address: c.address?.trim() || undefined,
+      })))
     }).catch(() => setClients([]))
   }, [])
 
@@ -1273,7 +1278,7 @@ export default function CalendarPage() {
         <CreateAppointmentDialog
           open={createAppointmentOpen}
           onOpenChange={setCreateAppointmentOpen}
-          clients={clients.map((c) => ({ id: c.id, name: c.name || "", email: c.email || "" }))}
+          clients={clients.map((c) => ({ id: c.id, name: c.name || "", email: c.email || "", address: c.address }))}
           profile={profile ? { time_zone: profile.time_zone, calendar_link: profile.calendar_link } : null}
           onSuccess={load}
           onClientCreated={refetchClients}
@@ -1780,7 +1785,7 @@ export default function CalendarPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">Select days, then set one time range to apply to all.</p>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2 max-w-[280px] sm:max-w-none">
+                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2 w-full max-w-[280px] sm:max-w-[320px]">
                       {WEEKDAYS.map((d) => (
                         <button
                           key={d.key}

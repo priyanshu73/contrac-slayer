@@ -621,7 +621,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }))
   }
 
-
   // Fetch lead data if leadId is provided
   useEffect(() => {
     if (leadId) {
@@ -1355,7 +1354,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   return (
     <div className="mx-auto max-w-[1800px] px-4 sm:px-6">
-      <div className="flex flex-col lg:flex-row gap-6 pt-6">
+      <div className="flex flex-col lg:flex-row gap-8 pt-6">
         {/* Left Column - Main Content */}
         <div className="flex-1 space-y-6 min-w-0">
           {/* Client Information */}
@@ -1784,8 +1783,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           </div>
 
           {/* Line Items */}
-          <Card className="p-4 sm:p-6">
-            <div className="mb-3 flex items-center justify-between">
+          <Card className="p-5 sm:p-6 rounded-xl border border-border">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold">Line Items</h2>
               <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1796,8 +1795,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2 mb-2 border-b border-border">
-              <div></div>
+            <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2.5 mb-3 border-b border-border text-left">
+              <div aria-hidden />
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
@@ -1807,12 +1806,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               <div></div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {/* Skeleton Loading when AI is generating */}
               {aiLoading && items.length === 0 && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="animate-pulse flex gap-4 p-4 border rounded-lg bg-muted/30">
+                    <div key={i} className="animate-pulse flex gap-4 p-3 rounded-lg border border-border bg-muted/30">
                       <div className="h-10 w-10 bg-muted rounded shrink-0" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-3/4" />
@@ -1831,7 +1830,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               )}
 
               {items.map((item, index) => (
-                <div key={index} className="relative pb-3 border-b border-border last:border-b-0">
+                <div key={index} className="relative rounded-lg border border-border bg-card p-3 shadow-sm">
                   {/* Delete Button - Mobile: Top Right */}
                   <Button
                     variant="ghost"
@@ -1972,9 +1971,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-start">
+                  <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-center">
                     {/* Image */}
-                    <div className="pt-1">
+                    <div className="flex justify-center">
                       <MaterialThumbnail
                         src={item.thumbnailUrl || item.imageUrl}
                         alt={item.description}
@@ -1984,8 +1983,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       />
                     </div>
 
-                    {/* Description */}
-                    <div className="min-w-0 pr-2">
+                    {/* Description - compact single-line feel, expands on focus */}
+                    <div className="min-w-0 pr-2 flex flex-col justify-center">
                       <Textarea
                         id={`item-desc-${index}`}
                         value={item.description}
@@ -1993,16 +1992,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement
                           target.style.height = 'auto'
-                          target.style.height = `${Math.min(target.scrollHeight, 200)}px`
+                          target.style.height = `${Math.min(target.scrollHeight, 120)}px`
                         }}
                         ref={(textarea) => {
                           if (textarea) {
                             textarea.style.height = 'auto'
-                            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
                           }
                         }}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[40px] max-h-[200px] text-sm w-full resize-none overflow-y-auto"
+                        className="min-h-[38px] max-h-[120px] py-1.5 text-sm w-full resize-none overflow-y-auto leading-snug"
                         rows={1}
                       />
                       {item.brand && (
@@ -2013,7 +2012,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
 
                     {/* Unit */}
-                    <div className="pt-1">
+                    <div>
                       <UnitSelector
                         value={item.unitOfMeasure || ""}
                         onChange={(value) => updateItem(index, "unitOfMeasure", value)}
@@ -2022,7 +2021,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
 
                     {/* Qty */}
-                    <div className="pt-1">
+                    <div>
                       <Input
                         id={`item-qty-${index}`}
                         type="number"
@@ -2033,12 +2032,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                         }}
                         placeholder="0"
-                        className="h-8 text-center text-sm"
+                        className="h-9 text-center text-sm"
                       />
                     </div>
 
                     {/* Rate */}
-                    <div className="pt-1">
+                    <div>
                       <Input
                         id={`item-rate-${index}`}
                         type="text"
@@ -2057,19 +2056,19 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "rate", Math.round(n * 100) / 100)
                         }}
                         placeholder="0.00"
-                        className="h-8 text-sm text-right"
+                        className="h-9 text-sm text-right"
                       />
                     </div>
 
                     {/* Total */}
-                    <div className="text-right pt-1">
+                    <div className="text-right">
                       <span className="text-sm font-semibold">
                         ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
                       </span>
                     </div>
 
                     {/* Apply Tax Checkbox */}
-                    <div className="flex justify-center pt-1">
+                    <div className="flex justify-center">
                       <Checkbox
                         checked={item.applyTax !== false}
                         onCheckedChange={(checked) => {
@@ -2084,12 +2083,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
 
                     {/* Delete Button */}
-                    <div className="flex justify-center pt-1">
+                    <div className="flex justify-center">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => removeItem(index)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -2338,13 +2337,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         {/* Right Column - AI Assistant */}
         <div className="hidden lg:block lg:w-[500px] xl:w-[500px] 2xl:w-[500px] space-y-6 pt-6 flex-shrink-0">
           {/* AI Line Items Assistant */}
-          <Card className="border-primary/20 bg-primary/5 p-4 sticky top-6">
-            <div>
-              <h2 className="text-base font-semibold">AI Estimate Generator</h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">
+          <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 sticky top-6 rounded-xl">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
                 {templates.length > 0 ? 'Select a project template or describe your project' : 'Describe your project to generate line items'}
-              </p>
-              <div className="mt-3 space-y-2">
+                </p>
+              </div>
+              <div className="space-y-4">
                   {/* Template Selector */}
                   {templates.length > 0 && (
                     <div>
@@ -2476,7 +2477,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           onClick={() => setShowPromptPreview(!showPromptPreview)}
                           className="text-xs text-primary hover:underline flex items-center gap-1"
                         >
-                          {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt Preview
+                          {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt (review & edit)
                         </button>
                         {showPromptPreview && (
                           <div className="mt-1.5">
@@ -2485,8 +2486,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                               onChange={(e) => setServiceDescription(e.target.value)}
                               className="min-h-[64px] max-h-[140px] overflow-y-auto resize-y bg-background text-xs font-mono py-2 px-3"
                               placeholder="AI prompt will appear here..."
+                              aria-label="AI prompt sent to estimate generator — edit as needed before generating"
                             />
-                            <p className="text-[11px] text-muted-foreground mt-0.5">You can edit the prompt above before generating</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">This prompt is sent to the AI. Review and edit above, then generate.</p>
                           </div>
                         )}
                       </div>
@@ -2520,7 +2522,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1 block">
                         Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
@@ -2662,7 +2664,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
           {/* Assumptions Display */}
           {assumptions.length > 0 && (
-            <Card className="p-6 sticky top-6">
+            <Card className="p-5 sm:p-6 sticky top-6 rounded-xl border border-border">
               <div>
                 <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
