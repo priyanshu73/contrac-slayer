@@ -168,7 +168,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 h-8 md:h-9 px-2 md:px-3 text-muted-foreground hover:text-foreground"
+                className="gap-1.5 h-8 md:h-9 px-2 md:px-3 text-muted-foreground hover:text-foreground md:hidden"
                 title={tQuote('title')}
                 onClick={async () => {
                   try {
