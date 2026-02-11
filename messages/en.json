@@ -655,7 +655,8 @@
     "viewFullDetails": "View Full Details",
     "noLeads": "No leads found",
     "consolidated": "Consolidated",
-    "propertyInsights": "Property insights"
+    "propertyInsights": "Property insights",
+    "moreLeadInfo": "More lead information"
   },
   "clients": {
     "title": "Clients",

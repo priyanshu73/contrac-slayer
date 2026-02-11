@@ -14,7 +14,11 @@ import {
   Zap,
   MessageCircle,
   Settings,
+  Link2,
+  Check,
 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { useState } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +30,15 @@ export function Navbar() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
   const t = useTranslations('navigation')
+  const tQuote = useTranslations('dashboard.quoteRequest')
   const locale = useLocale()
+  const { toast } = useToast()
+  const [quoteLinkCopied, setQuoteLinkCopied] = useState(false)
+
+  const isDashboard = pathname === `/${locale}/dashboard`
+  const contractorUuid = user?.contractor_profile?.uuid
+  const frontendUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_FRONTEND_URL || '')
+  const quoteRequestUrl = contractorUuid ? `${frontendUrl}/quote-request/${contractorUuid}` : ''
 
   // Don't show navbar on auth pages (except profile-setup), public quote request pages, or homepage (including locale home /en, /es)
   const isProfileSetup = pathname?.includes("/auth/profile-setup")
@@ -152,6 +164,36 @@ export function Navbar() {
             <div className="hidden md:block text-sm text-muted-foreground">
               {user.contractor_profile?.company_name || user.email}
             </div>
+            {isDashboard && quoteRequestUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 h-8 md:h-9 px-2 md:px-3 text-muted-foreground hover:text-foreground"
+                title={tQuote('title')}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(quoteRequestUrl)
+                    setQuoteLinkCopied(true)
+                    toast({ title: tQuote('linkCopied'), description: tQuote('linkCopiedDesc') })
+                    setTimeout(() => setQuoteLinkCopied(false), 2000)
+                  } catch {
+                    toast({ title: tQuote('copyFailed'), description: tQuote('copyFailedDesc'), variant: 'destructive' })
+                  }
+                }}
+              >
+                {quoteLinkCopied ? (
+                  <Check className="h-4 w-4 text-green-600 shrink-0" />
+                ) : (
+                  <Link2 className="h-4 w-4 shrink-0 text-sky-600" />
+                )}
+                <span className="hidden sm:inline text-sm font-medium">{tQuote('title')}</span>
+                {quoteLinkCopied ? (
+                  <span className="hidden sm:inline text-xs text-green-600">{tQuote('copied')}</span>
+                ) : (
+                  <span className="hidden sm:inline text-xs">{tQuote('copy')}</span>
+                )}
+              </Button>
+            )}
             <Link href={`/${locale}/settings`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9" title={t('settings')}>
                 <Settings className="h-4 w-4 md:h-5 md:w-5" />

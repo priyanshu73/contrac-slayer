@@ -655,7 +655,8 @@
     "viewFullDetails": "Ver Detalles Completos",
     "noLeads": "No se encontraron prospectos",
     "consolidated": "Consolidado",
-    "propertyInsights": "Datos del inmueble"
+    "propertyInsights": "Datos del inmueble",
+    "moreLeadInfo": "Más información del lead"
   },
   "clients": {
     "title": "Clientes",

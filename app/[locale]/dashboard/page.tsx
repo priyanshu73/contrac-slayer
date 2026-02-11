@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const tNav = useTranslations('navigation')
   const locale = useLocale()
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-background to-sky-50/40 pb-24 md:pb-6">
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
