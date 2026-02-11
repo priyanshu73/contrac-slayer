@@ -106,9 +106,9 @@ export function StatsCardsReal() {
   const desktopCardLayout = "md:flex md:flex-col md:min-h-[7.5rem] md:gap-3 md:p-4"
 
   return (
-    <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+    <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-4 items-stretch">
       {/* Phone Number Card - full width on mobile; 1 of 4 on desktop */}
-      <div className="col-span-2 md:col-span-1 min-w-0">
+      <div className="md:col-span-1 min-w-0">
         {phoneLoading ? (
           <Card className={cn("p-3 h-full", desktopCardLayout, glassCard)}>
             <div className="flex items-center gap-3 md:items-start md:justify-between">
@@ -182,54 +182,58 @@ export function StatsCardsReal() {
         </div>
       </Card>
 
-      {/* Active Jobs Card - equal width in grid */}
+      {/* Active Jobs Card - full width on mobile; 1 of 4 on desktop */}
       {statsLoading ? (
-        <Card className={cn("p-4 min-w-0 h-full order-2 md:order-3", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-3">
+        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-2 md:order-3 overflow-hidden", desktopCardLayout, glassCard)}>
+          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
             <div className="h-10 w-10 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
-            <div className="space-y-1 flex-1 min-w-0 md:w-full">
+            <div className="space-y-0.5 flex-1 min-w-0 md:w-full flex flex-col justify-center">
               <div className="h-8 w-12 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] md:h-7" />
               <div className="h-4 w-24 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] ml-auto md:ml-0" />
             </div>
           </div>
         </Card>
       ) : (
-        <Card className={cn("p-4 min-w-0 h-full order-2 md:order-3", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-3">
+        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-2 md:order-3 overflow-hidden", desktopCardLayout, glassCard)}>
+          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
               <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-2xl font-bold tracking-tight tabular-nums md:leading-tight">{stats?.active_jobs ?? 0}</p>
-            <p className="text-sm text-muted-foreground">{t('activeJobs')}</p>
+            <div className="flex-1 min-w-0 flex flex-col justify-center md:contents">
+              <p className="text-2xl font-bold tracking-tight tabular-nums md:leading-tight">{stats?.active_jobs ?? 0}</p>
+              <p className="text-sm text-muted-foreground">{t('activeJobs')}</p>
+            </div>
           </div>
         </Card>
       )}
 
-      {/* Revenue Card - equal width in grid */}
+      {/* Revenue Card - full width on mobile; 1 of 4 on desktop */}
       {statsLoading ? (
-        <Card className={cn("p-4 min-w-0 h-full order-4", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-3">
+        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-4 overflow-hidden", desktopCardLayout, glassCard)}>
+          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
             <div className="h-10 w-10 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
-            <div className="space-y-1 flex-1 min-w-0 md:w-full">
+            <div className="space-y-0.5 flex-1 min-w-0 md:w-full flex flex-col justify-center">
               <div className="h-8 w-16 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] md:h-7" />
               <div className="h-4 w-24 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] ml-auto md:ml-0" />
             </div>
           </div>
         </Card>
       ) : (
-        <Card className={cn("p-4 min-w-0 h-full order-4", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-3">
+        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-4 overflow-hidden", desktopCardLayout, glassCard)}>
+          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
               <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p className="text-2xl font-bold tracking-tight text-emerald-600 tabular-nums md:leading-tight">
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.revenue ?? 0)}
-            </p>
-            <p className="text-sm text-muted-foreground">{t('paidQuotes')}</p>
+            <div className="flex-1 min-w-0 flex flex-col justify-center md:contents overflow-hidden">
+              <p className="text-2xl font-bold tracking-tight text-emerald-600 tabular-nums md:leading-tight">
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.revenue ?? 0)}
+              </p>
+              <p className="text-sm text-muted-foreground">{t('paidQuotes')}</p>
+            </div>
           </div>
         </Card>
       )}
