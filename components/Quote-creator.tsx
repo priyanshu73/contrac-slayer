@@ -504,6 +504,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [contractorType, setContractorType] = useState<string | null>(null)
   const [templateComboOpen, setTemplateComboOpen] = useState(false)
 
+  // AI accuracy feedback (after generation)
+  const [showAccuracyQuestion, setShowAccuracyQuestion] = useState(false)
+  const [aiAccuracySubmitted, setAiAccuracySubmitted] = useState(false)
+
   // Sort and group templates - contractor type matches first, then rest
   const sortedTemplates = [...templates].sort((a, b) => {
     if (!contractorType) return 0
@@ -1149,10 +1153,18 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       setAssumptions(Array.isArray(response.assumptions) ? response.assumptions : [])
       setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
 
+      setShowAccuracyQuestion(true)
+      setAiAccuracySubmitted(false)
+
       toast({
         title: "Estimate generated",
         description: `Generated ${newItems.length} line items with AI`,
       })
+
+      // Auto-save when editing an existing quote so line items are not lost (pass newItems so we save the just-generated items)
+      if (quoteId) {
+        autoSaveDraft(undefined, newItems).catch(() => {})
+      }
     } catch (error: any) {
       console.error("Failed to generate estimate:", error)
       toast({
@@ -1162,6 +1174,57 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       })
     } finally {
       setAiLoading(false)
+    }
+  }
+
+  const buildJobUpdatePayload = (notesOverride?: string, itemsOverride?: LineItem[]) => {
+    const sourceItems = itemsOverride ?? items
+    const validItems = sourceItems.filter(item =>
+      item.description.trim() &&
+      (item.quantity || 0) > 0 &&
+      getRateNumber(item.rate) > 0
+    )
+    return {
+      job_description: serviceDescription.trim() || null,
+      customer_notes: (notesOverride !== undefined ? notesOverride : notes.trim()) || null,
+      payment_terms: paymentTerms.trim() || null,
+      quote_expiration_date: dueDate || null,
+      location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
+      items: validItems.map(item => ({
+        custom_description: item.description.trim(),
+        quantity: item.quantity,
+        cost_per_unit: getRateNumber(item.rate),
+        image_url: item.imageUrl || null,
+        thumbnail_url: item.thumbnailUrl || null,
+        brand: item.brand || null,
+        model: item.model || null,
+        external_url: item.externalUrl || null,
+        unit_of_measure: item.unitOfMeasure || "each",
+        is_taxable: item.applyTax !== false,
+        markup_percentage: markupPercentage,
+      }))
+    }
+  }
+
+  const autoSaveDraft = async (notesOverride?: string, itemsOverride?: LineItem[]) => {
+    if (!quoteId) return
+    try {
+      const payload = buildJobUpdatePayload(notesOverride, itemsOverride)
+      await api.updateJob(parseInt(quoteId), payload)
+      toast({ title: "Draft saved", description: "Your changes have been saved." })
+    } catch {
+      toast({ title: "Draft could not be saved", description: "Use Save to retry.", variant: "destructive" })
+    }
+  }
+
+  const handleAccuracyRating = (rating: number) => {
+    const line = `[AI accuracy: ${rating}/5]`
+    const newNotes = notes.trim() ? `${notes.trim()}\n${line}` : line
+    setNotes(newNotes)
+    setShowAccuracyQuestion(false)
+    setAiAccuracySubmitted(true)
+    if (quoteId) {
+      autoSaveDraft(newNotes).catch(() => {})
     }
   }
 
@@ -1532,8 +1595,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 <CollapsibleTrigger asChild>
                   <button className="w-full flex items-center justify-between p-3 bg-primary/5 hover:bg-primary/10 transition-colors">
                     <div className="text-left">
-                      <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
-                      <p className="text-xs text-muted-foreground">Generate line items with AI</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
+                        <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/30">
+                          Beta
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Still in development — feel free to try it out.</p>
                     </div>
                     <svg
                       className={`h-5 w-5 transition-transform text-muted-foreground ${isMobileAiOpen ? 'rotate-180' : ''}`}
@@ -1742,6 +1810,29 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           </div>
                         )
                       })()}
+
+                      {/* AI accuracy feedback - mobile */}
+                      {showAccuracyQuestion && (
+                        <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                          <p className="text-sm font-medium">How accurate was this?</p>
+                          <div className="flex items-center justify-center gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => handleAccuracyRating(n)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                aria-label={`Rate ${n} out of 5`}
+                              >
+                                {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {aiAccuracySubmitted && (
+                        <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                      )}
 
                       {/* Display Measurements if available */}
                       {measurements.items && measurements.items.length > 0 && (
@@ -2340,9 +2431,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 sticky top-6 rounded-xl">
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                  <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
+                    Beta
+                  </span>
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                {templates.length > 0 ? 'Select a project template or describe your project' : 'Describe your project to generate line items'}
+                  Still in development — feel free to try it out.
                 </p>
               </div>
               <div className="space-y-4">
@@ -2625,6 +2721,29 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       </div>
                     )
                   })()}
+
+                  {/* AI accuracy feedback - desktop */}
+                  {showAccuracyQuestion && (
+                    <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                      <p className="text-sm font-medium">How accurate was this?</p>
+                      <div className="flex items-center justify-center gap-1">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => handleAccuracyRating(n)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            aria-label={`Rate ${n} out of 5`}
+                          >
+                            {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {aiAccuracySubmitted && (
+                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                  )}
 
                   {/* Display Measurements if available */}
                   {measurements.items && measurements.items.length > 0 && (
