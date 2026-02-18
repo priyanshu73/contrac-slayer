@@ -1350,6 +1350,23 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         })
       }
 
+      // Schedule automatic quote follow-up via contractor-ai (if enabled in Scheduling settings)
+      const spId = getContractorAISpId?.()
+      if (spId != null && clientPhone?.trim()) {
+        try {
+          const jobId = (response as { id?: number })?.id ?? (quoteId ? parseInt(quoteId, 10) : undefined)
+          await contractorAI.scheduleQuoteFollowup({
+            sp_id: spId,
+            customer_number: clientPhone.trim(),
+            reference_type: "quote",
+            reference_id: jobId,
+            customer_name: clientName?.trim() || undefined,
+          })
+        } catch (followupErr) {
+          console.error("Quote follow-up scheduling failed (quote was still saved):", followupErr)
+        }
+      }
+
       // Update profile's default tax rate if it has changed
       if (initialTaxRate !== null && Math.abs(taxRate - initialTaxRate) > 0.01) {
         try {
@@ -1874,8 +1891,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           </div>
 
           {/* Line Items */}
-          <Card className="p-5 sm:p-6 rounded-xl border border-border">
-            <div className="mb-4 flex items-center justify-between">
+          <Card className="p-3 sm:p-4 rounded-lg border border-border">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold">Line Items</h2>
               <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1886,7 +1903,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2.5 mb-3 border-b border-border text-left">
+            <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
               <div aria-hidden />
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
@@ -1897,13 +1914,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               <div></div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {/* Skeleton Loading when AI is generating */}
               {aiLoading && items.length === 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="animate-pulse flex gap-4 p-3 rounded-lg border border-border bg-muted/30">
-                      <div className="h-10 w-10 bg-muted rounded shrink-0" />
+                    <div key={i} className="animate-pulse flex gap-2 p-2 rounded-md border border-border bg-muted/30">
+                      <div className="h-8 w-8 bg-muted rounded shrink-0" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-3/4" />
                         <div className="h-3 bg-muted rounded w-1/2" />
@@ -1921,7 +1938,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               )}
 
               {items.map((item, index) => (
-                <div key={index} className="relative rounded-lg border border-border bg-card p-3 shadow-sm">
+                <div key={index} className="relative rounded-md border border-border bg-card p-2 shadow-sm">
                   {/* Delete Button - Mobile: Top Right */}
                   <Button
                     variant="ghost"
@@ -2062,20 +2079,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-center">
+                  <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
                     {/* Image */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center shrink-0">
                       <MaterialThumbnail
                         src={item.thumbnailUrl || item.imageUrl}
                         alt={item.description}
-                        className="w-10 h-10 flex-shrink-0 rounded"
+                        className="w-8 h-8 flex-shrink-0 rounded"
                         category={item.category}
                         index={index}
                       />
                     </div>
 
-                    {/* Description - compact single-line feel, expands on focus */}
-                    <div className="min-w-0 pr-2 flex flex-col justify-center">
+                    {/* Description - more space, expands on focus */}
+                    <div className="min-w-0 pr-1 flex flex-col justify-center">
                       <Textarea
                         id={`item-desc-${index}`}
                         value={item.description}
@@ -2083,16 +2100,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement
                           target.style.height = 'auto'
-                          target.style.height = `${Math.min(target.scrollHeight, 120)}px`
+                          target.style.height = `${Math.min(target.scrollHeight, 160)}px`
                         }}
                         ref={(textarea) => {
                           if (textarea) {
                             textarea.style.height = 'auto'
-                            textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
                           }
                         }}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[38px] max-h-[120px] py-1.5 text-sm w-full resize-none overflow-y-auto leading-snug"
+                        className="min-h-[44px] max-h-[160px] py-1.5 px-2 text-sm w-full resize-none overflow-y-auto leading-snug"
                         rows={1}
                       />
                       {item.brand && (
@@ -2128,7 +2145,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
 
                     {/* Rate */}
-                    <div>
+                    <div className="min-w-0">
                       <Input
                         id={`item-rate-${index}`}
                         type="text"
@@ -2147,7 +2164,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "rate", Math.round(n * 100) / 100)
                         }}
                         placeholder="0.00"
-                        className="h-9 text-sm text-right"
+                        className="h-9 w-full min-w-0 text-sm text-right tabular-nums"
                       />
                     </div>
 
@@ -2197,7 +2214,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Markup Settings */}
-            <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <Label htmlFor="markup-percentage" className="text-sm font-medium">
