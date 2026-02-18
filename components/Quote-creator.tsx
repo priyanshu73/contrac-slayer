@@ -504,6 +504,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [contractorType, setContractorType] = useState<string | null>(null)
   const [templateComboOpen, setTemplateComboOpen] = useState(false)
 
+  // Hide project template selector in AI estimator until ready (still in development)
+  const HIDE_AI_TEMPLATES = true
+
   // AI accuracy feedback (after generation)
   const [showAccuracyQuestion, setShowAccuracyQuestion] = useState(false)
   const [aiAccuracySubmitted, setAiAccuracySubmitted] = useState(false)
@@ -1618,7 +1621,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           Beta
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">Still in development — feel free to try it out.</p>
+                      <div className="mt-1.5 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                        <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                        <span>Still in development — feel free to try it out.</span>
+                      </div>
                     </div>
                     <svg
                       className={`h-5 w-5 transition-transform text-muted-foreground ${isMobileAiOpen ? 'rotate-180' : ''}`}
@@ -1631,10 +1637,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="p-3 border-t bg-background">
+                    <div className="p-3 border-t bg-background">
                     <div className="space-y-2">
-                      {/* Template Selector (Mobile) */}
-                      {templates.length > 0 && (
+                      {/* Template Selector (Mobile) - hidden while in development */}
+                      {!HIDE_AI_TEMPLATES && templates.length > 0 && (
                         <div>
                           <Label htmlFor="template-select-mobile" className="text-sm font-medium mb-1 block">
                             Project Template
@@ -1711,7 +1717,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
 
                       {/* Dynamic Variable Form (Mobile) */}
-                      {selectedTemplate && !isCustomProject && (
+                      {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                         <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                           {loadingTemplateDetail ? (
@@ -1759,7 +1765,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
 
                       {/* Custom Project (Mobile) */}
-                      {(isCustomProject || !selectedTemplate) && (
+                      {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                         <>
                           <div>
                             <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
@@ -2454,13 +2460,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     Beta
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Still in development — feel free to try it out.
-                </p>
+                <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                  <span>Still in development — feel free to try it out.</span>
+                </div>
               </div>
               <div className="space-y-4">
-                  {/* Template Selector */}
-                  {templates.length > 0 && (
+                  {/* Template Selector - hidden while in development */}
+                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
                     <div>
                       <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
                         Project Template
@@ -2537,7 +2544,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   )}
 
                   {/* Dynamic Variable Form (when template selected) */}
-                  {selectedTemplate && !isCustomProject && (
+                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                     <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                       <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                       {loadingTemplateDetail ? (
@@ -2609,7 +2616,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   )}
 
                   {/* Custom Project Description (when custom or no templates) */}
-                  {(isCustomProject || !selectedTemplate) && (
+                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                     <>
                       <div>
                         <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">

@@ -894,17 +894,29 @@ export function PersonalizedQuoteView({
                           Edit Quote
                         </Button>
                         {onSendFollowup && (
-                          <Button 
-                            size="lg" 
-                            className="w-full justify-start h-12 text-base" 
-                            variant="outline" 
-                            onClick={onSendFollowup}
-                          >
-                            <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                            </svg>
-                            Send Follow-up
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block w-full">
+                                <Button
+                                  size="lg"
+                                  className="w-full justify-start h-12 text-base"
+                                  variant="outline"
+                                  onClick={onSendFollowup}
+                                  disabled={currentJob.status?.toString().toUpperCase() === "DRAFT"}
+                                >
+                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                  </svg>
+                                  Send Follow-up
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              {currentJob.status?.toString().toUpperCase() === "DRAFT"
+                                ? "Quote has to be signed first."
+                                : "Schedule a follow-up message for this quote."}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         {/* Change status */}
                         <DropdownMenu>
