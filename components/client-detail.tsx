@@ -37,7 +37,7 @@ import {
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { ClientCommunicationsCard } from "@/components/client-communications-card"
 import {
@@ -113,6 +113,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const tCommon = useTranslations("common")
+  const tClients = useTranslations("clients")
+  const locale = useLocale()
   const { user } = useAuth()
   const [clientData, setClientData] = useState<ClientDetailData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -176,8 +178,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       console.error("Failed to fetch client details:", err)
       setError(err.message || "Failed to load client details")
       toast({
-        title: "Error",
-        description: "Failed to load client details. Please try again.",
+        title: tCommon("error"),
+        description: tClients("loadFailed"),
         variant: "destructive",
       })
     } finally {
@@ -222,8 +224,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       })
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err.message || "Failed to update client.",
+        title: tCommon("error"),
+        description: err.message || tClients("updateFailed"),
         variant: "destructive",
       })
     } finally {
@@ -244,8 +246,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       router.push("/clients")
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err.message || "Failed to archive client.",
+        title: tCommon("error"),
+        description: err.message || tClients("archiveFailedDetail"),
         variant: "destructive",
       })
     } finally {
@@ -268,6 +270,14 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       day: 'numeric',
       year: 'numeric',
     })
+  }
+
+  const getStatusLabel = (status: string) => {
+    const s = String(status || "").toUpperCase()
+    if (s === "ACTIVE") return tClients("statusActive")
+    if (s === "INACTIVE") return tClients("statusInactive")
+    if (s === "ARCHIVED") return tClients("statusArchived")
+    return status
   }
 
   const getStatusColor = (status: string) => {
@@ -347,7 +357,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               {error || "The client you're looking for doesn't exist or hasn't been created yet."}
             </p>
             <Button variant="outline" asChild>
-              <a href="/clients">Back to Clients</a>
+              <a href={`/${locale}/clients`}>{tClients("backToClients")}</a>
             </Button>
           </div>
         </div>
@@ -360,7 +370,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   )
 
   return (
-    <div className="space-y-6 pb-24 md:pb-8">
+    <div className="space-y-4 sm:space-y-6 pb-24 md:pb-8">
       {/* 1. Identity Card - Name | Service address (middle) | Phone & Email */}
       <Card className="p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4 md:gap-6">
@@ -390,7 +400,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                     <span>·</span>
                   </>
                 )}
-                <span>Client since {formatDate(clientData.created_at)}</span>
+                <span>{tClients("clientSince", { date: formatDate(clientData.created_at) })}</span>
               </div>
             </div>
           </div>
@@ -403,11 +413,11 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             const hasBilling = !!billingAddress && billingAddress !== serviceAddress
             if (!hasService && !hasBilling) return null
             return (
-              <div className="sm:flex-1 min-w-0 sm:border-x sm:border-border/60 sm:px-4 md:px-5 py-0 space-y-3">
+              <div className="sm:flex-1 min-w-0 sm:border-x sm:border-border/60 sm:px-4 md:px-5 py-0 space-y-3 pt-2 sm:pt-0 border-t border-border/60 sm:border-t-0 mt-2 sm:mt-0">
                 {hasService && (
                   <div>
                     <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                      Service address
+                      {tClients("serviceAddress")}
                     </p>
                     <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
                       {serviceAddress}
@@ -419,14 +429,14 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                       className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
                     >
                       <MapPin className="h-3 w-3 shrink-0" />
-                      Open in Maps
+                      {tClients("openInMaps")}
                     </a>
                   </div>
                 )}
                 {hasBilling && (
                   <div>
                     <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                      Billing address
+                      {tClients("billingAddressLabel")}
                     </p>
                     <p className="text-sm text-foreground/90 leading-snug whitespace-pre-wrap">
                       {billingAddress}
@@ -438,7 +448,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                       className="inline-flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline"
                     >
                       <MapPin className="h-3 w-3 shrink-0" />
-                      Open in Maps
+                      {tClients("openInMaps")}
                     </a>
                   </div>
                 )}
@@ -446,56 +456,57 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             )
           })()}
 
-          {/* Right: Create Quote + icon actions (Edit, Delete) */}
-          <div className="flex flex-col gap-2 sm:items-end min-w-0 shrink-0">
-            <Button size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
-              <a href={`/quotes/new?clientId=${clientData.id}`}>
+          {/* Right: Create Quote + Edit + Delete on same line */}
+          <div className="flex flex-wrap items-center gap-2 min-w-0 shrink-0 pt-2 sm:pt-0 border-t border-border/60 sm:border-t-0 mt-2 sm:mt-0">
+            <Button size="sm" className="sm:min-w-[140px] min-h-[44px] sm:min-h-0 touch-manipulation" asChild>
+              <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
                 <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                Create Quote
+                {tClients("createQuote")}
               </a>
             </Button>
-            <div className="flex gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setEditOpen(true)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{tCommon("edit")}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{tCommon("delete")}</TooltipContent>
-              </Tooltip>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 touch-manipulation" onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tCommon("edit")}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 sm:h-8 sm:w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-destructive hover:text-destructive touch-manipulation"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tCommon("delete")}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </Card>
 
       {/* Two-column: Tabs (left) + Client Details, Notes, Property Insights (right) */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 min-w-0">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
           {/* Quotes and Leads - Segmented tabs */}
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6 min-w-0 overflow-hidden">
             <Tabs defaultValue="quotes">
-              <div className="flex gap-2 p-1 bg-muted rounded-lg mb-6">
-                <TabsList className="w-full grid grid-cols-2 h-auto p-0 bg-transparent">
-                  <TabsTrigger value="quotes" className="flex-1 px-4 py-2.5 rounded-md font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    Quotes
-                    <Badge variant="secondary" className="ml-2">{clientData.quotes.length}</Badge>
+              <div className="flex gap-2 p-1 bg-muted rounded-lg mb-4 sm:mb-6 min-w-0 overflow-hidden">
+                <TabsList className="w-full grid grid-cols-2 h-auto p-0 bg-transparent min-w-0">
+                  <TabsTrigger value="quotes" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{tClients("quotes")}</span>
+                    <Badge variant="secondary" className="ml-1 shrink-0">{clientData.quotes.length}</Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="leads" className="flex-1 px-4 py-2.5 rounded-md font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    Quote Requests
-                    <Badge variant="secondary" className="ml-2">{clientData.leads.length}</Badge>
+                  <TabsTrigger value="leads" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                    <MessageSquare className="h-4 w-4 shrink-0" />
+                    <span className="truncate hidden sm:inline">{tClients("quoteRequests")}</span>
+                    <span className="truncate sm:hidden">{tClients("quoteRequestsShort")}</span>
+                    <Badge variant="secondary" className="ml-1 shrink-0">{clientData.leads.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -505,65 +516,65 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             {clientData.quotes.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">No quotes created yet</p>
+                <p className="text-sm text-muted-foreground">{tClients("noQuotesYet")}</p>
                 <Button className="mt-4" asChild>
-                  <a href={`/quotes/new?clientId=${clientData.id}`}>Create First Quote</a>
+                  <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>{tClients("createFirstQuote")}</a>
                 </Button>
               </div>
             ) : (
               clientData.quotes.map((quote) => (
                 <Card
                   key={quote.id}
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/quotes/${quote.id}`)}
+                  className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
+                  onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 min-w-0 overflow-hidden">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2 min-w-0">
+                        <h3 className="font-semibold text-base truncate min-w-0">
                           {quote.title || quote.job_number || `Quote #${quote.id}`}
                         </h3>
-                        <Badge className={getStatusColor(quote.status)}>
+                        <Badge className={`${getStatusColor(quote.status)} shrink-0`}>
                           {quote.status}
                         </Badge>
                       </div>
                       {quote.project_type && (
-                        <p className="text-sm text-muted-foreground mb-1">
+                        <p className="text-sm text-muted-foreground mb-1 truncate">
                           {quote.project_type}
                         </p>
                       )}
                       {quote.job_description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                        <p className="text-sm text-muted-foreground line-clamp-3 sm:line-clamp-2 mb-2 break-words overflow-hidden">
                           {quote.job_description}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Calendar className="h-3 w-3" />
-                          Created {formatDate(quote.created_at)}
+                          {tClients("created")} {formatDate(quote.created_at)}
                         </span>
                         {quote.quote_expiration_date && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 shrink-0">
                             <Clock className="h-3 w-3" />
-                            Expires {formatDate(quote.quote_expiration_date)}
+                            {tClients("expires")} {formatDate(quote.quote_expiration_date)}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-left sm:text-right flex-shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
                       <div className="text-lg font-bold text-primary">
                         {formatCurrency(quote.final_total || quote.estimated_total)}
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="mt-2"
+                        className="mt-0 sm:mt-2 min-h-[44px] sm:min-h-0 touch-manipulation shrink-0"
                         onClick={(e) => {
                           e.stopPropagation()
-                          router.push(`/quotes/${quote.id}`)
+                          router.push(`/${locale}/quotes/${quote.id}`)
                         }}
                       >
-                        View Details →
+                        {tClients("viewDetails")}
                       </Button>
                     </div>
                   </div>
@@ -577,45 +588,45 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             {clientData.leads.length === 0 ? (
               <div className="text-center py-8">
                 <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">No quote requests yet</p>
+                <p className="text-sm text-muted-foreground">{tClients("noQuoteRequests")}</p>
               </div>
             ) : (
               clientData.leads.map((lead) => (
                 <Card
                   key={lead.id}
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/leads/${lead.id}`)}
+                  className="p-4 hover:shadow-md transition-shadow cursor-pointer min-w-0 overflow-hidden touch-manipulation min-h-[72px]"
+                  onClick={() => router.push(`/${locale}/leads/${lead.id}`)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">{lead.name}</h3>
-                        <Badge className={getStatusColor(lead.status)}>
+                  <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                        <h3 className="font-semibold truncate min-w-0">{lead.name}</h3>
+                        <Badge className={getStatusColor(lead.status)} shrink-0>
                           {lead.status}
                         </Badge>
-                        <Badge variant="outline" className={getLeadSourceColor(lead.source)}>
+                        <Badge variant="outline" className={`${getLeadSourceColor(lead.source)} shrink-0`}>
                           {lead.source.replace('_', ' ')}
                         </Badge>
                       </div>
                       {lead.project_type && (
-                        <p className="text-sm text-muted-foreground mb-1">
+                        <p className="text-sm text-muted-foreground mb-1 truncate">
                           {lead.project_type}
                         </p>
                       )}
                       {lead.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2 overflow-hidden">
                           {lead.description}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Calendar className="h-3 w-3" />
                           {formatDate(lead.created_at)}
                         </span>
                         {lead.converted_to_job_id && (
-                          <span className="flex items-center gap-1 text-green-600">
+                          <span className="flex items-center gap-1 text-green-600 shrink-0 truncate">
                             <Briefcase className="h-3 w-3" />
-                            Converted to Quote #{lead.converted_to_job_id}
+                            {tClients("convertedToQuote", { id: lead.converted_to_job_id })}
                           </span>
                         )}
                       </div>
@@ -623,7 +634,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                     <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
                       {lead.estimated_value && (
                         <div className="text-sm font-semibold">
-                          Est: {formatCurrency(lead.estimated_value)}
+                          {tClients("est")}: {formatCurrency(lead.estimated_value)}
                         </div>
                       )}
                       {lead.converted_to_job_id ? (
@@ -632,7 +643,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            router.push(`/quotes/${lead.converted_to_job_id}`)
+                            router.push(`/${locale}/quotes/${lead.converted_to_job_id}`)
                           }}
                         >
                           View Quote →
@@ -646,7 +657,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                             router.push(`/quotes/new?leadId=${lead.id}`)
                           }}
                         >
-                          Create Quote
+                          {tClients("createQuote")}
                         </Button>
                       )}
                     </div>
@@ -660,7 +671,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
         </div>
 
         {/* Right column: Client Details, Notes, Property Insights, Communications */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
           {(clientData.phone || clientData.email) && (
             <ClientCommunicationsCard
               clientId={clientData.id}
@@ -673,22 +684,22 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           )}
           {hasDetails && (
             <Card className="p-5">
-              <h3 className="font-semibold mb-4">Client Details</h3>
+              <h3 className="font-semibold mb-4">{tClients("clientDetails")}</h3>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 <div>
-                  <dt className="text-sm text-muted-foreground mb-1">Payment Terms</dt>
+                  <dt className="text-sm text-muted-foreground mb-1">{tClients("paymentTerms")}</dt>
                   <dd className="font-medium">{clientData.payment_terms || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm text-muted-foreground mb-1">Preferred Contact</dt>
+                  <dt className="text-sm text-muted-foreground mb-1">{tClients("preferredContact")}</dt>
                   <dd className="font-medium capitalize">{clientData.preferred_contact_method || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm text-muted-foreground mb-1">Referral Source</dt>
+                  <dt className="text-sm text-muted-foreground mb-1">{tClients("referralSource")}</dt>
                   <dd className="font-medium">{clientData.referral_source || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm text-muted-foreground mb-1">Tax ID</dt>
+                  <dt className="text-sm text-muted-foreground mb-1">{tClients("taxId")}</dt>
                   <dd className="font-medium font-mono text-sm">{clientData.tax_id || "—"}</dd>
                 </div>
               </dl>
@@ -696,7 +707,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           )}
 
           {clientData.notes && (
-            <Card className="p-5">
+            <Card className="p-4 sm:p-5">
               <h3 className="font-semibold mb-3">Notes</h3>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{clientData.notes}</p>
             </Card>
@@ -705,7 +716,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
             <PropertyInsightsCard
               addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
-              title="Property insights"
+              title={tClients("propertyInsights")}
+              getInsightsLabel={tClients("getInsights")}
               onRefresh={fetchClientDetails}
             />
           )}
@@ -716,7 +728,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit client</DialogTitle>
+            <DialogTitle>{tClients("editClient")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -730,7 +742,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">Email *</Label>
+                <Label htmlFor="edit-email">{tClients("email")} *</Label>
                 <Input
                   id="edit-email"
                   type="email"
@@ -751,7 +763,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
+                <Label htmlFor="edit-status">{tClients("status")}</Label>
                 <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}>
                   <SelectTrigger id="edit-status">
                     <SelectValue />
@@ -765,7 +777,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-address">Address</Label>
+              <Label htmlFor="edit-address">{tClients("address")}</Label>
               <Textarea
                 id="edit-address"
                 value={editForm.address}
@@ -783,7 +795,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="edit-billing_address">Billing address</Label>
+                <Label htmlFor="edit-billing_address">{tClients("billingAddressLabel")}</Label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
                   <Checkbox
                     id="edit-billing-same-as"
@@ -793,17 +805,17 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                       if (checked === true) setEditForm((f) => ({ ...f, billing_address: "" }))
                     }}
                   />
-                  <span>Same as above</span>
+                  <span>{tClients("sameAsAbove")}</span>
                 </label>
               </div>
               {billingSameAsAddress ? (
-                <p className="text-sm text-muted-foreground py-2">Using primary address above.</p>
+                <p className="text-sm text-muted-foreground py-2">{tClients("usingPrimaryAddress")}</p>
               ) : (
                 <Textarea
                   id="edit-billing_address"
                   value={editForm.billing_address}
                   onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))}
-                  placeholder="Enter billing address if different"
+                  placeholder={tClients("billingAddressPlaceholder")}
                   className="min-h-[80px]"
                 />
               )}
@@ -818,7 +830,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-discount_percentage">Discount %</Label>
+                <Label htmlFor="edit-discount_percentage">{tClients("discountPercent")}</Label>
                 <Input
                   id="edit-discount_percentage"
                   type="number"
@@ -841,7 +853,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-payment_terms">Payment terms</Label>
+                <Label htmlFor="edit-payment_terms">{tClients("paymentTerms")}</Label>
                 <Input
                   id="edit-payment_terms"
                   value={editForm.payment_terms}
@@ -858,7 +870,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
+              <Label htmlFor="edit-notes">{tClients("notes")}</Label>
               <Textarea
                 id="edit-notes"
                 value={editForm.notes}
@@ -882,13 +894,13 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive client?</AlertDialogTitle>
+            <AlertDialogTitle>{tClients("archiveClient")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will archive {clientData?.name}. You can still view archived clients from the clients list. This does not remove their quotes or history.
+              {tClients("archiveConfirmDesc", { name: clientData?.name ?? "this client" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteDeleting}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
@@ -897,7 +909,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               disabled={deleteDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteDeleting ? "Archiving…" : "Archive client"}
+              {deleteDeleting ? tClients("archiving") : tClients("archiveClientButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

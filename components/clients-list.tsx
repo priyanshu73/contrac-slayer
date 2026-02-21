@@ -35,6 +35,7 @@ import { formatAddressStreetForDisplay } from "@/lib/format-address"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
+import { enUS, es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 type ClientsViewMode = "grid" | "list"
@@ -49,14 +50,14 @@ interface ClientsListProps {
   onClientArchived?: () => void
 }
 
-function getLastActionDate(client: any): string | null {
+function getLastActionDate(client: any, locale: string): string | null {
   const updated = client.updated_at ? new Date(client.updated_at) : null
   const lastJob = client.last_job_date ? new Date(client.last_job_date) : null
   if (!updated && !lastJob) return null
   const latest = updated && lastJob
     ? (updated > lastJob ? updated : lastJob)
     : (updated ?? lastJob)
-  return formatDistanceToNow(latest, { addSuffix: true })
+  return formatDistanceToNow(latest, { addSuffix: true, locale: locale === "es" ? es : enUS })
 }
 
 export function ClientsList({ clients = [], loading = false, viewMode = "list", onScheduleClick, onClientArchived }: ClientsListProps) {
@@ -145,17 +146,25 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
             <Users className="h-8 w-8 text-slate-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">No clients yet</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">{tClients("noClientsYet")}</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Clients will appear here once you create quotes or invoices for them.
+              {tClients("noClientsDesc")}
             </p>
             <Button asChild>
-              <a href="/clients/new">Add your first client</a>
+              <a href={`/${locale}/clients/new`}>{tClients("addFirstClient")}</a>
             </Button>
           </div>
         </div>
       </div>
     )
+  }
+
+  const getStatusLabel = (status: string) => {
+    const s = String(status || "").toUpperCase()
+    if (s === "ACTIVE") return tClients("statusActive")
+    if (s === "INACTIVE") return tClients("statusInactive")
+    if (s === "ARCHIVED") return tClients("statusArchived")
+    return status
   }
 
   const handleRowClick = (clientId: number) => {
@@ -172,13 +181,13 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50/80 hover:bg-slate-50/80">
                   <TableHead className="w-10 px-4 text-slate-600 font-medium" />
-                  <TableHead className="px-4 text-slate-600 font-medium">Name</TableHead>
-                  <TableHead className="px-4 text-slate-600 font-medium">Email</TableHead>
-                  <TableHead className="px-4 text-slate-600 font-medium">Phone</TableHead>
-                  <TableHead className="px-4 text-slate-600 font-medium">Address</TableHead>
-                  <TableHead className="px-4 text-slate-600 font-medium">Status</TableHead>
-                  <TableHead className="px-4 text-slate-600 font-medium">Last Action</TableHead>
-                  <TableHead className="w-32 px-4 text-slate-600 font-medium text-right">Actions</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("name")}</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("email")}</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("phone")}</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("address")}</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("status")}</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">{tClients("lastAction")}</TableHead>
+                  <TableHead className="w-32 px-4 text-slate-600 font-medium text-right">{tClients("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -241,12 +250,12 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                             getStatusColor(client.status)
                           )}
                         >
-                          {client.status}
+                          {getStatusLabel(client.status)}
                         </span>
                       )}
                     </TableCell>
                     <TableCell className="px-4 py-2 text-slate-500 text-xs">
-                      {getLastActionDate(client) ?? "—"}
+                      {getLastActionDate(client, locale) ?? "—"}
                     </TableCell>
                     <TableCell className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                       <div className={cn(
@@ -261,7 +270,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                               </Link>
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>View</TooltipContent>
+                          <TooltipContent>{tClients("view")}</TooltipContent>
                         </Tooltip>
                         {client.phone && (
                           <Tooltip>
@@ -291,7 +300,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                                 <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Unarchive</TooltipContent>
+                            <TooltipContent>{tClients("unarchive")}</TooltipContent>
                           </Tooltip>
                         ) : (
                           <Tooltip>
@@ -342,42 +351,42 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
       </div>
       )}
 
-      {/* List view: Compact list on mobile */}
+      {/* List view: Compact list on mobile - min 44px tap targets */}
       {viewMode === "list" && (
         <div className="md:hidden space-y-2">
           {clients.map((client) => (
-              <div
-                key={client.id}
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all cursor-pointer",
-                  "hover:shadow-md hover:border-slate-200 active:bg-slate-50"
-                )}
-                onClick={() => handleRowClick(client.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    handleRowClick(client.id)
-                  }
-                }}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                  {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-slate-900 truncate">{client.name || client.full_name || "Unknown"}</h3>
-                    {client.status && (
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border", getStatusColor(client.status))}>
-                        {client.status}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-500 truncate">{client.email || "—"}</p>
-                </div>
-                <Eye className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+            <div
+              key={client.id}
+              role="button"
+              tabIndex={0}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all cursor-pointer touch-manipulation min-h-[72px]",
+                "hover:shadow-md hover:border-slate-200 active:bg-slate-50"
+              )}
+              onClick={() => handleRowClick(client.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  handleRowClick(client.id)
+                }
+              }}
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-base font-semibold">
+                {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
               </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-slate-900 truncate text-base">{client.name || client.full_name || "Unknown"}</h3>
+                  {client.status && (
+                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border", getStatusColor(client.status))}>
+                      {getStatusLabel(client.status)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 truncate mt-0.5">{client.email || "—"}</p>
+              </div>
+              <Eye className="h-5 w-5 text-slate-400 shrink-0" aria-hidden />
+            </div>
           ))}
         </div>
       )}
@@ -390,7 +399,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
           return (
             <div
               key={client.id}
-              className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all"
+              className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all touch-manipulation"
             >
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
@@ -406,7 +415,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                           getStatusColor(client.status)
                         )}
                       >
-                        {client.status}
+                        {getStatusLabel(client.status)}
                       </span>
                     )}
                   </div>
@@ -449,10 +458,10 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
               )}
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                <Button size="sm" className="flex-1 min-w-0" asChild>
+                <Button size="sm" className="flex-1 min-w-0 min-h-[44px] sm:min-h-0 touch-manipulation" asChild>
                   <Link href={`/${locale}/clients/${client.id}`} className="flex items-center justify-center gap-1.5">
                     <Eye className="h-3.5 w-3.5" />
-                    View
+                    {tClients("view")}
                   </Link>
                 </Button>
                 {onScheduleClick && (
@@ -517,10 +526,9 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive client?</AlertDialogTitle>
+            <AlertDialogTitle>{tClients("archiveClient")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will archive <strong>{archiveTarget?.name || archiveTarget?.full_name || "this client"}</strong>. You
-              can still view archived clients from the clients list. This does not remove their quotes or history.
+              {tClients("archiveClientDesc", { name: archiveTarget?.name || archiveTarget?.full_name || "this client" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -533,15 +541,15 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                 try {
                   await api.deleteClient(Number(archiveTarget.id))
                   toast({
-                    title: "Client archived",
-                    description: `${archiveTarget?.name || archiveTarget?.full_name || "Client"} has been archived.`,
+                    title: tClients("clientArchived"),
+                    description: tClients("clientArchivedDesc", { name: archiveTarget?.name || archiveTarget?.full_name || "Client" }),
                   })
                   setArchiveTarget(null)
                   onClientArchived?.()
                 } catch (err: any) {
                   toast({
-                    title: "Error",
-                    description: err?.message || "Failed to archive client.",
+                    title: tCommon("error"),
+                    description: err?.message || tClients("archiveFailed"),
                     variant: "destructive",
                   })
                 } finally {
@@ -551,7 +559,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
               disabled={archiving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {archiving ? "Archiving…" : "Archive client"}
+              {archiving ? tClients("archiving") : tClients("archiveClientButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -566,10 +574,9 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unarchive client?</AlertDialogTitle>
+            <AlertDialogTitle>{tClients("unarchiveClient")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will restore <strong>{restoreTarget?.name || restoreTarget?.full_name || "this client"}</strong> back
-              to your active clients list.
+              {tClients("unarchiveClientDesc", { name: restoreTarget?.name || restoreTarget?.full_name || "this client" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -582,15 +589,15 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                 try {
                   await api.updateClient(Number(restoreTarget.id), { status: "ACTIVE" })
                   toast({
-                    title: "Client restored",
-                    description: `${restoreTarget?.name || restoreTarget?.full_name || "Client"} has been restored.`,
+                    title: tClients("clientRestored"),
+                    description: tClients("clientRestoredDesc", { name: restoreTarget?.name || restoreTarget?.full_name || "Client" }),
                   })
                   setRestoreTarget(null)
                   onClientArchived?.()
                 } catch (err: any) {
                   toast({
-                    title: "Error",
-                    description: err?.message || "Failed to restore client.",
+                    title: tCommon("error"),
+                    description: err?.message || tClients("restoreFailed"),
                     variant: "destructive",
                   })
                 } finally {
@@ -599,7 +606,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
               }}
               disabled={restoring}
             >
-              {restoring ? "Restoring…" : "Unarchive"}
+              {restoring ? tClients("restoring") : tClients("unarchive")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

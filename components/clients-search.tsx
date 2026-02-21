@@ -23,13 +23,13 @@ export function ClientsSearch({
   
   return (
     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-      {/* Filter Tabs */}
-      <div className="inline-flex w-fit shrink-0 items-center rounded-lg border border-slate-200 bg-white p-1">
+      {/* Filter Tabs - full width on mobile for easier tap */}
+      <div className="flex w-full sm:w-fit shrink-0 items-center rounded-lg border border-slate-200 bg-white p-1">
         <Button
           type="button"
           size="sm"
           variant={!showArchived ? "default" : "ghost"}
-          className={`h-8 px-4 rounded-md transition-all ${
+          className={`flex-1 sm:flex-initial h-10 sm:h-8 px-4 rounded-md transition-all touch-manipulation min-h-[44px] sm:min-h-0 ${
             showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
           }`}
           onClick={() => (onShowArchivedChange ? onShowArchivedChange(false) : onToggleArchived?.())}
@@ -40,7 +40,7 @@ export function ClientsSearch({
           type="button"
           size="sm"
           variant={showArchived ? "default" : "ghost"}
-          className={`h-8 px-4 rounded-md transition-all ${
+          className={`flex-1 sm:flex-initial h-10 sm:h-8 px-4 rounded-md transition-all touch-manipulation min-h-[44px] sm:min-h-0 ${
             !showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
           }`}
           onClick={() => (onShowArchivedChange ? onShowArchivedChange(true) : onToggleArchived?.())}
@@ -48,13 +48,13 @@ export function ClientsSearch({
           {tFilters("archived")}
         </Button>
       </div>
-      
-      {/* Search Input */}
+
+      {/* Search Input - min 44px height on mobile for touch */}
       <div className="relative min-w-0 flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-slate-400" />
-        <Input 
-          placeholder={t('searchClients')} 
-          className="w-full pl-10 h-10 border-slate-200 bg-white"
+        <Input
+          placeholder={t("searchClients")}
+          className="w-full pl-10 h-11 sm:h-10 min-h-[44px] sm:min-h-0 border-slate-200 bg-white text-base sm:text-sm"
           value={searchQuery || ""}
           onChange={(e) => onSearchChange?.(e.target.value)}
         />

@@ -6,7 +6,7 @@ import { ClientsList } from "@/components/clients-list"
 import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { Plus, LayoutGrid, List } from "lucide-react"
 
 export type ClientsViewMode = "grid" | "list"
@@ -21,6 +21,7 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<ClientsViewMode>("list")
   const tClients = useTranslations("clients")
+  const locale = useLocale()
 
   useEffect(() => {
     fetchClients()
@@ -87,45 +88,43 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Sticky Header: Search + Filters + Add Button */}
       <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4">
-          <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex-1 min-w-0 w-full">
-              <ClientsSearch 
-                showArchived={showArchived} 
-                onShowArchivedChange={setShowArchived}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-              />
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* View mode toggle */}
-              <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1">
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
+          <div className="max-w-7xl mx-auto flex flex-col gap-3">
+            <ClientsSearch
+              showArchived={showArchived}
+              onShowArchivedChange={setShowArchived}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* View mode toggle - hidden on xs, shown sm+ */}
+              <div className="hidden sm:flex items-center rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode("list")}
-                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors touch-manipulation ${
                     viewMode === "list" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                   }`}
-                  title="List view"
-                  aria-label="List view"
+                  title={tClients("listView")}
+                  aria-label={tClients("listView")}
                 >
                   <List className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode("grid")}
-                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors touch-manipulation ${
                     viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                   }`}
-                  title="Grid view"
-                  aria-label="Grid view"
+                  title={tClients("gridView")}
+                  aria-label={tClients("gridView")}
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </button>
               </div>
-              <Button asChild className="h-10 w-full shrink-0 sm:w-auto">
-                <a href="/clients/new" className="flex items-center justify-center">
-                  <Plus className="mr-2 h-4 w-4" />
+              <Button asChild className="h-11 flex-1 sm:flex-initial min-h-[44px] touch-manipulation">
+                <a href={`/${locale}/clients/new`} className="flex items-center justify-center gap-2 px-4">
+                  <Plus className="h-5 w-5 shrink-0" />
                   {tClients("addClient")}
                 </a>
               </Button>

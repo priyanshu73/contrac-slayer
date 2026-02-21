@@ -24,6 +24,11 @@ import {
   Loader2Icon,
   TrashIcon,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
@@ -142,26 +147,34 @@ export function ClientCommunicationsCard({
 
   return (
     <>
-      <Card className="p-5">
-        <div className="space-y-3 mb-4">
-          <div className="flex flex-wrap gap-2">
+      <Card className="p-4 sm:p-5 min-w-0 overflow-hidden">
+        <div className="space-y-3 mb-4 min-w-0 overflow-hidden">
+          <div className="flex flex-wrap gap-2 [&>button]:shrink-0 [&>button]:touch-manipulation">
             {clientEmail && (
-              <Button size="sm" variant="outline" asChild>
-                <a href={`mailto:${clientEmail}`}>
-                  <MailIcon className="mr-2 h-4 w-4" />
-                  {t("email")}
-                </a>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" asChild>
+                    <a href={`mailto:${clientEmail}`}>
+                      <MailIcon className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("email")}</TooltipContent>
+              </Tooltip>
             )}
             {canSendMessage && (
-              <Button size="sm" onClick={() => setSendSmsOpen(true)}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                {t("message")}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => setSendSmsOpen(true)}>
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("message")}</TooltipContent>
+              </Tooltip>
             )}
             {spId && (
-              <Button size="sm" variant="outline" onClick={() => setScheduleOpen(true)}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
+              <Button size="sm" variant="outline" className="shrink-0" onClick={() => setScheduleOpen(true)}>
+                <CalendarIcon className="h-4 w-4 mr-2" />
                 {t("scheduleFollowup")}
               </Button>
             )}
@@ -173,8 +186,8 @@ export function ClientCommunicationsCard({
         </div>
 
         {spId && (
-        <div>
-          <h4 className="text-sm font-medium mb-1.5">{t("recentFollowups")}</h4>
+        <div className="min-w-0 overflow-hidden">
+          <h4 className="text-sm font-medium mb-1.5 truncate">{t("recentFollowups")}</h4>
           {isLoading ? (
             <div className="flex justify-center py-6">
               <Loader2Icon className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -186,13 +199,13 @@ export function ClientCommunicationsCard({
               {followups.slice(0, 5).map((f) => (
                 <li
                   key={f.id}
-                  className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs hover:bg-muted/60"
+                  className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs hover:bg-muted/60 min-w-0 overflow-hidden"
                 >
                   <span className="text-muted-foreground shrink-0 mt-0.5">
                     {followupTypeIcons[f.followup_type]}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium shrink-0">
                         {getTypeLabel(f.followup_type, tList)}
                       </span>
