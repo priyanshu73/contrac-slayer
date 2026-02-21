@@ -1074,12 +1074,16 @@ class ContractorAIClient {
     type?: string
     page?: number
     per_page?: number
+    limit?: number
+    customer_number?: string
   }) {
     const searchParams = new URLSearchParams()
     if (params?.status) searchParams.append('status', params.status)
     if (params?.type) searchParams.append('type', params.type)
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.customer_number) searchParams.append('customer_number', params.customer_number)
 
     const qs = searchParams.toString()
     return this.request(`/followup/scheduled/${spId}${qs ? `?${qs}` : ''}`)

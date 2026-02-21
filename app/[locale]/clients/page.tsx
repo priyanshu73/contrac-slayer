@@ -7,7 +7,9 @@ import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/compone
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useTranslations } from "next-intl"
-import { Plus } from "lucide-react"
+import { Plus, LayoutGrid, List } from "lucide-react"
+
+export type ClientsViewMode = "grid" | "list"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([])
@@ -17,6 +19,7 @@ export default function ClientsPage() {
   const [createAppointmentClientId, setCreateAppointmentClientId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [viewMode, setViewMode] = useState<ClientsViewMode>("list")
   const tClients = useTranslations("clients")
 
   useEffect(() => {
@@ -82,11 +85,10 @@ export default function ClientsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Main Content */}
-      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
-        <div className="max-w-7xl mx-auto space-y-4">
-          {/* Search & Filters with Add Button */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Sticky Header: Search + Filters + Add Button */}
+      <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4">
+          <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex-1 min-w-0 w-full">
               <ClientsSearch 
                 showArchived={showArchived} 
@@ -95,18 +97,51 @@ export default function ClientsPage() {
                 onSearchChange={setSearchQuery}
               />
             </div>
-            <Button asChild className="h-10 w-full shrink-0 sm:w-auto">
-              <a href="/clients/new" className="flex items-center justify-center">
-                <Plus className="mr-2 h-4 w-4" />
-                {tClients("addClient")}
-              </a>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* View mode toggle */}
+              <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                    viewMode === "list" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                  }`}
+                  title="List view"
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                    viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                  }`}
+                  title="Grid view"
+                  aria-label="Grid view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+              <Button asChild className="h-10 w-full shrink-0 sm:w-auto">
+                <a href="/clients/new" className="flex items-center justify-center">
+                  <Plus className="mr-2 h-4 w-4" />
+                  {tClients("addClient")}
+                </a>
+              </Button>
+            </div>
           </div>
-          
-          {/* Clients Grid */}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Clients Table / Cards */}
           <ClientsList
             clients={filteredClients}
             loading={loading}
+            viewMode={viewMode}
             onScheduleClick={handleScheduleClick}
             onClientArchived={fetchClients}
           />

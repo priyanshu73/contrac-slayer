@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -13,23 +14,54 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users } from "lucide-react"
-import { useTranslations } from "next-intl"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users, Eye } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { formatAddressStreetForDisplay } from "@/lib/format-address"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { formatDistanceToNow } from "date-fns"
+import { cn } from "@/lib/utils"
+
+type ClientsViewMode = "grid" | "list"
 
 interface ClientsListProps {
   clients?: any[]
   loading?: boolean
+  viewMode?: ClientsViewMode
   /** When user clicks "Schedule a call" on a client card, open create-appointment for that client. */
   onScheduleClick?: (client: { id: number; name?: string; email?: string }) => void
   /** Called after a client is archived from the list (so parent can refetch). */
   onClientArchived?: () => void
 }
 
-export function ClientsList({ clients = [], loading = false, onScheduleClick, onClientArchived }: ClientsListProps) {
+function getLastActionDate(client: any): string | null {
+  const updated = client.updated_at ? new Date(client.updated_at) : null
+  const lastJob = client.last_job_date ? new Date(client.last_job_date) : null
+  if (!updated && !lastJob) return null
+  const latest = updated && lastJob
+    ? (updated > lastJob ? updated : lastJob)
+    : (updated ?? lastJob)
+  return formatDistanceToNow(latest, { addSuffix: true })
+}
+
+export function ClientsList({ clients = [], loading = false, viewMode = "list", onScheduleClick, onClientArchived }: ClientsListProps) {
+  const router = useRouter()
+  const locale = useLocale()
   const tClients = useTranslations("clients")
   const tCommon = useTranslations("common")
   const { toast } = useToast()
@@ -37,6 +69,7 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
   const [archiving, setArchiving] = useState(false)
   const [restoreTarget, setRestoreTarget] = useState<any | null>(null)
   const [restoring, setRestoring] = useState(false)
+  const [hoveredRowId, setHoveredRowId] = useState<number | null>(null)
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -50,12 +83,12 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
   }
 
   if (loading) {
-    return (
+    return viewMode === "grid" ? (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 animate-pulse">
             <div className="flex items-start gap-3">
-              <div className="h-12 w-12 rounded-xl bg-slate-100" />
+              <div className="h-12 w-12 rounded-full bg-slate-100" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-32 bg-slate-100 rounded" />
                 <div className="h-3 w-24 bg-slate-100 rounded" />
@@ -67,6 +100,39 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
             </div>
           </div>
         ))}
+      </div>
+    ) : (
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/80">
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+                <th className="h-12 px-4 text-left font-medium text-slate-600" />
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="px-4 py-3"><div className="h-8 w-8 rounded-full bg-slate-100 animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-24 bg-slate-100 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-32 bg-slate-100 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-28 bg-slate-100 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-36 bg-slate-100 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-100 rounded-full animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-20 bg-slate-100 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-8 w-24 bg-slate-100 rounded animate-pulse" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
@@ -92,121 +158,355 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
     )
   }
 
+  const handleRowClick = (clientId: number) => {
+    router.push(`/${locale}/clients/${clientId}`)
+  }
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {clients.map((client) => (
-        <div 
-          key={client.id} 
-          className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md hover:border-slate-200 transition-all"
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <span className="text-lg font-semibold">{(client.name || client.full_name || 'C').charAt(0).toUpperCase()}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-slate-900 leading-tight">{client.name || client.full_name || "Unknown"}</h3>
-                <div className="flex items-center gap-1">
-                  {client.status && (
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border ${getStatusColor(client.status)}`}
-                    >
-                      {client.status}
-                    </span>
-                  )}
-                  {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-                      title="Unarchive"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setRestoreTarget(client)
+    <TooltipProvider>
+      {/* List view: Table layout (desktop) */}
+      {viewMode === "list" && (
+        <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-200 bg-slate-50/80 hover:bg-slate-50/80">
+                  <TableHead className="w-10 px-4 text-slate-600 font-medium" />
+                  <TableHead className="px-4 text-slate-600 font-medium">Name</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">Email</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">Phone</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">Address</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">Status</TableHead>
+                  <TableHead className="px-4 text-slate-600 font-medium">Last Action</TableHead>
+                  <TableHead className="w-32 px-4 text-slate-600 font-medium text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clients.map((client, idx) => {
+                  const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
+                  const showActions = hoveredRowId === client.id
+                  return (
+                    <TableRow
+                      key={client.id}
+                      role="button"
+                      tabIndex={0}
+                      className={cn(
+                        "border-slate-100 transition-colors cursor-pointer",
+                        idx % 2 === 1 ? "bg-slate-50/50" : "bg-white",
+                        "hover:bg-slate-100/70"
+                      )}
+                      onClick={() => handleRowClick(client.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          handleRowClick(client.id)
+                        }
                       }}
+                      onMouseEnter={() => setHoveredRowId(client.id)}
+                      onMouseLeave={() => setHoveredRowId(null)}
                     >
-                      <RotateCcw className="h-3.5 w-3.5" aria-label="Unarchive" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                      title={tCommon("delete")}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setArchiveTarget(client)
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-label={tCommon("delete")} />
-                    </Button>
+                    <TableCell className="px-4 py-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
+                        {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-2 font-medium text-slate-900">
+                      {client.name || client.full_name || "Unknown"}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-slate-600 max-w-[180px] truncate">
+                      {client.email || "—"}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-slate-600">
+                      {client.phone ? formatPhoneForDisplay(client.phone) : "—"}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-slate-600 max-w-[160px]">
+                      {fullAddress ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate cursor-default">{fullAddress}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            {client.address || fullAddress}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="px-4 py-2">
+                      {client.status && (
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
+                            getStatusColor(client.status)
+                          )}
+                        >
+                          {client.status}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-slate-500 text-xs">
+                      {getLastActionDate(client) ?? "—"}
+                    </TableCell>
+                    <TableCell className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                      <div className={cn(
+                        "flex items-center justify-end gap-0.5 transition-opacity",
+                        showActions ? "opacity-100" : "opacity-40"
+                      )}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                              <Link href={`/${locale}/clients/${client.id}`}>
+                                <Eye className="h-4 w-4" aria-label="View" />
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View</TooltipContent>
+                        </Tooltip>
+                        {client.phone && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                                <a href={`tel:${client.phone}`}>
+                                  <Phone className="h-4 w-4" aria-label="Call" />
+                                </a>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Call</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setRestoreTarget(client)
+                                }}
+                              >
+                                <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Unarchive</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setArchiveTarget(client)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" aria-label={tCommon("delete")} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{tCommon("delete")}</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {onScheduleClick && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onScheduleClick(client)
+                                }}
+                              >
+                                <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{tClients("scheduleCall")}</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+      )}
+
+      {/* List view: Compact list on mobile */}
+      {viewMode === "list" && (
+        <div className="md:hidden space-y-2">
+          {clients.map((client) => (
+              <div
+                key={client.id}
+                role="button"
+                tabIndex={0}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all cursor-pointer",
+                  "hover:shadow-md hover:border-slate-200 active:bg-slate-50"
+                )}
+                onClick={() => handleRowClick(client.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleRowClick(client.id)
+                  }
+                }}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold text-slate-900 truncate">{client.name || client.full_name || "Unknown"}</h3>
+                    {client.status && (
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border", getStatusColor(client.status))}>
+                        {client.status}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500 truncate">{client.email || "—"}</p>
+                </div>
+                <Eye className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+              </div>
+          ))}
+        </div>
+      )}
+
+      {/* Grid view: Card layout */}
+      {viewMode === "grid" && (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {clients.map((client) => {
+          const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
+          return (
+            <div
+              key={client.id}
+              className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-slate-900 leading-tight">{client.name || client.full_name || "Unknown"}</h3>
+                    {client.status && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
+                          getStatusColor(client.status)
+                        )}
+                      >
+                        {client.status}
+                      </span>
+                    )}
+                  </div>
+                  {client.email && (
+                    <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
                   )}
                 </div>
               </div>
-              {client.email && (
-                <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
-              )}
-            </div>
-          </div>
 
-          {(client.phone || client.address) && (
-            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-              {client.phone && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span>{formatPhoneForDisplay(client.phone)}</span>
+              {(client.phone || fullAddress) && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                  {client.phone && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <a href={`tel:${client.phone}`} className="text-primary hover:underline">
+                        {formatPhoneForDisplay(client.phone)}
+                      </a>
+                    </div>
+                  )}
+                  {fullAddress && (
+                    <div className="flex items-start gap-2 text-sm text-slate-600">
+                      <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <span className="flex-1 truncate" title={client.address || fullAddress}>{fullAddress}</span>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address || fullAddress)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-slate-400 hover:text-primary shrink-0"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
-              {client.address && (
-                <div className="flex items-start gap-2 text-sm text-slate-600">
-                  <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
-                  <span className="flex-1 leading-snug truncate" title={client.address}>
-                    {formatAddressStreetForDisplay(client.address, client.address_data)}
-                  </span>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-slate-400 hover:text-primary transition-colors shrink-0"
+
+              {getLastActionDate(client) && (
+                <p className="mt-2 text-xs text-slate-500">Last activity: {getLastActionDate(client)}</p>
+              )}
+
+              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                <Button size="sm" className="flex-1 min-w-0" asChild>
+                  <Link href={`/${locale}/clients/${client.id}`} className="flex items-center justify-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </Link>
+                </Button>
+                {onScheduleClick && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    className="border-slate-200"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onScheduleClick(client)
+                    }}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              )}
+                    <Calendar className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {client.phone && (
+                  <Button size="sm" variant="outline" className="border-slate-200" asChild>
+                    <a href={`tel:${client.phone}`}>
+                      <Phone className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                )}
+                {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-200 text-slate-500 hover:text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setRestoreTarget(client)
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setArchiveTarget(client)
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
-            <Button size="sm" className="flex-1" asChild>
-              <Link href={`/clients/${client.id}`}>View Details</Link>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              type="button"
-              title={tClients("scheduleCall")}
-              className="border-slate-200 hover:bg-slate-50"
-              onClick={(e) => {
-                e.stopPropagation()
-                onScheduleClick?.(client)
-              }}
-              disabled={!onScheduleClick}
-            >
-              <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
-            </Button>
-            {client.phone && (
-              <Button size="sm" variant="outline" className="border-slate-200 hover:bg-slate-50" asChild>
-                <a href={`tel:${client.phone}`}>
-                  <Phone className="h-4 w-4" />
-                </a>
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+          )
+        })}
+      </div>
+      )}
 
       {/* Delete (Archive) Confirmation */}
       <AlertDialog
@@ -304,6 +604,6 @@ export function ClientsList({ clients = [], loading = false, onScheduleClick, on
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </TooltipProvider>
   )
 }

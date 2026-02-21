@@ -37,13 +37,15 @@ import {
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
+import { useAuth } from "@/contexts/AuthContext"
+import { ClientCommunicationsCard } from "@/components/client-communications-card"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Phone, Mail, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, DollarSign, MoreHorizontal } from "lucide-react"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2 } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 
 interface ClientDetailData {
@@ -110,6 +112,8 @@ const CLIENT_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
 export function ClientDetail({ clientId }: { clientId: string }) {
   const router = useRouter()
   const { toast } = useToast()
+  const tCommon = useTranslations("common")
+  const { user } = useAuth()
   const [clientData, setClientData] = useState<ClientDetailData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -370,7 +374,16 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 <h1 className="text-xl font-bold sm:text-2xl tracking-tight">{clientData.name}</h1>
                 <Badge className={getStatusColor(clientData.status)}>{clientData.status}</Badge>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-0 text-sm text-muted-foreground">
+              {clientData.phone && (
+                <a
+                  href={`tel:${clientData.phone}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  {formatPhoneForDisplay(clientData.phone)}
+                </a>
+              )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0 text-sm text-muted-foreground mt-0.5">
                 {clientData.company_name && (
                   <>
                     <span className="font-medium">{clientData.company_name}</span>
@@ -433,63 +446,42 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             )
           })()}
 
-          {/* Right: Phone & Email */}
+          {/* Right: Create Quote + icon actions (Edit, Delete) */}
           <div className="flex flex-col gap-2 sm:items-end min-w-0 shrink-0">
-            {clientData.phone && (
-              <Button variant="outline" size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
-                <a href={`tel:${clientData.phone}`}>
-                  <Phone className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                  {formatPhoneForDisplay(clientData.phone)}
-                </a>
-              </Button>
-            )}
-            <Button variant="outline" size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
-              <a href={`mailto:${clientData.email}`}>
-                <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                Email
+            <Button size="sm" className="w-full sm:w-auto sm:min-w-[140px]" asChild>
+              <a href={`/quotes/new?clientId=${clientData.id}`}>
+                <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                Create Quote
               </a>
             </Button>
+            <div className="flex gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tCommon("edit")}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tCommon("delete")}</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* 2. Stats Grid - Individual cards with icons */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Total Jobs</p>
-            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-          </div>
-          <p className="text-2xl font-bold tabular-nums sm:text-3xl">{clientData.total_jobs}</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Revenue</p>
-            <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-          </div>
-          <p className="text-2xl font-bold tabular-nums text-green-600 sm:text-3xl">
-            {formatCurrency(clientData.total_revenue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Avg Job</p>
-            <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-          </div>
-          <p className="text-2xl font-bold tabular-nums sm:text-3xl">
-            {formatCurrency(clientData.average_job_value)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Quotes</p>
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-          </div>
-          <p className="text-2xl font-bold tabular-nums sm:text-3xl">{clientData.quotes.length}</p>
-        </Card>
-      </div>
-
-      {/* 3. Two-column: Tabs (left) + Client Details, Notes, Property Insights (right) */}
+      {/* Two-column: Tabs (left) + Client Details, Notes, Property Insights (right) */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* Quotes and Leads - Segmented tabs */}
@@ -667,8 +659,18 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           </Card>
         </div>
 
-        {/* Right column: Client Details, Notes, Property Insights */}
+        {/* Right column: Client Details, Notes, Property Insights, Communications */}
         <div className="space-y-6">
+          {(clientData.phone || clientData.email) && (
+            <ClientCommunicationsCard
+              clientId={clientData.id}
+              clientName={clientData.name}
+              clientPhone={clientData.phone ?? ""}
+              clientEmail={clientData.email}
+              spId={user?.contractor_ai_sp_id ?? null}
+              quotes={clientData.quotes.map((q) => ({ id: q.id, title: q.title, job_number: q.job_number }))}
+            />
+          )}
           {hasDetails && (
             <Card className="p-5">
               <h3 className="font-semibold mb-4">Client Details</h3>
@@ -707,44 +709,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               onRefresh={fetchClientDetails}
             />
           )}
-        </div>
-      </div>
-
-      {/* Floating action bar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 p-4 md:relative md:bottom-auto md:left-auto md:right-auto md:border-0 md:bg-transparent md:p-0 md:z-auto">
-        <div className="container mx-auto flex flex-wrap gap-3 md:flex-nowrap">
-          <Button size="lg" className="flex-1 min-w-0 md:flex-initial" asChild>
-            <a href={`/quotes/new?clientId=${clientData.id}`}>
-              <FileText className="mr-2 h-5 w-5 shrink-0" />
-              Create Quote
-            </a>
-          </Button>
-          <Button size="lg" variant="outline" asChild className="flex-1 min-w-0 md:flex-initial">
-            <a href={`mailto:${clientData.email}`}>
-              <Mail className="mr-2 h-5 w-5 shrink-0" />
-              Email
-            </a>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="lg" variant="outline" className="md:flex-initial">
-                <MoreHorizontal className="h-5 w-5 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeleteOpen(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
