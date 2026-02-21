@@ -1088,14 +1088,28 @@ class ContractorAIClient {
   async scheduleFollowup(data: {
     sp_id: number
     customer_number: string
-    scheduled_for: string
-    message_text: string
+    scheduled_for?: string
+    message_text?: string
     followup_type?: string
     reference_type?: string
     reference_id?: number
     appointment_datetime?: string
   }) {
     return this.request('/followup/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async scheduleQuoteFollowup(data: {
+    sp_id: number
+    customer_number: string
+    reference_type?: string
+    reference_id?: number
+    customer_name?: string
+    quote_link?: string
+  }) {
+    return this.request('/followup/schedule-quote', {
       method: 'POST',
       body: JSON.stringify(data),
     })

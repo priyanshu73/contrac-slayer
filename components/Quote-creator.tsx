@@ -504,6 +504,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [contractorType, setContractorType] = useState<string | null>(null)
   const [templateComboOpen, setTemplateComboOpen] = useState(false)
 
+  // Hide project template selector in AI estimator until ready (still in development)
+  const HIDE_AI_TEMPLATES = true
+
+  // AI accuracy feedback (after generation)
+  const [showAccuracyQuestion, setShowAccuracyQuestion] = useState(false)
+  const [aiAccuracySubmitted, setAiAccuracySubmitted] = useState(false)
+
   // Sort and group templates - contractor type matches first, then rest
   const sortedTemplates = [...templates].sort((a, b) => {
     if (!contractorType) return 0
@@ -1149,10 +1156,18 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       setAssumptions(Array.isArray(response.assumptions) ? response.assumptions : [])
       setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
 
+      setShowAccuracyQuestion(true)
+      setAiAccuracySubmitted(false)
+
       toast({
         title: "Estimate generated",
         description: `Generated ${newItems.length} line items with AI`,
       })
+
+      // Auto-save when editing an existing quote so line items are not lost (pass newItems so we save the just-generated items)
+      if (quoteId) {
+        autoSaveDraft(undefined, newItems).catch(() => {})
+      }
     } catch (error: any) {
       console.error("Failed to generate estimate:", error)
       toast({
@@ -1162,6 +1177,57 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       })
     } finally {
       setAiLoading(false)
+    }
+  }
+
+  const buildJobUpdatePayload = (notesOverride?: string, itemsOverride?: LineItem[]) => {
+    const sourceItems = itemsOverride ?? items
+    const validItems = sourceItems.filter(item =>
+      item.description.trim() &&
+      (item.quantity || 0) > 0 &&
+      getRateNumber(item.rate) > 0
+    )
+    return {
+      job_description: serviceDescription.trim() || null,
+      customer_notes: (notesOverride !== undefined ? notesOverride : notes.trim()) || null,
+      payment_terms: paymentTerms.trim() || null,
+      quote_expiration_date: dueDate || null,
+      location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
+      items: validItems.map(item => ({
+        custom_description: item.description.trim(),
+        quantity: item.quantity,
+        cost_per_unit: getRateNumber(item.rate),
+        image_url: item.imageUrl || null,
+        thumbnail_url: item.thumbnailUrl || null,
+        brand: item.brand || null,
+        model: item.model || null,
+        external_url: item.externalUrl || null,
+        unit_of_measure: item.unitOfMeasure || "each",
+        is_taxable: item.applyTax !== false,
+        markup_percentage: markupPercentage,
+      }))
+    }
+  }
+
+  const autoSaveDraft = async (notesOverride?: string, itemsOverride?: LineItem[]) => {
+    if (!quoteId) return
+    try {
+      const payload = buildJobUpdatePayload(notesOverride, itemsOverride)
+      await api.updateJob(parseInt(quoteId), payload)
+      toast({ title: "Draft saved", description: "Your changes have been saved." })
+    } catch {
+      toast({ title: "Draft could not be saved", description: "Use Save to retry.", variant: "destructive" })
+    }
+  }
+
+  const handleAccuracyRating = (rating: number) => {
+    const line = `[AI accuracy: ${rating}/5]`
+    const newNotes = notes.trim() ? `${notes.trim()}\n${line}` : line
+    setNotes(newNotes)
+    setShowAccuracyQuestion(false)
+    setAiAccuracySubmitted(true)
+    if (quoteId) {
+      autoSaveDraft(newNotes).catch(() => {})
     }
   }
 
@@ -1285,6 +1351,23 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           title: "Quote created",
           description: "Quote has been successfully created",
         })
+      }
+
+      // Schedule automatic quote follow-up via contractor-ai (if enabled in Scheduling settings)
+      const spId = getContractorAISpId?.()
+      if (spId != null && clientPhone?.trim()) {
+        try {
+          const jobId = (response as { id?: number })?.id ?? (quoteId ? parseInt(quoteId, 10) : undefined)
+          await contractorAI.scheduleQuoteFollowup({
+            sp_id: spId,
+            customer_number: clientPhone.trim(),
+            reference_type: "quote",
+            reference_id: jobId,
+            customer_name: clientName?.trim() || undefined,
+          })
+        } catch (followupErr) {
+          console.error("Quote follow-up scheduling failed (quote was still saved):", followupErr)
+        }
       }
 
       // Update profile's default tax rate if it has changed
@@ -1532,8 +1615,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 <CollapsibleTrigger asChild>
                   <button className="w-full flex items-center justify-between p-3 bg-primary/5 hover:bg-primary/10 transition-colors">
                     <div className="text-left">
-                      <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
-                      <p className="text-xs text-muted-foreground">Generate line items with AI</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
+                        <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/30">
+                          Beta
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                        <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                        <span>Still in development — feel free to try it out.</span>
+                      </div>
                     </div>
                     <svg
                       className={`h-5 w-5 transition-transform text-muted-foreground ${isMobileAiOpen ? 'rotate-180' : ''}`}
@@ -1546,10 +1637,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="p-3 border-t bg-background">
+                    <div className="p-3 border-t bg-background">
                     <div className="space-y-2">
-                      {/* Template Selector (Mobile) */}
-                      {templates.length > 0 && (
+                      {/* Template Selector (Mobile) - hidden while in development */}
+                      {!HIDE_AI_TEMPLATES && templates.length > 0 && (
                         <div>
                           <Label htmlFor="template-select-mobile" className="text-sm font-medium mb-1 block">
                             Project Template
@@ -1626,7 +1717,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
 
                       {/* Dynamic Variable Form (Mobile) */}
-                      {selectedTemplate && !isCustomProject && (
+                      {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                         <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                           {loadingTemplateDetail ? (
@@ -1674,7 +1765,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
 
                       {/* Custom Project (Mobile) */}
-                      {(isCustomProject || !selectedTemplate) && (
+                      {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                         <>
                           <div>
                             <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
@@ -1743,6 +1834,29 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         )
                       })()}
 
+                      {/* AI accuracy feedback - mobile */}
+                      {showAccuracyQuestion && (
+                        <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                          <p className="text-sm font-medium">How accurate was this?</p>
+                          <div className="flex items-center justify-center gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => handleAccuracyRating(n)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                aria-label={`Rate ${n} out of 5`}
+                              >
+                                {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {aiAccuracySubmitted && (
+                        <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                      )}
+
                       {/* Display Measurements if available */}
                       {measurements.items && measurements.items.length > 0 && (
                         <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
@@ -1783,8 +1897,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           </div>
 
           {/* Line Items */}
-          <Card className="p-5 sm:p-6 rounded-xl border border-border">
-            <div className="mb-4 flex items-center justify-between">
+          <Card className="p-3 sm:p-4 rounded-lg border border-border">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold">Line Items</h2>
               <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1795,7 +1909,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 px-3 py-2.5 mb-3 border-b border-border text-left">
+            <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
               <div aria-hidden />
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
@@ -1806,13 +1920,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               <div></div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {/* Skeleton Loading when AI is generating */}
               {aiLoading && items.length === 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="animate-pulse flex gap-4 p-3 rounded-lg border border-border bg-muted/30">
-                      <div className="h-10 w-10 bg-muted rounded shrink-0" />
+                    <div key={i} className="animate-pulse flex gap-2 p-2 rounded-md border border-border bg-muted/30">
+                      <div className="h-8 w-8 bg-muted rounded shrink-0" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-3/4" />
                         <div className="h-3 bg-muted rounded w-1/2" />
@@ -1830,7 +1944,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               )}
 
               {items.map((item, index) => (
-                <div key={index} className="relative rounded-lg border border-border bg-card p-3 shadow-sm">
+                <div key={index} className="relative rounded-md border border-border bg-card p-2 shadow-sm">
                   {/* Delete Button - Mobile: Top Right */}
                   <Button
                     variant="ghost"
@@ -1971,20 +2085,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[50px_3fr_140px_90px_110px_120px_80px_50px] gap-3 items-center">
+                  <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
                     {/* Image */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center shrink-0">
                       <MaterialThumbnail
                         src={item.thumbnailUrl || item.imageUrl}
                         alt={item.description}
-                        className="w-10 h-10 flex-shrink-0 rounded"
+                        className="w-8 h-8 flex-shrink-0 rounded"
                         category={item.category}
                         index={index}
                       />
                     </div>
 
-                    {/* Description - compact single-line feel, expands on focus */}
-                    <div className="min-w-0 pr-2 flex flex-col justify-center">
+                    {/* Description - more space, expands on focus */}
+                    <div className="min-w-0 pr-1 flex flex-col justify-center">
                       <Textarea
                         id={`item-desc-${index}`}
                         value={item.description}
@@ -1992,16 +2106,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement
                           target.style.height = 'auto'
-                          target.style.height = `${Math.min(target.scrollHeight, 120)}px`
+                          target.style.height = `${Math.min(target.scrollHeight, 160)}px`
                         }}
                         ref={(textarea) => {
                           if (textarea) {
                             textarea.style.height = 'auto'
-                            textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+                            textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
                           }
                         }}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[38px] max-h-[120px] py-1.5 text-sm w-full resize-none overflow-y-auto leading-snug"
+                        className="min-h-[44px] max-h-[160px] py-1.5 px-2 text-sm w-full resize-none overflow-y-auto leading-snug"
                         rows={1}
                       />
                       {item.brand && (
@@ -2037,7 +2151,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
 
                     {/* Rate */}
-                    <div>
+                    <div className="min-w-0">
                       <Input
                         id={`item-rate-${index}`}
                         type="text"
@@ -2056,7 +2170,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "rate", Math.round(n * 100) / 100)
                         }}
                         placeholder="0.00"
-                        className="h-9 text-sm text-right"
+                        className="h-9 w-full min-w-0 text-sm text-right tabular-nums"
                       />
                     </div>
 
@@ -2106,7 +2220,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Markup Settings */}
-            <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <Label htmlFor="markup-percentage" className="text-sm font-medium">
@@ -2340,14 +2454,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 sticky top-6 rounded-xl">
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold">AI Estimate Generator</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                {templates.length > 0 ? 'Select a project template or describe your project' : 'Describe your project to generate line items'}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                  <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
+                    Beta
+                  </span>
+                </div>
+                <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                  <span>Still in development — feel free to try it out.</span>
+                </div>
               </div>
               <div className="space-y-4">
-                  {/* Template Selector */}
-                  {templates.length > 0 && (
+                  {/* Template Selector - hidden while in development */}
+                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
                     <div>
                       <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
                         Project Template
@@ -2424,7 +2544,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   )}
 
                   {/* Dynamic Variable Form (when template selected) */}
-                  {selectedTemplate && !isCustomProject && (
+                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                     <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                       <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                       {loadingTemplateDetail ? (
@@ -2496,7 +2616,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   )}
 
                   {/* Custom Project Description (when custom or no templates) */}
-                  {(isCustomProject || !selectedTemplate) && (
+                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                     <>
                       <div>
                         <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
@@ -2625,6 +2745,29 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       </div>
                     )
                   })()}
+
+                  {/* AI accuracy feedback - desktop */}
+                  {showAccuracyQuestion && (
+                    <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                      <p className="text-sm font-medium">How accurate was this?</p>
+                      <div className="flex items-center justify-center gap-1">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => handleAccuracyRating(n)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            aria-label={`Rate ${n} out of 5`}
+                          >
+                            {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {aiAccuracySubmitted && (
+                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                  )}
 
                   {/* Display Measurements if available */}
                   {measurements.items && measurements.items.length > 0 && (

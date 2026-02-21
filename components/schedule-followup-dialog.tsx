@@ -118,8 +118,12 @@ export function ScheduleFollowupDialog({
     if (text !== undefined) setMessageText(text)
   }
 
+  const isAppointmentReminder = selectedTemplate === "appointment"
+
   const handleSubmit = async () => {
-    if (!contractorId || !selectedClient || !messageText || !selectedDate || !selectedTime) {
+    const requiredForAppointment = contractorId && selectedClient && selectedDate && selectedTime
+    const requiredForCustom = requiredForAppointment && messageText
+    if (!(isAppointmentReminder ? requiredForAppointment : requiredForCustom)) {
       toast({
         title: t("missingInfo"),
         description: t("fillRequired"),
@@ -137,6 +141,7 @@ export function ScheduleFollowupDialog({
       })
       return
     }
+    if (!selectedDate || contractorId == null) return
 
     setIsSubmitting(true)
 
@@ -146,9 +151,9 @@ export function ScheduleFollowupDialog({
       const y = selectedDate.getFullYear()
       const m = selectedDate.getMonth()
       const d = selectedDate.getDate()
-      const scheduledDateTime = new Date(y, m, d, hours, minutes, 0, 0)
+      const dateTime = new Date(y, m, d, hours, minutes, 0, 0)
 
-      if (scheduledDateTime <= new Date()) {
+      if (dateTime <= new Date()) {
         toast({
           title: t("invalidTime"),
           description: t("pickFuture"),
@@ -157,27 +162,42 @@ export function ScheduleFollowupDialog({
         return
       }
 
-      // Replace template variables with actual values before sending
-      const timeStr = format(scheduledDateTime, "h:mm a")
-      const dateStr = format(scheduledDateTime, "MMMM d, yyyy")
-      const formattedMessage = messageText
-        .replace(/\{client_name\}/g, client.name ?? "there")
-        .replace(/\{time\}/g, timeStr)
-        .replace(/\{date\}/g, dateStr)
-        .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
+      if (isAppointmentReminder) {
+        // Backend creates 1-day and 1-hour reminders from Scheduling settings; no message_text needed
+        const res = await contractorAI.scheduleFollowup({
+          sp_id: contractorId as number,
+          customer_number: client.phone,
+          appointment_datetime: dateTime.toISOString(),
+        }) as { reminders?: unknown[] }
+        const count = Array.isArray(res?.reminders) ? res.reminders.length : 0
+        toast({
+          title: t("scheduledSuccess"),
+          description: count > 0
+            ? `Appointment reminders scheduled (${count} reminder${count === 1 ? "" : "s"} — 1 day and 1 hour before).`
+            : "Automatic follow-ups are disabled or no reminders were created. Enable them in Scheduling settings.",
+        })
+      } else {
+        const timeStr = format(dateTime, "h:mm a")
+        const dateStr = format(dateTime, "MMMM d, yyyy")
+        const formattedMessage = messageText
+          .replace(/\{client_name\}/g, client.name ?? "there")
+          .replace(/\{time\}/g, timeStr)
+          .replace(/\{date\}/g, dateStr)
+          .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
 
-      await contractorAI.scheduleFollowup({
-        sp_id: contractorId,
-        customer_number: client.phone,
-        scheduled_for: scheduledDateTime.toISOString(),
-        message_text: formattedMessage,
-        followup_type: selectedTemplate || "custom",
-      })
+        await contractorAI.scheduleFollowup({
+          sp_id: contractorId as number,
+          customer_number: client.phone,
+          scheduled_for: dateTime.toISOString(),
+          message_text: formattedMessage,
+          followup_type: selectedTemplate || "custom",
+        })
 
-      toast({
-        title: t("scheduledSuccess"),
-        description: `Message scheduled for ${format(scheduledDateTime, "MMM d, yyyy 'at' h:mm a")}`,
-      })
+        toast({
+          title: t("scheduledSuccess"),
+          description: `Message scheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+        })
+      }
 
       if (onScheduled) {
         onScheduled()

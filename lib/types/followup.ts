@@ -43,9 +43,11 @@ export interface ScheduledFollowup {
 export interface ScheduleFollowupRequest {
   sp_id: number
   customer_number: string
-  customer_name: string
-  scheduled_for: string
-  message_text: string
+  /** Required for custom/quote; omit when appointment_datetime is set (automatic 1-day + 1-hour reminders) */
+  scheduled_for?: string
+  /** Required for custom/quote; omit when appointment_datetime is set */
+  message_text?: string
+  /** When set, backend creates 1-day and 1-hour appointment reminders from settings; scheduled_for/message_text not required */
   appointment_datetime?: string
   reference_type?: string
   reference_id?: number
