@@ -86,23 +86,24 @@ export default function ClientsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Sticky Header: Search + Filters + Add Button */}
+      {/* Sticky Header: Mobile stacked, desktop single row */}
       <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="max-w-7xl mx-auto flex flex-col gap-3">
+          <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            {/* Row 1 mobile / inline desktop: Status + Search */}
             <ClientsSearch
               showArchived={showArchived}
               onShowArchivedChange={setShowArchived}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {/* View mode toggle - hidden on xs, shown sm+ */}
-              <div className="hidden sm:flex items-center rounded-lg border border-slate-200 bg-white p-1 shrink-0">
+            {/* Row 2 mobile / inline desktop: View toggle + Add Client */}
+            <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
+              <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode("list")}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors touch-manipulation ${
+                  className={`flex h-10 w-10 sm:h-9 sm:w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 items-center justify-center rounded-md transition-colors touch-manipulation ${
                     viewMode === "list" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                   }`}
                   title={tClients("listView")}
@@ -113,7 +114,7 @@ export default function ClientsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode("grid")}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors touch-manipulation ${
+                  className={`flex h-10 w-10 sm:h-9 sm:w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 items-center justify-center rounded-md transition-colors touch-manipulation ${
                     viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                   }`}
                   title={tClients("gridView")}
@@ -122,7 +123,7 @@ export default function ClientsPage() {
                   <LayoutGrid className="h-4 w-4" />
                 </button>
               </div>
-              <Button asChild className="h-11 flex-1 sm:flex-initial min-h-[44px] touch-manipulation">
+              <Button asChild className="flex-1 sm:flex-initial h-11 min-h-[44px] sm:min-h-0 touch-manipulation">
                 <a href={`/${locale}/clients/new`} className="flex items-center justify-center gap-2 px-4">
                   <Plus className="h-5 w-5 shrink-0" />
                   {tClients("addClient")}
