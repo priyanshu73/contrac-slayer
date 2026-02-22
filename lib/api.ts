@@ -184,6 +184,24 @@ class ApiClient {
     })
   }
 
+  // --- Gmail (send on behalf) ---
+  async getGmailStatus(): Promise<{ connected: boolean; email: string | null }> {
+    return this.request<{ connected: boolean; email: string | null }>('/gmail/status')
+  }
+
+  /** Full URL to start Gmail OAuth; redirect the browser here (same window or tab). Pass current origin + path so callback redirects back (e.g. with locale). */
+  getGmailAuthorizeUrl(redirectSuccess?: string): string {
+    const url = `${this.baseURL}/gmail/authorize`
+    if (redirectSuccess) {
+      return `${url}?redirect_success=${encodeURIComponent(redirectSuccess)}`
+    }
+    return url
+  }
+
+  async disconnectGmail(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/gmail/disconnect', { method: 'DELETE' })
+  }
+
   async uploadLogo(file: File) {
     const formData = new FormData()
     formData.append('file', file)
@@ -551,6 +569,22 @@ class ApiClient {
       method: 'POST',
     })
     return response.public_link
+  }
+
+  /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendQuoteEmail(jobId: number, to: string, quoteUrl: string): Promise<{ message: string }> {
+    return this.request(`/jobs/${jobId}/send-quote-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, quote_url: quoteUrl }),
+    })
+  }
+
+  /** Send formatted follow-up email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendFollowupEmail(jobId: number, to: string, message?: string): Promise<{ message: string }> {
+    return this.request(`/jobs/${jobId}/send-followup-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, message: message ?? undefined }),
+    })
   }
 
   // =========================

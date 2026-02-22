@@ -103,6 +103,18 @@ export interface Signature {
   signer_name: string
 }
 
+/** Signature block attached to Job by API (dual-party: contractor + customer) */
+export interface JobSignature {
+  contractor_signed_at?: string | null
+  customer_signed_at?: string | null
+  contractor_signature_image_url?: string | null
+  contractor_signature_data?: string | null
+  contractor_signer_name?: string | null
+  customer_signature_image_url?: string | null
+  customer_signature_data?: string | null
+  customer_signer_name?: string | null
+}
+
 // ============================================
 // USER & AUTHENTICATION
 // ============================================
@@ -322,6 +334,8 @@ export interface Job {
   uuid: string
   contractor_id: number
   client_id?: number
+  /** Display number for quote/job (e.g. Q-2024-001); may come from API */
+  job_number?: string
   title: string
   description?: string
   status: JobStatus
@@ -338,9 +352,13 @@ export interface Job {
   // Signature fields
   contractor_signature?: Signature
   client_signature?: Signature
+  /** Attached by API when returning job with signature block (contractor_signed_at, etc.) */
+  signature?: JobSignature
   signed_quote_pdf_url?: string
   selected_tier?: PricingTier
   quote_pdf_url?: string
+  /** Public link for customer quote view; set when generated via generateQuotePublicLink */
+  quote_public_link?: string
 }
 
 export interface JobCreate {
