@@ -349,6 +349,10 @@ export interface Job {
   contractor?: ContractorInfo
   items?: JobItem[]
   variants?: QuoteVariant[]
+  // Change order lineage
+  created_from_job_id?: number
+  change_order_reason?: string
+  total_amount?: number
   // Signature fields
   contractor_signature?: Signature
   client_signature?: Signature
@@ -359,6 +363,35 @@ export interface Job {
   quote_pdf_url?: string
   /** Public link for customer quote view; set when generated via generateQuotePublicLink */
   quote_public_link?: string
+  // Additional fields from API (JobResponse)
+  quote_expiration_date?: string
+  project_type?: string
+  /** Project/job description; API uses job_description */
+  job_description?: string
+  payment_terms?: string
+  customer_notes?: string
+  /** Amount customer accepted when signing */
+  accepted_total_amount?: number
+}
+
+export interface ChangeOrderCreate {
+  change_order_reason?: string
+  job_description?: string
+  items?: Array<{
+    custom_description?: string
+    quantity: number
+    unit_of_measure?: string
+    cost_per_unit: number
+    markup_percentage?: number
+    is_taxable?: boolean
+    notes?: string
+  }>
+}
+
+export interface RevisedContractAmount {
+  original_amount: number
+  approved_change_orders_total: number
+  revised_amount: number
 }
 
 export interface JobCreate {

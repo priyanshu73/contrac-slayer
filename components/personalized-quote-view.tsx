@@ -12,10 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Check } from "lucide-react"
+import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import Image from "next/image"
-import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -39,8 +40,13 @@ interface PersonalizedQuoteViewProps {
   followupSending?: boolean
   gmailConnected?: boolean
   onCreateInvoice?: () => void
+  onCreateChangeOrder?: () => void
   onSignatureUpdate?: () => void
   onStatusUpdate?: () => void
+  /** Change orders for this quote (when viewing root job as contractor) */
+  changeOrders?: Job[]
+  /** Revised contract amount (original + approved COs) */
+  revisedContractAmount?: { original_amount: number; approved_change_orders_total: number; revised_amount: number }
   isContractor?: boolean  // If true, hide customer signature button
   isPublicView?: boolean  // If true, this is a public customer view
   /** Hide project description (e.g. when viewing quote by id/uuid to avoid exposing prompt text) */
@@ -70,8 +76,11 @@ export function PersonalizedQuoteView({
   followupSending = false,
   gmailConnected = false,
   onCreateInvoice,
+  onCreateChangeOrder,
   onSignatureUpdate,
   onStatusUpdate,
+  changeOrders = [],
+  revisedContractAmount,
   isContractor = false,
   isPublicView = false,
   hideProjectDescription = false,
@@ -120,7 +129,8 @@ export function PersonalizedQuoteView({
           low_tier_markup: 0,
           mid_tier_markup: 0,
           high_tier_markup: 0,
-          default_labor_rate_per_hour: 0,
+          default_labor_charge_type: LaborChargeType.HOURLY,
+          default_labor_rate_value: 0,
           created_at: "",
         }
         setContractorProfile(contractorFromJob)
@@ -150,7 +160,7 @@ export function PersonalizedQuoteView({
       const signature = await api.getQuoteSignature(job.id)
       setCurrentJob(prev => ({
         ...prev,
-        signature: signature as Signature
+        signature: signature as JobSignature
       }))
     } catch (error) {
       // Signature might not exist yet, that's okay
@@ -173,7 +183,7 @@ export function PersonalizedQuoteView({
       // Update local job with new signature and keep status in sync
       setCurrentJob(prev => ({
         ...(prev as Job),
-        signature: signatureResponse as Signature,
+        signature: signatureResponse as JobSignature,
       }))
 
       setShowContractorSignature(false)
@@ -201,12 +211,13 @@ export function PersonalizedQuoteView({
       })
       
       // Update local job with new signature and mark as accepted
+      const sigResponse = signatureResponse as JobSignature & { accepted_total_amount?: string }
       setCurrentJob(prev => ({
         ...(prev as Job),
-        signature: signatureResponse as Signature,
+        signature: sigResponse,
         status: JobStatus.ACCEPTED,
         accepted_total_amount: Number(
-          (signatureResponse as Signature).accepted_total_amount ||
+          sigResponse.accepted_total_amount ||
           prev.accepted_total_amount ||
           prev.total_amount ||
           0
@@ -377,6 +388,20 @@ export function PersonalizedQuoteView({
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
           {/* Quote Content - Centered */}
           <div className="w-full lg:flex-1 lg:max-w-[900px] lg:min-w-0 lg:mx-auto print:max-w-full">
+            {/* Created from / Parent quote banner - when viewing a change order */}
+            {isContractor && !isPublicView && currentJob.created_from_job_id && (
+              <div className="mb-4 print:hidden">
+                <Link
+                  href={`/quotes/${currentJob.created_from_job_id}`}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 hover:bg-sky-100 text-sm"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Change order to Quote #{currentJob.created_from_job_id}
+                </Link>
+              </div>
+            )}
             {/* Printable Quote Document */}
             <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">
           <div className="p-4 sm:p-6 md:p-8 lg:p-12 print:p-6 print:break-inside-avoid print:pt-6">
@@ -929,6 +954,20 @@ export function PersonalizedQuoteView({
                           </svg>
                           Edit Quote
                         </Button>
+                        {onCreateChangeOrder &&
+                          ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
+                          <Button
+                            size="lg"
+                            className="w-full justify-start h-12 text-base"
+                            variant="outline"
+                            onClick={onCreateChangeOrder}
+                          >
+                            <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Create Change Order
+                          </Button>
+                        )}
                         {onSendFollowupSubmit && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1072,6 +1111,59 @@ export function PersonalizedQuoteView({
                     </Button>
                   </div>
                 </Card>
+                {/* Change Orders Card */}
+                {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
+                  <Card className="bg-white shadow-lg p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Change Orders</h3>
+                    {currentJob.created_from_job_id && (
+                      <div className="mb-3">
+                        <Link
+                          href={`/quotes/${currentJob.created_from_job_id}`}
+                          className="text-sm text-sky-600 hover:text-sky-800 hover:underline"
+                        >
+                          View parent quote #{currentJob.created_from_job_id}
+                        </Link>
+                      </div>
+                    )}
+                    {revisedContractAmount && revisedContractAmount.approved_change_orders_total > 0 && (
+                      <div className="mb-3 p-2 bg-gray-50 rounded text-sm space-y-0.5">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Original:</span>
+                          <span>{formatCurrency(revisedContractAmount.original_amount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Approved COs:</span>
+                          <span>+{formatCurrency(revisedContractAmount.approved_change_orders_total)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold pt-1 border-t border-gray-200">
+                          <span>Revised Total:</span>
+                          <span>{formatCurrency(revisedContractAmount.revised_amount)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {changeOrders.length > 0 ? (
+                      <div className="space-y-2">
+                        {changeOrders.map((co) => (
+                          <Link
+                            key={co.id}
+                            href={`/quotes/${co.id}`}
+                            className="block p-2 rounded border border-gray-200 hover:bg-gray-50 text-sm"
+                          >
+                            <div className="font-medium">{co.job_number || `CO #${co.id}`}</div>
+                            <div className="text-gray-600 text-xs">
+                              {co.change_order_reason || "Change order"} · {co.status}
+                            </div>
+                            {co.total_amount != null && (
+                              <div className="text-xs font-medium mt-0.5">{formatCurrency(co.total_amount)}</div>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No change orders</p>
+                    )}
+                  </Card>
+                )}
               </div>
             </div>
           )}

@@ -354,6 +354,21 @@ class ApiClient {
     return this.request(`/jobs/${jobId}`)
   }
 
+  async createChangeOrder(jobId: number, data: { change_order_reason?: string; job_description?: string; items?: any[] }) {
+    return this.request(`/jobs/${jobId}/change-orders`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getChangeOrders(jobId: number) {
+    return this.request(`/jobs/${jobId}/change-orders`)
+  }
+
+  async getRevisedContractAmount(jobId: number) {
+    return this.request(`/jobs/${jobId}/revised-contract-amount`)
+  }
+
   async getJobByPublicLink(publicLink: string) {
     // Public endpoint - don't require authentication
     const url = `${this.baseURL}/jobs/public/${publicLink}`

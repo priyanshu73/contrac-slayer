@@ -47,6 +47,12 @@ export default function QuoteDetailPage() {
   const [gmailConnected, setGmailConnected] = useState(false)
   const [smsSentSuccessTo, setSmsSentSuccessTo] = useState<string | null>(null)
   const [followupSending, setFollowupSending] = useState(false)
+  const [changeOrders, setChangeOrders] = useState<Job[]>([])
+  const [revisedContractAmount, setRevisedContractAmount] = useState<{
+    original_amount: number
+    approved_change_orders_total: number
+    revised_amount: number
+  } | null>(null)
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -91,12 +97,15 @@ export default function QuoteDetailPage() {
         } catch (publicErr: any) {
           // If public link fails and it's numeric and user is contractor, try job ID
           if (isNumeric && isContractor) {
-            try {
-              const data = await api.getJob(parseInt(identifier))
-              setJob(data as Job)
-              setIsPublicView(false)
-              return
-            } catch (err: any) {
+        try {
+          const data = await api.getJob(parseInt(identifier))
+          setJob(data as Job)
+          setIsPublicView(false)
+          if (user?.is_contractor) {
+            fetchChangeOrderData((data as Job).id)
+          }
+          return
+        } catch (err: any) {
               setError(publicErr.message || "Failed to load quote")
             }
           } else {
@@ -110,6 +119,9 @@ export default function QuoteDetailPage() {
           const data = await api.getJob(parseInt(identifier))
           setJob(data as Job)
           setIsPublicView(false)
+          if (user?.is_contractor) {
+            fetchChangeOrderData((data as Job).id)
+          }
         } catch (err: any) {
           setError(err.message || "Failed to load quote")
         }
@@ -118,6 +130,35 @@ export default function QuoteDetailPage() {
       setError(err.message || "Failed to load quote")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchChangeOrderData = async (jobId: number) => {
+    if (!user?.is_contractor) return
+    try {
+      const [orders, revised] = await Promise.all([
+        api.getChangeOrders(jobId),
+        api.getRevisedContractAmount(jobId),
+      ])
+      setChangeOrders(orders as Job[])
+      setRevisedContractAmount(revised as { original_amount: number; approved_change_orders_total: number; revised_amount: number })
+    } catch {
+      setChangeOrders([])
+      setRevisedContractAmount(null)
+    }
+  }
+
+  const handleCreateChangeOrder = async () => {
+    if (!job) return
+    try {
+      const newJob = await api.createChangeOrder(job.id, { items: [] })
+      router.push(`/quotes/${(newJob as Job).id}/edit`)
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to create change order",
+        variant: "destructive",
+      })
     }
   }
 
@@ -510,8 +551,11 @@ export default function QuoteDetailPage() {
         followupSending={followupSending}
         gmailConnected={gmailConnected}
         onCreateInvoice={handleCreateInvoice}
+        onCreateChangeOrder={handleCreateChangeOrder}
         onSignatureUpdate={handleSignatureUpdate}
-        onStatusUpdate={fetchJob}
+        onStatusUpdate={() => { fetchJob(); fetchChangeOrderData(job.id) }}
+        changeOrders={changeOrders}
+        revisedContractAmount={revisedContractAmount ?? undefined}
         isContractor={true}
         isPublicView={false}
         hideProjectDescription={true}
