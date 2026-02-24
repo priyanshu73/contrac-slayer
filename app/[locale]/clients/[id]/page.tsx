@@ -9,9 +9,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ l
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="container mx-auto flex min-h-[56px] sm:h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] touch-manipulation shrink-0" asChild>
               <a href={`/${locale}/clients`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -26,7 +26,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ l
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
+      <main className="container mx-auto px-4 py-4 sm:py-6 pb-24 md:pb-6">
         <ClientDetail clientId={id} />
       </main>
     </div>

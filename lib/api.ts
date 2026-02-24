@@ -184,6 +184,24 @@ class ApiClient {
     })
   }
 
+  // --- Gmail (send on behalf) ---
+  async getGmailStatus(): Promise<{ connected: boolean; email: string | null }> {
+    return this.request<{ connected: boolean; email: string | null }>('/gmail/status')
+  }
+
+  /** Full URL to start Gmail OAuth; redirect the browser here (same window or tab). Pass current origin + path so callback redirects back (e.g. with locale). */
+  getGmailAuthorizeUrl(redirectSuccess?: string): string {
+    const url = `${this.baseURL}/gmail/authorize`
+    if (redirectSuccess) {
+      return `${url}?redirect_success=${encodeURIComponent(redirectSuccess)}`
+    }
+    return url
+  }
+
+  async disconnectGmail(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/gmail/disconnect', { method: 'DELETE' })
+  }
+
   async uploadLogo(file: File) {
     const formData = new FormData()
     formData.append('file', file)
@@ -334,6 +352,21 @@ class ApiClient {
 
   async getJob(jobId: number) {
     return this.request(`/jobs/${jobId}`)
+  }
+
+  async createChangeOrder(jobId: number, data: { change_order_reason?: string; job_description?: string; items?: any[] }) {
+    return this.request(`/jobs/${jobId}/change-orders`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getChangeOrders(jobId: number) {
+    return this.request(`/jobs/${jobId}/change-orders`)
+  }
+
+  async getRevisedContractAmount(jobId: number) {
+    return this.request(`/jobs/${jobId}/revised-contract-amount`)
   }
 
   async getJobByPublicLink(publicLink: string) {
@@ -551,6 +584,22 @@ class ApiClient {
       method: 'POST',
     })
     return response.public_link
+  }
+
+  /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendQuoteEmail(jobId: number, to: string, quoteUrl: string): Promise<{ message: string }> {
+    return this.request(`/jobs/${jobId}/send-quote-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, quote_url: quoteUrl }),
+    })
+  }
+
+  /** Send formatted follow-up email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendFollowupEmail(jobId: number, to: string, message?: string): Promise<{ message: string }> {
+    return this.request(`/jobs/${jobId}/send-followup-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, message: message ?? undefined }),
+    })
   }
 
   // =========================
@@ -1074,12 +1123,16 @@ class ContractorAIClient {
     type?: string
     page?: number
     per_page?: number
+    limit?: number
+    customer_number?: string
   }) {
     const searchParams = new URLSearchParams()
     if (params?.status) searchParams.append('status', params.status)
     if (params?.type) searchParams.append('type', params.type)
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.customer_number) searchParams.append('customer_number', params.customer_number)
 
     const qs = searchParams.toString()
     return this.request(`/followup/scheduled/${spId}${qs ? `?${qs}` : ''}`)

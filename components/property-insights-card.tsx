@@ -115,6 +115,8 @@ export interface PropertyInsightsCardProps {
   className?: string
   /** Optional label for the section (e.g. "Property insights") */
   title?: string
+  /** Optional label for the "Get insights" button */
+  getInsightsLabel?: string
 }
 
 export function PropertyInsightsCard({
@@ -123,6 +125,7 @@ export function PropertyInsightsCard({
   onRefresh,
   className,
   title = "Property insights",
+  getInsightsLabel = "Get insights",
 }: PropertyInsightsCardProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -243,7 +246,7 @@ export function PropertyInsightsCard({
               onClick={fetchInsights}
               disabled={loading}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Get insights"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : getInsightsLabel}
             </Button>
           )}
           {hasData && (

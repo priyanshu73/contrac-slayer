@@ -1,9 +1,15 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { useTranslations } from "next-intl"
 import { Search } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function ClientsSearch({
   showArchived = false,
@@ -20,41 +26,33 @@ export function ClientsSearch({
 }) {
   const t = useTranslations('search')
   const tFilters = useTranslations('filters')
-  
+
+  const statusValue = showArchived ? "archived" : "active"
+
+  const handleStatusChange = (value: string) => {
+    const archived = value === "archived"
+    onShowArchivedChange ? onShowArchivedChange(archived) : onToggleArchived?.()
+  }
+
   return (
-    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-      {/* Filter Tabs */}
-      <div className="inline-flex w-fit shrink-0 items-center rounded-lg border border-slate-200 bg-white p-1">
-        <Button
-          type="button"
-          size="sm"
-          variant={!showArchived ? "default" : "ghost"}
-          className={`h-8 px-4 rounded-md transition-all ${
-            showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
-          }`}
-          onClick={() => (onShowArchivedChange ? onShowArchivedChange(false) : onToggleArchived?.())}
-        >
-          {tFilters("active")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={showArchived ? "default" : "ghost"}
-          className={`h-8 px-4 rounded-md transition-all ${
-            !showArchived ? "text-slate-500 hover:text-slate-700 hover:bg-slate-50" : ""
-          }`}
-          onClick={() => (onShowArchivedChange ? onShowArchivedChange(true) : onToggleArchived?.())}
-        >
-          {tFilters("archived")}
-        </Button>
-      </div>
-      
-      {/* Search Input */}
+    <div className="flex w-full sm:w-auto min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      {/* Status dropdown - Active as default */}
+      <Select value={statusValue} onValueChange={handleStatusChange}>
+        <SelectTrigger className="w-[110px] sm:w-[130px] h-11 sm:h-10 min-h-[44px] sm:min-h-0 border-slate-200 bg-white shrink-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="active">{tFilters("active")}</SelectItem>
+          <SelectItem value="archived">{tFilters("archived")}</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Search Input - full width on mobile, min 44px height for touch */}
       <div className="relative min-w-0 flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-slate-400" />
-        <Input 
-          placeholder={t('searchClients')} 
-          className="w-full pl-10 h-10 border-slate-200 bg-white"
+        <Input
+          placeholder={t("searchClients")}
+          className="w-full min-w-0 pl-10 h-11 sm:h-10 min-h-[44px] sm:min-h-0 border-slate-200 bg-white text-base sm:text-sm"
           value={searchQuery || ""}
           onChange={(e) => onSearchChange?.(e.target.value)}
         />

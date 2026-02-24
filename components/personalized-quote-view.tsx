@@ -8,12 +8,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Check } from "lucide-react"
+import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import Image from "next/image"
-import { ContractorProfile, ContractorInfo, Job, JobItem, Signature, JobStatus } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -25,10 +28,25 @@ interface PersonalizedQuoteViewProps {
   showActions?: boolean
   onEdit?: () => void
   onSendToClient?: () => void
-  onSendFollowup?: () => void
+  /** When true, Send to client button is disabled (e.g. Gmail not connected) */
+  sendToClientDisabled?: boolean
+  onSendViaSms?: () => void
+  /** When true, Send via SMS option is disabled (e.g. no Contractor AI, no client phone, or no public link) */
+  sendViaSmsDisabled?: boolean
+  /** When set, show success message beside dropdown: "SMS sent successfully to {name}" (green tick, slide-in) */
+  smsSentSuccessTo?: string | null
+  /** Callback when user submits follow-up: (sendSms, sendEmail) */
+  onSendFollowupSubmit?: (sendSms: boolean, sendEmail: boolean) => void
+  followupSending?: boolean
+  gmailConnected?: boolean
   onCreateInvoice?: () => void
+  onCreateChangeOrder?: () => void
   onSignatureUpdate?: () => void
   onStatusUpdate?: () => void
+  /** Change orders for this quote (when viewing root job as contractor) */
+  changeOrders?: Job[]
+  /** Revised contract amount (original + approved COs) */
+  revisedContractAmount?: { original_amount: number; approved_change_orders_total: number; revised_amount: number }
   isContractor?: boolean  // If true, hide customer signature button
   isPublicView?: boolean  // If true, this is a public customer view
   /** Hide project description (e.g. when viewing quote by id/uuid to avoid exposing prompt text) */
@@ -50,10 +68,19 @@ export function PersonalizedQuoteView({
   showActions = true,
   onEdit,
   onSendToClient,
-  onSendFollowup,
+  sendToClientDisabled = false,
+  onSendViaSms,
+  sendViaSmsDisabled = true,
+  smsSentSuccessTo = null,
+  onSendFollowupSubmit,
+  followupSending = false,
+  gmailConnected = false,
   onCreateInvoice,
+  onCreateChangeOrder,
   onSignatureUpdate,
   onStatusUpdate,
+  changeOrders = [],
+  revisedContractAmount,
   isContractor = false,
   isPublicView = false,
   hideProjectDescription = false,
@@ -70,6 +97,12 @@ export function PersonalizedQuoteView({
   const [currentJob, setCurrentJob] = useState<Job>(job)
   const [copiedLink, setCopiedLink] = useState(false)
   const [generatingLink, setGeneratingLink] = useState(false)
+  const [followupSendSms, setFollowupSendSms] = useState(true)
+  const [followupSendEmail, setFollowupSendEmail] = useState(true)
+  // Only force email off when Gmail disconnects; don't overwrite when user unchecks
+  useEffect(() => {
+    if (!gmailConnected) setFollowupSendEmail(false)
+  }, [gmailConnected])
 
   // Sync currentJob with job prop when it changes
   useEffect(() => {
@@ -96,7 +129,8 @@ export function PersonalizedQuoteView({
           low_tier_markup: 0,
           mid_tier_markup: 0,
           high_tier_markup: 0,
-          default_labor_rate_per_hour: 0,
+          default_labor_charge_type: LaborChargeType.HOURLY,
+          default_labor_rate_value: 0,
           created_at: "",
         }
         setContractorProfile(contractorFromJob)
@@ -126,7 +160,7 @@ export function PersonalizedQuoteView({
       const signature = await api.getQuoteSignature(job.id)
       setCurrentJob(prev => ({
         ...prev,
-        signature: signature as Signature
+        signature: signature as JobSignature
       }))
     } catch (error) {
       // Signature might not exist yet, that's okay
@@ -149,7 +183,7 @@ export function PersonalizedQuoteView({
       // Update local job with new signature and keep status in sync
       setCurrentJob(prev => ({
         ...(prev as Job),
-        signature: signatureResponse as Signature,
+        signature: signatureResponse as JobSignature,
       }))
 
       setShowContractorSignature(false)
@@ -177,12 +211,13 @@ export function PersonalizedQuoteView({
       })
       
       // Update local job with new signature and mark as accepted
+      const sigResponse = signatureResponse as JobSignature & { accepted_total_amount?: string }
       setCurrentJob(prev => ({
         ...(prev as Job),
-        signature: signatureResponse as Signature,
+        signature: sigResponse,
         status: JobStatus.ACCEPTED,
         accepted_total_amount: Number(
-          (signatureResponse as Signature).accepted_total_amount ||
+          sigResponse.accepted_total_amount ||
           prev.accepted_total_amount ||
           prev.total_amount ||
           0
@@ -353,6 +388,20 @@ export function PersonalizedQuoteView({
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
           {/* Quote Content - Centered */}
           <div className="w-full lg:flex-1 lg:max-w-[900px] lg:min-w-0 lg:mx-auto print:max-w-full">
+            {/* Created from / Parent quote banner - when viewing a change order */}
+            {isContractor && !isPublicView && currentJob.created_from_job_id && (
+              <div className="mb-4 print:hidden">
+                <Link
+                  href={`/quotes/${currentJob.created_from_job_id}`}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 hover:bg-sky-100 text-sm"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Change order to Quote #{currentJob.created_from_job_id}
+                </Link>
+              </div>
+            )}
             {/* Printable Quote Document */}
             <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0">
           <div className="p-4 sm:p-6 md:p-8 lg:p-12 print:p-6 print:break-inside-avoid print:pt-6">
@@ -801,22 +850,72 @@ export function PersonalizedQuoteView({
                   <div className="flex flex-col gap-3">
                     {isContractor && (
                       <>
-                        {/* Send to Client (disabled until contractor signs) + Generate/Copy Link on the right */}
-                        <div className="flex items-stretch gap-2 w-full">
+                        {/* Send: Email / SMS / Copy link (Email & SMS disabled until public link + contractor signed) */}
+                        <div className="flex items-center gap-2 w-full flex-wrap">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="flex-1 min-w-0">
-                                <Button
-                                  size="lg"
-                                  className="w-full justify-start h-12 text-base"
-                                  onClick={onSendToClient}
-                                  disabled={!currentJob.signature?.contractor_signed_at}
-                                >
-                                  <svg className="mr-3 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                  </svg>
-                                  {t("sendToClient")}
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      size="lg"
+                                      className="w-full justify-start h-12 text-base"
+                                      disabled={!currentJob.signature?.contractor_signed_at}
+                                    >
+                                      <svg className="mr-3 h-5 w-5 shrink-0 -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                      </svg>
+                                      {t("sendToClient")}
+                                      <svg className="ml-2 h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                      </svg>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                                    <DropdownMenuItem
+                                      onClick={() => onSendToClient?.()}
+                                      disabled={sendToClientDisabled}
+                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                                    >
+                                      <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                      </svg>
+                                      Send via Email
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => onSendViaSms?.()}
+                                      disabled={sendViaSmsDisabled}
+                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                                    >
+                                      <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                      </svg>
+                                      Send via SMS
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-slate-100" />
+                                    <DropdownMenuItem
+                                      onClick={handleCopyQuoteLink}
+                                      disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
+                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                                    >
+                                      {copiedLink ? (
+                                        <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      ) : generatingLink ? (
+                                        <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                      ) : (
+                                        <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                        </svg>
+                                      )}
+                                      {copiedLink ? "Copied!" : currentJob.quote_public_link ? "Copy link" : "Generate & copy link"}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </span>
                             </TooltipTrigger>
                             <TooltipContent
@@ -824,63 +923,25 @@ export function PersonalizedQuoteView({
                               className={
                                 !currentJob.signature?.contractor_signed_at
                                   ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
-                                  : ""
-                              }
-                            >
-                              {currentJob.signature?.contractor_signed_at
-                                ? t("sendToClientTooltipReady")
-                                : t("sendToClientTooltipSignFirst")}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="shrink-0">
-                                <Button
-                                  size="lg"
-                                  className="h-12 w-12 p-0"
-                                  variant="outline"
-                                  onClick={handleCopyQuoteLink}
-                                  disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
-                                >
-                                  {copiedLink ? (
-                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  ) : generatingLink ? (
-                                    <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                  ) : (
-                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                    </svg>
-                                  )}
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="left"
-                              className={
-                                !getQuoteLinkUrl() && !currentJob.signature?.contractor_signed_at
-                                  ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
                                   : "max-w-xs"
                               }
                             >
-                              {getQuoteLinkUrl() ? (
-                                <p className="font-mono text-xs break-all">{getQuoteLinkUrl()}</p>
-                              ) : !currentJob.signature?.contractor_signed_at ? (
-                                <p className="flex items-center gap-2 font-medium">
-                                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                  </svg>
-                                  {t("copyLinkTooltipSignFirst")}
-                                </p>
-                              ) : (
-                                <p>{currentJob.quote_public_link ? t("copyLinkTooltipCopy") : t("copyLinkTooltipGenerate")}</p>
-                              )}
+                              {!currentJob.signature?.contractor_signed_at
+                                ? t("sendToClientTooltipSignFirst")
+                                : "Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link."}
                             </TooltipContent>
                           </Tooltip>
+                          {smsSentSuccessTo && (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 border border-emerald-200 animate-in slide-in-from-right-4 fade-in duration-300"
+                              role="status"
+                            >
+                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              SMS sent successfully to {smsSentSuccessTo}
+                            </span>
+                          )}
                         </div>
                         <Button 
                           size="lg" 
@@ -893,30 +954,92 @@ export function PersonalizedQuoteView({
                           </svg>
                           Edit Quote
                         </Button>
-                        {onSendFollowup && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="block w-full">
-                                <Button
-                                  size="lg"
-                                  className="w-full justify-start h-12 text-base"
-                                  variant="outline"
-                                  onClick={onSendFollowup}
-                                  disabled={currentJob.status?.toString().toUpperCase() === "DRAFT"}
+                        {onCreateChangeOrder &&
+                          ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
+                          <Button
+                            size="lg"
+                            className="w-full justify-start h-12 text-base"
+                            variant="outline"
+                            onClick={onCreateChangeOrder}
+                          >
+                            <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Create Change Order
+                          </Button>
+                        )}
+                        {onSendFollowupSubmit && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="lg"
+                                className="w-full justify-start h-12 text-base"
+                                variant="outline"
+                                disabled={currentJob.status?.toString().toUpperCase() === "DRAFT" || followupSending}
+                              >
+                                {followupSending ? (
+                                  <>
+                                    <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    Sending…
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                    </svg>
+                                    Send Follow-up
+                                    <svg className="ml-2 h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </>
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                              <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
+                                onClick={() => setFollowupSendSms((v) => !v)}
+                                className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
+                              >
+                                <span
+                                  className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
+                                  aria-hidden
                                 >
-                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                  </svg>
-                                  Send Follow-up
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              {currentJob.status?.toString().toUpperCase() === "DRAFT"
-                                ? "Quote has to be signed first."
-                                : "Schedule a follow-up message for this quote."}
-                            </TooltipContent>
-                          </Tooltip>
+                                  {followupSendSms && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
+                                </span>
+                                Send via SMS
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
+                                onClick={() => gmailConnected && setFollowupSendEmail((v) => !v)}
+                                disabled={!gmailConnected}
+                                className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
+                              >
+                                <span
+                                  className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
+                                  aria-hidden
+                                >
+                                  {followupSendEmail && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
+                                </span>
+                                Send via email
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-slate-100" />
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  onSendFollowupSubmit(followupSendSms, followupSendEmail && gmailConnected)
+                                }}
+                                className="rounded-md px-2 py-2 font-medium focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900"
+                              >
+                                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                </svg>
+                                Send follow-up
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                         {/* Change status */}
                         <DropdownMenu>
@@ -988,6 +1111,59 @@ export function PersonalizedQuoteView({
                     </Button>
                   </div>
                 </Card>
+                {/* Change Orders Card */}
+                {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
+                  <Card className="bg-white shadow-lg p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Change Orders</h3>
+                    {currentJob.created_from_job_id && (
+                      <div className="mb-3">
+                        <Link
+                          href={`/quotes/${currentJob.created_from_job_id}`}
+                          className="text-sm text-sky-600 hover:text-sky-800 hover:underline"
+                        >
+                          View parent quote #{currentJob.created_from_job_id}
+                        </Link>
+                      </div>
+                    )}
+                    {revisedContractAmount && revisedContractAmount.approved_change_orders_total > 0 && (
+                      <div className="mb-3 p-2 bg-gray-50 rounded text-sm space-y-0.5">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Original:</span>
+                          <span>{formatCurrency(revisedContractAmount.original_amount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Approved COs:</span>
+                          <span>+{formatCurrency(revisedContractAmount.approved_change_orders_total)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold pt-1 border-t border-gray-200">
+                          <span>Revised Total:</span>
+                          <span>{formatCurrency(revisedContractAmount.revised_amount)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {changeOrders.length > 0 ? (
+                      <div className="space-y-2">
+                        {changeOrders.map((co) => (
+                          <Link
+                            key={co.id}
+                            href={`/quotes/${co.id}`}
+                            className="block p-2 rounded border border-gray-200 hover:bg-gray-50 text-sm"
+                          >
+                            <div className="font-medium">{co.job_number || `CO #${co.id}`}</div>
+                            <div className="text-gray-600 text-xs">
+                              {co.change_order_reason || "Change order"} · {co.status}
+                            </div>
+                            {co.total_amount != null && (
+                              <div className="text-xs font-medium mt-0.5">{formatCurrency(co.total_amount)}</div>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No change orders</p>
+                    )}
+                  </Card>
+                )}
               </div>
             </div>
           )}
