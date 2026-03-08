@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import type { Project, ProjectTask, TaskStatus, TaskPriority } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -359,6 +359,7 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
                 open={addDialogOpen}
                 onOpenChange={setAddDialogOpen}
                 projectId={project.id}
+                trades={project.trades}
                 onTaskCreated={handleTaskCreated}
             />
         </div>
@@ -373,6 +374,7 @@ interface AddTaskDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId: number
+    trades?: { id: number; trade_type: string; subcontractor_name: string }[]
     onTaskCreated: (task: ProjectTask) => void
 }
 
@@ -380,6 +382,7 @@ function AddTaskDialog({
     open,
     onOpenChange,
     projectId,
+    trades,
     onTaskCreated,
 }: AddTaskDialogProps) {
     const t = useTranslations("projects.tasks")
@@ -391,6 +394,18 @@ function AddTaskDialog({
     const [status, setStatus] = useState<TaskStatus>("NOT_STARTED")
     const [category, setCategory] = useState("")
     const [assignedTo, setAssignedTo] = useState("")
+    const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false)
+    const assignedToContainerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (assignedToContainerRef.current && !assignedToContainerRef.current.contains(event.target as Node)) {
+                setShowAssignedToDropdown(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
@@ -503,7 +518,13 @@ function AddTaskDialog({
             }
             if (description.trim()) payload.description = description.trim()
             if (category.trim()) payload.category = category.trim()
-            if (assignedTo.trim()) payload.assigned_to = assignedTo.trim()
+            if (assignedTo.trim()) {
+                payload.assigned_to = assignedTo.trim()
+                const matchingTrade = trades?.find(t => t.subcontractor_name === assignedTo.trim())
+                if (matchingTrade) {
+                    payload.assigned_trade_id = matchingTrade.id
+                }
+            }
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
 
@@ -579,6 +600,8 @@ function AddTaskDialog({
                         />
                     </div>
 
+
+
                     {/* Priority & Status */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -628,16 +651,44 @@ function AddTaskDialog({
                                 className="border-slate-200"
                             />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 relative" ref={assignedToContainerRef}>
                             <Label className="text-sm font-medium text-slate-700">
                                 {t("addForm.assignedTo")}
                             </Label>
                             <Input
                                 placeholder={t("addForm.assignedToPlaceholder")}
                                 value={assignedTo}
-                                onChange={(e) => setAssignedTo(e.target.value)}
+                                onChange={(e) => {
+                                    setAssignedTo(e.target.value)
+                                    setShowAssignedToDropdown(true)
+                                }}
+                                onFocus={() => setShowAssignedToDropdown(true)}
                                 className="border-slate-200"
                             />
+                            {showAssignedToDropdown && trades && trades.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                    <ul className="py-1">
+                                        {Array.from(new Set(trades.map(t => t.subcontractor_name)))
+                                            .filter(name => name.toLowerCase().includes(assignedTo.toLowerCase()))
+                                            .map((name) => (
+                                                <li
+                                                    key={name}
+                                                    className="px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                                                    onClick={() => {
+                                                        setAssignedTo(name)
+                                                        setShowAssignedToDropdown(false)
+                                                    }}
+                                                >
+                                                    {name}
+                                                </li>
+                                            ))}
+                                        {Array.from(new Set(trades.map(t => t.subcontractor_name)))
+                                            .filter(name => name.toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
+                                                <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
+                                            )}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     </div>
 

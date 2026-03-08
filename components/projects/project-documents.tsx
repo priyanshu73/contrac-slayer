@@ -13,8 +13,10 @@ interface ProjectDocumentsProps {
 export function ProjectDocuments({ project }: ProjectDocumentsProps) {
   const t = useTranslations("projects.documents")
 
-  const docs = (project.media || []).filter((m) => m.context === "PROJECT_DOCUMENT")
-  const photos = (project.media || []).filter((m) => m.context === "PROJECT_PHOTO")
+  const allMedia = project.media || []
+
+  const docs = allMedia.filter((m) => m.media_type === "DOCUMENT")
+  const photos = allMedia.filter((m) => m.media_type === "PHOTO" || m.media_type === "VIDEO")
 
   if (!docs.length && !photos.length) {
     return (
@@ -42,8 +44,11 @@ export function ProjectDocuments({ project }: ProjectDocumentsProps) {
               rel="noreferrer"
               className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
             >
-              <span className="truncate">{doc.file_name}</span>
-              <span className="text-xs text-slate-400">
+              <div className="flex items-center gap-2 max-w-[70%]">
+                <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 rounded text-slate-600 border border-slate-200 uppercase">{doc.file_name.split('.').pop() || "FILE"}</span>
+                <span className="truncate">{doc.file_name}</span>
+              </div>
+              <span className="text-xs text-slate-400 shrink-0">
                 {formatSize(doc.file_size)}
               </span>
             </a>
@@ -58,21 +63,29 @@ export function ProjectDocuments({ project }: ProjectDocumentsProps) {
             {photos.length}
           </Badge>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
           {photos.map((photo) => (
             <a
               key={photo.id}
               href={photo.file_url}
               target="_blank"
               rel="noreferrer"
-              className="relative block aspect-video overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+              className="relative block aspect-video overflow-hidden rounded-lg border border-slate-200 bg-slate-100 group"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.file_url}
-                alt={photo.file_name}
-                className="h-full w-full object-cover"
-              />
+              {photo.media_type === "VIDEO" ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/5 group-hover:bg-black/10 transition-colors">
+                  <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-sm backdrop-blur-sm">
+                    <span className="text-blue-500 font-bold ml-1">▶</span>
+                  </div>
+                </div>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={photo.file_url}
+                  alt={photo.file_name}
+                  className="h-full w-full object-cover"
+                />
+              )}
             </a>
           ))}
         </div>

@@ -40,9 +40,7 @@ export function NewTradeDialog({
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
-    const [uploadedImages, setUploadedImages] = useState<
-        { url: string; name: string; size: number }[]
-    >([])
+    const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
 
@@ -53,7 +51,7 @@ export function NewTradeDialog({
         setScopeOfWork("")
         setMaterials("")
         setAgreedPrice("")
-        setUploadedImages([])
+        setUploadedFiles([])
     }, [])
 
     const handleOpenChange = (o: boolean) => {
@@ -61,57 +59,23 @@ export function NewTradeDialog({
         onOpenChange(o)
     }
 
-    const openCloudinaryWidget = () => {
-        if (typeof window === "undefined") return
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-        if (!cloudName) {
-            toast({ title: "Image upload not configured", variant: "destructive" })
-            return
-        }
-
-        setUploading(true)
-        // @ts-ignore
-        if (window.cloudinary) {
-            // @ts-ignore
-            const widget = window.cloudinary.createUploadWidget(
-                {
-                    cloudName,
-                    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default",
-                    sources: ["local", "camera"],
-                    multiple: true,
-                    resourceType: "auto",
-                },
-                (error: any, result: any) => {
-                    if (result?.event === "success") {
-                        setUploadedImages((prev) => [
-                            ...prev,
-                            {
-                                url: result.info.secure_url,
-                                name: result.info.original_filename + "." + result.info.format,
-                                size: result.info.bytes,
-                            },
-                        ])
-                    }
-                    if (result?.event === "close" || result?.event === "abort" || error) {
-                        setUploading(false)
-                    }
-                }
-            )
-            widget.open()
-        } else {
-            const url = prompt("Enter media URL:")
-            if (url) {
-                setUploadedImages((prev) => [
-                    ...prev,
-                    { url, name: "uploaded-media", size: 0 },
-                ])
-            }
-            setUploading(false)
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.length) {
+            const newFiles = Array.from(e.target.files).map(file => ({
+                file,
+                url: URL.createObjectURL(file)
+            }))
+            setUploadedFiles(prev => [...prev, ...newFiles])
         }
     }
 
-    const removeImage = (index: number) => {
-        setUploadedImages((prev) => prev.filter((_, i) => i !== index))
+    const removeFile = (index: number) => {
+        setUploadedFiles(prev => {
+            const copy = [...prev]
+            URL.revokeObjectURL(copy[index].url)
+            copy.splice(index, 1)
+            return copy
+        })
     }
 
     const handleSubmit = async () => {
@@ -132,17 +96,21 @@ export function NewTradeDialog({
                 agreed_price: agreedPrice ? parseFloat(agreedPrice) : undefined,
             })) as ProjectTrade
 
-            for (const img of uploadedImages) {
+            if (uploadedFiles.length > 0) {
                 try {
-                    await api.attachProjectMedia(projectId, {
-                        trade_id: created.id,
-                        file_url: img.url,
-                        file_name: img.name,
-                        file_size: img.size,
-                        media_type: "PHOTO",
-                        context: "TRADE_REFERENCE",
+                    const filesToUpload = uploadedFiles.map(f => f.file)
+                    await api.uploadProjectMedia(
+                        projectId,
+                        filesToUpload,
+                        "TRADE_REFERENCE",
+                        created.id
+                    )
+                } catch (err: any) {
+                    toast({
+                        title: "Media Upload Failed",
+                        description: err?.message || "Trade was created but media failed to upload.",
+                        variant: "destructive"
                     })
-                } catch {
                 }
             }
 
@@ -212,32 +180,42 @@ export function NewTradeDialog({
 
                     <div className="rounded-xl border border-slate-200 mt-4 p-4">
                         <div className="flex items-center gap-2 mb-2 font-medium text-slate-800">
-                            <UploadCloud className="h-5 w-5 text-blue-500" /> Upload Prep / Reference Media <span className="text-slate-400 font-normal text-sm">(optional)</span>
+                            <UploadCloud className="h-5 w-5 text-blue-500" /> Upload Prep / Reference Attachments <span className="text-slate-400 font-normal text-sm">(optional)</span>
                         </div>
                         <p className="text-sm text-slate-500 mb-4">
-                            Upload reference photos or video instructions for the subcontractor before assigning this scope.
+                            Upload reference photos or attachments for the subcontractor before assigning this scope.
                         </p>
-                        <button
-                            onClick={openCloudinaryWidget}
-                            disabled={uploading}
-                            className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors"
-                        >
-                            {uploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin text-slate-400 mb-2" />
-                            ) : (
-                                <UploadCloud className="h-6 w-6 text-blue-500 mb-2" />
-                            )}
+
+                        <label className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer">
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*,video/*,application/pdf"
+                                className="hidden"
+                                onChange={handleFileChange}
+                                disabled={submitting}
+                            />
+                            <UploadCloud className="h-6 w-6 text-blue-500 mb-2" />
                             <p className="font-semibold text-slate-800">Drag & drop or click to select</p>
-                            <p className="text-slate-500 text-sm">Photos & videos accepted</p>
-                        </button>
-                        {uploadedImages.length > 0 && (
+                            <p className="text-slate-500 text-sm">Photos, videos & PDFs accepted</p>
+                        </label>
+
+                        {uploadedFiles.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-4">
-                                {uploadedImages.map((img, i) => (
+                                {uploadedFiles.map((f, i) => (
                                     <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-200 group">
-                                        <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                                        {f.file.type.startsWith("image/") ? (
+                                            <img src={f.url} alt={f.file.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-1">
+                                                <span className="text-xs font-medium text-slate-700 truncate w-full text-center">
+                                                    {f.file.name.split('.').pop()?.toUpperCase()}
+                                                </span>
+                                            </div>
+                                        )}
                                         <button
                                             type="button"
-                                            onClick={() => removeImage(i)}
+                                            onClick={() => removeFile(i)}
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <X className="h-4 w-4 text-white" />
@@ -253,7 +231,7 @@ export function NewTradeDialog({
                     <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={submitting} className="bg-[#0077CC] hover:bg-[#005FA3] text-white">
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        + Add Trade
+                        {submitting ? "Uploading..." : "+ Add Trade"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

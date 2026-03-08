@@ -68,75 +68,26 @@ export function EditTradeDialog({
         )
     }
 
-    const openCloudinaryWidget = () => {
-        if (typeof window === "undefined" || !trade) return
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-        if (!cloudName) {
-            toast({ title: "Image upload not configured", variant: "destructive" })
-            return
-        }
-
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.length || !trade) return
         setUploading(true)
-        // @ts-ignore
-        if (window.cloudinary) {
-            // @ts-ignore
-            const widget = window.cloudinary.createUploadWidget(
-                {
-                    cloudName,
-                    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default",
-                    sources: ["local", "camera"],
-                    multiple: true,
-                    resourceType: "auto",
-                },
-                async (error: any, result: any) => {
-                    if (result?.event === "success") {
-                        try {
-                            const attachRes = await api.attachProjectMedia(projectId, {
-                                trade_id: trade.id,
-                                file_url: result.info.secure_url,
-                                file_name: result.info.original_filename + "." + result.info.format,
-                                file_size: result.info.bytes,
-                                media_type: "PHOTO",
-                                context: "TRADE_REFERENCE",
-                            }) as ProjectMedia
-
-                            const updatedTrade = {
-                                ...trade,
-                                reference_media: [...(trade.reference_media || []), attachRes]
-                            }
-                            onTradeUpdated(updatedTrade)
-                            toast({ title: "Media uploaded" })
-                        } catch (err: any) {
-                            toast({ title: "Error saving media reference", variant: "destructive" })
-                        }
-                    }
-                    if (result?.event === "close" || result?.event === "abort" || error) {
-                        setUploading(false)
-                    }
-                }
+        try {
+            const uploadedArray = await api.uploadProjectMedia(
+                projectId,
+                Array.from(e.target.files),
+                "TRADE_REFERENCE",
+                trade.id
             )
-            widget.open()
-        } else {
-            const url = prompt("Enter media URL:")
-            if (url) {
-                // mock logic
-                api.attachProjectMedia(projectId, {
-                    trade_id: trade.id,
-                    file_url: url,
-                    file_name: "uploaded-file",
-                    file_size: 0,
-                    media_type: "PHOTO",
-                    context: "TRADE_REFERENCE",
-                }).then(attachRes => {
-                    const updatedTrade = {
-                        ...trade,
-                        reference_media: [...(trade.reference_media || []), attachRes as ProjectMedia]
-                    }
-                    onTradeUpdated(updatedTrade)
-                }).finally(() => setUploading(false))
-            } else {
-                setUploading(false)
+            const updatedTrade = {
+                ...trade,
+                reference_media: [...(trade.reference_media || []), ...uploadedArray]
             }
+            onTradeUpdated(updatedTrade)
+            toast({ title: "Media uploaded successfully" })
+        } catch (err: any) {
+            toast({ title: "Error uploading media", description: err.message, variant: "destructive" })
+        } finally {
+            setUploading(false)
         }
     }
 
@@ -227,7 +178,7 @@ export function EditTradeDialog({
                     <Tabs defaultValue="gc" className="w-full">
                         <TabsList className="w-full grid grid-cols-2 rounded-none bg-slate-100/50 p-0 border-t border-slate-200 h-14">
                             <TabsTrigger value="gc" className="rounded-none font-semibold text-slate-500 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-b-blue-500 h-full">
-                                <UploadCloud className="w-4 h-4 mr-2" /> GC Prep Media <span className="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">{trade.reference_media?.length || 0}</span>
+                                <UploadCloud className="w-4 h-4 mr-2" /> GC Prep Attachments <span className="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">{trade.reference_media?.length || 0}</span>
                             </TabsTrigger>
                             <TabsTrigger value="sub" className="rounded-none font-semibold text-slate-500 data-[state=active]:bg-slate-50 data-[state=active]:text-slate-900 h-full">
                                 Sub Proof-of-Work <span className="ml-2 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">{trade.proof_of_work_media?.length || 0}</span>
@@ -236,12 +187,20 @@ export function EditTradeDialog({
                         <div className="bg-white">
                             <TabsContent value="gc" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
-                                    Upload reference photos or videos for the subcontractor. You can add, view, or remove these files.
+                                    Upload reference photos or attachments for the subcontractor. You can add, view, or remove these files.
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     {trade.reference_media?.map(m => (
                                         <div key={m.id} className="w-32 rounded-lg border overflow-hidden relative group">
-                                            <img src={m.file_url} className="w-full h-24 object-cover" />
+                                            {m.media_type === "PHOTO" ? (
+                                                <img src={m.file_url} className="w-full h-24 object-cover" />
+                                            ) : (
+                                                <div className="w-full h-24 flex items-center justify-center bg-slate-100 p-2">
+                                                    <span className="text-xs font-semibold text-slate-600 truncate uppercase mt-1">
+                                                        {m.file_name.split('.').pop() || 'FILE'}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="bg-white p-2 text-xs text-slate-500 flex justify-between items-center px-2 border-t">
                                                 <span className="truncate w-full pr-1">{m.file_name}</span>
                                                 <Trash2 className="text-rose-400 w-3 h-3 flex-shrink-0 cursor-pointer hover:text-rose-600" />
@@ -249,11 +208,19 @@ export function EditTradeDialog({
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={openCloudinaryWidget} disabled={uploading} className="w-full py-6 mt-4 border-2 border-dashed border-slate-200 rounded-xl bg-white hover:bg-slate-50 flex flex-col items-center justify-center transition-colors text-slate-800">
-                                    {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5 text-blue-500 mb-2" />}
-                                    <div className="text-sm font-semibold">Add Reference Media</div>
-                                    <div className="text-xs text-slate-500 mt-1">Click to select photos or videos</div>
-                                </button>
+                                <label className={`w-full py-6 mt-4 border-2 border-dashed border-slate-200 rounded-xl bg-white hover:bg-slate-50 flex flex-col items-center justify-center transition-colors text-slate-800 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*,video/*,application/pdf"
+                                        className="hidden"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                    />
+                                    {uploading ? <Loader2 className="w-5 h-5 animate-spin mb-2" /> : <UploadCloud className="w-5 h-5 text-blue-500 mb-2" />}
+                                    <div className="text-sm font-semibold">{uploading ? "Uploading..." : "Add Reference Attachment"}</div>
+                                    <div className="text-xs text-slate-500 mt-1">Click to select photos, videos or PDFs</div>
+                                </label>
                             </TabsContent>
                             <TabsContent value="sub" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
@@ -262,7 +229,15 @@ export function EditTradeDialog({
                                 <div className="flex flex-wrap gap-4">
                                     {trade.proof_of_work_media?.map(m => (
                                         <div key={m.id} className="w-32 rounded-lg border overflow-hidden pb-2 mb-2">
-                                            <img src={m.file_url} className="w-full h-24 object-cover mb-2" />
+                                            {m.media_type === "PHOTO" ? (
+                                                <img src={m.file_url} className="w-full h-24 object-cover mb-2" />
+                                            ) : (
+                                                <div className="w-full h-24 flex items-center justify-center bg-slate-100 mb-2">
+                                                    <span className="text-xs font-semibold text-slate-600 truncate uppercase mt-1">
+                                                        {m.file_name.split('.').pop() || 'FILE'}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="px-2 text-xs font-semibold">{m.file_name}</div>
                                             <div className="px-2 text-[10px] text-slate-500 mt-1">{new Date(m.uploaded_at).toLocaleString()}</div>
                                         </div>

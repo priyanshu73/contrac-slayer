@@ -1040,6 +1040,50 @@ class ApiClient {
     })
   }
 
+  async uploadProjectMedia(projectId: number, files: File[], context: string, tradeId?: number, taskId?: number) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    formData.append('context', context)
+    if (tradeId) formData.append('trade_id', tradeId.toString())
+    if (taskId) formData.append('task_id', taskId.toString())
+
+    const response = await fetch(`${this.baseURL}/projects/${projectId}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload project media')
+    }
+
+    return response.json()
+  }
+
+  async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    formData.append('context', context)
+
+    const response = await fetch(`${this.baseURL}/projects/trade/${tradeUuid}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      // No credentials since it's a public endpoint
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload trade media')
+    }
+
+    return response.json()
+  }
+
   async attachProjectMedia(projectId: number, data: any) {
     return this.request(`/projects/${projectId}/media`, {
       method: 'POST',

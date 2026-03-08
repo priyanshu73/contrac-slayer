@@ -31,7 +31,7 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
     try {
       const updated = await api.updateProjectTrade(project.id, trade.id, {
         status: "ACCEPTED",
-      })
+      }) as ProjectTrade
       const merged = trades.map((t) => (t.id === trade.id ? { ...t, ...updated } : t))
       onTradesUpdated(merged)
     } catch (err: any) {
@@ -136,9 +136,9 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
 
                   <div className="flex justify-between items-center text-xs font-semibold text-blue-600 mb-4 px-1 pb-2">
                     {photosCount > 0 ? (
-                      <span className="flex items-center gap-2 text-blue-500"><ImageIcon className="w-3 h-3" /> {photosCount} Photos <span className="text-slate-400 font-normal ml-1">({trade.reference_media?.length || 0} GC ref • {trade.proof_of_work_media?.length || 0} sub proof)</span></span>
+                      <span className="flex items-center gap-2 text-blue-500"><ImageIcon className="w-3 h-3" /> {photosCount} Attachments <span className="text-slate-400 font-normal ml-1">({trade.reference_media?.length || 0} GC ref • {trade.proof_of_work_media?.length || 0} sub proof)</span></span>
                     ) : (
-                      <span className="flex items-center gap-2 text-slate-400"><ImageIcon className="w-3 h-3" /> No media yet</span>
+                      <span className="flex items-center gap-2 text-slate-400"><ImageIcon className="w-3 h-3" /> No attachments yet</span>
                     )}
                     <button className="underline cursor-pointer" onClick={() => setEditTrade(trade)}>View Gallery</button>
                   </div>
@@ -152,7 +152,7 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                     </Button>
                   </div>
                   <Button variant="outline" className="w-full text-slate-600 border-slate-200 hover:bg-slate-50 bg-white mt-1" onClick={() => setEditTrade(trade)}>
-                    <ImageIcon className="w-4 h-4 mr-2 text-blue-500" /> Scope Media Gallery
+                    <ImageIcon className="w-4 h-4 mr-2 text-blue-500" /> Scope Attachments Gallery
                   </Button>
                 </div>
               </Card>

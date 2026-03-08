@@ -479,6 +479,7 @@ export interface ProjectTask {
   scheduled_start_date?: string
   scheduled_end_date?: string
   assigned_to?: string
+  assigned_trade_id?: number
   photo_count: number
   document_count: number
   photos?: ProjectMedia[]
@@ -500,6 +501,7 @@ export interface ProjectTrade {
   accepted_at?: string
   reference_media?: ProjectMedia[]
   proof_of_work_media?: ProjectMedia[]
+  tasks?: ProjectTask[]
 }
 
 export type MediaType = 'DOCUMENT' | 'PHOTO' | 'VIDEO'
