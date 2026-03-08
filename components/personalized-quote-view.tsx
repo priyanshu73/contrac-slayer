@@ -11,6 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Check } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
@@ -647,6 +653,69 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
+                {/* Attachments */}
+                {currentJob.project_media && currentJob.project_media.length > 0 && (
+                  <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
+                      Attachments
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {currentJob.project_media.map((media) => {
+                        const isImage = media.media_type === "PHOTO" || media.file_url.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i)
+
+                        return (
+                          <Dialog key={media.id}>
+                            <DialogTrigger asChild>
+                              <button
+                                className="group relative block overflow-hidden rounded-lg border border-gray-200 hover:border-sky-500 transition-colors bg-gray-50 flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                                title={media.file_name || 'Attachment'}
+                              >
+                                {isImage ? (
+                                  <div className="w-full h-full relative flex items-center justify-center">
+                                    <Image
+                                      src={media.file_url}
+                                      alt={media.file_name || 'Attachment'}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-gray-500 group-hover:text-sky-600 transition-colors">
+                                    <svg className="h-8 w-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-[10px] sm:text-xs truncate w-full px-1">{media.file_name}</span>
+                                  </div>
+                                )}
+                                <span className="sr-only">View {media.file_name}</span>
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl p-2 sm:p-6 w-[95vw] sm:w-full max-h-[90vh] flex flex-col">
+                              <DialogTitle className="sr-only">View Attachment</DialogTitle>
+                              <div className="flex-1 w-full h-full min-h-[50vh] flex items-center justify-center bg-gray-50 rounded-md overflow-hidden relative">
+                                {isImage ? (
+                                  <img
+                                    src={media.file_url}
+                                    alt={media.file_name || 'Attachment'}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : (
+                                  <iframe
+                                    src={media.file_url}
+                                    className="w-full h-full min-h-[60vh] border-0"
+                                    title={media.file_name || 'Document viewer'}
+                                  />
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Signatures Section */}
                 <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 print:gap-4">
@@ -837,49 +906,6 @@ export function PersonalizedQuoteView({
                   </div>
                 )}
 
-                {/* Attachments */}
-                {currentJob.project_media && currentJob.project_media.length > 0 && (
-                  <div className="mt-4 sm:mt-6 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t border-gray-200 print:break-inside-avoid">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
-                      Attachments
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {currentJob.project_media.map((media) => {
-                        const isImage = media.media_type === "PHOTO" || media.file_url.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i)
-                        return (
-                          <a
-                            key={media.id}
-                            href={media.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group relative block overflow-hidden rounded-lg border border-gray-200 hover:border-sky-500 transition-colors bg-gray-50 flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32"
-                            title={media.file_name || 'Attachment'}
-                          >
-                            {isImage ? (
-                              <div className="w-full h-full relative flex items-center justify-center">
-                                <Image
-                                  src={media.file_url}
-                                  alt={media.file_name || 'Attachment'}
-                                  fill
-                                  className="object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                              </div>
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-gray-500 group-hover:text-sky-600 transition-colors">
-                                <svg className="h-8 w-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                                <span className="text-[10px] sm:text-xs truncate w-full px-1">{media.file_name}</span>
-                              </div>
-                            )}
-                            <span className="sr-only">View {media.file_name}</span>
-                          </a>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             </Card>
           </div>
