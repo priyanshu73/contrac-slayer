@@ -52,6 +52,7 @@ export function Navbar() {
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
     { href: `/${locale}/clients`, label: t('clients'), icon: Users },
+    { href: `/${locale}/projects`, label: t('projects'), icon: LayoutDashboard },
   ]
 
   if (loading) {

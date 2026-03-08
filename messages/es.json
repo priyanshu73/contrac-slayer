@@ -55,7 +55,6 @@
     "pricingWebsite": "Sitio web profesional y moderno para tu negocio + mantenimiento",
     "pricingPremium6": "Captura de Prospectos en Redes",
     "pricingPremium7": "Grabación de Reuniones en Sitio",
-
     "phoneAppName": "ContractorOps AI",
     "phoneMessages": "Mensajes",
     "phoneBubble1": "Hola, vi tu llamada perdida y escuché tu correo de voz. Parece un tema de afinación de HVAC. Causas comunes: filtros sucios, fugas de refrigerante o termostato. Puedo pasar a revisar. ¿Se me pasó algo? Sube fotos/videos aquí:",
@@ -65,17 +64,14 @@
     "phoneBookingLink": "Enlace de reserva",
     "phoneBubble4": "Gracias — nos vemos mañana a la 1 PM. Avísame si necesitas cancelar por llamada o mensaje.",
     "phoneInputLabel": "iMessage",
-
     "step1Title": "Escucha de Llamadas y Mensajes con IA",
     "step1Body": "No pierdas clientes. La IA escucha llamadas, lee mensajes y responde automáticamente de forma personalizada. Todo por mensajes, sin apps—tus clientes usan Mensajes; tú capturas cada oportunidad.",
-
     "step2NewProjectEstimate": "Nuevo Presupuesto de Proyecto",
     "step2UseAI": "Usar IA",
     "step2ProjectDesc": "Landscaping de jardín para Sarah Johnson. Instalar 1,200 pies² de césped premium, patio de adoquines 10x12 con piedra natural y 3 árboles de sombra (roble o arce). Incluir preparación de suelo y nivelación.",
     "step2GenerateEstimate": "Generar Presupuesto",
     "step2DescribeTitle": "Describe tu Proyecto",
     "step2DescribeBody": "Escribe la descripción del proyecto y sube imágenes. Nuestra IA entiende tus necesidades y prepara un presupuesto completo.",
-
     "step3ProjectTitle": "Proyecto de Landscaping de Jardín",
     "step3Line1": "Instalación de Césped Premium",
     "step3Line1Detail": "1,200 pies² @ $1.35/pie²",
@@ -90,7 +86,6 @@
     "step3TotalEstimate": "Presupuesto Total",
     "step3Title": "La IA Genera Presupuestos al Instante",
     "step3Body": "La IA analiza tu descripción y genera al instante una cotización competitiva según el mercado local.",
-
     "step4AiProductRecs": "Recomendaciones de Productos con IA",
     "step4Product1Name": "Adoquín Natural Flagstone 12x12",
     "step4Product1Desc": "Ideal para tu patio",
@@ -101,7 +96,6 @@
     "step4Add": "Añadir",
     "step4SmartSuggestions": "Sugerencias Inteligentes de Productos",
     "step4Body": "La IA recomienda los mejores productos para tu proyecto con precios y disponibilidad en tiempo real.",
-
     "step5MeetingDetected": "¡Reunión detectada en tu conversación!",
     "step5WithLabel": "Con",
     "step5WhenLabel": "Cuándo",
@@ -118,7 +112,6 @@
     "step5CalendarLinkSent": "Enlace de calendario enviado al cliente para reservar según tu disponibilidad",
     "step5Title": "Agendamiento con IA",
     "step5Body": "La IA detecta conversaciones de agendamiento en tus SMS y ayuda a reservar reuniones al instante. Los clientes reciben un enlace para elegir horarios según tu disponibilidad.",
-
     "featuresSectionTitle": "Todo lo que Necesitas para Hacer Crecer tu Negocio",
     "featuresSectionSubtitle": "Herramientas con IA que automatizan presupuestos, seguimientos, productos y gestión de proyectos.",
     "featuresInvoiceTitle": "Generación Instantánea de Facturas",
@@ -129,7 +122,6 @@
     "featuresProductsBody": "Recomendaciones de productos por trabajo con precios y disponibilidad de grandes tiendas.",
     "featuresPmTitle": "Gestión de Proyectos",
     "featuresPmBody": "Mantén proyectos al día con listas de tareas, responsables, fechas y reportes, integrado con tus presupuestos.",
-
     "invoiceBusinessName": "Landscaping Profesional",
     "invoiceAddress": "1234 Maple Street, Austin TX",
     "invoiceLabel": "Factura",
@@ -154,7 +146,6 @@
     "invoiceTotal": "Total",
     "invoicePaymentTerms": "Condiciones de Pago",
     "invoiceTermsText": "30 días neto. Pagos atrasados sujetos a 1.5% de interés mensual.",
-
     "leadCaptureTitle": "Captura de Prospectos con IA",
     "leadCaptureLive": "En vivo",
     "leadCaptureSubtitle": "Monitoreo de conversaciones en tiempo real",
@@ -170,7 +161,6 @@
     "leadCaptureDelivered": "Entregado",
     "leadCaptureReceived": "Recibido",
     "leadCaptureAutoResponded": "La IA respondió en 2 minutos",
-
     "productRecsTitle": "Recomendaciones de Productos con IA",
     "productRecsSmartMatch": "Coincidencia Inteligente",
     "productRecsFor": "Para: Proyecto Landscaping Jardín (500 pies²)",
@@ -186,7 +176,6 @@
     "productRecsEstimatedTotal": "Total Estimado de Materiales",
     "productRecsAddAll": "Añadir Todo al Carrito",
     "productRecsAiTip": "Ahorra $47 comprando al por mayor en Home Depot esta semana",
-
     "pmFilterBy": "Filtrar por:",
     "pmAssignee": "Responsable",
     "pmStatus": "Estado",
@@ -215,12 +204,205 @@
     "leads": "Prospectos",
     "quotes": "Cotizaciones",
     "clients": "Clientes",
+    "projects": "Proyectos",
     "invoices": "Facturas",
     "calendar": "Calendario",
     "settings": "Configuración",
     "actions": "Acciones",
     "scheduling": "Programación",
     "moreComingSoon": "Más próximamente"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "subtitle": "Sigue el cronograma de ejecución, la lista de pendientes, documentos y alcances de subcontratistas en un solo lugar.",
+    "createProject": "Nuevo proyecto",
+    "untitledProject": "Proyecto sin título",
+    "filterLabel": "Filtrado por estado",
+    "projectCount": "{count, plural, =0 {Sin proyectos} one {{count} proyecto} other {{count} proyectos}}",
+    "emptyState": "Aún no hay proyectos. Crea uno desde una cotización aceptada o agrégalo manualmente.",
+    "tradesLabel": "Trades",
+    "stats": {
+      "totalTrades": "Trades totales",
+      "acceptedTrades": "Trades aceptados",
+      "pendingTrades": "Trades pendientes"
+    },
+    "status": {
+      "planning": "Planeación",
+      "in_progress": "En progreso",
+      "on_hold": "En pausa",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    },
+    "filters": {
+      "all": "Todos",
+      "planning": "Planeación",
+      "inProgress": "En progreso",
+      "completed": "Completado"
+    },
+    "newProjectDialog": {
+      "title": "Crear nuevo proyecto",
+      "description": "Completa los detalles del proyecto. Puedes agregar tareas y documentos después de crearlo.",
+      "fields": {
+        "title": "Título del proyecto",
+        "titlePlaceholder": "ej. Renovación de cocina - Residencia Smith",
+        "objective": "Descripción / Objetivo",
+        "objectivePlaceholder": "Describe el alcance del proyecto, metas y requisitos especiales...",
+        "client": "Cliente",
+        "selectClient": "Seleccionar un cliente",
+        "searchClients": "Buscar clientes...",
+        "loadingClients": "Cargando clientes...",
+        "noClients": "No se encontraron clientes",
+        "quote": "Cotización / Trabajo",
+        "selectQuote": "Seleccionar una cotización",
+        "searchJobs": "Buscar cotizaciones...",
+        "loadingJobs": "Cargando cotizaciones...",
+        "noJobs": "No se encontraron cotizaciones",
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin"
+      },
+      "cancel": "Cancelar",
+      "create": "Crear proyecto",
+      "creating": "Creando...",
+      "validation": {
+        "titleRequired": "Por favor ingresa un título para el proyecto"
+      },
+      "successTitle": "Proyecto creado",
+      "successDesc": "Tu nuevo proyecto ha sido creado exitosamente.",
+      "errorTitle": "No se pudo crear el proyecto",
+      "errorDesc": "Algo salió mal. Intenta de nuevo."
+    },
+    "tasks": {
+      "progressLabel": "Progreso de tareas",
+      "addTask": "Agregar tarea",
+      "empty": "Aún no hay tareas. Haz clic en \"Agregar tarea\" para crear actividades del cronograma, elementos de punch list o cualquier tarea del proyecto.",
+      "taskDeleted": "Tarea eliminada",
+      "deleteErrorTitle": "No se pudo eliminar la tarea",
+      "deleteErrorDesc": "Intenta de nuevo.",
+      "updateErrorTitle": "No se pudo actualizar la tarea",
+      "updateErrorDesc": "Ocurrió un problema al guardar la tarea.",
+      "taskCreated": "Tarea creada",
+      "createErrorTitle": "No se pudo crear la tarea",
+      "createErrorDesc": "Intenta de nuevo.",
+      "punchListBadge": "Punch list",
+      "descriptionLabel": "Descripción",
+      "startDateLabel": "Fecha de inicio",
+      "endDateLabel": "Fecha de fin",
+      "assignedToLabel": "Asignado a",
+      "attachedImages": "Imágenes adjuntas",
+      "status": {
+        "not_started": "Sin comenzar",
+        "in_progress": "En progreso",
+        "completed": "Completado",
+        "blocked": "Bloqueado"
+      },
+      "priority": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      },
+      "addFormTitle": "Agregar nueva tarea",
+      "addForm": {
+        "title": "Título de la tarea",
+        "titlePlaceholder": "ej. Instalar gabinetes de cocina",
+        "description": "Descripción",
+        "descriptionPlaceholder": "Agrega más detalles sobre esta tarea...",
+        "priority": "Prioridad",
+        "status": "Estado",
+        "category": "Categoría",
+        "categoryPlaceholder": "ej. Instalación",
+        "assignedTo": "Asignado a",
+        "assignedToPlaceholder": "ej. Juan Pérez",
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "images": "Imágenes",
+        "imagesHint": "Sube imágenes para documentación. Compatible con Cloudinary o URL manual.",
+        "cancel": "Cancelar",
+        "create": "Crear tarea",
+        "creating": "Creando...",
+        "validation": {
+          "titleRequired": "Por favor ingresa un título para la tarea"
+        }
+      },
+      "imageUpload": {
+        "notConfigured": "La carga de imágenes no está configurada. Establece NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME."
+      }
+    },
+    "timeline": {
+      "empty": "Aún no hay tareas del cronograma. Agrega fases de alto nivel como preparación, demolición, instalación y recorrido final.",
+      "noTasksColumn": "Sin tareas en esta columna.",
+      "updateErrorTitle": "No se pudo actualizar la tarea",
+      "updateErrorDesc": "Ocurrió un problema al guardar la tarea.",
+      "columns": {
+        "notStarted": "Sin comenzar",
+        "inProgress": "En progreso",
+        "completed": "Completado"
+      }
+    },
+    "punchList": {
+      "empty": "Aún no hay elementos en la punch list. Lleva aquí los detalles finales y puntos del recorrido final.",
+      "progressLabel": "Progreso de punch list",
+      "attachmentsLabel": "{photos} fotos · {docs} docs",
+      "updateErrorTitle": "No se pudo actualizar el elemento",
+      "updateErrorDesc": "Intenta de nuevo o actualiza la página.",
+      "priority": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      }
+    },
+    "documents": {
+      "empty": "Aún no se han subido documentos o fotos del proyecto.",
+      "contractsTitle": "Contratos y documentos",
+      "photosTitle": "Fotos del proyecto"
+    },
+    "changeOrders": {
+      "title": "Órdenes de cambio",
+      "noRootJob": "Este proyecto aún no está vinculado a una cotización. Vincula una para ver las órdenes de cambio.",
+      "loading": "Cargando órdenes de cambio...",
+      "empty": "No hay órdenes de cambio todavía.",
+      "changeOrderLabel": "Orden de cambio #{id}"
+    },
+    "trades": {
+      "empty": "Aún no hay trades agregados. Usa esta sección para definir el alcance de cada subcontratista.",
+      "scopeTitle": "Alcance del trabajo",
+      "materialsTitle": "Materiales requeridos",
+      "acceptanceTitle": "Criterios de aceptación",
+      "agreedPrice": "Precio acordado: ${amount}",
+      "markAccepted": "Marcar como aceptado",
+      "updateErrorTitle": "No se pudo actualizar el trade",
+      "updateErrorDesc": "Intenta de nuevo.",
+      "status": {
+        "pending_acceptance": "Pendiente de aceptación",
+        "accepted": "Aceptado",
+        "rejected": "Rechazado"
+      }
+    },
+    "detail": {
+      "loading": "Cargando proyecto...",
+      "scheduleLabel": "Programado:",
+      "tabs": {
+        "tasks": "Tareas",
+        "timeline": "Cronograma de ejecución",
+        "punchList": "Punch list",
+        "documents": "Documentos y medios",
+        "changeOrders": "Órdenes de cambio",
+        "trades": "Equipo y alcances"
+      },
+      "contractValue": "Valor del contrato: ${amount}"
+    },
+    "dates": {
+      "unscheduled": "Sin programar"
+    },
+    "subPortal": {
+      "loading": "Cargando alcance...",
+      "title": "Alcance de {trade}",
+      "subtitle": "Revisa el alcance del trabajo, materiales y criterios de aceptación para este proyecto.",
+      "scopeOfWork": "Alcance del trabajo",
+      "materialsRequired": "Materiales requeridos",
+      "acceptanceCriteria": "Criterios de aceptación",
+      "acceptScope": "Aceptar alcance",
+      "pricingNote": "Los precios, otros trades y márgenes internos del contratista general se gestionan en ContractorOps y no se muestran aquí."
+    }
   },
   "common": {
     "error": "Error",

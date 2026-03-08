@@ -55,7 +55,6 @@
     "pricingWebsite": "Professional modern Website for your business + maintenance",
     "pricingPremium6": "Social Lead Capture",
     "pricingPremium7": "On-Site Meeting Recording",
-
     "phoneAppName": "ContractorOps AI",
     "phoneMessages": "Messages",
     "phoneBubble1": "Hi, I saw your missed call and listened to your voicemail. Sounds like an HVAC tune-up issue. Common causes include dirty filters, refrigerant leaks, or thermostat problems. I can come take a look. Did I miss anything? Feel free to upload photos/videos here:",
@@ -65,17 +64,14 @@
     "phoneBookingLink": "Booking Link",
     "phoneBubble4": "Thanks — see you tomorrow at 1 PM. Let me know if you need to cancel by call or text.",
     "phoneInputLabel": "iMessage",
-
     "step1Title": "AI Call & Text Listening",
     "step1Body": "Never miss a client. AI listens to calls, reads texts, and automatically follows up with personalized responses. It's text-based with no app downloads—clients use their built-in Messages; you capture every lead opportunity.",
-
     "step2NewProjectEstimate": "New Project Estimate",
     "step2UseAI": "Use AI",
     "step2ProjectDesc": "Backyard landscaping for Sarah Johnson. Need to install 1,200 sq ft of premium sod, build a 10x12 paver patio with natural stone, and plant 3 shade trees (oak or maple). Include soil prep and grading.",
     "step2GenerateEstimate": "Generate Estimate",
     "step2DescribeTitle": "Describe Your Project",
     "step2DescribeBody": "Provide your project description and images. Our AI understands your requirements and prepares a comprehensive estimate based on your inputs.",
-
     "step3ProjectTitle": "Backyard Landscaping Project",
     "step3Line1": "Premium Sod Installation",
     "step3Line1Detail": "1,200 sq ft @ $1.35/sq ft",
@@ -90,7 +86,6 @@
     "step3TotalEstimate": "Total Estimate",
     "step3Title": "AI Generates Instant Estimates",
     "step3Body": "AI analyzes your project description and instantly generates a competitive quote based on local market data.",
-
     "step4AiProductRecs": "AI Product Recommendations",
     "step4Product1Name": "Flagstone Natural Paver 12x12",
     "step4Product1Desc": "Perfect for your patio project",
@@ -101,7 +96,6 @@
     "step4Add": "Add",
     "step4SmartSuggestions": "Smart Product Suggestions",
     "step4Body": "AI recommends the best products for your project needs with real-time pricing and availability.",
-
     "step5MeetingDetected": "Meeting detected from your conversation!",
     "step5WithLabel": "With",
     "step5WhenLabel": "When",
@@ -118,7 +112,6 @@
     "step5CalendarLinkSent": "Calendar link automatically sent to customer to book based on your availability",
     "step5Title": "AI-Powered Scheduling",
     "step5Body": "AI automatically detects scheduling conversations in your SMS and helps book meetings instantly. Customers receive a calendar link to select times based on your availability—no back-and-forth needed.",
-
     "featuresSectionTitle": "Everything You Need to Scale Your Business",
     "featuresSectionSubtitle": "Powerful AI-driven tools that automate estimates, follow-ups, product selection, and project management.",
     "featuresInvoiceTitle": "Instant Invoice Generation",
@@ -129,7 +122,6 @@
     "featuresProductsBody": "Get job-specific product recommendations with pricing and availability from major retailers so you can order with confidence.",
     "featuresPmTitle": "Project Management",
     "featuresPmBody": "Keep projects on track with task lists, assignees, due dates and simple reporting, built to work with your estimates.",
-
     "invoiceBusinessName": "Professional Landscaping",
     "invoiceAddress": "1234 Maple Street, Austin TX",
     "invoiceLabel": "Invoice",
@@ -154,7 +146,6 @@
     "invoiceTotal": "Total",
     "invoicePaymentTerms": "Payment Terms",
     "invoiceTermsText": "Net 30 days. Late payments subject to 1.5% monthly interest.",
-
     "leadCaptureTitle": "AI Lead Capture",
     "leadCaptureLive": "Live",
     "leadCaptureSubtitle": "Real-time conversation monitoring",
@@ -170,7 +161,6 @@
     "leadCaptureDelivered": "Delivered",
     "leadCaptureReceived": "Received",
     "leadCaptureAutoResponded": "AI auto-responded in 2 minutes",
-
     "productRecsTitle": "AI Product Recommendations",
     "productRecsSmartMatch": "Smart Match",
     "productRecsFor": "For: Backyard Landscaping Project (500 sq ft)",
@@ -186,7 +176,6 @@
     "productRecsEstimatedTotal": "Estimated Materials Total",
     "productRecsAddAll": "Add All to Cart",
     "productRecsAiTip": "Save $47 by purchasing in bulk at Home Depot this week",
-
     "pmFilterBy": "Filter by:",
     "pmAssignee": "Assignee",
     "pmStatus": "Status",
@@ -215,12 +204,222 @@
     "leads": "Leads",
     "quotes": "Quotes",
     "clients": "Clients",
+    "projects": "Projects",
     "invoices": "Invoices",
     "calendar": "Calendar",
     "settings": "Settings",
     "actions": "Actions",
     "scheduling": "Scheduling",
     "moreComingSoon": "More coming soon"
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Track execution timelines, punch lists, documents, and subcontractor scopes in one place.",
+    "createProject": "New Project",
+    "untitledProject": "Untitled project",
+    "filterLabel": "Filtered by status",
+    "projectCount": "{count, plural, =0 {No projects} one {{count} project} other {{count} projects}}",
+    "emptyState": "No projects yet. Start by creating a project from an accepted quote or add one manually.",
+    "tradesLabel": "Trades",
+    "stats": {
+      "totalTrades": "Total trades",
+      "acceptedTrades": "Accepted trades",
+      "pendingTrades": "Pending trades"
+    },
+    "status": {
+      "planning": "Planning",
+      "in_progress": "In progress",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "filters": {
+      "all": "All",
+      "planning": "Planning",
+      "inProgress": "In progress",
+      "completed": "Completed"
+    },
+    "newProjectDialog": {
+      "title": "Create New Project",
+      "description": "Fill in the project details below. You can add tasks and documents after creation.",
+      "fields": {
+        "title": "Project Title",
+        "titlePlaceholder": "e.g. Kitchen Renovation - Smith Residence",
+        "objective": "Description / Objective",
+        "objectivePlaceholder": "Describe the project scope, goals, and any special requirements...",
+        "client": "Client",
+        "selectClient": "Select a client",
+        "searchClients": "Search clients...",
+        "loadingClients": "Loading clients...",
+        "noClients": "No clients found",
+        "quote": "Quote / Job",
+        "selectQuote": "Select a quote",
+        "searchJobs": "Search quotes...",
+        "loadingJobs": "Loading quotes...",
+        "noJobs": "No quotes found",
+        "startDate": "Start Date",
+        "endDate": "End Date"
+      },
+      "cancel": "Cancel",
+      "create": "Create Project",
+      "creating": "Creating...",
+      "validation": {
+        "titleRequired": "Please enter a project title"
+      },
+      "successTitle": "Project created",
+      "successDesc": "Your new project has been created successfully.",
+      "errorTitle": "Could not create project",
+      "errorDesc": "Something went wrong. Please try again."
+    },
+    "tasks": {
+      "progressLabel": "Task progress",
+      "addTask": "Add Task",
+      "empty": "No tasks yet. Click \"Add Task\" to create timeline items, punch list entries, or any project task.",
+      "taskDeleted": "Task deleted",
+      "deleteErrorTitle": "Could not delete task",
+      "deleteErrorDesc": "Please try again.",
+      "updateErrorTitle": "Could not update task",
+      "updateErrorDesc": "Something went wrong while saving the task.",
+      "taskCreated": "Task created",
+      "createErrorTitle": "Could not create task",
+      "createErrorDesc": "Please try again.",
+      "punchListBadge": "Punch list",
+      "descriptionLabel": "Description",
+      "startDateLabel": "Start date",
+      "endDateLabel": "End date",
+      "assignedToLabel": "Assigned to",
+      "attachedImages": "Attached images",
+      "status": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "blocked": "Blocked"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "addFormTitle": "Add New Task",
+      "addForm": {
+        "title": "Task Title",
+        "titlePlaceholder": "e.g. Install kitchen cabinets",
+        "description": "Description",
+        "descriptionPlaceholder": "Add more details about this task...",
+        "priority": "Priority",
+        "status": "Status",
+        "category": "Category",
+        "categoryPlaceholder": "e.g. Installation",
+        "assignedTo": "Assigned To",
+        "assignedToPlaceholder": "e.g. John Smith",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "images": "Images",
+        "imagesHint": "Upload images for documentation. Supports Cloudinary widget or manual URL.",
+        "cancel": "Cancel",
+        "create": "Create Task",
+        "creating": "Creating...",
+        "validation": {
+          "titleRequired": "Please enter a task title"
+        }
+      },
+      "imageUpload": {
+        "notConfigured": "Image upload is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME."
+      }
+    },
+    "timeline": {
+      "empty": "No timeline tasks yet. Add high-level phases like preparation, demo, installation, and final walkthrough.",
+      "noTasksColumn": "No tasks in this column.",
+      "updateErrorTitle": "Could not update task",
+      "updateErrorDesc": "Something went wrong while saving the task.",
+      "columns": {
+        "notStarted": "Not started",
+        "inProgress": "In progress",
+        "completed": "Completed"
+      }
+    },
+    "punchList": {
+      "empty": "No punch list items yet. Track final touch-ups and walkthrough items here.",
+      "progressLabel": "Punch list progress",
+      "attachmentsLabel": "{photos} photos · {docs} docs",
+      "updateErrorTitle": "Could not update punch item",
+      "updateErrorDesc": "Please try again or refresh.",
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
+    },
+    "documents": {
+      "empty": "No project documents or photos uploaded yet.",
+      "contractsTitle": "Contracts & documents",
+      "photosTitle": "Project photos"
+    },
+    "changeOrders": {
+      "title": "Change orders",
+      "noRootJob": "This project is not linked to a quote yet. Link a quote to see change orders.",
+      "loading": "Loading change orders...",
+      "empty": "No change orders yet.",
+      "changeOrderLabel": "Change order #{id}"
+    },
+    "trades": {
+      "empty": "No trades added yet. Use this section to define scopes for each subcontractor.",
+      "scopeTitle": "Scope of work",
+      "materialsTitle": "Materials required",
+      "acceptanceTitle": "Acceptance criteria",
+      "agreedPrice": "Agreed price: ${amount}",
+      "markAccepted": "Mark as accepted",
+      "updateErrorTitle": "Could not update trade",
+      "updateErrorDesc": "Please try again.",
+      "status": {
+        "pending_acceptance": "Pending acceptance",
+        "accepted": "Accepted",
+        "rejected": "Rejected"
+      }
+    },
+    "detail": {
+      "loading": "Loading project...",
+      "scheduleLabel": "Scheduled:",
+      "tabs": {
+        "tasks": "Tasks",
+        "quotes": "Quotes",
+        "timeline": "Execution timeline",
+        "punchList": "Punch list",
+        "documents": "Documents & media",
+        "changeOrders": "Change orders",
+        "trades": "Team & scopes"
+      },
+      "contractValue": "Contract value: ${amount}"
+    },
+    "quotes": {
+      "title": "Quotes",
+      "noQuotes": "No quotes have been linked to this project yet.",
+      "linkQuote": "Link Quote",
+      "loading": "Loading quotes...",
+      "loadFailed": "Failed to load quotes.",
+      "empty": "No quotes are linked to this project yet.",
+      "selectQuote": "Select a quote to link",
+      "noAvailableQuotes": "No unlinked quotes available.",
+      "linkSuccess": "Quote linked successfully",
+      "linkError": "Could not link quote",
+      "cancel": "Cancel",
+      "link": "Link",
+      "linkQuoteDialogTitle": "Link Quote to Project",
+      "linkQuoteDialogDescription": "Select an existing quote to associate with this project. A quote can only belong to one project at a time."
+    },
+    "dates": {
+      "unscheduled": "Unscheduled"
+    },
+    "subPortal": {
+      "loading": "Loading scope...",
+      "title": "{trade} scope",
+      "subtitle": "Please review the scope of work, materials, and acceptance criteria for this project.",
+      "scopeOfWork": "Scope of work",
+      "materialsRequired": "Materials required",
+      "acceptanceCriteria": "Acceptance criteria",
+      "acceptScope": "Accept scope",
+      "pricingNote": "Pricing, other trades, and contractor margin details are managed by the general contractor and are not shown here."
+    }
   },
   "common": {
     "error": "Error",
@@ -594,7 +793,6 @@
     "presetRunningLate": "Running late",
     "presetCancelled": "Appointment cancelled",
     "presetReschedule": "Reschedule",
-    "message": "Message",
     "messagePlaceholder": "Type your message...",
     "cancel": "Cancel",
     "sendNow": "Send Now",

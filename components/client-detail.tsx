@@ -45,8 +45,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2 } from "lucide-react"
+import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, FolderOpen, Plus, ChevronRight } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import type { ProjectListItem, ProjectStatus } from "@/lib/types"
 
 interface ClientDetailData {
   id: number
@@ -124,6 +126,9 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const [editSaving, setEditSaving] = useState(false)
   const [deleteDeleting, setDeleteDeleting] = useState(false)
   const [billingSameAsAddress, setBillingSameAsAddress] = useState(true)
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [clientProjects, setClientProjects] = useState<ProjectListItem[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -143,6 +148,25 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   useEffect(() => {
     fetchClientDetails()
   }, [clientId])
+
+  useEffect(() => {
+    if (!clientData?.id) return
+    fetchClientProjects(clientData.id)
+  }, [clientData?.id])
+
+  const fetchClientProjects = async (cId: number) => {
+    setProjectsLoading(true)
+    try {
+      const data = await api.getProjects({ skip: 0, limit: 200 })
+      const all = Array.isArray(data) ? data : []
+      setClientProjects(all.filter((p: any) => p.client_id === cId))
+    } catch (err) {
+      console.error("Failed to load projects for client", err)
+      setClientProjects([])
+    } finally {
+      setProjectsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (clientData && editOpen) {
@@ -456,13 +480,17 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             )
           })()}
 
-          {/* Right: Create Quote + Edit + Delete on same line */}
+          {/* Right: Create Quote + Create Project + Edit + Delete on same line */}
           <div className="flex flex-wrap items-center gap-2 min-w-0 shrink-0 pt-2 sm:pt-0 border-t border-border/60 sm:border-t-0 mt-2 sm:mt-0">
             <Button size="sm" className="sm:min-w-[140px] min-h-[44px] sm:min-h-0 touch-manipulation" asChild>
               <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
                 <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                 {tClients("createQuote")}
               </a>
+            </Button>
+            <Button size="sm" variant="outline" className="sm:min-w-[140px] min-h-[44px] sm:min-h-0 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
+              <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+              Project
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -492,11 +520,11 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       {/* Two-column: Tabs (left) + Client Details, Notes, Property Insights (right) */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 min-w-0">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
-          {/* Quotes and Leads - Segmented tabs */}
+          {/* Quotes, Leads, Projects - Segmented tabs */}
           <Card className="p-4 sm:p-6 min-w-0 overflow-hidden">
             <Tabs defaultValue="quotes">
               <div className="flex gap-2 p-1 bg-muted rounded-lg mb-4 sm:mb-6 min-w-0 overflow-hidden">
-                <TabsList className="w-full grid grid-cols-2 h-auto p-0 bg-transparent min-w-0">
+                <TabsList className="w-full grid grid-cols-3 h-auto p-0 bg-transparent min-w-0">
                   <TabsTrigger value="quotes" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="truncate">{tClients("quotes")}</span>
@@ -505,167 +533,235 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                   <TabsTrigger value="leads" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
                     <MessageSquare className="h-4 w-4 shrink-0" />
                     <span className="truncate hidden sm:inline">{tClients("quoteRequests")}</span>
-                    <span className="truncate sm:hidden">{tClients("quoteRequestsShort")}</span>
+                    <span className="truncate sm:hidden">Requests</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientData.leads.length}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="projects" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                    <FolderOpen className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Projects</span>
+                    <Badge variant="secondary" className="ml-1 shrink-0">{clientProjects.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-          {/* Quotes Tab */}
-          <TabsContent value="quotes" className="mt-4 space-y-3">
-            {clientData.quotes.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">{tClients("noQuotesYet")}</p>
-                <Button className="mt-4" asChild>
-                  <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>{tClients("createFirstQuote")}</a>
-                </Button>
-              </div>
-            ) : (
-              clientData.quotes.map((quote) => (
-                <Card
-                  key={quote.id}
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
-                  onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 min-w-0 overflow-hidden">
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2 min-w-0">
-                        <h3 className="font-semibold text-base truncate min-w-0">
-                          {quote.title || quote.job_number || `Quote #${quote.id}`}
-                        </h3>
-                        <Badge className={`${getStatusColor(quote.status)} shrink-0`}>
-                          {quote.status}
-                        </Badge>
-                      </div>
-                      {quote.project_type && (
-                        <p className="text-sm text-muted-foreground mb-1 truncate">
-                          {quote.project_type}
-                        </p>
-                      )}
-                      {quote.job_description && (
-                        <p className="text-sm text-muted-foreground line-clamp-3 sm:line-clamp-2 mb-2 break-words overflow-hidden">
-                          {quote.job_description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1 shrink-0">
-                          <Calendar className="h-3 w-3" />
-                          {tClients("created")} {formatDate(quote.created_at)}
-                        </span>
-                        {quote.quote_expiration_date && (
-                          <span className="flex items-center gap-1 shrink-0">
-                            <Clock className="h-3 w-3" />
-                            {tClients("expires")} {formatDate(quote.quote_expiration_date)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right flex-shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
-                      <div className="text-lg font-bold text-primary">
-                        {formatCurrency(quote.final_total || quote.estimated_total)}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-0 sm:mt-2 min-h-[44px] sm:min-h-0 touch-manipulation shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/${locale}/quotes/${quote.id}`)
-                        }}
-                      >
-                        {tClients("viewDetails")}
-                      </Button>
-                    </div>
+              {/* Quotes Tab */}
+              <TabsContent value="quotes" className="mt-4 space-y-3">
+                {clientData.quotes.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">{tClients("noQuotesYet")}</p>
+                    <Button className="mt-4" asChild>
+                      <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>{tClients("createFirstQuote")}</a>
+                    </Button>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Leads Tab */}
-          <TabsContent value="leads" className="mt-4 space-y-3">
-            {clientData.leads.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">{tClients("noQuoteRequests")}</p>
-              </div>
-            ) : (
-              clientData.leads.map((lead) => (
-                <Card
-                  key={lead.id}
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer min-w-0 overflow-hidden touch-manipulation min-h-[72px]"
-                  onClick={() => router.push(`/${locale}/leads/${lead.id}`)}
-                >
-                  <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
-                        <h3 className="font-semibold truncate min-w-0">{lead.name}</h3>
-                        <Badge className={getStatusColor(lead.status)} shrink-0>
-                          {lead.status}
-                        </Badge>
-                        <Badge variant="outline" className={`${getLeadSourceColor(lead.source)} shrink-0`}>
-                          {lead.source.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      {lead.project_type && (
-                        <p className="text-sm text-muted-foreground mb-1 truncate">
-                          {lead.project_type}
-                        </p>
-                      )}
-                      {lead.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2 overflow-hidden">
-                          {lead.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1 shrink-0">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(lead.created_at)}
-                        </span>
-                        {lead.converted_to_job_id && (
-                          <span className="flex items-center gap-1 text-green-600 shrink-0 truncate">
-                            <Briefcase className="h-3 w-3" />
-                            {tClients("convertedToQuote", { id: lead.converted_to_job_id })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
-                      {lead.estimated_value && (
-                        <div className="text-sm font-semibold">
-                          {tClients("est")}: {formatCurrency(lead.estimated_value)}
+                ) : (
+                  clientData.quotes.map((quote) => (
+                    <Card
+                      key={quote.id}
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
+                      onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 min-w-0 overflow-hidden">
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2 min-w-0">
+                            <h3 className="font-semibold text-base truncate min-w-0">
+                              {quote.title || quote.job_number || `Quote #${quote.id}`}
+                            </h3>
+                            <Badge className={`${getStatusColor(quote.status)} shrink-0`}>
+                              {quote.status}
+                            </Badge>
+                          </div>
+                          {quote.project_type && (
+                            <p className="text-sm text-muted-foreground mb-1 truncate">
+                              {quote.project_type}
+                            </p>
+                          )}
+                          {quote.job_description && (
+                            <p className="text-sm text-muted-foreground line-clamp-3 sm:line-clamp-2 mb-2 break-words overflow-hidden">
+                              {quote.job_description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {tClients("created")} {formatDate(quote.created_at)}
+                            </span>
+                            {quote.quote_expiration_date && (
+                              <span className="flex items-center gap-1 shrink-0">
+                                <Clock className="h-3 w-3" />
+                                {tClients("expires")} {formatDate(quote.quote_expiration_date)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {lead.converted_to_job_id ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/${locale}/quotes/${lead.converted_to_job_id}`)
-                          }}
-                        >
-                          View Quote →
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/quotes/new?leadId=${lead.id}`)
-                          }}
-                        >
-                          {tClients("createQuote")}
-                        </Button>
-                      )}
-                    </div>
+                        <div className="text-left sm:text-right flex-shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                          <div className="text-lg font-bold text-primary">
+                            {formatCurrency(quote.final_total || quote.estimated_total)}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-0 sm:mt-2 min-h-[44px] sm:min-h-0 touch-manipulation shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/${locale}/quotes/${quote.id}`)
+                            }}
+                          >
+                            {tClients("viewDetails")}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </TabsContent>
+
+              {/* Leads Tab */}
+              <TabsContent value="leads" className="mt-4 space-y-3">
+                {clientData.leads.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">{tClients("noQuoteRequests")}</p>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                ) : (
+                  clientData.leads.map((lead) => (
+                    <Card
+                      key={lead.id}
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer min-w-0 overflow-hidden touch-manipulation min-h-[72px]"
+                      onClick={() => router.push(`/${locale}/leads/${lead.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                            <h3 className="font-semibold truncate min-w-0">{lead.name}</h3>
+                            <Badge className={getStatusColor(lead.status)} shrink-0>
+                              {lead.status}
+                            </Badge>
+                            <Badge variant="outline" className={`${getLeadSourceColor(lead.source)} shrink-0`}>
+                              {lead.source.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                          {lead.project_type && (
+                            <p className="text-sm text-muted-foreground mb-1 truncate">
+                              {lead.project_type}
+                            </p>
+                          )}
+                          {lead.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-2 overflow-hidden">
+                              {lead.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(lead.created_at)}
+                            </span>
+                            {lead.converted_to_job_id && (
+                              <span className="flex items-center gap-1 text-green-600 shrink-0 truncate">
+                                <Briefcase className="h-3 w-3" />
+                                {tClients("convertedToQuote", { id: lead.converted_to_job_id })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                          {lead.estimated_value && (
+                            <div className="text-sm font-semibold">
+                              {tClients("est")}: {formatCurrency(lead.estimated_value)}
+                            </div>
+                          )}
+                          {lead.converted_to_job_id ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/${locale}/quotes/${lead.converted_to_job_id}`)
+                              }}
+                            >
+                              View Quote →
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/quotes/new?leadId=${lead.id}`)
+                              }}
+                            >
+                              {tClients("createQuote")}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </TabsContent>
+
+              {/* Projects Tab */}
+              <TabsContent value="projects" className="mt-4 space-y-3">
+                {projectsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Loading projects…</p>
+                  </div>
+                ) : clientProjects.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No projects yet</p>
+                    <Button className="mt-4" onClick={() => setNewProjectOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create First Project
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {clientProjects.map((project) => (
+                      <Card
+                        key={project.id}
+                        className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
+                        onClick={() => router.push(`/${locale}/projects/${project.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
+                          <div className="flex-1 min-w-0 overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-2 mb-1 min-w-0">
+                              <h3 className="font-semibold text-base truncate min-w-0">
+                                {project.title || "Untitled Project"}
+                              </h3>
+                              <ProjectStatusBadge status={project.status} />
+                            </div>
+                            {(project.scheduled_start_date || project.scheduled_end_date) && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                <span>
+                                  {project.scheduled_start_date && formatDate(project.scheduled_start_date)}
+                                  {project.scheduled_start_date && project.scheduled_end_date && " – "}
+                                  {project.scheduled_end_date && formatDate(project.scheduled_end_date)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {project.total_trades != null && (
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Trades</p>
+                                <p className="text-sm font-medium">{project.accepted_trades ?? 0}/{project.total_trades}</p>
+                              </div>
+                            )}
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                    <Button variant="outline" className="w-full mt-2" onClick={() => setNewProjectOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Project
+                    </Button>
+                  </>
+                )}
+              </TabsContent>
             </Tabs>
           </Card>
         </div>
@@ -723,6 +819,16 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           )}
         </div>
       </div>
+
+      {/* New Project Dialog */}
+      <NewProjectDialog
+        open={newProjectOpen}
+        onOpenChange={setNewProjectOpen}
+        onProjectCreated={(projectId) => {
+          router.push(`/${locale}/projects/${projectId}`)
+        }}
+        defaultClientId={clientData.id}
+      />
 
       {/* Edit Client Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -915,5 +1021,32 @@ export function ClientDetail({ clientId }: { clientId: string }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  const color =
+    status === "COMPLETED"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : status === "IN_PROGRESS"
+        ? "bg-sky-50 text-sky-700 border-sky-200"
+        : status === "ON_HOLD"
+          ? "bg-amber-50 text-amber-700 border-amber-200"
+          : status === "CANCELLED"
+            ? "bg-rose-50 text-rose-700 border-rose-200"
+            : "bg-slate-50 text-slate-700 border-slate-200"
+
+  const label =
+    status === "IN_PROGRESS" ? "In Progress" :
+      status === "ON_HOLD" ? "On Hold" :
+        status.charAt(0) + status.slice(1).toLowerCase()
+
+  return (
+    <Badge
+      variant="outline"
+      className={`rounded-full px-2 py-0.5 text-[11px] font-medium border shrink-0 ${color}`}
+    >
+      {label}
+    </Badge>
   )
 }
