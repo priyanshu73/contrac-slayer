@@ -492,6 +492,7 @@ export interface ProjectTrade {
   project_id: number
   trade_type: string
   subcontractor_name: string
+  subcontractor_email?: string
   contact_info: string
   scope_of_work: string
   materials_required: string[]

@@ -9,6 +9,8 @@ import { api } from "@/lib/api"
 import { useTranslations, useLocale } from "next-intl"
 import { useRouter } from "next/navigation"
 import { LinkQuoteDialog } from "./link-quote-dialog"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, Unlink } from "lucide-react"
 
 interface ProjectQuotesProps {
   project: Project
@@ -18,8 +20,10 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
   const t = useTranslations("projects.quotes")
   const locale = useLocale()
   const router = useRouter()
+  const { toast } = useToast()
   const [quotes, setQuotes] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
+  const [unlinking, setUnlinking] = useState(false)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
 
   const fetchQuotes = async () => {
@@ -36,6 +40,27 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
   useEffect(() => {
     fetchQuotes()
   }, [project.id])
+
+  const handleUnlink = async (quoteId: number) => {
+    if (!project.id) return
+    const confirmed = window.confirm("Are you sure you want to unlink the quote from this project?")
+    if (!confirmed) return
+
+    setUnlinking(true)
+    try {
+      await api.unlinkProjectQuote(project.id, quoteId)
+      toast({ title: "Quote unlinked successfully." })
+      fetchQuotes()
+    } catch (err: any) {
+      toast({
+        title: "Failed to unlink quote",
+        description: err.message,
+        variant: "destructive"
+      })
+    } finally {
+      setUnlinking(false)
+    }
+  }
 
   if (!project.id) {
     return (
@@ -68,7 +93,11 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
       ) : (
         <div className="divide-y divide-slate-100">
           {quotes.map((quote) => (
-            <div key={quote.id} className="py-2 flex items-center justify-between gap-3">
+            <div
+              key={quote.id}
+              className="p-2 -mx-2 flex items-center justify-between gap-3 rounded-md hover:bg-slate-50 cursor-pointer transition-colors"
+              onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}
+            >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">
                   {quote.title || quote.job_number || `Quote #${quote.id}`}
@@ -79,19 +108,30 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 <p className="text-sm font-medium text-slate-900">
                   {quote.total_amount != null
                     ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(quote.total_amount)
                     : "—"}
                 </p>
                 {quote.status && (
-                  <Badge variant="outline" className="text-[11px]">
+                  <Badge variant="outline" className="text-[11px] bg-white">
                     {quote.status}
                   </Badge>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}>
-                  View
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUnlink(quote.id);
+                  }}
+                  disabled={unlinking}
+                  className="text-slate-500 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-2"
+                  title="Unlink Quote"
+                >
+                  {unlinking ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Unlink className="w-3.5 h-3.5 mr-1" />}
+                  Unlink
                 </Button>
               </div>
             </div>

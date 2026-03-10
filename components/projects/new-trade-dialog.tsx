@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { ProjectTrade } from "@/lib/types"
 import { api } from "@/lib/api"
@@ -15,7 +15,21 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, UploadCloud, X } from "lucide-react"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Check, ChevronsUpDown, Loader2, PlusCircle, UploadCloud, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface NewTradeDialogProps {
     open: boolean
@@ -33,30 +47,56 @@ export function NewTradeDialog({
     const t = useTranslations("projects.trades")
     const { toast } = useToast()
 
-    const [tradeType, setTradeType] = useState("Painting")
+    const [tradeType, setTradeType] = useState("")
     const [subcontractorName, setSubcontractorName] = useState("")
+    const [subcontractorEmail, setSubcontractorEmail] = useState("")
     const [contactInfo, setContactInfo] = useState("")
     const [scopeOfWork, setScopeOfWork] = useState("")
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
+    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, contact_info: string | null }>>([])
     const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
 
+    const [openCombobox, setOpenCombobox] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+
+    useEffect(() => {
+        if (open) {
+            api.getAllSubcontractors().then(data => {
+                setSubcontractors(data || [])
+            }).catch(console.error)
+        }
+    }, [open])
+
     const resetForm = useCallback(() => {
-        setTradeType("Painting")
+        setTradeType("")
         setSubcontractorName("")
+        setSubcontractorEmail("")
         setContactInfo("")
         setScopeOfWork("")
         setMaterials("")
         setAgreedPrice("")
         setUploadedFiles([])
+        setSearchQuery("")
+        setOpenCombobox(false)
     }, [])
 
     const handleOpenChange = (o: boolean) => {
         if (!o) resetForm()
         onOpenChange(o)
+    }
+
+    const handleSubcontractorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setSubcontractorName(val);
+        const existing = subcontractors.find(s => s.subcontractor_name === val);
+        if (existing) {
+            if (existing.subcontractor_email) setSubcontractorEmail(existing.subcontractor_email);
+            if (existing.contact_info) setContactInfo(existing.contact_info);
+        }
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +130,7 @@ export function NewTradeDialog({
                 project_id: projectId,
                 trade_type: tradeType,
                 subcontractor_name: subcontractorName,
+                subcontractor_email: subcontractorEmail || undefined,
                 contact_info: contactInfo,
                 scope_of_work: scopeOfWork,
                 materials_required: materials.split("\n").map(m => m.trim()).filter(Boolean),
@@ -143,13 +184,108 @@ export function NewTradeDialog({
                         <Input value={tradeType} onChange={e => setTradeType(e.target.value)} />
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 flex flex-col">
                         <Label className="text-sm font-medium text-slate-700 uppercase p-1">Subcontractor Name</Label>
-                        <Input placeholder="e.g. Henry Reyes" value={subcontractorName} onChange={e => setSubcontractorName(e.target.value)} />
+                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={openCombobox}
+                                    className="w-full justify-between font-normal text-left text-slate-700 bg-white hover:bg-slate-50 border-slate-200 h-10 px-3"
+                                >
+                                    <span className="truncate">
+                                        {subcontractorName ? subcontractorName : <span className="text-slate-400">Select or enter a subcontractor...</span>}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
+                                <Command>
+                                    <CommandInput
+                                        placeholder="Search or add new..."
+                                        value={searchQuery}
+                                        onValueChange={setSearchQuery}
+                                        className="h-9"
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <div className="flex flex-col items-start px-2 py-1">
+                                                <span className="text-sm text-slate-500 mb-1">No subcontractor found.</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-auto p-1.5 px-3 text-sm flex justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full"
+                                                    onClick={() => {
+                                                        setSubcontractorName(searchQuery)
+                                                        setContactInfo("")
+                                                        setSubcontractorEmail("")
+                                                        setOpenCombobox(false)
+                                                    }}
+                                                >
+                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                    Create &quot;{searchQuery}&quot;
+                                                </Button>
+                                            </div>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {subcontractors.map((s, idx) => (
+                                                <CommandItem
+                                                    key={`${s.subcontractor_name}-${idx}`}
+                                                    value={s.subcontractor_name}
+                                                    className="items-start py-2"
+                                                    onSelect={() => {
+                                                        setSubcontractorName(s.subcontractor_name)
+                                                        setSearchQuery(s.subcontractor_name)
+                                                        if (s.subcontractor_email) setSubcontractorEmail(s.subcontractor_email)
+                                                        if (s.contact_info) setContactInfo(s.contact_info)
+                                                        setOpenCombobox(false)
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5",
+                                                            subcontractorName === s.subcontractor_name ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    <div className="flex flex-col">
+                                                        <span>{s.subcontractor_name}</span>
+                                                        {(s.contact_info || s.subcontractor_email) && (
+                                                            <span className="text-xs text-slate-500">
+                                                                {[s.contact_info, s.subcontractor_email].filter(Boolean).join(" • ")}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                            {searchQuery && !subcontractors.find(s => s.subcontractor_name.toLowerCase() === searchQuery.toLowerCase()) && (
+                                                <CommandItem
+                                                    value={`create-${searchQuery}`}
+                                                    className="py-2"
+                                                    onSelect={() => {
+                                                        setSubcontractorName(searchQuery)
+                                                        setContactInfo("")
+                                                        setSubcontractorEmail("")
+                                                        setOpenCombobox(false)
+                                                    }}
+                                                >
+                                                    <PlusCircle className="mr-2 h-4 w-4 text-blue-600" />
+                                                    <span className="text-blue-600 font-medium">Create &quot;{searchQuery}&quot;</span>
+                                                </CommandItem>
+                                            )}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Contact Info</Label>
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Subcontractor Email</Label>
+                        <Input placeholder="e.g. henry@example.com" type="email" value={subcontractorEmail} onChange={e => setSubcontractorEmail(e.target.value)} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Contact Phone</Label>
                         <Input placeholder="e.g. (512) 555-0192" value={contactInfo} onChange={e => setContactInfo(e.target.value)} />
                     </div>
 

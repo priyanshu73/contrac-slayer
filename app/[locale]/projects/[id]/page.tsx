@@ -128,8 +128,7 @@ export default function ProjectDetailPage() {
         <div className="max-w-7xl mx-auto space-y-4">          <Tabs defaultValue="tasks" className="space-y-4">
           <TabsList className="bg-slate-100 flex flex-nowrap overflow-x-auto">
             <TabsTrigger value="tasks">{t("tabs.tasks") || "Tasks"}</TabsTrigger>
-            <TabsTrigger value="quotes">{t("tabs.quotes") || "Quotes"}</TabsTrigger>
-            <TabsTrigger value="documents">{t("tabs.documents") || "Documents & media"}</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="trades">{t("tabs.trades") || "Team & scopes"}</TabsTrigger>
           </TabsList>
 
@@ -137,11 +136,8 @@ export default function ProjectDetailPage() {
             <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
           </TabsContent>
 
-          <TabsContent value="quotes" className="mt-4">
+          <TabsContent value="documents" className="mt-4 space-y-6">
             <ProjectQuotes project={project} />
-          </TabsContent>
-
-          <TabsContent value="documents" className="mt-4">
             <ProjectDocuments project={project} />
           </TabsContent>
 

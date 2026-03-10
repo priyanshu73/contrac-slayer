@@ -966,6 +966,12 @@ class ApiClient {
     })
   }
 
+  async unlinkProjectQuote(projectId: number, quoteId: number) {
+    return this.request(`/projects/${projectId}/unlink-quote/${quoteId}`, {
+      method: 'POST',
+    })
+  }
+
   async getProjectTasks(projectId: number) {
     return this.request(`/projects/${projectId}/tasks`)
   }
@@ -992,6 +998,14 @@ class ApiClient {
 
   async getProjectTrades(projectId: number) {
     return this.request(`/projects/${projectId}/trades`)
+  }
+
+  async getAllSubcontractors(): Promise<Array<{
+    subcontractor_name: string
+    subcontractor_email: string | null
+    contact_info: string | null
+  }>> {
+    return this.request('/projects/subcontractors/all')
   }
 
   async uploadJobMedia(jobId: number, files: File[]) {
@@ -1027,6 +1041,12 @@ class ApiClient {
     return this.request(`/projects/${projectId}/trades/${tradeId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectTrade(projectId: number, tradeId: number) {
+    return this.request(`/projects/${projectId}/trades/${tradeId}`, {
+      method: 'DELETE',
     })
   }
 

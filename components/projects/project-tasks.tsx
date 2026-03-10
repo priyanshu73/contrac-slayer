@@ -370,20 +370,22 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
  * Add Task Dialog
  * ───────────────────────────────────────────────────────── */
 
-interface AddTaskDialogProps {
+export interface AddTaskDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId: number
     trades?: { id: number; trade_type: string; subcontractor_name: string }[]
     onTaskCreated: (task: ProjectTask) => void
+    initialAssignedTo?: string
 }
 
-function AddTaskDialog({
+export function AddTaskDialog({
     open,
     onOpenChange,
     projectId,
     trades,
     onTaskCreated,
+    initialAssignedTo,
 }: AddTaskDialogProps) {
     const t = useTranslations("projects.tasks")
     const { toast } = useToast()
@@ -393,7 +395,7 @@ function AddTaskDialog({
     const [priority, setPriority] = useState<TaskPriority>("MEDIUM")
     const [status, setStatus] = useState<TaskStatus>("NOT_STARTED")
     const [category, setCategory] = useState("")
-    const [assignedTo, setAssignedTo] = useState("")
+    const [assignedTo, setAssignedTo] = useState(initialAssignedTo || "")
     const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false)
     const assignedToContainerRef = useRef<HTMLDivElement>(null)
 
@@ -416,6 +418,12 @@ function AddTaskDialog({
     >([])
     const [uploading, setUploading] = useState(false)
 
+    useEffect(() => {
+        if (open && initialAssignedTo) {
+            setAssignedTo(initialAssignedTo)
+        }
+    }, [open, initialAssignedTo])
+
     // Reset form when dialog closes
     const resetForm = useCallback(() => {
         setTitle("")
@@ -423,7 +431,7 @@ function AddTaskDialog({
         setPriority("MEDIUM")
         setStatus("NOT_STARTED")
         setCategory("")
-        setAssignedTo("")
+        setAssignedTo(initialAssignedTo || "")
         setStartDate("")
         setEndDate("")
         setUploadedImages([])
