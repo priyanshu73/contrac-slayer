@@ -41,6 +41,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.match(/^\/[a-z]{2}$/) || // Matches /en, /es (homepage with locale)
     pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.
     pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
+    pathname?.match(/^\/[a-z]{2}\/privacy$/) || // Privacy policy (no auth required)
+    pathname === "/privacy" || // Legacy non-i18n
     pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
     pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
