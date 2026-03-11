@@ -57,7 +57,8 @@ function getLastActionDate(client: any, locale: string): string | null {
   const latest = updated && lastJob
     ? (updated > lastJob ? updated : lastJob)
     : (updated ?? lastJob)
-  return formatDistanceToNow(latest, { addSuffix: true, locale: locale === "es" ? es : enUS })
+  if (!latest) return null
+  return formatDistanceToNow(latest as Date, { addSuffix: true, locale: locale === "es" ? es : enUS })
 }
 
 export function ClientsList({ clients = [], loading = false, viewMode = "list", onScheduleClick, onClientArchived }: ClientsListProps) {
@@ -150,9 +151,11 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
             <p className="text-sm text-slate-500 mb-4">
               {tClients("noClientsDesc")}
             </p>
-            <Button asChild>
-              <a href={`/${locale}/clients/new`}>{tClients("addFirstClient")}</a>
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+              <Button asChild className="w-full sm:w-auto h-11 sm:h-auto font-medium">
+                <a href={`/${locale}/contacts/new`}>{tClients("addFirstClient")}</a>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -168,7 +171,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
   }
 
   const handleRowClick = (clientId: number) => {
-    router.push(`/${locale}/clients/${clientId}`)
+    router.push(`/${locale}/contacts/${clientId}`)
   }
 
   return (
@@ -214,141 +217,141 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                       onMouseEnter={() => setHoveredRowId(client.id)}
                       onMouseLeave={() => setHoveredRowId(null)}
                     >
-                    <TableCell className="px-4 py-2">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
-                        {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-2 font-medium text-slate-900">
-                      {client.name || client.full_name || "Unknown"}
-                    </TableCell>
-                    <TableCell className="px-4 py-2 text-slate-600 max-w-[180px] truncate">
-                      {client.email || "—"}
-                    </TableCell>
-                    <TableCell className="px-4 py-2 text-slate-600">
-                      {client.phone ? formatPhoneForDisplay(client.phone) : "—"}
-                    </TableCell>
-                    <TableCell className="px-4 py-2 text-slate-600 max-w-[160px]">
-                      {fullAddress ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="block truncate cursor-default">{fullAddress}</span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            {client.address || fullAddress}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell className="px-4 py-2">
-                      {client.status && (
-                        <span
-                          className={cn(
-                            "inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
-                            getStatusColor(client.status)
-                          )}
-                        >
-                          {getStatusLabel(client.status)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-4 py-2 text-slate-500 text-xs">
-                      {getLastActionDate(client, locale) ?? "—"}
-                    </TableCell>
-                    <TableCell className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                      <div className={cn(
-                        "flex items-center justify-end gap-0.5 transition-opacity",
-                        showActions ? "opacity-100" : "opacity-40"
-                      )}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
-                              <Link href={`/${locale}/clients/${client.id}`}>
-                                <Eye className="h-4 w-4" aria-label="View" />
-                              </Link>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{tClients("view")}</TooltipContent>
-                        </Tooltip>
-                        {client.phone && (
+                      <TableCell className="px-4 py-2">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
+                          {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-2 font-medium text-slate-900">
+                        {client.name || client.full_name || "Unknown"}
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-slate-600 max-w-[180px] truncate">
+                        {client.email || "—"}
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-slate-600">
+                        {client.phone ? formatPhoneForDisplay(client.phone) : "—"}
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-slate-600 max-w-[160px]">
+                        {fullAddress ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate cursor-default">{fullAddress}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              {client.address || fullAddress}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 py-2">
+                        {client.status && (
+                          <span
+                            className={cn(
+                              "inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
+                              getStatusColor(client.status)
+                            )}
+                          >
+                            {getStatusLabel(client.status)}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-slate-500 text-xs">
+                        {getLastActionDate(client, locale) ?? "—"}
+                      </TableCell>
+                      <TableCell className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className={cn(
+                          "flex items-center justify-end gap-0.5 transition-opacity",
+                          showActions ? "opacity-100" : "opacity-40"
+                        )}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
-                                <a href={`tel:${client.phone}`}>
-                                  <Phone className="h-4 w-4" aria-label="Call" />
-                                </a>
+                                <Link href={`/${locale}/contacts/${client.id}`}>
+                                  <Eye className="h-4 w-4" aria-label="View" />
+                                </Link>
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Call</TooltipContent>
+                            <TooltipContent>{tClients("view")}</TooltipContent>
                           </Tooltip>
-                        )}
-                        {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/10"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setRestoreTarget(client)
-                                }}
-                              >
-                                <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{tClients("unarchive")}</TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setArchiveTarget(client)
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" aria-label={tCommon("delete")} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{tCommon("delete")}</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {onScheduleClick && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onScheduleClick(client)
-                                }}
-                              >
-                                <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{tClients("scheduleCall")}</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                          {client.phone && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                                  <a href={`tel:${client.phone}`}>
+                                    <Phone className="h-4 w-4" aria-label="Call" />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Call</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setRestoreTarget(client)
+                                  }}
+                                >
+                                  <RotateCcw className="h-4 w-4" aria-label="Unarchive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{tClients("unarchive")}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setArchiveTarget(client)
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" aria-label={tCommon("delete")} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{tCommon("delete")}</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {onScheduleClick && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onScheduleClick(client)
+                                  }}
+                                >
+                                  <Calendar className="h-4 w-4" aria-label={tClients("scheduleCall")} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{tClients("scheduleCall")}</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
       )}
 
       {/* List view: Compact list on mobile - min 44px tap targets */}
@@ -393,128 +396,128 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
 
       {/* Grid view: Card layout */}
       {viewMode === "grid" && (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {clients.map((client) => {
-          const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
-          return (
-            <div
-              key={client.id}
-              className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all touch-manipulation"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                  {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-slate-900 leading-tight">{client.name || client.full_name || "Unknown"}</h3>
-                    {client.status && (
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
-                          getStatusColor(client.status)
-                        )}
-                      >
-                        {getStatusLabel(client.status)}
-                      </span>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {clients.map((client) => {
+            const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
+            return (
+              <div
+                key={client.id}
+                className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all touch-manipulation"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                    {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-slate-900 leading-tight">{client.name || client.full_name || "Unknown"}</h3>
+                      {client.status && (
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border",
+                            getStatusColor(client.status)
+                          )}
+                        >
+                          {getStatusLabel(client.status)}
+                        </span>
+                      )}
+                    </div>
+                    {client.email && (
+                      <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
                     )}
                   </div>
-                  {client.email && (
-                    <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
-                  )}
                 </div>
-              </div>
 
-              {(client.phone || fullAddress) && (
-                <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                {(client.phone || fullAddress) && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                    {client.phone && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <a href={`tel:${client.phone}`} className="text-primary hover:underline">
+                          {formatPhoneForDisplay(client.phone)}
+                        </a>
+                      </div>
+                    )}
+                    {fullAddress && (
+                      <div className="flex items-start gap-2 text-sm text-slate-600">
+                        <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                        <span className="flex-1 truncate" title={client.address || fullAddress}>{fullAddress}</span>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address || fullAddress)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-slate-400 hover:text-primary shrink-0"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {getLastActionDate(client, locale) && (
+                  <p className="mt-2 text-xs text-slate-500">Last activity: {getLastActionDate(client, locale)}</p>
+                )}
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm" className="w-full h-10 touch-manipulation hover:bg-slate-50 hover:text-primary transition-colors">
+                    <Link href={`/${locale}/contacts/${client.id}`} className="flex items-center justify-center gap-1.5">
+                      <Eye className="h-3.5 w-3.5" />
+                      {tClients("view")}
+                    </Link>
+                  </Button>
+                  {onScheduleClick && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      type="button"
+                      className="border-slate-200"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onScheduleClick(client)
+                      }}
+                    >
+                      <Calendar className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {client.phone && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <a href={`tel:${client.phone}`} className="text-primary hover:underline">
-                        {formatPhoneForDisplay(client.phone)}
+                    <Button size="sm" variant="outline" className="border-slate-200" asChild>
+                      <a href={`tel:${client.phone}`}>
+                        <Phone className="h-3.5 w-3.5" />
                       </a>
-                    </div>
+                    </Button>
                   )}
-                  {fullAddress && (
-                    <div className="flex items-start gap-2 text-sm text-slate-600">
-                      <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <span className="flex-1 truncate" title={client.address || fullAddress}>{fullAddress}</span>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address || fullAddress)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-slate-400 hover:text-primary shrink-0"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
+                  {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-200 text-slate-500 hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setRestoreTarget(client)
+                      }}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setArchiveTarget(client)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
-              )}
-
-              {getLastActionDate(client) && (
-                <p className="mt-2 text-xs text-slate-500">Last activity: {getLastActionDate(client)}</p>
-              )}
-
-              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                <Button size="sm" className="flex-1 min-w-0 min-h-[44px] sm:min-h-0 touch-manipulation" asChild>
-                  <Link href={`/${locale}/clients/${client.id}`} className="flex items-center justify-center gap-1.5">
-                    <Eye className="h-3.5 w-3.5" />
-                    {tClients("view")}
-                  </Link>
-                </Button>
-                {onScheduleClick && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    type="button"
-                    className="border-slate-200"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onScheduleClick(client)
-                    }}
-                  >
-                    <Calendar className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                {client.phone && (
-                  <Button size="sm" variant="outline" className="border-slate-200" asChild>
-                    <a href={`tel:${client.phone}`}>
-                      <Phone className="h-3.5 w-3.5" />
-                    </a>
-                  </Button>
-                )}
-                {String(client?.status ?? "").toUpperCase() === "ARCHIVED" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-slate-200 text-slate-500 hover:text-primary"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setRestoreTarget(client)
-                    }}
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setArchiveTarget(client)
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
       )}
 
       {/* Delete (Archive) Confirmation */}

@@ -1,23 +1,25 @@
 import { ClientDetail } from "@/components/client-detail"
 import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { id, locale } = await params
   const tClients = await getTranslations({ locale, namespace: "clients" })
-  
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container mx-auto flex min-h-[56px] sm:h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] touch-manipulation shrink-0" asChild>
-              <a href={`/${locale}/clients`}>
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </a>
-            </Button>
+            <div className="mb-4">
+              <Button variant="ghost" className="gap-2" asChild>
+                <a href={`/${locale}/contacts`}>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Contacts
+                </a>
+              </Button>
+            </div>
             <div>
               <h1 className="text-lg font-semibold leading-none">{tClients("detailTitle")}</h1>
               <p className="text-sm text-muted-foreground">{tClients("detailSubtitle")}</p>

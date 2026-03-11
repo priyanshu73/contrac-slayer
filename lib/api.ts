@@ -1003,9 +1003,57 @@ class ApiClient {
   async getAllSubcontractors(): Promise<Array<{
     subcontractor_name: string
     subcontractor_email: string | null
-    contact_info: string | null
+    phone_number: string | null
   }>> {
     return this.request('/projects/subcontractors/all')
+  }
+
+  // =========================
+  // Subcontractors CRM
+  // =========================
+
+  async getSubcontractors(skip = 0, limit = 100): Promise<any[]> {
+    return this.request(`/subcontractors?skip=${skip}&limit=${limit}`)
+  }
+
+  async getSubcontractor(id: number): Promise<any> {
+    return this.request(`/subcontractors/${id}`)
+  }
+
+  async createSubcontractor(data: {
+    name: string
+    email?: string
+    phone_number?: string
+    company_name?: string
+    address?: string
+    notes?: string
+    status?: string
+  }): Promise<any> {
+    return this.request('/subcontractors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateSubcontractor(id: number, data: {
+    name?: string
+    email?: string
+    phone_number?: string
+    company_name?: string
+    address?: string
+    notes?: string
+    status?: string
+  }): Promise<any> {
+    return this.request(`/subcontractors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteSubcontractor(id: number): Promise<void> {
+    return this.request(`/subcontractors/${id}`, {
+      method: 'DELETE',
+    })
   }
 
   async uploadJobMedia(jobId: number, files: File[]) {
