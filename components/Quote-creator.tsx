@@ -21,7 +21,7 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import Image from "next/image"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
@@ -451,6 +451,29 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files)
+      setUploadedImages(prev => [
+        ...prev,
+        ...newFiles.map(f => ({
+          url: URL.createObjectURL(f),
+          name: f.name,
+          size: f.size,
+          file: f
+        }))
+      ])
+      // Reset input value so same files can be selected again if needed
+      e.target.value = ''
+    }
+  }
+
+  const openCloudinaryWidget = () => {
+    document.getElementById('quote-attachment-input')?.click()
+  }
 
   // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
@@ -514,14 +537,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Sort and group templates - contractor type matches first, then rest
   const sortedTemplates = [...templates].sort((a, b) => {
     if (!contractorType) return 0
-    
+
     const contractorTypeLower = contractorType.toLowerCase().trim()
     const aMatchesType = a.trade.toLowerCase() === contractorTypeLower
     const bMatchesType = b.trade.toLowerCase() === contractorTypeLower
-    
+
     if (aMatchesType && !bMatchesType) return -1
     if (!aMatchesType && bMatchesType) return 1
-    
+
     // If both match or both don't match, sort by trade then project_type
     if (a.trade !== b.trade) return a.trade.localeCompare(b.trade)
     return a.project_type.localeCompare(b.project_type)
@@ -1166,7 +1189,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
       // Auto-save when editing an existing quote so line items are not lost (pass newItems so we save the just-generated items)
       if (quoteId) {
-        autoSaveDraft(undefined, newItems).catch(() => {})
+        autoSaveDraft(undefined, newItems).catch(() => { })
       }
     } catch (error: any) {
       console.error("Failed to generate estimate:", error)
@@ -1227,7 +1250,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     setShowAccuracyQuestion(false)
     setAiAccuracySubmitted(true)
     if (quoteId) {
-      autoSaveDraft(newNotes).catch(() => {})
+      autoSaveDraft(newNotes).catch(() => { })
     }
   }
 
@@ -1385,6 +1408,23 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         } catch (profileError) {
           // Log error but don't block quote creation
           console.error("Failed to update profile tax rate:", profileError)
+        }
+      }
+
+      const finalJobId = (response as any)?.id || (quoteId ? parseInt(quoteId, 10) : null)
+
+      // Attach any uploaded images
+      if (finalJobId && uploadedImages.length > 0) {
+        // Collect new files to upload
+        const newFiles = uploadedImages.filter(img => img.file).map(img => img.file as File);
+
+        // Upload new files
+        if (newFiles.length > 0) {
+          try {
+            await api.uploadJobMedia(finalJobId, newFiles);
+          } catch (imgError) {
+            console.error("Failed to upload new job media:", imgError);
+          }
         }
       }
 
@@ -1637,7 +1677,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                    <div className="p-3 border-t bg-background">
+                  <div className="p-3 border-t bg-background">
                     <div className="space-y-2">
                       {/* Template Selector (Mobile) - hidden while in development */}
                       {!HIDE_AI_TEMPLATES && templates.length > 0 && (
@@ -2350,7 +2390,46 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
           {/* Additional Details */}
           <Card className="p-6">
-            <h2 className="mb-4 text-lg font-semibold">Additional Details</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Additional Details</h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 flex gap-2 items-center text-muted-foreground hover:text-foreground"
+                onClick={openCloudinaryWidget}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                <span className="text-xs font-medium">Add Attachment</span>
+              </Button>
+              <input
+                type="file"
+                id="quote-attachment-input"
+                className="hidden"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+              />
+            </div>
+
+            {uploadedImages.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-4 p-4 border border-dashed rounded-lg bg-slate-50/50">
+                {uploadedImages.map((img, i) => (
+                  <div key={i} className="relative w-24 h-24 border rounded-md overflow-hidden bg-white shadow-sm group">
+                    <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
+                    <button
+                      type="button"
+                      onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
@@ -2466,343 +2545,343 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </div>
               </div>
               <div className="space-y-4">
-                  {/* Template Selector - hidden while in development */}
-                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
-                    <div>
-                      <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
-                        Project Template
-                      </Label>
-                      <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={templateComboOpen}
-                            className="w-full justify-between bg-background"
-                            disabled={loadingTemplates}
-                          >
-                            {loadingTemplates ? (
-                              "Loading templates..."
-                            ) : isCustomProject ? (
-                              "✏️ Custom Project"
-                            ) : selectedTemplateId ? (
-                              (() => {
-                                const template = templates.find((t) => t.id === selectedTemplateId)
-                                return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
-                              })()
-                            ) : (
-                              "Select a project type..."
-                            )}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Search templates..." />
-                            <CommandList>
-                              <CommandEmpty>No template found.</CommandEmpty>
-                              <CommandGroup>
+                {/* Template Selector - hidden while in development */}
+                {!HIDE_AI_TEMPLATES && templates.length > 0 && (
+                  <div>
+                    <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
+                      Project Template
+                    </Label>
+                    <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={templateComboOpen}
+                          className="w-full justify-between bg-background"
+                          disabled={loadingTemplates}
+                        >
+                          {loadingTemplates ? (
+                            "Loading templates..."
+                          ) : isCustomProject ? (
+                            "✏️ Custom Project"
+                          ) : selectedTemplateId ? (
+                            (() => {
+                              const template = templates.find((t) => t.id === selectedTemplateId)
+                              return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
+                            })()
+                          ) : (
+                            "Select a project type..."
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search templates..." />
+                          <CommandList>
+                            <CommandEmpty>No template found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="custom"
+                                onSelect={() => {
+                                  handleTemplateChange('custom')
+                                  setTemplateComboOpen(false)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    isCustomProject ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                ✏️ Custom Project
+                              </CommandItem>
+                              {sortedTemplates.map((t) => (
                                 <CommandItem
-                                  value="custom"
+                                  key={t.id}
+                                  value={`${t.project_type} ${t.trade}`}
                                   onSelect={() => {
-                                    handleTemplateChange('custom')
+                                    handleTemplateChange(String(t.id))
                                     setTemplateComboOpen(false)
                                   }}
                                 >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      isCustomProject ? "opacity-100" : "opacity-0"
+                                      selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
                                     )}
                                   />
-                                  ✏️ Custom Project
+                                  {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
                                 </CommandItem>
-                                {sortedTemplates.map((t) => (
-                                  <CommandItem
-                                    key={t.id}
-                                    value={`${t.project_type} ${t.trade}`}
-                                    onSelect={() => {
-                                      handleTemplateChange(String(t.id))
-                                      setTemplateComboOpen(false)
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
 
-                  {/* Dynamic Variable Form (when template selected) */}
-                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
-                    <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
-                      {loadingTemplateDetail ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          Loading variables...
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {selectedTemplate.variables.map((v) => (
-                            <div key={v.id}>
-                              <Label htmlFor={`var-${v.variable_name}`} className="text-xs font-medium">
-                                {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
-                                {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
-                              </Label>
-                              {v.input_type === 'select' && v.options ? (
-                                <Select
-                                  value={templateVariables[v.variable_name] || ''}
-                                  onValueChange={(val) => handleVariableChange(v.variable_name, val)}
-                                >
-                                  <SelectTrigger id={`var-${v.variable_name}`} className="bg-background h-8 text-sm">
-                                    <SelectValue placeholder={`Select ${v.display_label.toLowerCase()}...`} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {v.options.map((opt) => (
-                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Input
-                                  id={`var-${v.variable_name}`}
-                                  type={v.input_type === 'number' ? 'number' : 'text'}
-                                  placeholder={v.placeholder || ''}
-                                  value={templateVariables[v.variable_name] || ''}
-                                  onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
-                                  className="bg-background h-8 text-sm"
-                                />
-                              )}
-                              {v.help_text && <p className="text-xs text-muted-foreground mt-0.5">{v.help_text}</p>}
-                            </div>
-                          ))}
+                {/* Dynamic Variable Form (when template selected) */}
+                {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
+                  <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
+                    {loadingTemplateDetail ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Loading variables...
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {selectedTemplate.variables.map((v) => (
+                          <div key={v.id}>
+                            <Label htmlFor={`var-${v.variable_name}`} className="text-xs font-medium">
+                              {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
+                              {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
+                            </Label>
+                            {v.input_type === 'select' && v.options ? (
+                              <Select
+                                value={templateVariables[v.variable_name] || ''}
+                                onValueChange={(val) => handleVariableChange(v.variable_name, val)}
+                              >
+                                <SelectTrigger id={`var-${v.variable_name}`} className="bg-background h-8 text-sm">
+                                  <SelectValue placeholder={`Select ${v.display_label.toLowerCase()}...`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {v.options.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                id={`var-${v.variable_name}`}
+                                type={v.input_type === 'number' ? 'number' : 'text'}
+                                placeholder={v.placeholder || ''}
+                                value={templateVariables[v.variable_name] || ''}
+                                onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
+                                className="bg-background h-8 text-sm"
+                              />
+                            )}
+                            {v.help_text && <p className="text-xs text-muted-foreground mt-0.5">{v.help_text}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Prompt Preview Toggle */}
+                    <div className="pt-1.5 border-t border-border/50 mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowPromptPreview(!showPromptPreview)}
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt (review & edit)
+                      </button>
+                      {showPromptPreview && (
+                        <div className="mt-1.5">
+                          <Textarea
+                            value={serviceDescription}
+                            onChange={(e) => setServiceDescription(e.target.value)}
+                            className="min-h-[64px] max-h-[140px] overflow-y-auto resize-y bg-background text-xs font-mono py-2 px-3"
+                            placeholder="AI prompt will appear here..."
+                            aria-label="AI prompt sent to estimate generator — edit as needed before generating"
+                          />
+                          <p className="text-[11px] text-muted-foreground mt-0.5">This prompt is sent to the AI. Review and edit above, then generate.</p>
                         </div>
                       )}
-
-                      {/* Prompt Preview Toggle */}
-                      <div className="pt-1.5 border-t border-border/50 mt-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setShowPromptPreview(!showPromptPreview)}
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                        >
-                          {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt (review & edit)
-                        </button>
-                        {showPromptPreview && (
-                          <div className="mt-1.5">
-                            <Textarea
-                              value={serviceDescription}
-                              onChange={(e) => setServiceDescription(e.target.value)}
-                              className="min-h-[64px] max-h-[140px] overflow-y-auto resize-y bg-background text-xs font-mono py-2 px-3"
-                              placeholder="AI prompt will appear here..."
-                              aria-label="AI prompt sent to estimate generator — edit as needed before generating"
-                            />
-                            <p className="text-[11px] text-muted-foreground mt-0.5">This prompt is sent to the AI. Review and edit above, then generate.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Custom Project Description (when custom or no templates) */}
-                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
-                    <>
-                      <div>
-                        <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
-                          Project Type (Optional)
-                        </Label>
-                        <Input
-                          id="project-type-desktop"
-                          placeholder="e.g., Patio Installation, Deck Construction"
-                          value={projectType}
-                          onChange={(e) => {
-                            setProjectType(e.target.value)
-                            setProjectTitle(e.target.value)
-                          }}
-                          className="bg-background"
-                        />
-                      </div>
-                      <Textarea
-                        placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
-                        value={serviceDescription}
-                        onChange={(e) => setServiceDescription(e.target.value)}
-                        className="min-h-[80px] bg-background"
-                      />
-                    </>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1 block">
-                        Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                        <Input
-                          id="labor-rate-ai-desktop"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={laborRateValue === 0 ? "" : laborRateValue}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val === "") {
-                              setLaborRateValue(0)
-                            } else {
-                              const num = parseFloat(val) || 0
-                              setLaborRateValue(Math.max(0, num))
-                            }
-                          }}
-                          placeholder="75"
-                          className="bg-background pl-7"
-                          disabled={loadingMarkup}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1 block">
-                        Labor Rate Type
-                      </Label>
-                      <Select
-                        value={
-                          // Map DB values to UI: PER_UNIT + SQ_FT = "PER_SF"
-                          laborChargeType === LaborChargeType.PER_UNIT && laborUnitType === UnitType.SQ_FT
-                            ? "PER_SF"
-                            : laborChargeType
-                        }
-                        onValueChange={(value) => {
-                          if (value === "PER_SF") {
-                            setLaborChargeType(LaborChargeType.PER_UNIT)
-                            setLaborUnitType(UnitType.SQ_FT)
-                          } else {
-                            setLaborChargeType(value as LaborChargeType)
-                            setLaborUnitType(undefined)
-                          }
-                        }}
-                        disabled={loadingMarkup}
-                      >
-                        <SelectTrigger id="labor-charge-type-desktop" className="bg-background">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={LaborChargeType.HOURLY}>Per Hour</SelectItem>
-                          <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
-                          <SelectItem value="PER_SF">Per sf</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
-                  {(() => {
-                    const desc = serviceDescription.trim()
-                    const wordCount = desc ? desc.split(/\s+/).length : 0
-                    const tooShort = desc.length < 30 || wordCount < 6
-                    return (
-                      <div className="flex flex-col gap-2 w-full">
-                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                          {aiLoading ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              {aiLoadingMessages[aiLoadingStage]}
-                            </span>
-                          ) : (
-                            <>
-                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                              </svg>
-                              Generate AI Estimate
-                            </>
-                          )}
-                        </Button>
-                        {aiLoading && (
-                          <div className="w-full space-y-2">
-                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary transition-all duration-1000 ease-out"
-                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                              This usually takes 15-30 seconds
-                            </p>
-                          </div>
-                        )}
-                        {!aiLoading && tooShort && (
-                          <p className="text-xs text-muted-foreground w-full">
-                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })()}
+                )}
 
-                  {/* AI accuracy feedback - desktop */}
-                  {showAccuracyQuestion && (
-                    <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                      <p className="text-sm font-medium">How accurate was this?</p>
-                      <div className="flex items-center justify-center gap-1">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            onClick={() => handleAccuracyRating(n)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            aria-label={`Rate ${n} out of 5`}
-                          >
-                            {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
-                          </button>
-                        ))}
-                      </div>
+                {/* Custom Project Description (when custom or no templates) */}
+                {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
+                  <>
+                    <div>
+                      <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
+                        Project Type (Optional)
+                      </Label>
+                      <Input
+                        id="project-type-desktop"
+                        placeholder="e.g., Patio Installation, Deck Construction"
+                        value={projectType}
+                        onChange={(e) => {
+                          setProjectType(e.target.value)
+                          setProjectTitle(e.target.value)
+                        }}
+                        className="bg-background"
+                      />
                     </div>
-                  )}
-                  {aiAccuracySubmitted && (
-                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
-                  )}
+                    <Textarea
+                      placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
+                      value={serviceDescription}
+                      onChange={(e) => setServiceDescription(e.target.value)}
+                      className="min-h-[80px] bg-background"
+                    />
+                  </>
+                )}
 
-                  {/* Display Measurements if available */}
-                  {measurements.items && measurements.items.length > 0 && (
-                    <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
-                      <div className="flex items-center gap-2 mb-2">
-                        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        <h4 className="text-sm font-medium">Measurements</h4>
-                      </div>
-                      <div className="space-y-2">
-                        {measurements.items.map((item, idx) => (
-                          <div key={idx} className="text-xs text-muted-foreground">
-                            {item.type === "dimensions" && item.length && item.width && (
-                              <span>
-                                {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
-                              </span>
-                            )}
-                            {item.type === "square_footage" && item.value && (
-                              <span>
-                                {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
-                              </span>
-                            )}
-                            {item.type === "linear_feet" && item.value && (
-                              <span>
-                                {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1 block">
+                      Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                      <Input
+                        id="labor-rate-ai-desktop"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={laborRateValue === 0 ? "" : laborRateValue}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === "") {
+                            setLaborRateValue(0)
+                          } else {
+                            const num = parseFloat(val) || 0
+                            setLaborRateValue(Math.max(0, num))
+                          }
+                        }}
+                        placeholder="75"
+                        className="bg-background pl-7"
+                        disabled={loadingMarkup}
+                      />
                     </div>
-                  )}
+                  </div>
+                  <div>
+                    <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1 block">
+                      Labor Rate Type
+                    </Label>
+                    <Select
+                      value={
+                        // Map DB values to UI: PER_UNIT + SQ_FT = "PER_SF"
+                        laborChargeType === LaborChargeType.PER_UNIT && laborUnitType === UnitType.SQ_FT
+                          ? "PER_SF"
+                          : laborChargeType
+                      }
+                      onValueChange={(value) => {
+                        if (value === "PER_SF") {
+                          setLaborChargeType(LaborChargeType.PER_UNIT)
+                          setLaborUnitType(UnitType.SQ_FT)
+                        } else {
+                          setLaborChargeType(value as LaborChargeType)
+                          setLaborUnitType(undefined)
+                        }
+                      }}
+                      disabled={loadingMarkup}
+                    >
+                      <SelectTrigger id="labor-charge-type-desktop" className="bg-background">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={LaborChargeType.HOURLY}>Per Hour</SelectItem>
+                        <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
+                        <SelectItem value="PER_SF">Per sf</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                {(() => {
+                  const desc = serviceDescription.trim()
+                  const wordCount = desc ? desc.split(/\s+/).length : 0
+                  const tooShort = desc.length < 30 || wordCount < 6
+                  return (
+                    <div className="flex flex-col gap-2 w-full">
+                      <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                        {aiLoading ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            {aiLoadingMessages[aiLoadingStage]}
+                          </span>
+                        ) : (
+                          <>
+                            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Generate AI Estimate
+                          </>
+                        )}
+                      </Button>
+                      {aiLoading && (
+                        <div className="w-full space-y-2">
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary transition-all duration-1000 ease-out"
+                              style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            This usually takes 15-30 seconds
+                          </p>
+                        </div>
+                      )}
+                      {!aiLoading && tooShort && (
+                        <p className="text-xs text-muted-foreground w-full">
+                          Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* AI accuracy feedback - desktop */}
+                {showAccuracyQuestion && (
+                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                    <p className="text-sm font-medium">How accurate was this?</p>
+                    <div className="flex items-center justify-center gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => handleAccuracyRating(n)}
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          aria-label={`Rate ${n} out of 5`}
+                        >
+                          {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiAccuracySubmitted && (
+                  <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                )}
+
+                {/* Display Measurements if available */}
+                {measurements.items && measurements.items.length > 0 && (
+                  <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <h4 className="text-sm font-medium">Measurements</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {measurements.items.map((item, idx) => (
+                        <div key={idx} className="text-xs text-muted-foreground">
+                          {item.type === "dimensions" && item.length && item.width && (
+                            <span>
+                              {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
+                            </span>
+                          )}
+                          {item.type === "square_footage" && item.value && (
+                            <span>
+                              {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
+                            </span>
+                          )}
+                          {item.type === "linear_feet" && item.value && (
+                            <span>
+                              {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
           </Card>
 
           {/* Assumptions Display */}

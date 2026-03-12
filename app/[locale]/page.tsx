@@ -8,6 +8,7 @@ import { Features } from '@/components/features'
 import { Pricing } from '@/components/pricing'
 import { CTA } from '@/components/cta'
 import { Header } from '@/components/header'
+import { LandingFooter } from '@/components/landing-footer'
 import { HowItWorks } from '@/components/how-it-works'
 import { useLocale } from 'next-intl'
 
@@ -46,6 +47,7 @@ export default function Home() {
         <Features />
         <Pricing />
         <CTA />
+        <LandingFooter />
       </div>
     )
   }

@@ -39,7 +39,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
     address: "",
     billing_address: "",
   })
-  
+
   // Normalized address data from Mapbox
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [billingAddressData, setBillingAddressData] = useState<AddressData | null>(null)
@@ -68,7 +68,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const validationError = validateForm()
     if (validationError) {
       setError(validationError)
@@ -89,7 +89,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       if (formData.phone.trim()) clientData.phone = formData.phone.trim()
       if (formData.address.trim()) clientData.address = formData.address.trim()
       if (formData.billing_address.trim()) clientData.billing_address = formData.billing_address.trim()
-      
+
       // Add normalized address data if selected from Mapbox
       if (addressData) clientData.address_data = addressData
       if (billingSameAsAddress && addressData) {
@@ -116,7 +116,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       if (embedded && onSuccess) {
         onSuccess(createdClient)
       } else {
-        router.push("/clients")
+        router.push("/contacts")
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string }
@@ -152,7 +152,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
         <div className="p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{tClients('clientInformation')}</h2>
           <p className="text-sm text-slate-500 mb-6">Enter the client&apos;s contact details</p>
-          
+
           <div className="space-y-5">
             {/* Name & Email - 2 column grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -261,8 +261,8 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
 
         {/* Actions - Inside card footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3">
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -279,10 +279,10 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
             )}
           </Button>
           {!embedded && (
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               variant="outline"
-              onClick={() => router.push("/clients")}
+              onClick={() => router.push("/contacts")}
               disabled={loading}
             >
               {tCommon('cancel')}

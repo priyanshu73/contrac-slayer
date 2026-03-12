@@ -41,16 +41,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.match(/^\/[a-z]{2}$/) || // Matches /en, /es (homepage with locale)
     pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.
     pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
+    pathname?.match(/^\/[a-z]{2}\/privacy$/) || // Privacy policy (no auth required)
+    pathname === "/privacy" || // Legacy non-i18n
     pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
     pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
     pathname?.match(/^\/[a-z]{2}\/quotes\//) || // Matches /en/quotes/, /es/quotes/, etc.
     pathname?.startsWith("/quotes/") || // Legacy non-i18n routes
     pathname?.match(/^\/[a-z]{2}\/invoices\//) || // Matches /en/invoices/, /es/invoices/, etc.
-    pathname?.startsWith("/invoices/") // Legacy non-i18n routes
+    pathname?.startsWith("/invoices/") || // Legacy non-i18n routes
+    // Public subcontractor portal view
+    pathname?.match(/^\/[a-z]{2}\/projects\/trade\//) || // Matches /en/projects/trade/, /es/projects/trade/, etc.
+    pathname?.startsWith("/projects/trade/") // Legacy non-i18n routes
 
   // Routes accessible without subscription (but require auth)
-  const isBillingRoute = 
+  const isBillingRoute =
     pathname?.match(/^\/[a-z]{2}\/billing/) || // Matches /en/billing, /es/billing, etc.
     pathname?.startsWith("/billing")
 

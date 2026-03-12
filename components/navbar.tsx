@@ -16,6 +16,10 @@ import {
   Settings,
   Link2,
   Check,
+  FileText,
+  FolderKanban,
+  CalendarClock,
+  Receipt
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
@@ -48,10 +52,10 @@ export function Navbar() {
   }
 
   const navLinks = [
-    { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
-    { href: `/${locale}/clients`, label: t('clients'), icon: Users },
+    { href: `/${locale}/contacts`, label: "Contacts", icon: Users },
+    { href: `/${locale}/projects`, label: t('projects'), icon: FolderKanban },
   ]
 
   if (loading) {
@@ -77,9 +81,9 @@ export function Navbar() {
         <div className="container mx-auto px-2 md:px-3">
           <div className="flex h-12 md:h-14 items-center">
             <Link href={`/${locale}/dashboard`} className="flex items-center gap-1.5 md:gap-2">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
+              <img
+                src="/logo.png"
+                alt="Logo"
                 className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
               />
               <span className="text-base md:text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
@@ -99,9 +103,9 @@ export function Navbar() {
           {/* Logo/Brand */}
           <div className="flex items-center gap-4 md:gap-6 lg:gap-8">
             <Link href={`/${locale}/dashboard`} className="flex items-center gap-1.5 md:gap-2">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
+              <img
+                src="/logo.png"
+                alt="Logo"
                 className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
               />
               <span className="text-base md:text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
@@ -118,11 +122,10 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                      isActive
-                        ? "bg-sky-500/10 text-sky-700"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
+                    className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isActive
+                      ? "bg-sky-500/10 text-sky-700"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     {link.label}
@@ -133,11 +136,10 @@ export function Navbar() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                      pathname?.startsWith(`/${locale}/actions`)
-                        ? "bg-sky-500/10 text-sky-700"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
+                    className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${pathname?.startsWith(`/${locale}/actions`)
+                      ? "bg-sky-500/10 text-sky-700"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
                   >
                     <Zap className="h-4 w-4 shrink-0" />
                     {t('actions')}
@@ -213,9 +215,8 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${
-                  isActive ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
-                }`}
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${isActive ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
+                  }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="truncate text-center text-xs font-medium leading-tight">{link.label}</span>
@@ -225,9 +226,8 @@ export function Navbar() {
           {/* Actions -> Scheduling on mobile */}
           <Link
             href={`/${locale}/actions/scheduling`}
-            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${
-              pathname?.startsWith(`/${locale}/actions`) ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
-            }`}
+            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${pathname?.startsWith(`/${locale}/actions`) ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
+              }`}
           >
             <Zap className="h-5 w-5 shrink-0" />
             <span className="truncate text-center text-xs font-medium leading-tight">{t('actions')}</span>

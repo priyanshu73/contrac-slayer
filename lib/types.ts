@@ -16,7 +16,7 @@ export enum JobStatus {
   CANCELLED = 'CANCELLED'
 }
 
-export type LeadStatus = 
+export type LeadStatus =
   | 'NEW'
   | 'CONTACTED'
   | 'QUALIFIED'
@@ -26,7 +26,7 @@ export type LeadStatus =
   | 'WON'
   | 'LOST'
 
-export type LeadSource = 
+export type LeadSource =
   | 'WEBSITE'
   | 'REFERRAL'
   | 'PHONE'
@@ -36,7 +36,7 @@ export type LeadSource =
   | 'WORD_OF_MOUTH'
   | 'OTHER'
 
-export type InvoiceStatus = 
+export type InvoiceStatus =
   | 'DRAFT'
   | 'SENT'
   | 'VIEWED'
@@ -372,6 +372,7 @@ export interface Job {
   customer_notes?: string
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
+  project_media?: ProjectMedia[]
 }
 
 export interface ChangeOrderCreate {
@@ -415,6 +416,119 @@ export interface JobUpdate {
   address?: string
   notes?: string
   selected_tier?: PricingTier
+}
+
+// ============================================
+// PROJECT MANAGEMENT
+// ============================================
+
+export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
+export type TaskType = 'TIMELINE' | 'PUNCH_LIST'
+export type TaskStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH'
+export type TradeAcceptanceStatus = 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED'
+
+export interface Project {
+  id: number
+  uuid: string
+  contractor_id: number
+  job_id?: number
+  client_id?: number
+  title: string
+  objective?: string
+  status: ProjectStatus
+  contract_value?: number
+  scheduled_start_date?: string
+  scheduled_end_date?: string
+  actual_start_date?: string
+  actual_completion_date?: string
+  tasks?: ProjectTask[]
+  trades?: ProjectTrade[]
+  media?: ProjectMedia[]
+  total_trades?: number
+  accepted_trades?: number
+  pending_trades?: number
+}
+
+export interface ProjectListItem {
+  id: number
+  uuid: string
+  title: string
+  status: ProjectStatus
+  client_id?: number
+  contract_value?: number
+  scheduled_start_date?: string
+  scheduled_end_date?: string
+  total_trades?: number
+  accepted_trades?: number
+  pending_trades?: number
+}
+
+export interface ProjectTask {
+  id: number
+  project_id: number
+  parent_task_id?: number | null
+  title: string
+  description?: string
+  task_type: TaskType   // TIMELINE or PUNCH_LIST
+  status: TaskStatus
+  priority?: TaskPriority   // Typically used for punch list items
+  category?: string         // Finishing, Installation, Final, etc.
+  order?: number
+  notify_client: boolean
+  scheduled_start_date?: string
+  scheduled_end_date?: string
+  assigned_to?: string
+  assigned_trade_id?: number
+  photo_count: number
+  document_count: number
+  photos?: ProjectMedia[]
+  documents?: ProjectMedia[]
+}
+
+export interface ProjectTrade {
+  id: number
+  uuid: string
+  project_id: number
+  project_title?: string
+  trade_type: string
+  subcontractor_name: string
+  subcontractor_email?: string
+  contact_info: string
+  scope_of_work: string
+  materials_required: string[]
+  acceptance_criteria: { text: string; selected: boolean }[]
+  agreed_price?: number
+  status: TradeAcceptanceStatus
+  accepted_at?: string
+  created_at?: string
+  reference_media?: ProjectMedia[]
+  proof_of_work_media?: ProjectMedia[]
+  tasks?: ProjectTask[]
+}
+
+export type MediaType = 'DOCUMENT' | 'PHOTO' | 'VIDEO'
+export type MediaContext =
+  | 'PROJECT_DOCUMENT'
+  | 'PROJECT_PHOTO'
+  | 'TASK_PHOTO'
+  | 'TASK_DOCUMENT'
+  | 'TRADE_REFERENCE'
+  | 'TRADE_PROOF'
+
+export interface ProjectMedia {
+  id: number
+  project_id?: number
+  task_id?: number
+  trade_id?: number
+  job_id?: number
+  file_url: string
+  file_name: string
+  file_size: number
+  media_type: MediaType
+  context: MediaContext
+  uploaded_by: string
+  uploaded_at: string
 }
 
 export interface QuoteVariant {

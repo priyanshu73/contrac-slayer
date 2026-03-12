@@ -28,7 +28,7 @@ export function QuickActions() {
   const contractorUuid = user?.contractor_profile?.uuid
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const quoteRequestUrl = contractorUuid ? `${frontendUrl}/quote-request/${contractorUuid}` : ""
-  
+
   const handleCopy = async () => {
     if (!quoteRequestUrl) return
 
@@ -48,7 +48,7 @@ export function QuickActions() {
       })
     }
   }
-  
+
   const actions = [
     {
       label: tActions('newLead'),
@@ -87,7 +87,7 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: `/${locale}/clients/new`,
+      href: `/${locale}/contacts/new`,
       type: 'link' as const,
     },
     {
@@ -109,10 +109,10 @@ export function QuickActions() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {actions.map((action) => (
             action.type === 'link' ? (
-              <Button 
-                key={action.label} 
-                variant="outline" 
-                className="h-auto flex-col gap-3 py-6 px-4 border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" 
+              <Button
+                key={action.label}
+                variant="outline"
+                className="h-auto flex-col gap-3 py-6 px-4 border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200"
                 asChild
               >
                 <Link href={action.href}>
@@ -123,9 +123,9 @@ export function QuickActions() {
                 </Link>
               </Button>
             ) : (
-              <Button 
-                key={action.label} 
-                variant="outline" 
+              <Button
+                key={action.label}
+                variant="outline"
                 className="h-auto flex-col gap-3 py-6 px-4 border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200"
                 onClick={action.onClick}
               >

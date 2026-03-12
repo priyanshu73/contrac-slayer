@@ -924,6 +924,247 @@ class ApiClient {
   }> {
     return this.request(`/templates/${templateId}`)
   }
+
+  // =========================
+  // Projects / Project Management
+  // =========================
+
+  async getProjects(params?: { status?: string; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.append('status_filter', params.status)
+    if (typeof params?.skip === 'number') searchParams.append('skip', params.skip.toString())
+    if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
+    const qs = searchParams.toString()
+    return this.request(`/projects${qs ? `?${qs}` : ''}`)
+  }
+
+  async getProject(projectId: number) {
+    return this.request(`/projects/${projectId}`)
+  }
+
+  async getProjectQuotes(projectId: number) {
+    return this.request(`/projects/${projectId}/quotes`)
+  }
+
+  async createProject(data: any) {
+    return this.request('/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProject(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProject(projectId: number) {
+    return this.request(`/projects/${projectId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async unlinkProjectQuote(projectId: number, quoteId: number) {
+    return this.request(`/projects/${projectId}/unlink-quote/${quoteId}`, {
+      method: 'POST',
+    })
+  }
+
+  async getProjectTasks(projectId: number) {
+    return this.request(`/projects/${projectId}/tasks`)
+  }
+
+  async createProjectTask(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProjectTask(projectId: number, taskId: number, data: any) {
+    return this.request(`/projects/${projectId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectTask(projectId: number, taskId: number) {
+    return this.request(`/projects/${projectId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProjectTrades(projectId: number) {
+    return this.request(`/projects/${projectId}/trades`)
+  }
+
+  async getAllSubcontractors(): Promise<Array<{
+    subcontractor_name: string
+    subcontractor_email: string | null
+    phone_number: string | null
+  }>> {
+    return this.request('/projects/subcontractors/all')
+  }
+
+  // =========================
+  // Subcontractors CRM
+  // =========================
+
+  async getSubcontractors(skip = 0, limit = 100): Promise<any[]> {
+    return this.request(`/subcontractors?skip=${skip}&limit=${limit}`)
+  }
+
+  async getSubcontractor(id: number): Promise<any> {
+    return this.request(`/subcontractors/${id}`)
+  }
+
+  async createSubcontractor(data: {
+    name: string
+    email?: string
+    phone_number?: string
+    company_name?: string
+    address?: string
+    notes?: string
+    status?: string
+  }): Promise<any> {
+    return this.request('/subcontractors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateSubcontractor(id: number, data: {
+    name?: string
+    email?: string
+    phone_number?: string
+    company_name?: string
+    address?: string
+    notes?: string
+    status?: string
+  }): Promise<any> {
+    return this.request(`/subcontractors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteSubcontractor(id: number): Promise<void> {
+    return this.request(`/subcontractors/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async uploadJobMedia(jobId: number, files: File[]) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    const response = await fetch(`${this.baseURL}/jobs/${jobId}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload job media')
+    }
+
+    return response.json()
+  }
+
+  async createProjectTrade(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/trades`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProjectTrade(projectId: number, tradeId: number, data: any) {
+    return this.request(`/projects/${projectId}/trades/${tradeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectTrade(projectId: number, tradeId: number) {
+    return this.request(`/projects/${projectId}/trades/${tradeId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getTradeScopePublic(tradeUuid: string) {
+    return this.request(`/projects/trade/${tradeUuid}`)
+  }
+
+  async acceptTradeScopePublic(tradeUuid: string) {
+    return this.request(`/projects/trade/${tradeUuid}/accept`, {
+      method: 'POST',
+    })
+  }
+
+  async uploadProjectMedia(projectId: number, files: File[], context: string, tradeId?: number, taskId?: number) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    formData.append('context', context)
+    if (tradeId) formData.append('trade_id', tradeId.toString())
+    if (taskId) formData.append('task_id', taskId.toString())
+
+    const response = await fetch(`${this.baseURL}/projects/${projectId}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload project media')
+    }
+
+    return response.json()
+  }
+
+  async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    formData.append('context', context)
+
+    const response = await fetch(`${this.baseURL}/projects/trade/${tradeUuid}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      // No credentials since it's a public endpoint
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload trade media')
+    }
+
+    return response.json()
+  }
+
+  async attachProjectMedia(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/media`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async attachQuoteMedia(jobId: number, data: any) {
+    return this.request(`/jobs/${jobId}/media`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 
@@ -1186,6 +1427,13 @@ class ContractorAIClient {
     reference_id?: number
   }) {
     return this.request('/followup/send-immediate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async attachProjectMedia(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/media`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
