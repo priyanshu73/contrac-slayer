@@ -33,12 +33,14 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase,
+    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useLocale } from "next-intl"
 import { cn } from "@/lib/utils"
+import { ProjectTrade } from "@/lib/types"
+import { EditTradeDialog } from "./projects/edit-trade-dialog"
 
 const SUB_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
 
@@ -65,6 +67,7 @@ interface SubcontractorDetailData {
     notes?: string
     created_at: string
     updated_at: string
+    trades: ProjectTrade[]
 }
 
 export function SubcontractorDetail({ subcontractorId }: { subcontractorId: string }) {
@@ -76,6 +79,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
     const [loading, setLoading] = useState(true)
     const [editOpen, setEditOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
+    const [editTrade, setEditTrade] = useState<ProjectTrade | null>(null)
 
     // Edit form state
     const [editForm, setEditForm] = useState({
@@ -154,6 +158,14 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             year: "numeric",
             month: "short",
             day: "numeric",
+        })
+    }
+
+    const handleTradeUpdated = (updatedTrade: ProjectTrade) => {
+        if (!subData) return
+        setSubData({
+            ...subData,
+            trades: subData.trades.map(t => t.id === updatedTrade.id ? updatedTrade : t)
         })
     }
 
@@ -264,15 +276,118 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                         </Card>
                     )}
 
-                    {/* Assigned Trades placeholder */}
-                    <Card className="p-5 border border-slate-200">
-                        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2">
-                            <Briefcase className="h-4 w-4" /> Assigned Trades
-                        </h3>
-                        <p className="text-sm text-slate-400">Trade assignments will show here once projects are linked.</p>
+                    {/* Assigned Trades / Scopes */}
+                    <Card className="border border-slate-200 overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                            <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                                <Briefcase className="h-4 w-4 text-slate-400" /> Managed Scopes & Pricing
+                            </h3>
+                            <Badge variant="outline" className="text-[10px] font-bold">
+                                {subData.trades?.length || 0} active scopes
+                            </Badge>
+                        </div>
+
+                        {!subData.trades || subData.trades.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-slate-400">No work scopes found for this subcontractor.</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {subData.trades.map((trade) => (
+                                    <div key={trade.id} className="p-5 hover:bg-slate-50/50 transition-colors group">
+                                        <div className="flex flex-col gap-3">
+                                            {/* Header */}
+                                            <div className="flex items-start justify-between">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-base font-bold text-slate-900">{trade.trade_type}</span>
+                                                        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0",
+                                                            trade.status === 'ACCEPTED' ? 'bg-green-50 text-green-700 border-green-100' :
+                                                                trade.status === 'PENDING_ACCEPTANCE' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                                                                    'bg-slate-50 text-slate-600 border-slate-200'
+                                                        )}>
+                                                            {trade.status.replace(/_/g, ' ')}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                        <span className="font-medium text-blue-600 hover:underline cursor-pointer" onClick={() => router.push(`/${locale}/projects/${trade.project_id}`)}>
+                                                            {trade.project_title || 'Unnamed Project'}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>Assigned {formatDate(trade.created_at)}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-right mr-2">
+                                                        <div className="text-sm font-bold text-slate-900">
+                                                            {trade.agreed_price ? `$${Number(trade.agreed_price).toLocaleString()}` : <span className="text-slate-400 font-normal italic">No price set</span>}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Agreed Budget</div>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 px-3 text-slate-600 hover:text-blue-600 border-slate-200"
+                                                        onClick={() => setEditTrade(trade)}
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Scope
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Scope Preview */}
+                                            {trade.scope_of_work ? (
+                                                <div className="bg-slate-50/80 rounded-lg p-3 border border-slate-100">
+                                                    <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed italic">
+                                                        &ldquo;{trade.scope_of_work}&rdquo;
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-slate-400 italic">No scope description provided.</p>
+                                            )}
+
+                                            {/* Quick Stats */}
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <div className="flex items-center gap-1 text-slate-500">
+                                                    <Briefcase className="h-3.5 w-3.5" />
+                                                    {trade.tasks?.length || 0} Tasks
+                                                </div>
+                                                {trade.materials_required && trade.materials_required.length > 0 && (
+                                                    <div className="flex items-center gap-1 text-slate-500">
+                                                        <span className="font-medium text-slate-700">{trade.materials_required.length}</span> Materials listed
+                                                    </div>
+                                                )}
+                                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-blue-600 py-0"
+                                                        onClick={() => router.push(`/${locale}/projects/${trade.project_id}`)}
+                                                    >
+                                                        Go to project <ExternalLink className="h-3 w-3 ml-1" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
                 </div>
             </div>
+
+            {/* Trade Edit Dialog */}
+            {editTrade && (
+                <EditTradeDialog
+                    open={!!editTrade}
+                    onOpenChange={(open) => !open && setEditTrade(null)}
+                    projectId={editTrade.project_id}
+                    trade={editTrade}
+                    onTradeUpdated={handleTradeUpdated}
+                />
+            )}
 
             {/* Edit Dialog */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>

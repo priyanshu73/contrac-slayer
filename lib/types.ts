@@ -490,6 +490,7 @@ export interface ProjectTrade {
   id: number
   uuid: string
   project_id: number
+  project_title?: string
   trade_type: string
   subcontractor_name: string
   subcontractor_email?: string
@@ -500,6 +501,7 @@ export interface ProjectTrade {
   agreed_price?: number
   status: TradeAcceptanceStatus
   accepted_at?: string
+  created_at?: string
   reference_media?: ProjectMedia[]
   proof_of_work_media?: ProjectMedia[]
   tasks?: ProjectTask[]
