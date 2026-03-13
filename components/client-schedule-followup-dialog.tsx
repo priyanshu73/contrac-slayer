@@ -195,15 +195,12 @@ export function ClientScheduleFollowupDialog({
     const fetchBookings = async () => {
       setBookingsLoading(true)
       try {
-        const profile = await api.getMyProfile() as { email?: string } | null
-        const res = await api.getNeetoBookings({
-          page_size: 50,
+        const res = await api.getBookings({
+          limit: 50,
           type: "upcoming",
-          host_email: profile?.email,
           client_email: clientEmail,
         })
-        const data = (res as { data?: unknown })?.data ?? res
-        const list = Array.isArray(data) ? data : (data as { bookings?: Booking[] })?.bookings ?? []
+        const list = (res as { bookings?: Booking[] })?.bookings ?? []
         setBookings(Array.isArray(list) ? list : [])
       } catch {
         setBookings([])

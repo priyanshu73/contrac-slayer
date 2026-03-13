@@ -181,6 +181,13 @@ export function SettingsTabs() {
     loadProfile()
   }, [])
 
+  useEffect(() => {
+    const tab = searchParams.get("tab") as SettingsSection
+    if (tab && ["business", "billing", "integrations", "language"].includes(tab)) {
+      setActiveSection(tab)
+    }
+  }, [searchParams])
+
   const loadGmailStatus = async () => {
     setGmailStatusLoading(true)
     try {

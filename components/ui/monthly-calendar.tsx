@@ -2,11 +2,9 @@
 
 import { useMemo } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 
-const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
 
 function pad2(n: number) {
   return String(n).padStart(2, "0")
@@ -25,7 +23,18 @@ function addMonths(d: Date, delta: number) {
 }
 
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function isBefore(a: Date, b: Date) {
+  return (
+    a.getFullYear() < b.getFullYear() ||
+    (a.getFullYear() === b.getFullYear() && a.getMonth() < b.getMonth())
+  )
 }
 
 export type MonthlyCalendarProps = {
@@ -34,6 +43,8 @@ export type MonthlyCalendarProps = {
   onSelect: (day: Date) => void
   onMonthChange: (month: Date) => void
   getCount?: (day: Date) => number
+  /** If true, days before today are dimmed and non-interactive */
+  disablePast?: boolean
   className?: string
 }
 
@@ -43,25 +54,28 @@ export function MonthlyCalendar({
   onSelect,
   onMonthChange,
   getCount,
+  disablePast = false,
   className,
 }: MonthlyCalendarProps) {
   const first = useMemo(() => startOfMonth(month), [month])
-  const title = useMemo(
-    () =>
-      first.toLocaleDateString(undefined, {
-        month: "long",
-        year: "numeric",
-      }),
+  const today = useMemo(() => new Date(), [])
+
+  const monthLabel = useMemo(
+    () => first.toLocaleDateString(undefined, { month: "long" }),
+    [first]
+  )
+  const yearLabel = useMemo(
+    () => first.toLocaleDateString(undefined, { year: "numeric" }),
     [first]
   )
 
   const cells = useMemo(() => {
-    const firstDayOfWeek = first.getDay() // 0=Sun
+    const firstDayOfWeek = first.getDay()
     const start = new Date(first)
     start.setDate(first.getDate() - firstDayOfWeek)
 
     const out: Array<{ date: Date; inMonth: boolean; key: string }> = []
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < 42; i++) {
       const d = new Date(start)
       d.setDate(start.getDate() + i)
       out.push({
@@ -73,111 +87,128 @@ export function MonthlyCalendar({
     return out
   }, [first])
 
-  const today = useMemo(() => new Date(), [])
-  const isToday = (d: Date) => isSameDay(d, today)
+  const canGoPrev = !isBefore(addMonths(first, -1), startOfMonth(today))
 
   return (
-    <div
-      className={cn(
-        "w-full min-w-0 max-w-full rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-6 sm:p-7 lg:p-8",
-        "shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]",
-        className
-      )}
-    >
-      <div className="flex items-center justify-between gap-2 mb-4">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base sm:text-lg font-semibold leading-tight text-[#1E293B] dark:text-foreground">{title}</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button
+    <div className={cn("w-full", className)}>
+
+      {/* Month navigation header */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+          {monthLabel}{" "}
+          <span className="font-normal text-gray-400">{yearLabel}</span>
+        </h2>
+        <div className="flex items-center gap-0.5">
+          <button
             type="button"
-            variant="outline"
-            size="icon"
             onClick={() => onMonthChange(addMonths(first, -1))}
+            disabled={disablePast && !canGoPrev}
             aria-label="Previous month"
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-25 disabled:pointer-events-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
             type="button"
-            variant="outline"
-            size="icon"
             onClick={() => onMonthChange(addMonths(first, 1))}
             aria-label="Next month"
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Grid: equal columns, constrained width so cells stay compact with more padding */}
-      <div className="grid grid-cols-7 gap-2.5 sm:gap-3 md:gap-4 w-full min-w-0 [&>button]:min-w-0">
+      {/* Day-of-week labels */}
+      <div className="grid grid-cols-7 mb-1">
         {DAY_NAMES.map((d) => (
-          <div key={d} className="pb-2 sm:pb-2.5 text-center text-[10px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
-            {d.slice(0, 1)}
-            <span className="hidden sm:inline">{d.slice(1)}</span>
+          <div
+            key={d}
+            className="text-center text-xs font-medium text-gray-400 py-1 select-none"
+          >
+            {d}
           </div>
         ))}
+      </div>
+
+      {/* Calendar grid — each column centers a fixed-size button so cells never stretch */}
+      <div className="grid grid-cols-7">
         {cells.map(({ date, inMonth, key }) => {
           const count = getCount ? getCount(date) : 0
           const isSelected = selected ? isSameDay(date, selected) : false
-          const hasBookings = count > 0
-          const todayCell = inMonth && isToday(date)
+          const isToday = isSameDay(date, today)
+          const isPast =
+            disablePast &&
+            !isToday &&
+            date < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+          const hasCount = count > 0 && inMonth
+          const countLabel = count > 99 ? "99+" : String(count)
 
           return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onSelect(date)}
-              className={cn(
-                "relative flex aspect-square w-full min-w-0 rounded-lg sm:rounded-xl transition-all duration-200",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                "items-center justify-center",
-                inMonth
-                  ? "border border-[#E2E8F0] dark:border-border/50 bg-slate-50/60 sm:bg-slate-50/80 dark:bg-slate-800/20 sm:dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-border cursor-pointer"
-                  : "border border-transparent bg-slate-50/30 sm:bg-slate-50/40 dark:bg-slate-800/10 cursor-pointer",
-                todayCell && !isSelected && "border border-primary/40 bg-primary/5 dark:bg-primary/10",
-                isSelected && "bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary shadow-sm hover:shadow-md",
-                hasBookings && !isSelected && inMonth && "border-primary/30 dark:border-primary/40",
-                !inMonth && "opacity-50",
-                !isSelected && inMonth && "text-foreground"
-              )}
-              aria-pressed={isSelected}
-            >
-              {/* Meeting count — top corner, responsive */}
-              {hasBookings && inMonth && (
-                <div
-                  className={cn(
-                    "absolute top-0 right-0 flex items-center justify-center rounded-full font-semibold tabular-nums shadow-sm bg-primary text-primary-foreground",
-                    "h-[18px] w-[18px] min-w-[18px] text-[9px] leading-none",
-                    "sm:h-5 sm:w-5 sm:min-w-5 sm:text-[10px]",
-                    "md:h-6 md:w-6 md:min-w-6 md:text-xs"
-                  )}
-                >
-                  {count > 99 ? "99+" : count}
-                </div>
-              )}
-              {/* Day number — centered */}
-              <span
+            <div key={key} className="flex items-center justify-center py-1">
+              <button
+                type="button"
+                onClick={() => !isPast && inMonth && onSelect(date)}
+                disabled={isPast || !inMonth}
+                aria-pressed={isSelected}
+                aria-label={date.toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
                 className={cn(
-                  "flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-lg text-sm sm:text-base font-medium tabular-nums transition-all pointer-events-none",
-                  isSelected && "text-primary font-semibold",
-                  todayCell && !isSelected && "bg-primary/10 text-primary dark:bg-primary/20",
-                  !inMonth && "text-muted-foreground/70",
-                  !isSelected && inMonth && !todayCell && "text-foreground"
+                  // Fixed compact size — never stretches with container
+                  "relative w-9 h-9 flex items-center justify-center rounded-xl",
+                  "text-sm font-medium transition-all select-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+
+                  // Out-of-month
+                  !inMonth && "text-gray-200 pointer-events-none",
+
+                  // Past in-month
+                  inMonth && isPast && "text-gray-300 pointer-events-none",
+
+                  // Normal in-month
+                  inMonth && !isPast && !isSelected && !isToday &&
+                  "text-gray-700 hover:bg-primary/5 hover:text-primary cursor-pointer",
+
+                  // Today — thin ring, no fill
+                  isToday &&
+                  "ring-1 ring-primary/30 text-primary font-semibold cursor-pointer hover:bg-primary/5",
+
+                  // Selected — solid theme color, no oversized shadow
+                  isSelected && !isToday && "bg-primary text-primary-foreground font-semibold",
                 )}
               >
                 {date.getDate()}
-              </span>
-            </button>
+
+                {/* Today dot */}
+                {isToday && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                )}
+
+                {/* Count badge */}
+                {hasCount && (
+                  <span
+                    className={cn(
+                      "absolute -top-0.5 -right-0.5 flex items-center justify-center",
+                      "rounded-full font-semibold tabular-nums",
+                      "h-4 min-w-4 px-0.5 text-[9px] leading-none",
+                      (isSelected && !isToday)
+                        ? "bg-primary-foreground/30 text-primary-foreground"
+                        : isToday
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-primary/10 text-primary"
+                    )}
+                  >
+                    {countLabel}
+                  </span>
+                )}
+              </button>
+            </div>
           )
         })}
       </div>
     </div>
   )
 }
-
-
-

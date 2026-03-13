@@ -1,0 +1,26 @@
+"use client"
+
+import { usePathname } from "next/navigation"
+import { Navbar } from "@/components/navbar"
+import { EmailVerificationBanner } from "@/components/email-verification-banner"
+
+/** Routes that should NOT show the Navbar / shell UI */
+function isPublicShellRoute(pathname: string): boolean {
+  return (
+    !!pathname?.match(/^\/[a-z]{2}\/book\//) ||
+    pathname?.startsWith("/book/")
+  )
+}
+
+export function ConditionalShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const hideShell = isPublicShellRoute(pathname ?? "")
+
+  return (
+    <>
+      {!hideShell && <Navbar />}
+      {!hideShell && <EmailVerificationBanner />}
+      {children}
+    </>
+  )
+}

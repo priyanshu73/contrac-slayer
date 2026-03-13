@@ -1,137 +1,156 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect, useMemo } from "react"
+import {
+  startOfToday,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  addMonths,
+  subMonths,
+  getDay,
+  isBefore,
+  isSameDay,
+  format,
+} from "date-fns"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export function CalendarView() {
-  const [currentDate, setCurrentDate] = useState(new Date())
+interface CalendarViewProps {
+  /** Optional array of dates that have events (used to show dot indicators). */
+  eventDates?: Date[]
+  /** Called when the user clicks a day. */
+  onDayClick?: (date: Date) => void
+  /** Currently selected date (controlled). */
+  selectedDate?: Date | null
+  /** If true, past days are not clickable (defaults to false). */
+  disablePast?: boolean
+  className?: string
+}
+
+const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+export function CalendarView({
+  eventDates = [],
+  onDayClick,
+  selectedDate: controlledSelected,
+  disablePast = false,
+  className,
+}: CalendarViewProps = {}) {
+  const today = startOfToday()
+  const [currentMonth, setCurrentMonth] = useState(today)
+  const [internalSelected, setInternalSelected] = useState<Date | null>(null)
+
+  const selectedDate = controlledSelected !== undefined ? controlledSelected : internalSelected
+
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // TODO: Fetch jobs/calendar events from API when endpoint is available
-    // For now, show empty state
     setLoading(false)
     setJobs([])
   }, [])
 
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay()
+  const calendarDays = useMemo(() => {
+    const start = startOfMonth(currentMonth)
+    const end = endOfMonth(currentMonth)
+    const days = eachDayOfInterval({ start, end })
+    const leadingBlanks = getDay(start)
+    return { days, leadingBlanks }
+  }, [currentMonth])
 
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ]
+  const eventDateKeys = useMemo(
+    () => new Set(eventDates.map((d) => format(d, "yyyy-MM-dd"))),
+    [eventDates]
+  )
 
-  const getJobsForDay = (_day: number): Array<{ time: string; client?: string }> => {
-    // TODO: Filter jobs by date when API is available
-    return []
-  }
-
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
-  }
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  const handleDayClick = (day: Date) => {
+    if (disablePast && isBefore(day, today)) return
+    if (controlledSelected === undefined) setInternalSelected(day)
+    onDayClick?.(day)
   }
 
   return (
-    <Card className="p-6 lg:p-8">
-      {/* Calendar Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">
-          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+    <div className={cn("bg-white rounded-2xl border border-gray-200 shadow-sm p-7", className)}>
+      {/* Month header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-bold text-gray-900">
+          <span>{format(currentMonth, "MMMM")}</span>{" "}
+          <span className="text-gray-400 font-normal">{format(currentMonth, "yyyy")}</span>
         </h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={previousMonth}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Button>
-          <Button variant="outline" size="sm" onClick={nextMonth}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+            disabled={disablePast && isBefore(endOfMonth(subMonths(currentMonth, 1)), today)}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-25 disabled:pointer-events-none transition"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+            aria-label="Next month"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Calendar Grid — spacious, full width, responsive gaps */}
-      <div className="grid grid-cols-7 gap-3 lg:gap-4 w-full">
-        {/* Day Headers */}
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="pb-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
-            {day.slice(0, 1)}
-            <span className="hidden sm:inline">{day.slice(1)}</span>
+      {/* Day-of-week labels */}
+      <div className="grid grid-cols-7 mb-2">
+        {DAYS_OF_WEEK.map((d) => (
+          <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">
+            {d}
           </div>
         ))}
+      </div>
 
-        {/* Empty cells for days before month starts */}
-        {Array.from({ length: firstDayOfMonth }).map((_, index) => (
-          <div
-            key={`empty-${index}`}
-            className="aspect-square min-h-[80px] sm:min-h-[100px] lg:min-h-[120px] rounded-xl border border-border/30"
-            aria-hidden
-          />
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {/* Leading blanks */}
+        {Array.from({ length: calendarDays.leadingBlanks }).map((_, i) => (
+          <div key={`blank-${i}`} />
         ))}
 
-        {/* Calendar days */}
-        {Array.from({ length: daysInMonth }).map((_, index) => {
-          const day = index + 1
-          const dayJobs = getJobsForDay(day)
-          const today = new Date()
-          const isToday =
-            day === today.getDate() &&
-            currentDate.getMonth() === today.getMonth() &&
-            currentDate.getFullYear() === today.getFullYear()
+        {/* Day buttons */}
+        {calendarDays.days.map((day) => {
+          const isPast = disablePast && isBefore(day, today)
+          const isSelected = selectedDate ? isSameDay(day, selectedDate) : false
+          const isToday = isSameDay(day, today)
+          const hasEvent = eventDateKeys.has(format(day, "yyyy-MM-dd"))
 
           return (
-            <div
-              key={day}
-              className="relative aspect-square min-h-[80px] sm:min-h-[100px] lg:min-h-[120px] rounded-xl border border-border/30 p-3 sm:p-4 hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer group flex flex-col"
+            <button
+              key={day.toISOString()}
+              onClick={() => handleDayClick(day)}
+              disabled={isPast}
+              aria-pressed={isSelected}
+              aria-label={format(day, "EEEE MMMM d")}
+              className={cn(
+                "relative aspect-square flex items-center justify-center rounded-xl text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                isPast && "text-gray-200 cursor-not-allowed",
+                !isPast && !isSelected && "text-gray-700 hover:bg-blue-50 hover:text-blue-600 cursor-pointer",
+                isSelected && "bg-blue-600 text-white shadow-md shadow-blue-200",
+                isToday && !isSelected && "ring-1 ring-blue-300 text-blue-600"
+              )}
             >
-              {/* Booking badge — top right */}
-              {dayJobs.length > 0 && (
-                <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white text-xs font-semibold shadow-sm">
-                  {dayJobs.length}
-                </div>
+              {format(day, "d")}
+
+              {/* Today indicator dot */}
+              {isToday && !isSelected && (
+                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-500" />
               )}
-              {/* Date number */}
-              <div
-                className={cn(
-                  "inline-flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm sm:text-base font-normal tabular-nums transition-all",
-                  isToday
-                    ? "bg-blue-500 text-white shadow-md scale-105"
-                    : "text-foreground/80 group-hover:text-foreground"
-                )}
-              >
-                {day}
-              </div>
-              {/* Optional: event dots at bottom when there are jobs */}
-              {dayJobs.length > 0 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                  {dayJobs.slice(0, 3).map((_, idx) => (
-                    <div key={idx} className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                  ))}
-                </div>
+
+              {/* Event indicator dot (shown when not selected, not today-only dot) */}
+              {hasEvent && !isToday && !isSelected && (
+                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-400" />
               )}
-            </div>
+            </button>
           )
         })}
       </div>
-    </Card>
+    </div>
   )
 }

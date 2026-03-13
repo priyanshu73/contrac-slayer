@@ -184,6 +184,12 @@ class ApiClient {
     })
   }
 
+  async regenerateSchedulingLink(): Promise<{ calendar_link: string }> {
+    return this.request<{ calendar_link: string }>('/contractors/profile/regenerate-scheduling-link', {
+      method: 'POST',
+    })
+  }
+
   // --- Gmail (send on behalf) ---
   async getGmailStatus(): Promise<{ connected: boolean; email: string | null }> {
     return this.request<{ connected: boolean; email: string | null }>('/gmail/status')
@@ -603,185 +609,210 @@ class ApiClient {
   }
 
   // =========================
-  // NeetoCal (proxied via backend)
+  // Calendar (Native Google Integration)
   // =========================
-  async getNeetoBookings(params?: {
-    // preferred (matches NeetoCal docs)
-    page_size?: number
-    page_number?: number
-    type?: string
-    host_email?: string
+  async getCalendarBookings(month: string) {
+    const searchParams = new URLSearchParams()
+    searchParams.append('month', month)
+    return this.request<{
+      events: Array<{
+        source: 'native' | 'google'
+        id: string | number
+        title: string
+        start: string
+        end: string
+        status?: string
+        type?: 'virtual' | 'physical'
+        location?: string | null
+        meet_link?: string | null
+        client_name?: string | null
+        client_email?: string | null
+        client_phone?: string | null
+      }>
+    }>(`/calendar/events?${searchParams.toString()}`)
+  }
+
+  async getBookings(params?: {
+    limit?: number
     client_email?: string
-    sorting_order?: string
-    // legacy
-    take?: number
-    cursor?: string
-    status?: string
-    team_member_email?: string
+    type?: string
+    sorting_order?: 'asc' | 'desc'
+    month?: string
   }) {
     const searchParams = new URLSearchParams()
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
-    if (params?.page_number) searchParams.append('page_number', params.page_number.toString())
-    if (params?.type) searchParams.append('type', params.type)
-    if (params?.host_email) searchParams.append('host_email', params.host_email)
+    if (params?.limit) searchParams.append('limit', String(params.limit))
     if (params?.client_email) searchParams.append('client_email', params.client_email)
+    if (params?.type) searchParams.append('type', params.type)
     if (params?.sorting_order) searchParams.append('sorting_order', params.sorting_order)
-
-    if (params?.take) searchParams.append('take', params.take.toString())
-    if (params?.cursor) searchParams.append('cursor', params.cursor)
-    if (params?.status) searchParams.append('status', params.status)
-    if (params?.team_member_email) searchParams.append('team_member_email', params.team_member_email)
-    const qs = searchParams.toString()
-    return this.request(`/neetocal/bookings${qs ? `?${qs}` : ''}`)
-  }
-
-  async getNeetoAvailabilities(team_member_email?: string) {
-    const searchParams = new URLSearchParams()
-    if (team_member_email) searchParams.append('team_member_email', team_member_email)
-    const qs = searchParams.toString()
-    return this.request(`/neetocal/availabilities${qs ? `?${qs}` : ''}`)
-  }
-
-  /**
-   * Fetch available slots for the scheduling link (NeetoCal GET /slots/{meeting_slug}).
-   * Used to show only available times in the create-appointment time dropdown.
-   */
-  async getNeetoSlots(params: { time_zone: string; year: string; month: string; day?: string }) {
-    const searchParams = new URLSearchParams()
-    searchParams.append('time_zone', params.time_zone)
-    searchParams.append('year', params.year)
-    searchParams.append('month', params.month)
-    if (params.day) searchParams.append('day', params.day)
-    return this.request<{ slots?: Array<{ date: string; day: number; slots: Record<string, { start_time: string; end_time: string; count?: number }> }> }>(
-      `/neetocal/slots?${searchParams.toString()}`
-    )
-  }
-
-  async createNeetoAvailability(payload: any) {
-    return this.request(`/neetocal/availabilities`, {
-      method: 'POST',
-      body: JSON.stringify({ payload }),
-    })
-  }
-
-  /**
-   * Create a NeetoCal team member and optionally a meeting/calendar link
-   * This is called after profile creation to set up the contractor's calendar.
-   *
-   * NOTE: NeetoCal's Team Members API expects `emails: string[]`, not a single `email` field.
-   */
-  async createNeetoCalTeamMember(data: {
-    team_member_payload: {
-      emails: string[]
-      name?: string
-      organization_role?: string
-      invited_by?: string
-      time_zone?: string
-    }
-    meeting_payload?: {
-      name: string
-      duration: number
-      // Backend will adapt this payload for NeetoCal; keep it flexible.
-      host_email?: string
-      description?: string
-    }
-    create_one_off_link?: boolean
-    save_calendar_link_to_profile?: boolean
-  }) {
-    return this.request(`/neetocal/team-members`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  // Clean endpoint alias (backend proxies to NeetoCal)
-  async createAvailability(payload: any) {
-    return this.request(`/availabilities`, {
-      method: 'POST',
-      body: JSON.stringify({ payload }),
-    })
+    if (params?.month) searchParams.append('month', params.month)
+    const suffix = searchParams.toString()
+    return this.request<{
+      bookings: Array<{
+        id: number | string
+        client_id?: number | null
+        client_name?: string | null
+        client_email?: string | null
+        client_phone?: string | null
+        title?: string
+        status?: string
+        type?: 'virtual' | 'physical'
+        start?: string
+        end?: string
+        start_time?: string
+        end_time?: string
+        location?: string | null
+        notes?: string | null
+        google_event_id?: string | null
+        google_meet_link?: string | null
+        time_zone?: string | null
+      }>
+    }>(`/calendar/bookings${suffix ? `?${suffix}` : ''}`)
   }
 
   async getAvailabilities() {
-    return this.request(`/availabilities`)
-  }
-
-  async getSingleAvailability(teamMemberId?: string | null) {
-    const qs = teamMemberId ? `?team_member_id=${encodeURIComponent(teamMemberId)}` : ''
-    return this.request(`/availability${qs}`)
-  }
-
-  async getAvailabilityTimeZone() {
-    return this.request(`/availability/timezone`)
-  }
-
-  async upsertSingleAvailability(payload: any) {
-    return this.request(`/availability`, {
-      method: 'PUT',
-      body: JSON.stringify({ payload }),
-    })
-  }
-
-  async updateNeetoAvailability(availability_sid: string, payload: any) {
-    return this.request(`/neetocal/availabilities/${availability_sid}`, {
-      method: 'PUT',
-      body: JSON.stringify({ payload }),
-    })
-  }
-
-  async getNeetoAvailableSlots(params?: {
-    meeting_sid?: string
-    meeting_slug?: string
-    date?: string
-    timezone?: string
-  }) {
-    const searchParams = new URLSearchParams()
-    if (params?.meeting_sid) searchParams.append('meeting_sid', params.meeting_sid)
-    if (params?.meeting_slug) searchParams.append('meeting_slug', params.meeting_slug)
-    if (params?.date) searchParams.append('date', params.date)
-    if (params?.timezone) searchParams.append('timezone', params.timezone)
-    const qs = searchParams.toString()
-    return this.request(`/neetocal/available-slots${qs ? `?${qs}` : ''}`)
+    return this.request<{
+      availabilities: Array<{
+        day_of_week: number
+        start_time: string
+        end_time: string
+        timezone: string
+      }>
+    }>(`/calendar/availabilities`)
   }
 
   /**
-   * Create a NeetoCal booking manually (in-person meeting with a client).
-   * Uses NeetoCal Make a booking API; meeting_slug is derived from profile calendar_link.
+   * Fetch available slots (Combining DB and Google Calendar freebusy).
    */
-  async createNeetoBooking(payload: {
-    name: string
-    email: string
-    time_zone: string
-    slot_date?: string
-    slot_start_time?: string
-    preferred_meeting_spot?: string
-    location?: string
-    form_responses?: Record<string, unknown>
+  async getAvailableSlots(params: { date: string; timezone: string; duration_minutes?: number }) {
+    const searchParams = new URLSearchParams()
+    searchParams.append('date', params.date)
+    searchParams.append('timezone', params.timezone)
+    if (params.duration_minutes) searchParams.append('duration_minutes', params.duration_minutes.toString())
+    return this.request<{ slots: string[] }>(
+      `/calendar/slots?${searchParams.toString()}`
+    )
+  }
+
+  async saveAvailabilities(payload: {
+    availabilities: Array<{
+      day_of_week: number
+      start_time: string
+      end_time: string
+      timezone: string
+    }>
   }) {
-    return this.request('/neetocal/bookings', {
+    return this.request(`/calendar/availabilities`, {
       method: 'POST',
       body: JSON.stringify(payload),
     })
   }
 
-  /** Cancel a NeetoCal booking. POST /bookings/{booking_sid}/cancel */
-  async cancelNeetoBooking(bookingSid: string, cancelReason?: string) {
-    const qs = cancelReason ? `?cancel_reason=${encodeURIComponent(cancelReason)}` : ''
-    return this.request(`/neetocal/bookings/${encodeURIComponent(bookingSid)}/cancel${qs}`, {
+  /**
+   * Create a native booking and sync to Google Calendar
+   */
+  async createBooking(payload: {
+    client_name: string
+    client_email?: string
+    client_phone?: string
+    time_zone: string
+    slot_date: string
+    slot_start_time: string
+    duration_minutes?: number
+    preferred_meeting_spot?: string
+    location?: string
+    description?: string
+    form_responses?: Record<string, unknown>
+  }) {
+    return this.request(`/calendar/bookings`, {
       method: 'POST',
+      body: JSON.stringify(payload),
     })
   }
 
-  /** Reschedule a NeetoCal booking. PATCH /bookings/{booking_sid} */
-  async rescheduleNeetoBooking(bookingSid: string, payload: {
+  // Legacy compatibility wrappers while NeetoCal references are being removed.
+  async getNeetoBookings(params?: {
+    limit?: number
+    page_size?: number
+    client_email?: string
+    type?: string
+    sorting_order?: 'asc' | 'desc'
+    month?: string
+  }) {
+    return this.getBookings({
+      limit: params?.limit ?? params?.page_size,
+      client_email: params?.client_email,
+      type: params?.type,
+      sorting_order: params?.sorting_order,
+      month: params?.month,
+    })
+  }
+
+  async getNeetoSlots(params: {
+    time_zone: string
+    year: string
+    month: string
+    day?: string
+    duration_minutes?: number
+  }) {
+    const date = `${params.year}-${String(params.month).padStart(2, '0')}-${String(params.day ?? '1').padStart(2, '0')}`
+    const res = await this.getAvailableSlots({
+      date,
+      timezone: params.time_zone,
+      duration_minutes: params.duration_minutes,
+    })
+    return {
+      slots: [
+        {
+          date,
+          slots: Object.fromEntries(
+            (res.slots ?? []).map((iso, idx) => [`slot_${idx}`, { start_time: iso }])
+          ),
+        },
+      ],
+    }
+  }
+
+  async createNeetoBooking(payload: {
     name: string
-    email: string
+    email?: string
+    phone?: string
+    time_zone: string
+    slot_date: string
+    slot_start_time: string
+    duration_minutes?: number
+    preferred_meeting_spot?: string
+    location?: string
+    description?: string
+  }) {
+    return this.createBooking({
+      client_name: payload.name,
+      client_email: payload.email,
+      client_phone: payload.phone,
+      time_zone: payload.time_zone,
+      slot_date: payload.slot_date,
+      slot_start_time: payload.slot_start_time,
+      duration_minutes: payload.duration_minutes,
+      preferred_meeting_spot: payload.preferred_meeting_spot,
+      location: payload.location,
+      description: payload.description,
+    })
+  }
+
+  /** Cancel a booking. DELETE /calendar/bookings/{booking_id} */
+  async cancelBooking(bookingId: string | number) {
+    return this.request(`/calendar/bookings/${encodeURIComponent(String(bookingId))}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /** Reschedule a booking. PATCH /calendar/bookings/{booking_id}/reschedule */
+  async rescheduleBooking(bookingId: string | number, payload: {
     slot_date: string
     slot_start_time: string
     time_zone: string
-    reschedule_reason?: string
+    duration_minutes?: number
   }) {
-    return this.request(`/neetocal/bookings/${encodeURIComponent(bookingSid)}`, {
+    return this.request(`/calendar/bookings/${encodeURIComponent(String(bookingId))}/reschedule`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     })
