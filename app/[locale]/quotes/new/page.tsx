@@ -1,20 +1,68 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { QuoteCreator } from "@/components/Quote-creator"
 import { Button } from "@/components/ui/button"
 import { useSearchParams } from "next/navigation"
+import { api } from "@/lib/api"
+import { Loader2 } from "lucide-react"
 
 export default function NewQuotePage() {
   const searchParams = useSearchParams()
   const leadId = searchParams.get("leadId")
   const clientId = searchParams.get("clientId")
+  const copyFromId = searchParams.get("copyFromId")
 
-  const subtitle =
-    clientId
+  const [copiedQuoteData, setCopiedQuoteData] = useState<any>(null)
+  const [loadingCopy, setLoadingCopy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (copyFromId) {
+      const fetchCopiedQuote = async () => {
+        try {
+          setLoadingCopy(true)
+          const data = await api.getJob(parseInt(copyFromId))
+          setCopiedQuoteData(data)
+        } catch (err: any) {
+          setError(err.message || "Failed to load quote to copy")
+        } finally {
+          setLoadingCopy(false)
+        }
+      }
+      fetchCopiedQuote()
+    }
+  }, [copyFromId])
+
+  const subtitle = copyFromId
+    ? `Copying from Quote #${copyFromId}`
+    : clientId
       ? "From client – basic info pre-filled"
       : leadId
         ? "From Lead - AI-powered pricing"
         : "AI-powered pricing"
+
+  if (loadingCopy) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading quote to copy...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="text-destructive mb-2 px-4 py-2 border border-destructive/20 bg-destructive/10 rounded-md">
+          <p className="font-medium text-center">{error}</p>
+        </div>
+        <Button onClick={() => window.location.href = '/quotes/new'} variant="outline" className="mt-4">
+          Start Blank Quote Instead
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -37,8 +85,13 @@ export default function NewQuotePage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
-        <QuoteCreator leadId={leadId} clientId={clientId} />
+        <QuoteCreator 
+          leadId={leadId} 
+          clientId={clientId} 
+          initialData={copiedQuoteData} 
+        />
       </main>
     </div>
   )
 }
+

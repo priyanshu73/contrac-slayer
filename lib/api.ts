@@ -1196,8 +1196,48 @@ class ApiClient {
       body: JSON.stringify(data),
     })
   }
-}
 
+  async uploadCostBook(file: File): Promise<any[]> {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    // Custom fetch because of FormData and missing content-type
+    const response = await fetch(`${this.baseURL}/cost-book/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload cost book')
+    }
+
+    return response.json()
+  }
+
+  async confirmCostBook(items: any[]): Promise<{ message: string }> {
+    return this.request('/cost-book/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    })
+  }
+
+  async getQuoteItemsAutocomplete(query: string, source: 'all' | 'master' | 'historical' = 'all') {
+    const params = new URLSearchParams({ q: query, source })
+    return this.request<any[]>(`/quote-items/autocomplete?${params.toString()}`)
+  }
+
+  async getCostBook(): Promise<any[]> {
+    return this.request('/cost-book')
+  }
+
+  async deleteCostBookItem(itemId: number): Promise<{ success: boolean }> {
+    return this.request(`/cost-book/${itemId}`, {
+      method: 'DELETE',
+    })
+  }
+}
 
 class ContractorAIClient {
   private baseURL: string
