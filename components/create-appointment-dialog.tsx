@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
-import { Calendar, ChevronsUpDown, Info, MapPin } from "lucide-react"
+import { Calendar, ChevronsUpDown, Video, Building2 } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,8 @@ import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { AddClientForm, type CreatedClient } from "@/components/add-client-form"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { AddressData } from "@/lib/types/address"
 
 
 function PersonAddIcon({ className }: { className?: string }) {
@@ -67,7 +69,7 @@ function hhmmToApiTime(hhmm: string): string {
   return `${pad2(hh12raw)}:${pad2(mm)} ${ap}`
 }
 
-/** Parse NeetoCal slot start_time (e.g. "09:00", "09:00:00", or "2025-01-15T09:00:00Z") to HH:MM. */
+/** Parse a slot time string (e.g. "09:00", "09:00:00", or ISO datetime) to HH:MM. */
 function parseSlotStartToHHMM(raw: string): string | null {
   if (!raw || typeof raw !== "string") return null
   const s = raw.trim()
@@ -99,16 +101,8 @@ function getInitials(name: string): string {
   return (name || "?").slice(0, 2).toUpperCase()
 }
 
-const MEETING_SPOT_OPTIONS: Array<{ value: string; labelKey: string }> = [
-  { value: "in_person", labelKey: "meetingSpotInPerson" },
-  { value: "jitsi", labelKey: "meetingSpotJitsi" },
-  { value: "zoom", labelKey: "meetingSpotZoom" },
-  { value: "google_meet", labelKey: "meetingSpotGoogleMeet" },
-  { value: "teams", labelKey: "meetingSpotTeams" },
-  { value: "whereby", labelKey: "meetingSpotWhereby" },
-  { value: "daily", labelKey: "meetingSpotDaily" },
-  { value: "custom", labelKey: "meetingSpotCustom" },
-]
+// Simplified: only Google Meet (virtual) or In-person
+type MeetingSpot = "google_meet" | "in_person"
 
 export type CreateAppointmentClient = { id: number; name: string; email: string; address?: string }
 
@@ -140,7 +134,7 @@ export function CreateAppointmentDialog({
   const [addClientPanelOpen, setAddClientPanelOpen] = useState(false)
   const [date, setDate] = useState<string>("")
   const [time, setTime] = useState<string>("")
-  const [meetingSpot, setMeetingSpot] = useState<string>("in_person")
+  const [meetingSpot, setMeetingSpot] = useState<MeetingSpot>("google_meet")
   const [location, setLocation] = useState<string>("")
   const [creating, setCreating] = useState(false)
   const [slotTimeOptions, setSlotTimeOptions] = useState<Array<{ value: string; label: string }>>([])
@@ -154,10 +148,10 @@ export function CreateAppointmentDialog({
 
   const hasCalendarLink = Boolean(profile?.calendar_link)
   const timeZoneToUse = profile?.time_zone ?? (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null) ?? "America/New_York"
+  
   useEffect(() => {
     if (!open) setAddClientPanelOpen(false)
   }, [open])
-
 
   useEffect(() => {
     if (!open || !date.trim() || !hasCalendarLink) {
@@ -168,23 +162,16 @@ export function CreateAppointmentDialog({
     if (!y || !m) return
     setSlotsLoading(true)
     api
-      .getNeetoSlots({
-        time_zone: timeZoneToUse,
-        year: String(y),
-        month: String(m),
-        day: d ? String(d) : undefined,
+      .getAvailableSlots({
+        date,
+        timezone: timeZoneToUse,
       })
       .then((res: any) => {
-        const rawSlots = res?.slots ?? res?.data?.slots ?? []
         const startTimes = new Set<string>()
-        const targetDate = date
-        for (const dayEntry of rawSlots) {
-          if (dayEntry.date !== targetDate) continue
-          const slotMap = dayEntry.slots ?? {}
-          for (const slot of Object.values(slotMap) as Array<{ start_time?: string }>) {
-            const hhmm = parseSlotStartToHHMM(slot?.start_time ?? "")
-            if (hhmm) startTimes.add(hhmm)
-          }
+        const rawSlots = Array.isArray(res?.slots) ? res.slots : []
+        for (const slot of rawSlots as Array<string>) {
+          const hhmm = parseSlotStartToHHMM(slot)
+          if (hhmm) startTimes.add(hhmm)
         }
         const sorted = Array.from(startTimes).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b))
         setSlotTimeOptions(sorted.map((v) => ({ value: v, label: hhmmToLabel(v) })))
@@ -207,10 +194,13 @@ export function CreateAppointmentDialog({
     [clients, clientId]
   )
 
-  // When meeting is in person and a client with address is selected, default location to client's address
+  // When switching to in-person and selected client has address, pre-fill it
   useEffect(() => {
     if (meetingSpot === "in_person" && selectedClient?.address?.trim()) {
       setLocation(selectedClient.address.trim())
+    }
+    if (meetingSpot === "google_meet") {
+      setLocation("")
     }
   }, [meetingSpot, selectedClient?.id, selectedClient?.address])
 
@@ -233,13 +223,13 @@ export function CreateAppointmentDialog({
       const timeZoneToUse = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "America/New_York"
       const isInPerson = meetingSpot === "in_person"
       const locationTrimmed = location?.trim() ?? ""
-      await api.createNeetoBooking({
-        name: client.name,
-        email: client.email,
+      await api.createBooking({
+        client_name: client.name,
+        client_email: client.email,
         time_zone: timeZoneToUse,
         slot_date: date,
         slot_start_time: hhmmToApiTime(time),
-        preferred_meeting_spot: meetingSpot || "in_person",
+        preferred_meeting_spot: isInPerson ? "physical" : "virtual",
         ...(isInPerson && locationTrimmed ? { location: locationTrimmed } : {}),
       })
       toast({ description: tCalendar("appointmentCreated") })
@@ -445,79 +435,58 @@ export function CreateAppointmentDialog({
             </div>
           </div>
 
-          {/* Meeting Type + tooltip (warning only for non–in-person options) */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-medium text-foreground block">
-                {tCalendar("meetingType")}
-              </label>
-              {meetingSpot !== "in_person" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex cursor-help rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                      <Info className="h-3.5 w-3.5" aria-hidden />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[240px] bg-muted text-muted-foreground border border-border">
-                    {tCalendar("meetingOptionWarning")}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-            <Select value={meetingSpot} onValueChange={setMeetingSpot} disabled={!hasCalendarLink}>
-              <SelectTrigger className="h-11 rounded-lg px-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MEETING_SPOT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {tCalendar(opt.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {meetingSpot === "in_person" && (
-              <div className="space-y-2 pt-0">
-                <label className="text-sm font-medium text-foreground block">
-                  {tCalendar("location")}
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1 min-w-0">
-                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="text"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder={tCalendar("locationPlaceholder")}
-                      disabled={!hasCalendarLink}
-                      className="h-11 pl-10 pr-3 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    />
-                  </div>
-                  {location?.trim() && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-11 w-11 shrink-0 rounded-lg"
-                          asChild
-                        >
-                          <a
-                            href={`https://maps.google.com/?q=${encodeURIComponent(location.trim())}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="Open location in Google Maps"
-                          >
-                            <MapPin className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Open in Google Maps</TooltipContent>
-                    </Tooltip>
+          {/* Meeting Type — simplified to Google Meet or In-person */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-foreground block">
+              {tCalendar("meetingType")}
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl">
+              {(
+                [
+                  { value: "google_meet", label: "Google Meet", Icon: Video },
+                  { value: "in_person", label: "In-person", Icon: Building2 },
+                ] as const
+              ).map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={!hasCalendarLink}
+                  onClick={() => setMeetingSpot(value)}
+                  aria-pressed={meetingSpot === value}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    meetingSpot === value
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                    !hasCalendarLink && "opacity-50 pointer-events-none"
                   )}
-                </div>
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* In-person: Mapbox address autocomplete */}
+            {meetingSpot === "in_person" && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <MapboxAddressInput
+                  label={tCalendar("location")}
+                  placeholder={tCalendar("locationPlaceholder")}
+                  defaultValue={location}
+                  id="appointment-location"
+                  onAddressSelect={(addressData: AddressData | null) => {
+                    setLocation(addressData?.formatted_address ?? "")
+                  }}
+                />
               </div>
+            )}
+
+            {/* Google Meet: informational note */}
+            {meetingSpot === "google_meet" && (
+              <p className="text-xs text-muted-foreground animate-in fade-in duration-200">
+                A Google Meet link will be automatically generated and added to the calendar invite.
+              </p>
             )}
           </div>
 

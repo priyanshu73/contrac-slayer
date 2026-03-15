@@ -7,8 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { LanguageProvider } from "@/contexts/LanguageContext"
 import { ReferralProvider } from "@/contexts/ReferralContext"
 import { AuthGuard } from "@/components/auth-guard"
-import { Navbar } from "@/components/navbar"
-import { EmailVerificationBanner } from "@/components/email-verification-banner"
+import { ConditionalShell } from "@/components/conditional-shell"
 import { generateMetadata } from './metadata'
 
 export { generateMetadata }
@@ -38,9 +37,9 @@ export default async function LocaleLayout({
           <Suspense fallback={null}>
             <ReferralProvider>
               <AuthGuard>
-                <Navbar />
-                <EmailVerificationBanner />
-                {children}
+                <ConditionalShell>
+                  {children}
+                </ConditionalShell>
               </AuthGuard>
             </ReferralProvider>
           </Suspense>

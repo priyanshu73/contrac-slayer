@@ -39,25 +39,12 @@ export function MapboxAddressInput({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-  
-  // Update dropdown position when showing suggestions
-  useEffect(() => {
-    if (showSuggestions && wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width
-      });
-    }
-  }, [showSuggestions]);
 
-  // Close suggestions when clicking outside or scrolling
+  // Close suggestions when clicking outside or on scroll
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -222,12 +209,7 @@ export function MapboxAddressInput({
 
         {showSuggestions && suggestions.length > 0 && (
           <div 
-            className="fixed z-[9999] bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-            style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`,
-              width: `${dropdownPosition.width}px`
-            }}
+            className="absolute left-0 top-full mt-1 z-[9999] w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
           >
             {suggestions.map((suggestion, index) => (
               <div

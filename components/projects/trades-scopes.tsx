@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useLocale } from "next-intl"
 import type { Project, ProjectTrade } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -39,11 +40,13 @@ import {
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 import { Edit3, ExternalLink, Image as ImageIcon, Plus, Share, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 import { NewTradeDialog } from "./new-trade-dialog"
 import { EditTradeDialog } from "./edit-trade-dialog"
+import { TradeSendEmailDialog, TradeSendSmsDialog } from "./trade-share-dialog"
 
 interface TradesScopesProps {
   project: Project
@@ -52,15 +55,20 @@ interface TradesScopesProps {
 
 export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
   const t = useTranslations("projects.trades")
+  const locale = useLocale()
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editTrade, setEditTrade] = useState<ProjectTrade | null>(null)
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null)
   const [tradeToDelete, setTradeToDelete] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sendEmailTrade, setSendEmailTrade] = useState<ProjectTrade | null>(null)
+  const [sendSmsTrade, setSendSmsTrade] = useState<ProjectTrade | null>(null)
 
   const trades = project.trades || []
+  const spId = user?.contractor_ai_sp_id ?? null
 
   const handleAccept = async (trade: ProjectTrade) => {
     try {
@@ -256,10 +264,10 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 rounded-lg border border-slate-200 bg-white shadow-xl">
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast({ title: "Coming soon", description: "Email sending will be implemented shortly." }) }} className="cursor-pointer">
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendEmailTrade(trade); }} className="cursor-pointer">
                                     Send via Email
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast({ title: "Coming soon", description: "SMS sending will be implemented shortly." }) }} className="cursor-pointer">
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendSmsTrade(trade); }} className="cursor-pointer">
                                     Send via SMS
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
@@ -341,10 +349,10 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 rounded-lg border border-slate-200 bg-white shadow-xl">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast({ title: "Coming soon", description: "Email sending will be implemented shortly." }) }} className="cursor-pointer">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendEmailTrade(trade); }} className="cursor-pointer">
                             Send via Email
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast({ title: "Coming soon", description: "SMS sending will be implemented shortly." }) }} className="cursor-pointer">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendSmsTrade(trade); }} className="cursor-pointer">
                             Send via SMS
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -401,6 +409,23 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <TradeSendEmailDialog
+          open={!!sendEmailTrade}
+          onOpenChange={(o) => !o && setSendEmailTrade(null)}
+          trade={sendEmailTrade}
+          projectTitle={project.title}
+          locale={locale}
+        />
+
+        <TradeSendSmsDialog
+          open={!!sendSmsTrade}
+          onOpenChange={(o) => !o && setSendSmsTrade(null)}
+          trade={sendSmsTrade}
+          projectTitle={project.title}
+          spId={spId}
+          locale={locale}
+        />
       </div>
     </TooltipProvider>
   )

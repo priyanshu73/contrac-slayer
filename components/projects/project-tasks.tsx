@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
-import type { Project, ProjectTask, TaskStatus, TaskPriority } from "@/lib/types"
+import type { Project, ProjectTask, ProjectMedia, TaskStatus, TaskPriority } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,8 @@ import {
     Loader2,
     X,
     Image as ImageIcon,
+    FileText,
+    Pencil,
 } from "lucide-react"
 import {
     Dialog,
@@ -44,6 +46,8 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
     const { toast } = useToast()
 
     const [addDialogOpen, setAddDialogOpen] = useState(false)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editingTask, setEditingTask] = useState<ProjectTask | null>(null)
     const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null)
     const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null)
 
@@ -99,6 +103,17 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
     const handleTaskCreated = (newTask: ProjectTask) => {
         onTasksUpdated([...(project.tasks || []), newTask])
         setAddDialogOpen(false)
+    }
+
+    const handleTaskUpdated = (updatedTask: ProjectTask, closeDialog = false) => {
+        const tasks = (project.tasks || []).map((t) => (t.id === updatedTask.id ? updatedTask : t))
+        onTasksUpdated(tasks)
+        if (closeDialog) {
+            setEditDialogOpen(false)
+            setEditingTask(null)
+        } else {
+            setEditingTask((prev) => (prev?.id === updatedTask.id ? updatedTask : prev))
+        }
     }
 
     const getStatusColor = (status: TaskStatus) => {
@@ -252,6 +267,17 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
                                     <div className="flex items-center gap-1 shrink-0">
                                         <button
                                             type="button"
+                                            onClick={() => {
+                                                setEditingTask(task)
+                                                setEditDialogOpen(true)
+                                            }}
+                                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                            title={t("editTask") || "Edit task"}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() =>
                                                 setExpandedTaskId(isExpanded ? null : task.id)
                                             }
@@ -321,26 +347,40 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
                                                 </div>
                                             )}
                                         </div>
-                                        {/* Attached images (photos) */}
-                                        {task.photos && task.photos.length > 0 && (
-                                            <div>
-                                                <p className="text-xs font-medium text-slate-500 mb-1.5">
+                                        {/* Attachments: photos and documents */}
+                                        {((task.photos?.length ?? 0) + (task.documents?.length ?? 0)) > 0 && (
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-medium text-slate-500">
                                                     {t("attachedImages")}
                                                 </p>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {task.photos.map((photo) => (
+                                                    {task.photos?.map((photo) => (
                                                         <a
                                                             key={photo.id}
                                                             href={photo.file_url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 hover:border-slate-400 transition-colors"
+                                                            className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 hover:border-slate-400 transition-colors shrink-0"
                                                         >
                                                             <img
                                                                 src={photo.file_url}
                                                                 alt={photo.file_name}
                                                                 className="w-full h-full object-cover"
                                                             />
+                                                        </a>
+                                                    ))}
+                                                    {task.documents?.map((doc) => (
+                                                        <a
+                                                            key={doc.id}
+                                                            href={doc.file_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 min-w-0 max-w-[200px] rounded-md border border-slate-200 bg-white px-2 py-1.5 hover:border-slate-400 transition-colors"
+                                                        >
+                                                            <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                                                            <span className="text-xs font-medium text-slate-700 truncate" title={doc.file_name}>
+                                                                {doc.file_name}
+                                                            </span>
                                                         </a>
                                                     ))}
                                                 </div>
@@ -362,6 +402,19 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
                 trades={project.trades}
                 onTaskCreated={handleTaskCreated}
             />
+
+            {/* Edit task dialog */}
+            <EditTaskDialog
+                open={editDialogOpen}
+                onOpenChange={(open) => {
+                    setEditDialogOpen(open)
+                    if (!open) setEditingTask(null)
+                }}
+                projectId={project.id}
+                task={editingTask}
+                trades={project.trades}
+                onTaskUpdated={handleTaskUpdated}
+            />
         </div>
     )
 }
@@ -376,7 +429,409 @@ export interface AddTaskDialogProps {
     projectId: number
     trades?: { id: number; trade_type: string; subcontractor_name: string }[]
     onTaskCreated: (task: ProjectTask) => void
+    /** Pre-fill assigned subcontractor name (used for display; prefer initialAssignedTradeId when adding from a trade) */
     initialAssignedTo?: string
+    /** Pre-fill by trade id so assignment is by id, not name. Use when adding a task from within a trade context. */
+    initialAssignedTradeId?: number
+}
+
+/** Display label for a trade in the "Assigned to" dropdown (avoids losing trade id when same name appears for multiple trades). */
+function tradeOptionLabel(trade: { subcontractor_name: string; trade_type: string }): string {
+    const name = (trade.subcontractor_name ?? "").trim()
+    const type = (trade.trade_type ?? "").trim()
+    return type ? `${name} – ${type}` : name || "—"
+}
+
+export interface EditTaskDialogProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    projectId: number
+    task: ProjectTask | null
+    trades?: { id: number; trade_type: string; subcontractor_name: string }[]
+    /** Called when task is updated. Pass true to close the dialog (e.g. after Save), false to keep open (e.g. after adding images). */
+    onTaskUpdated: (task: ProjectTask, closeDialog?: boolean) => void
+}
+
+export function EditTaskDialog({
+    open,
+    onOpenChange,
+    projectId,
+    task,
+    trades,
+    onTaskUpdated,
+}: EditTaskDialogProps) {
+    const t = useTranslations("projects.tasks")
+    const { toast } = useToast()
+
+    const [title, setTitle] = useState("")
+    const [description, setDescription] = useState("")
+    const [priority, setPriority] = useState<TaskPriority>("MEDIUM")
+    const [status, setStatus] = useState<TaskStatus>("NOT_STARTED")
+    const [category, setCategory] = useState("")
+    const [assignedTo, setAssignedTo] = useState("")
+    const [assignedTradeId, setAssignedTradeId] = useState<number | null>(null)
+    const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false)
+    const assignedToContainerRef = useRef<HTMLDivElement>(null)
+    const [startDate, setStartDate] = useState("")
+    const [endDate, setEndDate] = useState("")
+    const [submitting, setSubmitting] = useState(false)
+    const [uploadingMore, setUploadingMore] = useState(false)
+    const addImagesInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (assignedToContainerRef.current && !assignedToContainerRef.current.contains(event.target as Node)) {
+                setShowAssignedToDropdown(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
+    useEffect(() => {
+        if (!open || !task) return
+        setTitle(task.title ?? "")
+        setDescription(task.description ?? "")
+        setPriority((task.priority as TaskPriority) ?? "MEDIUM")
+        setStatus((task.status as TaskStatus) ?? "NOT_STARTED")
+        setCategory(task.category ?? "")
+        const tid = task.assigned_trade_id ?? null
+        const match = trades?.find((tr) => tr.id === tid)
+        setAssignedTo(match ? tradeOptionLabel(match) : (task.assigned_to ?? ""))
+        setAssignedTradeId(tid)
+        setStartDate(task.scheduled_start_date ?? "")
+        setEndDate(task.scheduled_end_date ?? "")
+    }, [open, task, trades])
+
+    const handleOpenChange = (o: boolean) => {
+        onOpenChange(o)
+    }
+
+    const [deletingMediaId, setDeletingMediaId] = useState<number | null>(null)
+
+    const handleDeleteTaskImage = async (photo: ProjectMedia) => {
+        if (!task) return
+        setDeletingMediaId(photo.id)
+        try {
+            await api.deleteProjectMedia(projectId, photo.id)
+            const newPhotos = (task.photos || []).filter((p) => p.id !== photo.id)
+            const merged: ProjectTask = {
+                ...task,
+                photos: newPhotos,
+                photo_count: Math.max(0, (task.photo_count ?? 0) - 1),
+            }
+            onTaskUpdated(merged, false)
+            toast({ title: t("editForm.imageDeleted") || "Image removed" })
+        } catch (err: any) {
+            toast({
+                title: t("updateErrorTitle"),
+                description: err?.message || t("updateErrorDesc"),
+                variant: "destructive",
+            })
+        } finally {
+            setDeletingMediaId(null)
+        }
+    }
+
+    const handleAddMoreImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!task || !e.target.files?.length) return
+        setUploadingMore(true)
+        try {
+            const uploadedMedia = (await api.uploadProjectMedia(
+                projectId,
+                Array.from(e.target.files),
+                "TASK_PHOTO",
+                undefined,
+                task.id
+            )) as ProjectMedia[]
+            const merged: ProjectTask = {
+                ...task,
+                photos: [...(task.photos || []), ...(uploadedMedia || [])],
+                photo_count: (task.photo_count ?? 0) + (uploadedMedia?.length ?? 0),
+            }
+            onTaskUpdated(merged, false)
+            toast({ title: t("taskUpdated") || "Images added" })
+        } catch (err: any) {
+            toast({
+                title: t("updateErrorTitle"),
+                description: err?.message || t("updateErrorDesc"),
+                variant: "destructive",
+            })
+        } finally {
+            setUploadingMore(false)
+            e.target.value = ""
+            addImagesInputRef.current?.value && (addImagesInputRef.current.value = "")
+        }
+    }
+
+    const handleSubmit = async () => {
+        if (!task || !title.trim()) {
+            toast({
+                title: t("addForm.validation.titleRequired"),
+                variant: "destructive",
+            })
+            return
+        }
+
+        setSubmitting(true)
+        try {
+            const payload: Record<string, unknown> = {
+                title: title.trim(),
+                status,
+                priority,
+            }
+            if (description.trim()) payload.description = description.trim()
+            else payload.description = ""
+            if (category.trim()) payload.category = category.trim()
+            else payload.category = ""
+            if (assignedTradeId != null && trades?.some((tr) => tr.id === assignedTradeId)) {
+                const trade = trades!.find((tr) => tr.id === assignedTradeId)!
+                payload.assigned_trade_id = assignedTradeId
+                payload.assigned_to = (trade.subcontractor_name ?? "").trim() || tradeOptionLabel(trade)
+            } else {
+                payload.assigned_to = assignedTo.trim() || null
+                payload.assigned_trade_id = assignedTradeId
+            }
+            if (startDate) payload.scheduled_start_date = startDate
+            else payload.scheduled_start_date = null
+            if (endDate) payload.scheduled_end_date = endDate
+            else payload.scheduled_end_date = null
+
+            const updated = (await api.updateProjectTask(projectId, task.id, payload)) as ProjectTask
+            toast({ title: t("taskUpdated") || "Task updated" })
+            onTaskUpdated(updated, true)
+            handleOpenChange(false)
+        } catch (err: any) {
+            toast({
+                title: t("updateErrorTitle"),
+                description: err?.message || t("updateErrorDesc"),
+                variant: "destructive",
+            })
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    if (!task) return null
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="text-lg font-semibold text-slate-900">
+                        {t("editFormTitle") || "Edit task"}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-slate-700">
+                            {t("addForm.title")} <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                            placeholder={t("addForm.titlePlaceholder")}
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="border-slate-200"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-slate-700">
+                            {t("addForm.description")}
+                        </Label>
+                        <textarea
+                            rows={2}
+                            placeholder={t("addForm.descriptionPlaceholder")}
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.priority")}
+                            </Label>
+                            <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                            >
+                                {PRIORITY_OPTIONS.map((p) => (
+                                    <option key={p} value={p}>
+                                        {t(`priority.${p.toLowerCase()}`)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.status")}
+                            </Label>
+                            <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                            >
+                                {STATUS_OPTIONS.map((s) => (
+                                    <option key={s} value={s}>
+                                        {t(`status.${s.toLowerCase()}`)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.category")}
+                            </Label>
+                            <Input
+                                placeholder={t("addForm.categoryPlaceholder")}
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="border-slate-200"
+                            />
+                        </div>
+                        <div className="space-y-1.5 relative" ref={assignedToContainerRef}>
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.assignedTo")}
+                            </Label>
+                            <Input
+                                placeholder={t("addForm.assignedToPlaceholder")}
+                                value={assignedTo}
+                                onChange={(e) => {
+                                    const v = e.target.value
+                                    setAssignedTo(v)
+                                    setShowAssignedToDropdown(true)
+                                    const match = trades?.find((tr) => tradeOptionLabel(tr) === v.trim())
+                                    setAssignedTradeId(match?.id ?? null)
+                                }}
+                                onFocus={() => setShowAssignedToDropdown(true)}
+                                className="border-slate-200"
+                            />
+                            {showAssignedToDropdown && trades && trades.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                    <ul className="py-1">
+                                        {trades
+                                            .filter((tr) => tradeOptionLabel(tr).toLowerCase().includes(assignedTo.toLowerCase()))
+                                            .map((tr) => (
+                                                <li
+                                                    key={tr.id}
+                                                    className="px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                                                    onClick={() => {
+                                                        setAssignedTo(tradeOptionLabel(tr))
+                                                        setAssignedTradeId(tr.id)
+                                                        setShowAssignedToDropdown(false)
+                                                    }}
+                                                >
+                                                    {tradeOptionLabel(tr)}
+                                                </li>
+                                            ))}
+                                        {trades.filter((tr) => tradeOptionLabel(tr).toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
+                                            <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.startDate")}
+                            </Label>
+                            <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="border-slate-200"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                {t("addForm.endDate")}
+                            </Label>
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="border-slate-200"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-slate-700">
+                            {t("attachedImages")}
+                        </Label>
+                        {(task.photos?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {task.photos?.map((photo) => (
+                                    <div key={photo.id} className="relative group w-12 h-12 rounded-md overflow-hidden border border-slate-200 shrink-0">
+                                        <a
+                                            href={photo.file_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block w-full h-full"
+                                        >
+                                            <img src={photo.file_url} alt={photo.file_name} className="w-full h-full object-cover" />
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteTaskImage(photo)}
+                                            disabled={deletingMediaId === photo.id || submitting}
+                                            className="absolute top-0 right-0 p-0.5 rounded-bl bg-red-500/90 text-white hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                            aria-label={t("editForm.deleteImage") || "Delete image"}
+                                        >
+                                            {deletingMediaId === photo.id ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                                <X className="h-3 w-3" />
+                                            )}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <label className="inline-flex items-center gap-2 mt-1 px-3 py-2 rounded-md border border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 text-sm text-slate-600 cursor-pointer">
+                            <input
+                                ref={addImagesInputRef}
+                                type="file"
+                                multiple
+                                accept="image/*,video/*"
+                                className="hidden"
+                                onChange={handleAddMoreImages}
+                                disabled={uploadingMore || submitting}
+                            />
+                            {uploadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                            {uploadingMore ? t("editForm.saving") || "Uploading…" : (t("editForm.addMoreImages") || "Add more images")}
+                        </label>
+                    </div>
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
+                        {t("addForm.cancel")}
+                    </Button>
+                    <Button onClick={handleSubmit} disabled={submitting || !title.trim()} className="min-w-[120px]">
+                        {submitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t("editForm.saving") || "Saving…"}
+                            </>
+                        ) : (
+                            t("editForm.save") || "Save changes"
+                        )}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
 }
 
 export function AddTaskDialog({
@@ -386,6 +841,7 @@ export function AddTaskDialog({
     trades,
     onTaskCreated,
     initialAssignedTo,
+    initialAssignedTradeId,
 }: AddTaskDialogProps) {
     const t = useTranslations("projects.tasks")
     const { toast } = useToast()
@@ -396,6 +852,7 @@ export function AddTaskDialog({
     const [status, setStatus] = useState<TaskStatus>("NOT_STARTED")
     const [category, setCategory] = useState("")
     const [assignedTo, setAssignedTo] = useState(initialAssignedTo || "")
+    const [assignedTradeId, setAssignedTradeId] = useState<number | null>(initialAssignedTradeId ?? null)
     const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false)
     const assignedToContainerRef = useRef<HTMLDivElement>(null)
 
@@ -412,17 +869,26 @@ export function AddTaskDialog({
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
 
-    // Image upload via Cloudinary widget
-    const [uploadedImages, setUploadedImages] = useState<
-        { url: string; name: string; size: number }[]
-    >([])
+    // Image upload: files sent to backend, backend uploads to Cloudinary
+    const [uploadedFiles, setUploadedFiles] = useState<{ file: File; url: string }[]>([])
     const [uploading, setUploading] = useState(false)
 
     useEffect(() => {
-        if (open && initialAssignedTo) {
-            setAssignedTo(initialAssignedTo)
+        if (!open) return
+        if (initialAssignedTradeId != null && trades?.length) {
+            const t = trades.find((x) => x.id === initialAssignedTradeId)
+            if (t) {
+                setAssignedTo(tradeOptionLabel(t))
+                setAssignedTradeId(initialAssignedTradeId)
+                return
+            }
         }
-    }, [open, initialAssignedTo])
+        if (initialAssignedTo) {
+            setAssignedTo(initialAssignedTo)
+            const firstMatch = trades?.find((x) => (x.subcontractor_name ?? "").trim() === initialAssignedTo.trim())
+            setAssignedTradeId(firstMatch?.id ?? null)
+        }
+    }, [open, initialAssignedTo, initialAssignedTradeId, trades])
 
     // Reset form when dialog closes
     const resetForm = useCallback(() => {
@@ -432,78 +898,38 @@ export function AddTaskDialog({
         setStatus("NOT_STARTED")
         setCategory("")
         setAssignedTo(initialAssignedTo || "")
+        setAssignedTradeId(initialAssignedTradeId != null ? initialAssignedTradeId : null)
         setStartDate("")
         setEndDate("")
-        setUploadedImages([])
-    }, [])
+        setUploadedFiles((prev) => {
+            prev.forEach((p) => URL.revokeObjectURL(p.url))
+            return []
+        })
+    }, [initialAssignedTo, initialAssignedTradeId])
 
     const handleOpenChange = (o: boolean) => {
         if (!o) resetForm()
         onOpenChange(o)
     }
 
-    const openCloudinaryWidget = () => {
-        if (typeof window === "undefined") return
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-        if (!cloudName) {
-            toast({
-                title: t("imageUpload.notConfigured"),
-                variant: "destructive",
-            })
-            return
+    const handleTaskImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.length) {
+            const newFiles = Array.from(e.target.files).map((file) => ({
+                file,
+                url: URL.createObjectURL(file),
+            }))
+            setUploadedFiles((prev) => [...prev, ...newFiles])
         }
-
-        setUploading(true)
-        // @ts-ignore — Cloudinary widget loaded via script
-        if (window.cloudinary) {
-            // @ts-ignore
-            const widget = window.cloudinary.createUploadWidget(
-                {
-                    cloudName,
-                    uploadPreset:
-                        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default",
-                    sources: ["local", "camera"],
-                    multiple: true,
-                    maxFiles: 10,
-                    resourceType: "image",
-                    folder: `projects/${projectId}/tasks`,
-                },
-                (error: any, result: any) => {
-                    if (result?.event === "success") {
-                        setUploadedImages((prev) => [
-                            ...prev,
-                            {
-                                url: result.info.secure_url,
-                                name: result.info.original_filename + "." + result.info.format,
-                                size: result.info.bytes,
-                            },
-                        ])
-                    }
-                    if (
-                        result?.event === "close" ||
-                        result?.event === "abort" ||
-                        error
-                    ) {
-                        setUploading(false)
-                    }
-                }
-            )
-            widget.open()
-        } else {
-            // Fallback: prompt for file URL manually
-            const url = prompt("Enter image URL:")
-            if (url) {
-                setUploadedImages((prev) => [
-                    ...prev,
-                    { url, name: "uploaded-image", size: 0 },
-                ])
-            }
-            setUploading(false)
-        }
+        e.target.value = ""
     }
 
-    const removeImage = (index: number) => {
-        setUploadedImages((prev) => prev.filter((_, i) => i !== index))
+    const removeTaskImage = (index: number) => {
+        setUploadedFiles((prev) => {
+            const copy = [...prev]
+            URL.revokeObjectURL(copy[index].url)
+            copy.splice(index, 1)
+            return copy
+        })
     }
 
     const handleSubmit = async () => {
@@ -526,9 +952,13 @@ export function AddTaskDialog({
             }
             if (description.trim()) payload.description = description.trim()
             if (category.trim()) payload.category = category.trim()
-            if (assignedTo.trim()) {
+            if (assignedTradeId != null && trades?.some((t) => t.id === assignedTradeId)) {
+                const trade = trades!.find((t) => t.id === assignedTradeId)!
+                payload.assigned_trade_id = assignedTradeId
+                payload.assigned_to = (trade.subcontractor_name ?? "").trim() || tradeOptionLabel(trade)
+            } else if (assignedTo.trim()) {
                 payload.assigned_to = assignedTo.trim()
-                const matchingTrade = trades?.find(t => t.subcontractor_name === assignedTo.trim())
+                const matchingTrade = trades?.find((t) => tradeOptionLabel(t) === assignedTo.trim() || (t.subcontractor_name ?? "").trim() === assignedTo.trim())
                 if (matchingTrade) {
                     payload.assigned_trade_id = matchingTrade.id
                 }
@@ -541,24 +971,37 @@ export function AddTaskDialog({
                 payload
             )) as ProjectTask
 
-            // Attach images if any
-            for (const img of uploadedImages) {
+            let taskToAdd = created
+            // Upload images to backend; backend uploads to Cloudinary and attaches to task
+            if (uploadedFiles.length > 0) {
+                setUploading(true)
                 try {
-                    await api.attachProjectMedia(projectId, {
-                        task_id: created.id,
-                        file_url: img.url,
-                        file_name: img.name,
-                        file_size: img.size,
-                        media_type: "PHOTO",
-                        context: "TASK_PHOTO",
+                    const uploadedMedia = await api.uploadProjectMedia(
+                        projectId,
+                        uploadedFiles.map((f) => f.file),
+                        "TASK_PHOTO",
+                        undefined,
+                        created.id
+                    ) as ProjectMedia[]
+                    // Merge so the task list shows attachments immediately (project Tasks tab + trade portal refetch will have them too)
+                    taskToAdd = {
+                        ...created,
+                        photos: [...(created.photos || []), ...(uploadedMedia || [])],
+                        photo_count: (created.photo_count ?? 0) + (uploadedMedia?.length ?? 0),
+                    }
+                } catch (err) {
+                    toast({
+                        title: t("taskCreated"),
+                        description: t("imageUpload.uploadFailed") || "Task created but image upload failed.",
+                        variant: "destructive",
                     })
-                } catch {
-                    // non-critical; task already created
+                } finally {
+                    setUploading(false)
                 }
             }
 
             toast({ title: t("taskCreated") })
-            onTaskCreated(created)
+            onTaskCreated(taskToAdd)
             resetForm()
         } catch (err: any) {
             toast({
@@ -667,8 +1110,11 @@ export function AddTaskDialog({
                                 placeholder={t("addForm.assignedToPlaceholder")}
                                 value={assignedTo}
                                 onChange={(e) => {
-                                    setAssignedTo(e.target.value)
+                                    const v = e.target.value
+                                    setAssignedTo(v)
                                     setShowAssignedToDropdown(true)
+                                    const match = trades?.find((t) => tradeOptionLabel(t) === v.trim())
+                                    setAssignedTradeId(match?.id ?? null)
                                 }}
                                 onFocus={() => setShowAssignedToDropdown(true)}
                                 className="border-slate-200"
@@ -676,24 +1122,24 @@ export function AddTaskDialog({
                             {showAssignedToDropdown && trades && trades.length > 0 && (
                                 <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                                     <ul className="py-1">
-                                        {Array.from(new Set(trades.map(t => t.subcontractor_name)))
-                                            .filter(name => name.toLowerCase().includes(assignedTo.toLowerCase()))
-                                            .map((name) => (
+                                        {trades
+                                            .filter((t) => tradeOptionLabel(t).toLowerCase().includes(assignedTo.toLowerCase()))
+                                            .map((t) => (
                                                 <li
-                                                    key={name}
+                                                    key={t.id}
                                                     className="px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
                                                     onClick={() => {
-                                                        setAssignedTo(name)
+                                                        setAssignedTo(tradeOptionLabel(t))
+                                                        setAssignedTradeId(t.id)
                                                         setShowAssignedToDropdown(false)
                                                     }}
                                                 >
-                                                    {name}
+                                                    {tradeOptionLabel(t)}
                                                 </li>
                                             ))}
-                                        {Array.from(new Set(trades.map(t => t.subcontractor_name)))
-                                            .filter(name => name.toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
-                                                <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
-                                            )}
+                                        {trades.filter((t) => tradeOptionLabel(t).toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
+                                            <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
+                                        )}
                                     </ul>
                                 </div>
                             )}
@@ -726,43 +1172,54 @@ export function AddTaskDialog({
                         </div>
                     </div>
 
-                    {/* Image upload */}
+                    {/* Image upload: files sent to backend, backend uploads to Cloudinary */}
                     <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-slate-700">
                             {t("addForm.images")}
                         </Label>
                         <div className="flex flex-wrap items-center gap-2">
-                            {uploadedImages.map((img, i) => (
+                            {uploadedFiles.map((item, i) => (
                                 <div
                                     key={i}
                                     className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-200 group"
                                 >
-                                    <img
-                                        src={img.url}
-                                        alt={img.name}
-                                        className="w-full h-full object-cover"
-                                    />
+                                    {item.file.type.startsWith("image/") ? (
+                                        <img
+                                            src={item.url}
+                                            alt={item.file.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-1">
+                                            <span className="text-xs font-medium text-slate-700 truncate w-full text-center">
+                                                {item.file.name.split(".").pop()?.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
-                                        onClick={() => removeImage(i)}
+                                        onClick={() => removeTaskImage(i)}
                                         className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <X className="h-4 w-4 text-white" />
                                     </button>
                                 </div>
                             ))}
-                            <button
-                                type="button"
-                                onClick={openCloudinaryWidget}
-                                disabled={uploading}
-                                className="w-16 h-16 rounded-md border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
-                            >
+                            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*,video/*"
+                                    className="hidden"
+                                    onChange={handleTaskImageChange}
+                                    disabled={submitting || uploading}
+                                />
                                 {uploading ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <ImagePlus className="h-5 w-5" />
                                 )}
-                            </button>
+                            </label>
                         </div>
                         <p className="text-[11px] text-slate-400">
                             {t("addForm.imagesHint")}

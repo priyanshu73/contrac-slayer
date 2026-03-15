@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { useTranslations } from "next-intl"
 import { ProjectTrade } from "@/lib/types"
 import { api } from "@/lib/api"
@@ -55,13 +55,18 @@ export function NewTradeDialog({
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
-    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, contact_info: string | null }>>([])
+    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null }>>([])
     const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
 
     const [openCombobox, setOpenCombobox] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+
+    const tradeTypeRef = useRef<HTMLInputElement>(null)
+    const subcontractorRef = useRef<HTMLButtonElement>(null)
+    const scopeRef = useRef<HTMLTextAreaElement>(null)
+    const formScrollRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (open) {
@@ -95,7 +100,7 @@ export function NewTradeDialog({
         const existing = subcontractors.find(s => s.subcontractor_name === val);
         if (existing) {
             if (existing.subcontractor_email) setSubcontractorEmail(existing.subcontractor_email);
-            if (existing.contact_info) setContactInfo(existing.contact_info);
+            if (existing.phone_number) setContactInfo(existing.phone_number);
         }
     }
 
@@ -119,8 +124,25 @@ export function NewTradeDialog({
     }
 
     const handleSubmit = async () => {
-        if (!tradeType.trim() || !subcontractorName.trim() || !scopeOfWork.trim()) {
-            toast({ title: "Trade Type, Subcontractor Name, and Scope are required", variant: "destructive" })
+        const missing: string[] = []
+        if (!tradeType.trim()) missing.push("Trade Type")
+        if (!subcontractorName.trim()) missing.push("Subcontractor Name")
+        if (!scopeOfWork.trim()) missing.push("Scope of Work")
+        if (missing.length > 0) {
+            toast({
+                title: "Required fields missing",
+                description: `Please fill: ${missing.join(", ")}. Scroll up if you don't see these fields.`,
+                variant: "destructive",
+            })
+            // Scroll to first missing field so user sees it (they may have scrolled down to Materials/Price)
+            requestAnimationFrame(() => {
+                const el = !tradeType.trim()
+                    ? tradeTypeRef.current
+                    : !subcontractorName.trim()
+                        ? subcontractorRef.current
+                        : scopeRef.current
+                el?.scrollIntoView({ behavior: "smooth", block: "center" })
+            })
             return
         }
 
@@ -178,10 +200,10 @@ export function NewTradeDialog({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 py-2">
+                <div ref={formScrollRef} className="space-y-4 py-2">
                     <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-slate-700 uppercase p-1">Trade Type</Label>
-                        <Input value={tradeType} onChange={e => setTradeType(e.target.value)} />
+                        <Input ref={tradeTypeRef} value={tradeType} onChange={e => setTradeType(e.target.value)} placeholder="e.g. Painting, Flooring" />
                     </div>
 
                     <div className="space-y-1.5 flex flex-col">
@@ -189,6 +211,7 @@ export function NewTradeDialog({
                         <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                             <PopoverTrigger asChild>
                                 <Button
+                                    ref={subcontractorRef}
                                     variant="outline"
                                     role="combobox"
                                     aria-expanded={openCombobox}
@@ -236,8 +259,8 @@ export function NewTradeDialog({
                                                     onSelect={() => {
                                                         setSubcontractorName(s.subcontractor_name)
                                                         setSearchQuery(s.subcontractor_name)
-                                                        if (s.subcontractor_email) setSubcontractorEmail(s.subcontractor_email)
-                                                        if (s.contact_info) setContactInfo(s.contact_info)
+                                                        setSubcontractorEmail(s.subcontractor_email ?? "")
+                                                        setContactInfo(s.phone_number ?? "")
                                                         setOpenCombobox(false)
                                                     }}
                                                 >
@@ -249,9 +272,9 @@ export function NewTradeDialog({
                                                     />
                                                     <div className="flex flex-col">
                                                         <span>{s.subcontractor_name}</span>
-                                                        {(s.contact_info || s.subcontractor_email) && (
+                                                        {(s.phone_number || s.subcontractor_email) && (
                                                             <span className="text-xs text-slate-500">
-                                                                {[s.contact_info, s.subcontractor_email].filter(Boolean).join(" • ")}
+                                                                {[s.phone_number, s.subcontractor_email].filter(Boolean).join(" • ")}
                                                             </span>
                                                         )}
                                                     </div>
@@ -292,10 +315,12 @@ export function NewTradeDialog({
                     <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-slate-700 uppercase p-1">Scope of Work</Label>
                         <textarea
+                            ref={scopeRef}
                             className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
                             rows={4}
                             value={scopeOfWork}
                             onChange={e => setScopeOfWork(e.target.value)}
+                            placeholder="Describe the scope for this trade..."
                         />
                     </div>
 

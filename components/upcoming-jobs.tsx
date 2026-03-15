@@ -35,6 +35,8 @@ function parseBookingNameAndLocation(name: string | undefined | null): { display
 }
 
 function bookingTitle(b: Booking): string {
+  if (b?.title && typeof b.title === "string") return b.title
+  if (b?.client_name && typeof b.client_name === "string") return `Meeting with ${b.client_name}`
   const name = b?.name
   if (name && typeof name === "string") {
     const parsed = parseBookingNameAndLocation(name)
@@ -63,6 +65,9 @@ function extractLocationFromNotes(notes: string | undefined | null): string | nu
 }
 
 function getBookingLocation(b: Booking): string | null {
+  if (b?.location && typeof b.location === 'string' && b.location.trim()) {
+    return b.location.trim()
+  }
   if (b?.metadata && typeof b.metadata === 'object') {
     const originalRequest = (b.metadata as any)?.original_request
     if (originalRequest && typeof originalRequest === 'object') {
@@ -78,6 +83,10 @@ function getBookingLocation(b: Booking): string | null {
   }
   if (b?.internal_notes) {
     const location = extractLocationFromNotes(b.internal_notes)
+    if (location) return location
+  }
+  if (b?.notes) {
+    const location = extractLocationFromNotes(b.notes)
     if (location) return location
   }
   return null
@@ -111,16 +120,13 @@ export function UpcomingJobs() {
       try {
         setLoading(true)
         setError("")
-        const profile = await api.getMyProfile()
-        const res = await api.getNeetoBookings({ 
-          page_size: 5, 
-          type: "upcoming", 
-          host_email: profile?.email,
+        const res = await api.getBookings({ 
+          limit: 5,
+          type: "upcoming",
           sorting_order: "asc"
         })
-        
-        const data = (res as any)?.data ?? res
-        const list = Array.isArray(data) ? data : (data?.bookings ?? data?.data ?? [])
+
+        const list = (res as any)?.bookings ?? []
         const bookingsArray = Array.isArray(list) ? list : []
         
         // Sort by start date (earliest first)
@@ -197,10 +203,11 @@ export function UpcomingJobs() {
         <div className="space-y-3">
           {jobs.map((job, idx) => {
             const { date, time } = formatBookingDateTime(job)
-            const parsedName = parseBookingNameAndLocation(job?.name)
-            const displayName = parsedName.displayName || job?.name || "—"
+            const parsedName = parseBookingNameAndLocation(job?.name ?? job?.client_name)
+            const displayName = parsedName.displayName || job?.client_name || job?.name || "—"
             const location = parsedName.location || getBookingLocation(job)
-            const showEmail = job?.email && !isPlaceholderEmail(job.email)
+            const email = job?.client_email || job?.email
+            const showEmail = email && !isPlaceholderEmail(email)
             
             return (
               <div key={idx} className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors">
@@ -220,7 +227,7 @@ export function UpcomingJobs() {
                       <p className="font-medium leading-none">{bookingTitle(job)}</p>
                       <p className="mt-1 text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="truncate">{displayName}</span>
-                        {showEmail ? <span className="truncate">({job.email})</span> : null}
+                        {showEmail ? <span className="truncate">({email})</span> : null}
                         {location ? (
                           <span className="flex items-center gap-1 min-w-0 shrink-0">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden />

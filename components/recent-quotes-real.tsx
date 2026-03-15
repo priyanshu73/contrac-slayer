@@ -8,6 +8,8 @@ import { api } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Plus, Copy, ChevronDown } from "lucide-react"
 
 interface ClientInfo {
   id: number
@@ -127,14 +129,29 @@ export function RecentQuotesReal() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
-          <Button size="sm" className="h-7 px-2 text-xs" asChild>
-            <Link href={`/${locale}/quotes/new`}>
-              <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {t('createQuote')}
-            </Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-7 px-2 text-xs">
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                {t('createQuote')}
+                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/quotes/new`} className="flex items-center cursor-pointer">
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>New Blank Quote</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/quotes/copy`} className="flex items-center cursor-pointer">
+                  <Copy className="mr-2 h-4 w-4" />
+                  <span>Copy Existing Quote</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {quotes.length === 0 ? (
@@ -145,9 +162,29 @@ export function RecentQuotesReal() {
             </svg>
           </div>
           <p className="text-xs text-muted-foreground mb-2">{t('noQuotesYet')}</p>
-          <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-            <Link href={`/${locale}/quotes/new`}>{t('createQuote')}</Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs">
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                {t('createQuote')}
+                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center">
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/quotes/new`} className="flex items-center cursor-pointer">
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>New Blank Quote</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/quotes/copy`} className="flex items-center cursor-pointer">
+                  <Copy className="mr-2 h-4 w-4" />
+                  <span>Copy Existing Quote</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : (
         <div className="space-y-1.5">

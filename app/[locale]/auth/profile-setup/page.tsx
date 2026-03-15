@@ -228,31 +228,7 @@ export default function ProfileSetupPage() {
           })
         )
       }
-
-      // Set up NeetoCal team member and calendar
-      if (formData.email) {
-        const meetingName = `Meeting with ${formData.company_name}`
-        parallelOperations.push(
-          api.createNeetoCalTeamMember({
-            team_member_payload: {
-              emails: [formData.email],
-              name: formData.company_name,
-              time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            },
-            meeting_payload: {
-              name: meetingName,
-              duration: 30,
-              host_email: formData.email,
-              description: `Schedule a consultation with ${formData.company_name}`,
-            },
-            create_one_off_link: false,
-            save_calendar_link_to_profile: true,
-          }).catch(err => {
-            console.error("Failed to set up calendar:", err)
-            return null
-          })
-        )
-      }
+      // Legacy NeetoCal logic removed. Native Calendar link is generated on Google Calendar OAuth connect.
 
       // Submit Twilio number request to SheetDB
       if (selectedState && selectedAreaCodes.length) {

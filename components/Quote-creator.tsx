@@ -20,6 +20,7 @@ import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
+import { QuoteItemAutocomplete } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
 import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -758,9 +759,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Track if we've loaded initial data to prevent re-running
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false)
 
-  // Load initial quote data if editing
+  // Load initial quote data if editing or copying
   useEffect(() => {
-    if (initialData && quoteId && !hasLoadedInitialData) {
+    if (initialData && !hasLoadedInitialData) {
       // Reset selected client when loading existing quote
       setSelectedClientId(null)
 
@@ -820,6 +821,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           const parsed = parseFloat(firstItem.markup_percentage.toString())
           setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
         }
+      }
+
+      // Load attached project media
+      if (initialData.project_media && initialData.project_media.length > 0) {
+        setUploadedImages(initialData.project_media.map((media: any) => ({
+          preview: media.file_url,
+          file: null, // It's an existing file from backend, no new File object
+          isExisting: true,
+          mediaId: media.id,
+          fileName: media.file_name
+        })))
+      } else {
+        // Clear if no media
+        setUploadedImages([])
       }
 
       // Mark as loaded and ensure loadingMarkup is false for editing
@@ -2006,24 +2021,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   <div className="block sm:hidden space-y-3">
                     {/* Description */}
                     <div>
-                      <Textarea
-                        id={`item-desc-${index}`}
+                      <QuoteItemAutocomplete
                         value={item.description}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement
-                          target.style.height = 'auto'
-                          target.style.height = `${Math.min(target.scrollHeight, 150)}px`
-                        }}
-                        ref={(textarea) => {
-                          if (textarea) {
-                            textarea.style.height = 'auto'
-                            textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`
-                          }
+                        onChange={(desc, price, unit) => {
+                          const updated = [...items]
+                          updated[index] = { ...updated[index], description: desc }
+                          if (price !== undefined) updated[index].rate = price
+                          if (unit !== undefined) updated[index].unitOfMeasure = unit
+                          setItems(updated)
                         }}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[60px] max-h-[150px] resize-none text-sm"
-                        rows={2}
+                        className="h-auto min-h-[44px] py-2 px-3 whitespace-normal text-left items-start justify-start bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       {item.brand && (
                         <p className="text-[10px] text-muted-foreground mt-1">
@@ -2139,24 +2147,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
                     {/* Description - more space, expands on focus */}
                     <div className="min-w-0 pr-1 flex flex-col justify-center">
-                      <Textarea
-                        id={`item-desc-${index}`}
+                      <QuoteItemAutocomplete
                         value={item.description}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement
-                          target.style.height = 'auto'
-                          target.style.height = `${Math.min(target.scrollHeight, 160)}px`
-                        }}
-                        ref={(textarea) => {
-                          if (textarea) {
-                            textarea.style.height = 'auto'
-                            textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
-                          }
+                        onChange={(desc, price, unit) => {
+                          const updated = [...items]
+                          updated[index] = { ...updated[index], description: desc }
+                          if (price !== undefined) updated[index].rate = price
+                          if (unit !== undefined) updated[index].unitOfMeasure = unit
+                          setItems(updated)
                         }}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[44px] max-h-[160px] py-1.5 px-2 text-sm w-full resize-none overflow-y-auto leading-snug"
-                        rows={1}
+                        className="h-auto min-h-[44px] py-1.5 px-2 whitespace-normal text-left items-start justify-start bg-white border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
                       />
                       {item.brand && (
                         <p className="text-[10px] text-muted-foreground mt-0.5 truncate">

@@ -171,7 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchUser()
-  }, [pathname])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Run only once on mount — re-fetching on every pathname change causes auth redirect loops
+
 
   const login = async (email: string, password: string) => {
     await api.login(email, password)

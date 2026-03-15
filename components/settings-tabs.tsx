@@ -19,7 +19,9 @@ import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language"
+import { CostBookSettings } from "@/components/cost-book-settings"
+
+type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book"
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -181,6 +183,13 @@ export function SettingsTabs() {
     loadProfile()
   }, [])
 
+  useEffect(() => {
+    const tab = searchParams.get("tab") as SettingsSection
+    if (tab && ["business", "billing", "integrations", "language"].includes(tab)) {
+      setActiveSection(tab)
+    }
+  }, [searchParams])
+
   const loadGmailStatus = async () => {
     setGmailStatusLoading(true)
     try {
@@ -339,6 +348,7 @@ export function SettingsTabs() {
 
   const sidebarItems = [
     { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
     { id: "billing" as const, label: "Billing", icon: CreditCard },
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
     { id: "language" as const, label: t('language'), icon: Globe },
@@ -993,6 +1003,11 @@ export function SettingsTabs() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Cost Book Section */}
+            {activeSection === "cost-book" && (
+              <CostBookSettings />
             )}
 
             {/* Logout Section */}

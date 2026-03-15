@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertCircleIcon, Calendar as CalendarIcon, CheckIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, Eye, HelpCircleIcon, MapPin, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react"
+import { AlertCircleIcon, Calendar as CalendarIcon, CheckIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, Eye, HelpCircleIcon, MapPin, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, Video, XIcon } from "lucide-react"
 import { api } from "@/lib/api"
+import { AvailabilityTab } from "@/components/availability-tab"
 import { MonthlyCalendar } from "@/components/ui/monthly-calendar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card } from "@/components/ui/card"
@@ -130,14 +131,7 @@ function dateKeyLocal(d: Date) {
 }
 
 function bookingStartDate(b: Booking): Date | null {
-  // NeetoCal list-bookings returns `starts_at` (and sometimes `starts_at_for_client`)
-  const raw =
-    b?.starts_at ||
-    b?.starts_at_for_client ||
-    b?.start_time ||
-    b?.start_at ||
-    b?.start ||
-    b?.scheduled_at
+  const raw = b?.start
   if (!raw) return null
   const dt = new Date(raw)
   return Number.isNaN(dt.getTime()) ? null : dt
@@ -172,8 +166,11 @@ function getBookingAvatarColor(idx: number): string {
 }
 
 function bookingTitle(b: Booking) {
+  const customTitle = b?.title || b?.name
+  if (customTitle && typeof customTitle === "string") return customTitle
+  
   const clientDisplayName = (() => {
-    const name = b?.name
+    const name = b?.client_name
     if (!name || typeof name !== "string") return null
     const parsed = parseBookingNameAndLocation(name)
     return (parsed.displayName || name).trim() || null
@@ -181,15 +178,16 @@ function bookingTitle(b: Booking) {
   if (clientDisplayName) {
     return `Meeting with ${clientDisplayName}`
   }
-  const raw =
-    b?.meeting?.name ||
-    b?.title ||
-    b?.event_name ||
-    b?.meeting_name ||
-    b?.name ||
-    "Booking"
-  return typeof raw === "string" ? raw : String(raw)
+  return "Booking"
 }
+
+  const getBookingStatusText = (booking: Booking) => {
+    return booking?.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : "Confirmed"
+  }
+
+  const getBookingVirtualLink = (booking: Booking) => {
+    return booking?.meet_link || null
+  }
 
 function isPlaceholderEmail(email: string | undefined | null): boolean {
   if (!email) return false
@@ -204,7 +202,11 @@ function extractLocationFromNotes(notes: string | undefined | null): string | nu
 }
 
 function getBookingLocation(b: Booking): string | null {
-  // First: "Name @ Location" stored in b.name (manual + automation)
+  // Direct location field (native bookings from our API)
+  if (b?.location && typeof b.location === 'string' && b.location.trim()) {
+    return b.location.trim()
+  }
+  // "Name @ Location" stored in b.name (manual + automation)
   const fromName = parseBookingNameAndLocation(b?.name).location
   if (fromName) return fromName
   // Try metadata.original_request.meeting_location (legacy / automation)
@@ -229,7 +231,11 @@ function getBookingLocation(b: Booking): string | null {
 }
 
 function getBookingClientPhone(b: Booking): string | null {
-  // Try metadata.original_request.client_phone first
+  // Native bookings store phone directly
+  if (b?.client_phone && typeof b.client_phone === 'string' && b.client_phone.trim()) {
+    return b.client_phone.trim()
+  }
+  // Legacy metadata path (NeetoCal / AI agent bookings)
   if (b?.metadata && typeof b.metadata === 'object') {
     const originalRequest = (b.metadata as any)?.original_request
     if (originalRequest && typeof originalRequest === 'object') {
@@ -239,10 +245,10 @@ function getBookingClientPhone(b: Booking): string | null {
       }
     }
   }
-  // Fallback: try to extract from placeholder email
-  if (b?.email && isPlaceholderEmail(b.email)) {
-    // Extract phone from "sms_12232728916@call.placeholder.local"
-    const match = b.email.match(/^sms_(\d+)@call\.placeholder\.local$/)
+  // Fallback: try to extract from placeholder email (legacy NeetoCal SMS bookings)
+  const emailField = b?.client_email || b?.email
+  if (emailField && isPlaceholderEmail(emailField)) {
+    const match = emailField.match(/^sms_(\d+)@call\.placeholder\.local$/)
     if (match && match[1]) {
       return `+${match[1]}`
     }
@@ -252,9 +258,17 @@ function getBookingClientPhone(b: Booking): string | null {
 
 function bookingTimeLabel(b: Booking) {
   const dt = bookingStartDate(b)
-  if (!dt) return ""
-  return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  if (!dt || isNaN(dt.getTime())) return "Time TBD"
+  const tz = b?.time_zone || undefined
+  return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz })
 }
+
+  const getBookingEndTime = (booking: Booking) => {
+    const dt = booking?.end ? new Date(booking.end) : null
+    if (!dt || isNaN(dt.getTime())) return ""
+    const tz = booking?.time_zone || undefined
+    return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz })
+  }
 
 function bookingDateTimeRangeLabel(b: Booking) {
   const s = bookingStartDate(b)
@@ -301,10 +315,12 @@ function availabilityId(a: any): string | undefined {
   return typeof id === "string" && id.trim() ? id.trim() : undefined
 }
 
-/** NeetoCal booking SID used for cancel/reschedule API. */
+/** Booking ID used for cancel/reschedule API — accepts numeric (native DB) or string (legacy NeetoCal) IDs. */
 function bookingSid(b: Booking): string | undefined {
   const sid = b?.sid ?? b?.booking_sid ?? b?.id
-  return typeof sid === "string" && sid.trim() ? sid.trim() : undefined
+  if (typeof sid === "number" && Number.isFinite(sid)) return String(sid)
+  if (typeof sid === "string" && sid.trim()) return sid.trim()
+  return undefined
 }
 
 function normalizeWday(raw: unknown): WeekdayKey | null {
@@ -442,7 +458,7 @@ function DayTimeline({
       <Separator className="my-4" />
 
       {items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-6 text-sm text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-6 text-sm text-slate-500 text-center">
           Nothing scheduled for this day.
         </div>
       ) : (
@@ -468,47 +484,121 @@ function DayTimeline({
           {items.map(({ b, start }, idx) => {
             const minutesFromStart = (start.getHours() - startHour) * 60 + start.getMinutes()
             const top = (minutesFromStart / 60) * pxPerHour
+
+            const clientName = b?.client_name || parseBookingNameAndLocation(b?.name).displayName || null
+            const clientEmail = b?.client_email || b?.email
+            const showEmail = clientEmail && !isPlaceholderEmail(clientEmail as string)
+            const clientPhone = getBookingClientPhone(b)
+            const location = b?.location || getBookingLocation(b)
+            const isPhysical = b?.type === "physical" || b?.preferred_meeting_spot === "physical"
+            const endTime = getBookingEndTime(b)
+
             return (
               <div key={idx} className="absolute left-[72px] right-2" style={{ top }}>
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 h-2 w-2 rounded-full bg-indigo-600" />
+                <div className="flex items-start gap-2.5">
+                  {/* Timeline dot */}
+                  <div className={cn(
+                    "mt-3 h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white shadow-sm",
+                    isPhysical ? "bg-orange-400" : "bg-indigo-500"
+                  )} />
+
                   <button
                     type="button"
                     onClick={() => onBookingClick?.(b)}
                     className={cn(
-                      "min-w-0 w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm text-left transition",
-                      onBookingClick ? "hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30" : ""
+                      "group min-w-0 w-full rounded-xl text-left transition-all duration-150 overflow-hidden",
+                      "border bg-white shadow-sm",
+                      isPhysical
+                        ? "border-orange-100 hover:border-orange-300 hover:shadow-md hover:shadow-orange-100/50"
+                        : "border-slate-200 hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-100/50",
+                      onBookingClick
+                        ? "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 cursor-pointer"
+                        : "cursor-default"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="truncate text-sm font-medium text-slate-900">{bookingTitle(b)}</div>
-                      <div className="whitespace-nowrap text-xs text-slate-500 tabular-nums">{bookingTimeLabel(b)}</div>
-                    </div>
-                    {(() => {
-                      const location = getBookingLocation(b)
-                      const clientPhone = getBookingClientPhone(b)
-                      const clientName = parseBookingNameAndLocation(b?.name).displayName || "—"
-                      const showEmail = b?.email && !isPlaceholderEmail(b.email)
-                      return (
-                        <>
-                          <div className="mt-1 text-xs text-slate-600 truncate">
-                            {clientName}
-                            {showEmail ? ` (${b.email})` : ""}
+                    {/* Colored left accent bar */}
+                    <div className="flex">
+                      <div className={cn(
+                        "w-1 shrink-0",
+                        isPhysical ? "bg-orange-400" : "bg-indigo-500"
+                      )} />
+                      <div className="flex-1 p-3 min-w-0">
+
+                        {/* Row 1: title + type badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="truncate text-[13px] font-semibold text-slate-900 leading-snug flex-1 min-w-0">
+                            {bookingTitle(b)}
                           </div>
-                          {location && (
-                            <div className="mt-0.5 text-xs text-slate-500 truncate">
-                              📍 {location}
-                            </div>
-                          )}
-                          {clientPhone && !location && (
-                            <div className="mt-0.5 text-xs text-slate-500 truncate">
-                              📞 {formatPhoneForDisplay(clientPhone)}
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
-                    {b?.status ? <div className="mt-1 text-xs text-slate-500">{String(b.status)}</div> : null}
+                          <span className={cn(
+                            "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1",
+                            isPhysical
+                              ? "bg-orange-50 text-orange-700 ring-orange-200"
+                              : "bg-indigo-50 text-indigo-700 ring-indigo-200"
+                          )}>
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              isPhysical ? "bg-orange-400" : "bg-indigo-500"
+                            )} />
+                            {isPhysical ? "In-person" : "Virtual"}
+                          </span>
+                        </div>
+
+                        {/* Row 2: time range */}
+                        <div className="mt-0.5 text-[11px] font-medium text-slate-400 tabular-nums">
+                          {bookingTimeLabel(b)}{endTime ? ` – ${endTime}` : ""}
+                        </div>
+
+                        {/* Divider */}
+                        {(clientName || location || clientPhone) && (
+                          <div className="my-2 h-px bg-slate-100" />
+                        )}
+
+                        {/* Client name + email */}
+                        {clientName && (
+                          <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
+                            <svg className="h-3 w-3 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="truncate font-medium">{clientName}</span>
+                            {showEmail && (
+                              <span className="truncate text-[11px] text-slate-400 font-normal hidden sm:inline">
+                                · {clientEmail}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Address – in-person meetings */}
+                        {isPhysical && location && (
+                          <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-orange-50 px-2 py-1.5 text-[12px] text-orange-800">
+                            <svg className="h-3 w-3 shrink-0 mt-0.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="leading-snug">{location}</span>
+                          </div>
+                        )}
+
+                        {/* Phone – virtual with no location */}
+                        {!isPhysical && clientPhone && (
+                          <div className="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500">
+                            <svg className="h-3 w-3 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            <span>{formatPhoneForDisplay(clientPhone)}</span>
+                          </div>
+                        )}
+
+                        {/* Non-confirmed status badge */}
+                        {b?.status && String(b.status) !== "confirmed" && (
+                          <div className="mt-2">
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200 capitalize">
+                              {String(b.status)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -520,15 +610,18 @@ function DayTimeline({
   )
 }
 
+
 export default function CalendarPage() {
   const { toast } = useToast()
   const tCalendar = useTranslations('calendar')
   const tCommon = useTranslations('common')
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null)
   const [error, setError] = useState<string>("")
   const [notice, setNotice] = useState<string>("")
   const [copied, setCopied] = useState(false)
+  const [regeneratingSchedulingLink, setRegeneratingSchedulingLink] = useState(false)
   const [schedulingLinkViewOpen, setSchedulingLinkViewOpen] = useState(false)
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null)
@@ -547,11 +640,10 @@ export default function CalendarPage() {
   const [rescheduling, setRescheduling] = useState(false)
   const [cancelling, setCancelling] = useState(false)
 
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<{ email?: string; calendar_link?: string; company_name?: string; time_zone?: string } | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [activeAvailabilityId, setActiveAvailabilityId] = useState<string>("")
   const [activeTab, setActiveTab] = useState<"calendar" | "availability">("calendar")
-  const [hasLoadedAvailability, setHasLoadedAvailability] = useState(false)
 
   const [month, setMonth] = useState<Date>(() => {
     const now = new Date()
@@ -599,30 +691,13 @@ export default function CalendarPage() {
     return [...extra, ...base]
   }, [browserTz, timeZone])
 
-  // Availability editor (weekly hours like NeetoCal)
-  const [weeklyHours, setWeeklyHours] = useState<WeeklyHours>(() => ({
-    sunday: [],
-    monday: [{ start: "09:00", end: "17:00" }],
-    tuesday: [{ start: "09:00", end: "17:00" }],
-    wednesday: [{ start: "09:00", end: "17:00" }],
-    thursday: [{ start: "09:00", end: "17:00" }],
-    friday: [{ start: "09:00", end: "17:00" }],
-    saturday: [],
-  }))
-  const [quickDays, setQuickDays] = useState<Record<WeekdayKey, boolean>>(() => ({
-    sunday: false,
-    monday: true,
-    tuesday: true,
-    wednesday: true,
-    thursday: true,
-    friday: true,
-    saturday: false,
-  }))
-  const [quickStart, setQuickStart] = useState("09:00")
-  const [quickEnd, setQuickEnd] = useState("17:00")
-  const [savingAvailability, setSavingAvailability] = useState(false)
+  // Availability has been extracted to AvailabilityTab
 
-  const calendarLink = profile?.calendar_link as string | undefined
+  const calendarSlug = profile?.calendar_link as string | undefined
+  const frontendBase =
+    process.env.NEXT_PUBLIC_FRONTEND_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+  const calendarLink = calendarSlug ? `${frontendBase}/book/${calendarSlug}` : undefined
 
   const bookingsByDay = useMemo(() => {
     const map: Record<string, Booking[]> = {}
@@ -647,109 +722,42 @@ export default function CalendarPage() {
   const selectedKey = selectedDay ? dateKeyLocal(selectedDay) : ""
   const selectedDayBookings = selectedKey ? bookingsByDay[selectedKey] || [] : []
 
-  const applyAvailabilityToForm = (a: any) => {
-    if (!a) return
-    const id = availabilityId(a)
-    if (id) setActiveAvailabilityId(id)
+  const currentMonthStr = useMemo(() => dateKeyLocal(month).slice(0, 7), [month])
+  const [loadingBookings, setLoadingBookings] = useState(true)
+  const [allBookings, setAllBookings] = useState<Booking[]>([])
 
-    const next: WeeklyHours = {
-      sunday: [],
-      monday: [],
-      tuesday: [],
-      wednesday: [],
-      thursday: [],
-      friday: [],
-      saturday: [],
-    }
-
-    const periods = Array.isArray(a?.periods) ? a.periods : null
-    if (periods && periods.length) {
-      for (const p of periods) {
-        const w = normalizeWday(p?.wday || p?.weekday || p?.day)
-        const s = normalizeTimeToHHMM(p?.start_time || p?.start || p?.from)
-        const e = normalizeTimeToHHMM(p?.end_time || p?.end || p?.to)
-        if (!w || !s || !e) continue
-        next[w].push({ start: s, end: e })
-      }
-    } else {
-      // Fallback: legacy flat shape
-      const ds = availabilityDays(a)
-      const start = normalizeTimeToHHMM(a?.start_time || a?.start) || "09:00"
-      const end = normalizeTimeToHHMM(a?.end_time || a?.end) || "17:00"
-      for (const d of ds) next[d] = [{ start, end }]
-    }
-
-    // Sort ranges for nicer UX
-    for (const k of Object.keys(next) as WeekdayKey[]) {
-      next[k].sort((a, b) => a.start.localeCompare(b.start))
-    }
-    setWeeklyHours(next)
-
-    const enabledDays = (Object.keys(next) as WeekdayKey[]).filter((k) => next[k].length > 0)
-    setQuickDays((prev) => {
-      const out = { ...prev } as Record<WeekdayKey, boolean>
-      for (const k of Object.keys(out) as WeekdayKey[]) out[k] = false
-      for (const k of enabledDays) out[k] = true
-      return out
-    })
-
-    // If everything is a single identical range, reflect it in quick-set defaults
-    const singleRangeDays = enabledDays.filter((k) => next[k].length === 1)
-    if (singleRangeDays.length === enabledDays.length && enabledDays.length > 0) {
-      const first = enabledDays[0]
-      const base = next[first][0]
-      const allSame = enabledDays.every((k) => next[k][0].start === base.start && next[k][0].end === base.end)
-      if (allSame) {
-        setQuickStart(base.start)
-        setQuickEnd(base.end)
-      }
-    }
-  }
-
-  const refreshSingleAvailability = async () => {
-    setAvailabilityLoading(true)
-    const cached = getCachedTeamMember()
-    const res = await api.getSingleAvailability(cached?.team_member_id ?? undefined)
-    const data = (res as any)?.data ?? null
-    const availability = data?.availability ?? data
-    const teamMember = data?.team_member as { team_member_id?: string; email?: string; time_zone?: string } | undefined
-    if (teamMember) {
-      setCachedTeamMember(teamMember)
-      const tz = teamMember?.time_zone as string | undefined
-      if (tz && tz.trim()) {
-        setTimeZone(tz.trim())
-        setTimeZoneSource("neetocal")
-      }
-    }
-    if (availability) applyAvailabilityToForm(availability)
-    setHasLoadedAvailability(true)
-    setAvailabilityLoading(false)
-    return availability
-  }
-
-  const load = async () => {
-    setError("")
-    setNotice("")
-    setBookingsLoading(true)
+  const fetchBookings = useCallback(async (targetMonthStr: string) => {
     try {
-      // Load profile first so we can explicitly scope bookings to this team member.
-      const p = await api.getMyProfile()
-      const res = await api.getNeetoBookings({ page_size: 200, type: "upcoming", host_email: p?.email })
-      setProfile(p)
-      const data = (res as any)?.data ?? res
-      const list = Array.isArray(data) ? data : (data?.bookings ?? data?.data ?? [])
-      setBookings(Array.isArray(list) ? list : [])
-    } catch (e: any) {
-      setError(e?.message || "Failed to load calendar")
+      setLoadingBookings(true)
+      const res = await api.getCalendarBookings(targetMonthStr)
+      // Expecting { events: [...] }
+      const events = Array.isArray(res?.events) ? res.events : []
+      if (events.length > 0) {
+        setAllBookings(events)
+      } else {
+        setAllBookings([])
+      }
+    } catch (err) {
+      console.warn("Error fetching bookings:", err)
+      setAllBookings([])
     } finally {
-      setBookingsLoading(false)
+      setLoadingBookings(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    fetchBookings(currentMonthStr)
+  }, [currentMonthStr, fetchBookings])
+
+  useEffect(() => {
+    // Filter bookings for the current month view
+    const filtered = allBookings.filter(b => {
+      const startDate = bookingStartDate(b)
+      return startDate && isSameMonth(startDate, month)
+    })
+    setBookings(filtered)
+    setBookingsLoading(loadingBookings)
+  }, [allBookings, month, loadingBookings])
 
   const refetchClients = useCallback(() => {
     api.getClients(0, 500).then((data: any) => {
@@ -768,121 +776,56 @@ export default function CalendarPage() {
     refetchClients()
   }, [createAppointmentOpen, refetchClients])
 
-  // Lazy-load availability only when the user opens the tab.
+  // Load contractor profile on mount (needed for scheduling link + save button)
   useEffect(() => {
-    if (activeTab !== "availability") return
-    if (hasLoadedAvailability) return
-    // Hydrate timezone from cache so dropdown shows immediately while we fetch
-    const cached = getCachedTeamMember()
-    if (cached?.time_zone?.trim()) {
-      setTimeZone(cached.time_zone.trim())
-      setTimeZoneSource("neetocal")
-    }
-    refreshSingleAvailability().catch(() => {
-      // keep page usable even if availability fetch fails
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, hasLoadedAvailability])
-
-  const onSaveAvailability = async () => {
-    setError("")
-    setNotice("")
-    setSavingAvailability(true)
-    try {
-      const payload = {
-        email: profile?.email,
-        time_zone: timeZone,
-        // NeetoCal canonical shape:
-        periods: (Object.keys(weeklyHours) as WeekdayKey[]).flatMap((wday) =>
-          (weeklyHours[wday] || [])
-            .filter((r) => r.start && r.end)
-            .map((r) => ({ wday, start_time: hhmmToApiTime(r.start), end_time: hhmmToApiTime(r.end) }))
-        ),
-      }
-
-      const res = await api.upsertSingleAvailability(payload)
-      const resData = (res as any)?.data ?? null
-      const teamMember = resData?.team_member as { team_member_id?: string; email?: string; time_zone?: string } | undefined
-      if (teamMember) {
-        setCachedTeamMember(teamMember)
-        if (teamMember.time_zone?.trim()) {
-          setTimeZone(teamMember.time_zone.trim())
-          setTimeZoneSource("neetocal")
-        }
-      }
-      setNotice(activeAvailabilityId ? "Availability updated." : "Availability saved.")
-      await refreshSingleAvailability()
-    } catch (e: any) {
-      setError(e?.message || "Failed to save availability")
-    } finally {
-      setSavingAvailability(false)
-    }
-  }
-
-  const applyUniformToSelectedDays = () => {
-    setWeeklyHours((prev) => {
-      const next = { ...prev }
-      for (const d of WEEKDAYS.map((x) => x.key)) {
-        if (quickDays[d]) {
-          next[d] = [{ start: quickStart, end: quickEnd }]
-        } else {
-          // If user didn't select the day, treat it as unavailable for the uniform apply action
-          next[d] = []
-        }
-      }
-      return next
-    })
-    setNotice("Applied uniform hours (not saved yet).")
-  }
-
-  const addRangeForDay = (day: WeekdayKey) => {
-    setWeeklyHours((prev) => {
-      const next = { ...prev }
-      const existing = next[day] || []
-      const last = existing[existing.length - 1]
-      next[day] = [...existing, { start: last?.start || quickStart, end: last?.end || quickEnd }]
-      return next
-    })
-  }
-
-  const removeRangeForDay = (day: WeekdayKey, idx: number) => {
-    setWeeklyHours((prev) => {
-      const next = { ...prev }
-      next[day] = (next[day] || []).filter((_, i) => i !== idx)
-      return next
-    })
-  }
-
-  const updateRangeForDay = (day: WeekdayKey, idx: number, field: "start" | "end", value: string) => {
-    setWeeklyHours((prev) => {
-        const next = { ...prev }
-      next[day] = (next[day] || []).map((r, i) => (i === idx ? { ...r, [field]: value } : r))
-        return next
+    api.getMyProfile().then((p: any) => {
+      setProfile({
+        email: p?.email,
+        calendar_link: p?.calendar_link,
+        company_name: p?.company_name,
+        time_zone: p?.time_zone,
       })
-    }
+    }).catch(() => {})
 
-  const copyDayToSelectedDays = (from: WeekdayKey) => {
-    setWeeklyHours((prev) => {
-      const next = { ...prev }
-      const ranges = (prev[from] || []).map((r) => ({ ...r }))
-      for (const d of WEEKDAYS.map((x) => x.key)) {
-        if (!quickDays[d]) continue
-        next[d] = ranges
-      }
-      return next
-    })
-    setNotice("Copied hours to selected days (not saved yet).")
-  }
+    api.getGmailStatus().then((res) => {
+      setGoogleConnected(res.connected)
+    }).catch(() => setGoogleConnected(false))
+  }, [])
 
   const onCopyLink = async () => {
-    if (!calendarLink) return
-    try {
-      await navigator.clipboard.writeText(calendarLink)
-      setCopied(true)
-      toast({ description: tCalendar("copiedToClipboard") })
-    } catch {
-      toast({ description: "Could not copy link.", variant: "destructive" as any })
+    if (!calendarLink) {
+      toast({ title: "No public booking link found", variant: "destructive" })
+      return
     }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(calendarLink)
+        .then(() => toast({ title: "Copied!", description: "Public booking link copied to clipboard." }))
+        .catch(() => toast({ title: "Failed to copy", variant: "destructive" }))
+    }
+  }
+
+  const onRegenerateSchedulingLink = async () => {
+    try {
+      setRegeneratingSchedulingLink(true)
+      const res = await api.regenerateSchedulingLink()
+      const nextLink = res?.calendar_link || ""
+      if (!nextLink) throw new Error(tCalendar("regenerateLinkFailed"))
+      setProfile((prev) => ({ ...(prev || {}), calendar_link: nextLink }))
+      toast({ title: tCalendar("regenerateLinkSuccess") })
+    } catch (err: any) {
+      toast({
+        title: tCalendar("regenerateLinkFailed"),
+        description: err?.message || tCalendar("regenerateLinkFailed"),
+        variant: "destructive",
+      })
+    } finally {
+      setRegeneratingSchedulingLink(false)
+    }
+  }
+
+  const handleOpenLink = () => {
+    if (!calendarLink) return
+    window.open(calendarLink, "_blank", "noopener,noreferrer")
   }
 
   const copyText = async (text: string | undefined, label: string) => {
@@ -909,12 +852,12 @@ export default function CalendarPage() {
     }
     setCancelling(true)
     try {
-      await api.cancelNeetoBooking(sid)
-      toast({ description: tCalendar("bookingCancelled") })
+      await api.cancelBooking(activeBooking.id)
+      toast({ title: "Cancelled", description: "The meeting has been cancelled." })
+      setCancelConfirmOpen(false)
       setBookingDialogOpen(false)
       setActiveBooking(null)
-      setCancelConfirmOpen(false)
-      await load()
+      fetchBookings(currentMonthStr)
     } catch (e: any) {
       toast({ description: e?.message || "Failed to cancel booking", variant: "destructive" as any })
     } finally {
@@ -950,26 +893,21 @@ export default function CalendarPage() {
     if (!y || !m) return
     setRescheduleSlotsLoading(true)
     api
-      .getNeetoSlots({
-        time_zone: rescheduleTimeZone,
-        year: String(y),
-        month: String(m),
-        day: d ? String(d) : undefined,
+      .getAvailableSlots({
+        timezone: rescheduleTimeZone,
+        date: rescheduleDate,
+        duration_minutes: 30
       })
       .then((res: any) => {
-        const rawSlots = res?.slots ?? res?.data?.slots ?? []
+        const rawSlots = res?.slots ?? []
         const startTimes = new Set<string>()
-        const targetDate = rescheduleDate
-        for (const dayEntry of rawSlots) {
-          if (dayEntry.date !== targetDate) continue
-          const slotMap = dayEntry.slots ?? {}
-          for (const slot of Object.values(slotMap) as Array<{ start_time?: string }>) {
-            const hhmm = parseSlotStartToHHMM(slot?.start_time ?? "")
-            if (hhmm) startTimes.add(hhmm)
-          }
-        }
-        const sorted = Array.from(startTimes).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b))
-        setRescheduleSlotTimeOptions(sorted.map((v) => ({ value: v, label: hhmmToLabel(v) })))
+        rawSlots.forEach((isoString: string) => {
+          const slotDt = new Date(isoString)
+          const hhmm = pad2(slotDt.getHours()) + ":" + pad2(slotDt.getMinutes())
+          startTimes.add(hhmm)
+        })
+        const finalSlots = Array.from(startTimes).sort()
+        setRescheduleSlotTimeOptions(finalSlots.map((v: string) => ({ value: v, label: hhmmToLabel(v) })))
       })
       .catch(() => setRescheduleSlotTimeOptions([]))
       .finally(() => setRescheduleSlotsLoading(false))
@@ -1001,8 +939,11 @@ export default function CalendarPage() {
       return
     }
     const timeZoneToUse = rescheduleTimeZone
-    const displayName = activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "Client"
-    const email = activeBooking?.email && !isPlaceholderEmail(activeBooking.email) ? String(activeBooking.email) : ""
+    const displayName = activeBooking?.client_name || (activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "Client")
+    const email = (() => {
+      const e = activeBooking?.client_email || activeBooking?.email
+      return e && !isPlaceholderEmail(e) ? String(e) : ""
+    })()
     if (!email) {
       toast({ description: "Client email is required to reschedule.", variant: "destructive" as any })
       return
@@ -1010,19 +951,16 @@ export default function CalendarPage() {
     setRescheduleError("")
     setRescheduling(true)
     try {
-      await api.rescheduleNeetoBooking(sid, {
-        name: displayName,
-        email,
+      await api.rescheduleBooking(activeBooking.id, {
         slot_date: rescheduleDate,
-        slot_start_time: hhmmToApiTime(rescheduleTime),
+        slot_start_time: rescheduleTime,
         time_zone: timeZoneToUse,
-        ...(rescheduleReason.trim() ? { reschedule_reason: rescheduleReason.trim() } : {}),
       })
-      toast({ description: tCalendar("bookingRescheduled") })
+      toast({ title: "Rescheduled!", description: "The meeting has been updated." })
       setRescheduleDialogOpen(false)
       setBookingDialogOpen(false)
       setActiveBooking(null)
-      await load()
+      fetchBookings(currentMonthStr)
     } catch (e: any) {
       const msg = e?.message || "Failed to reschedule"
       setRescheduleError(msg)
@@ -1037,6 +975,367 @@ export default function CalendarPage() {
     const t = window.setTimeout(() => setCopied(false), 1200)
     return () => window.clearTimeout(t)
   }, [copied])
+
+  const renderRightSidebar = () => (
+          <div className="min-w-0 space-y-4 sm:space-y-6 lg:sticky lg:top-24 self-start rounded-2xl border border-gray-200 bg-white dark:bg-card dark:border-border p-4 sm:p-6 shadow-sm">
+            {bookingsLoading ? (
+              <>
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <Skeleton className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg shrink-0" />
+                    <Skeleton className="h-9 sm:h-10 w-40 rounded-lg" />
+                  </div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-5 w-40" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-6">
+                  <Skeleton className="h-[200px] w-full rounded-xl" />
+                </div>
+
+                <div className="mt-8">
+                  <Skeleton className="h-[120px] w-full rounded-xl" />
+                </div>
+              </>
+            ) : (
+            <>
+              {/* Header: actions on left, then date below */}
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fetchBookings(currentMonthStr)}
+                    disabled={bookingsLoading || googleConnected === false}
+                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg shrink-0 border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
+                    aria-label={tCommon("refresh")}
+                  >
+                    <RefreshCwIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setCreateAppointmentOpen(true)}
+                    disabled={!calendarLink || googleConnected === false}
+                    className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)] h-9 sm:h-10 px-3 sm:px-4 font-medium min-w-0 flex-1 sm:flex-initial"
+                    aria-label={tCalendar("createAppointment")}
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
+                    <span className="sm:hidden">New</span>
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <CalendarIcon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-foreground break-words">
+                      {selectedDay
+                        ? selectedDay.toLocaleDateString(undefined, {
+                            weekday: "long",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : tCalendar("bookings")}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {selectedDayBookings.length === 0
+                        ? tCalendar("noBookings")
+                        : selectedDay
+                          ? `${selectedDay.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${selectedDayBookings.length} ${selectedDayBookings.length === 1 ? "booking" : "bookings"}`
+                          : ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking cards */}
+              <div className="space-y-3">
+                {selectedDayBookings.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#E2E8F0] dark:border-border bg-[#FAFBFD] dark:bg-muted/20 py-6 sm:py-10 px-3 sm:px-4 text-center shadow-sm">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {tCommon("nothingScheduled")}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80 mt-1">
+                      No more bookings today — add one?
+                    </p>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="mt-3 sm:mt-4 rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
+                      onClick={() => setCreateAppointmentOpen(true)}
+                      disabled={!calendarLink || googleConnected === false}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2 shrink-0" />
+                      <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
+                      <span className="sm:hidden">New</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[300px] pr-2">
+                    <div className="space-y-3">
+                      {selectedDayBookings.map((b, idx) => {
+                        const location = getBookingLocation(b)
+                        const clientPhone = getBookingClientPhone(b)
+                        const clientName = parseBookingNameAndLocation(b?.name).displayName || "—"
+                        const showEmail = b?.email && !isPlaceholderEmail(b.email)
+                        const isPhysical = b?.type === "physical" || b?.preferred_meeting_spot === "physical"
+                        
+                        let displayLocation = ""
+                        if (isPhysical && location) {
+                          // Take everything before the first comma to shorten the address
+                          displayLocation = location.split(",")[0].trim()
+                        }
+
+                        let subtitle = ""
+                        if (isPhysical && displayLocation) {
+                          if (clientPhone) {
+                            subtitle = `Meeting with ${clientPhone} at ${displayLocation}`
+                          } else {
+                            subtitle = `Meeting at ${displayLocation}`
+                          }
+                        } else if (!isPhysical) {
+                          if (clientPhone) {
+                            subtitle = `Virtual Meeting — ${clientPhone}`
+                          } else {
+                            subtitle = "Virtual Meeting"
+                          }
+                        } else {
+                            subtitle = clientPhone ? `Meeting with ${clientPhone}` : (clientName + (showEmail ? ` (${b.email})` : ""))
+                        }
+
+                        const status = (b?.status as string) || "confirmed"
+                        const isConfirmed = String(status).toLowerCase() === "confirmed"
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => openBooking(b)}
+                            className="w-full rounded-lg border border-border bg-background p-4 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            aria-label={`Open booking details for ${bookingTitle(b)}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar
+                                className={cn(
+                                  "h-10 w-10 shrink-0 rounded-full",
+                                  getBookingAvatarColor(idx)
+                                )}
+                              >
+                                <AvatarFallback className="text-sm font-semibold">
+                                  {getInitials(clientName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="text-base font-semibold text-primary truncate">
+                                    {bookingTitle(b)}
+                                  </h3>
+                                  <span className="shrink-0 rounded-full p-1 text-muted-foreground" aria-hidden>
+                                    <MoreHorizontalIcon className="h-4 w-4" />
+                                  </span>
+                                </div>
+                                {subtitle ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground w-full">
+                                        {isPhysical ? (
+                                          <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-orange-400" />
+                                        ) : (
+                                          <Video className="h-4 w-4 shrink-0 mt-0.5 text-indigo-400" />
+                                        )}
+                                        <p className="line-clamp-2 break-words leading-tight text-left flex-1">
+                                          {subtitle}
+                                        </p>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      {subtitle}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : null}
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                  <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                    {bookingTimeLabel(b)}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                    {isConfirmed ? (
+                                      <>
+                                        <CheckCircle2Icon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-hidden />
+                                        Confirmed
+                                      </>
+                                    ) : (
+                                      <span className="capitalize">{status}</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+
+              {/* Your Scheduling Link — card per designer spec */}
+              <div className="pt-4 border-t border-border/60">
+                <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-base font-semibold text-foreground">
+                          {tCalendar("yourSchedulingLink")}
+                        </label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex cursor-help rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" aria-hidden>
+                              <HelpCircleIcon className="h-4 w-4" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px]">
+                            {tCalendar("schedulingLinkTooltip")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      {calendarLink ? (
+                        <div
+                          className="flex min-h-10 items-stretch gap-0 rounded-md border-b-2 border-primary/30 bg-transparent focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                          role="group"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              onCopyLink()
+                            }
+                          }}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="font-mono text-sm text-primary min-w-0 flex-1 truncate py-2.5 pr-2 cursor-default"
+                                aria-label="Scheduling link URL"
+                              >
+                                {calendarLink}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[min(90vw,28rem)] font-mono text-xs break-all">
+                              {calendarLink}
+                            </TooltipContent>
+                          </Tooltip>
+                          <div className="flex items-center gap-0.5 pr-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  onClick={onCopyLink}
+                                  aria-label="Copy scheduling link"
+                                >
+                                  {copied ? (
+                                    <CheckIcon className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden />
+                                  ) : (
+                                    <CopyIcon className="h-4 w-4" aria-hidden />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{copied ? tCalendar("copiedToClipboard") : "Copy"}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  onClick={() => setSchedulingLinkViewOpen(true)}
+                                  aria-label="View scheduling link"
+                                >
+                                  <Eye className="h-4 w-4" aria-hidden />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  asChild
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  aria-label="Open scheduling link in new tab"
+                                >
+                                  <a href={calendarLink} target="_blank" rel="noreferrer">
+                                    <ExternalLinkIcon className="h-4 w-4" aria-hidden />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Open</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            {tCalendar("linkInactiveRegenerate")}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={onRegenerateSchedulingLink}
+                            disabled={regeneratingSchedulingLink || googleConnected === false}
+                          >
+                            {regeneratingSchedulingLink
+                              ? tCalendar("regeneratingLink")
+                              : tCalendar("regenerateLink")}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* View scheduling link dialog */}
+                <Dialog open={schedulingLinkViewOpen} onOpenChange={setSchedulingLinkViewOpen}>
+                  <DialogContent className="sm:max-w-2xl h-[80vh] flex flex-col p-0 gap-0" showCloseButton={false}>
+                    <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border">
+                      <DialogTitle className="text-base font-semibold">
+                        {tCalendar("yourSchedulingLink")}
+                      </DialogTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setSchedulingLinkViewOpen(false)}
+                        aria-label="Close"
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {calendarLink ? (
+                      <iframe
+                        src={calendarLink}
+                        title="Scheduling link preview"
+                        className="w-full flex-1 min-h-0 rounded-b-lg"
+                      />
+                    ) : null}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </>
+            )}
+              </div>
+
+  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -1066,13 +1365,33 @@ export default function CalendarPage() {
               <div className="px-6 py-5">
                 {/* Info Section */}
                 <div className="space-y-0 mb-6">
+                  {/* Meeting type badge */}
+                  {(() => {
+                    const isPhysical = activeBooking?.type === "physical" || activeBooking?.preferred_meeting_spot === "physical"
+                    const label = isPhysical ? "In-person" : "Virtual"
+                    return (
+                      <div className="flex py-3 border-b border-border/50">
+                        <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Type</span>
+                        <span className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
+                          isPhysical
+                            ? "bg-orange-50 text-orange-700 ring-orange-200"
+                            : "bg-indigo-50 text-indigo-700 ring-indigo-200"
+                        )}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full", isPhysical ? "bg-orange-400" : "bg-indigo-500")} />
+                          {label}
+                        </span>
+                      </div>
+                    )
+                  })()}
                   <div className="flex py-3 border-b border-border/50">
                     <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Client</span>
                     <span className="text-sm text-foreground">
-                      {activeBooking?.name ? parseBookingNameAndLocation(activeBooking.name).displayName : "—"}
-                      {activeBooking?.email && !isPlaceholderEmail(activeBooking.email) 
-                        ? ` (${String(activeBooking.email)})` 
-                        : null}
+                      {activeBooking?.client_name || parseBookingNameAndLocation(activeBooking?.name).displayName || "—"}
+                      {(() => {
+                        const email = activeBooking?.client_email || activeBooking?.email
+                        return email && !isPlaceholderEmail(email) ? ` (${String(email)})` : null
+                      })()}
                     </span>
                   </div>
                   {(() => {
@@ -1121,11 +1440,7 @@ export default function CalendarPage() {
 
                 {/* Join Meeting Button */}
                 {(() => {
-                  const joinUrl =
-                    activeBooking?.room_url ||
-                    activeBooking?.spot_details ||
-                    activeBooking?.client_booking_url ||
-                    activeBooking?.admin_booking_url
+                  const joinUrl = getBookingVirtualLink(activeBooking)
                   return joinUrl ? (
                     <div className="pt-5 border-t">
                       <Button
@@ -1280,7 +1595,7 @@ export default function CalendarPage() {
           onOpenChange={setCreateAppointmentOpen}
           clients={clients.map((c) => ({ id: c.id, name: c.name || "", email: c.email || "", address: c.address }))}
           profile={profile ? { time_zone: profile.time_zone, calendar_link: profile.calendar_link } : null}
-          onSuccess={load}
+          onSuccess={() => fetchBookings(currentMonthStr)}
           onClientCreated={refetchClients}
         />
 
@@ -1298,6 +1613,18 @@ export default function CalendarPage() {
                 <Alert>
                   <CheckCircle2Icon />
                   <AlertDescription>{notice}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {googleConnected === false ? (
+                <Alert className="bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800">
+                  <AlertCircleIcon className="text-indigo-600 dark:text-indigo-400" />
+                  <AlertDescription className="flex items-center justify-between text-indigo-800 dark:text-indigo-200">
+                    <span>You must connect your Google Account to enable calendar features.</span>
+                    <Button variant="outline" size="sm" asChild className="ml-4 shrink-0 bg-white dark:bg-transparent">
+                      <a href="/settings?tab=integrations">Connect Google Account</a>
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               ) : null}
             </div>
@@ -1323,676 +1650,58 @@ export default function CalendarPage() {
               <TabsContent value="calendar" className="mt-4 sm:mt-6">
             <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] min-w-0">
               {bookingsLoading ? (
-                <Card className="min-w-0 rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-3 sm:p-5 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="space-y-2 min-w-0 flex-1">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-5 w-32 sm:w-48" />
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-7">
+                  {/* Header skeleton */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-6 w-20 rounded-md" />
+                      <Skeleton className="h-5 w-10 rounded-md" />
                     </div>
                     <div className="flex items-center gap-1">
-                      <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-md" />
-                      <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-md" />
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-8 w-8 rounded-lg" />
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-7 gap-0.5 sm:gap-2">
+                  {/* Day-of-week labels skeleton */}
+                  <div className="grid grid-cols-7 mb-1">
                     {Array.from({ length: 7 }).map((_, i) => (
-                      <Skeleton key={`h-${i}`} className="h-6 sm:h-8 w-full rounded" />
-                    ))}
-                    {Array.from({ length: 35 }).map((_, i) => (
-                      <Skeleton key={`d-${i}`} className="aspect-square w-full min-w-0 rounded-md sm:rounded-xl" />
+                      <Skeleton key={`h-${i}`} className="h-4 w-5 mx-auto rounded" />
                     ))}
                   </div>
-                </Card>
+                  {/* Day cells skeleton — compact circles matching the new design */}
+                  <div className="grid grid-cols-7">
+                    {Array.from({ length: 42 }).map((_, i) => (
+                      <div key={`d-${i}`} className="flex items-center justify-center py-1">
+                        <Skeleton className="h-9 w-9 rounded-xl" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
-                <MonthlyCalendar
-                  month={month}
-                selected={selectedDay}
-                onMonthChange={setMonth}
-                  getCount={(d) => bookingsByDay[dateKeyLocal(d)]?.length ?? 0}
-                  onSelect={(d) => {
-                    setSelectedDay(d)
-                    if (!isSameMonth(d, month)) setMonth(new Date(d.getFullYear(), d.getMonth(), 1))
-                  }}
-                />
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-7">
+                  <MonthlyCalendar
+                    month={month}
+                    selected={selectedDay}
+                    onMonthChange={setMonth}
+                    getCount={(d) => bookingsByDay[dateKeyLocal(d)]?.length ?? 0}
+                    onSelect={(d) => {
+                      setSelectedDay(d)
+                      if (!isSameMonth(d, month)) setMonth(new Date(d.getFullYear(), d.getMonth(), 1))
+                    }}
+                  />
+                </div>
               )}
 
-          <div className="min-w-0 space-y-4 sm:space-y-6 lg:sticky lg:top-24 self-start rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 sm:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
-            {bookingsLoading ? (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-xl" />
-                    <div className="space-y-1">
-                      <Skeleton className="h-6 w-40" />
-                      <Skeleton className="h-4 w-32" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <Skeleton className="h-10 w-28 rounded-lg" />
-                  </div>
-                </div>
-                <div className="space-y-3 pt-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-24 w-full rounded-lg" />
-                  ))}
-                </div>
-                <div className="space-y-2 pt-4">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-11 w-full rounded-lg" />
-                </div>
-              </>
-            ) : (
-            <>
-              {/* Header: actions on left, then date below */}
-              <div className="flex flex-col gap-3 sm:gap-4">
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={load}
-                    disabled={bookingsLoading}
-                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg shrink-0 border-[#E2E8F0] dark:border-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-shadow"
-                    aria-label={tCommon("refresh")}
-                  >
-                    <RefreshCwIcon className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setCreateAppointmentOpen(true)}
-                    disabled={!calendarLink}
-                    className="rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)] h-9 sm:h-10 px-3 sm:px-4 font-medium min-w-0 flex-1 sm:flex-initial"
-                    aria-label={tCalendar("createAppointment")}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                    <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
-                    <span className="sm:hidden">New</span>
-                  </Button>
-                </div>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <CalendarIcon className="h-5 w-5" aria-hidden />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-semibold text-foreground break-words">
-                      {selectedDay
-                        ? selectedDay.toLocaleDateString(undefined, {
-                            weekday: "long",
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : tCalendar("bookings")}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      {selectedDayBookings.length === 0
-                        ? tCalendar("noBookings")
-                        : selectedDay
-                          ? `${selectedDay.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${selectedDayBookings.length} ${selectedDayBookings.length === 1 ? "booking" : "bookings"}`
-                          : ""}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Booking cards */}
-              <div className="space-y-3">
-                {selectedDayBookings.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#E2E8F0] dark:border-border bg-[#FAFBFD] dark:bg-muted/20 py-6 sm:py-10 px-3 sm:px-4 text-center shadow-sm">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {tCommon("nothingScheduled")}
-                    </p>
-                    <p className="text-xs text-muted-foreground/80 mt-1">
-                      No more bookings today — add one?
-                    </p>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="mt-3 sm:mt-4 rounded-lg shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
-                      onClick={() => setCreateAppointmentOpen(true)}
-                      disabled={!calendarLink}
-                    >
-                      <PlusIcon className="h-4 w-4 mr-2 shrink-0" />
-                      <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
-                      <span className="sm:hidden">New</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[300px] pr-2">
-                    <div className="space-y-3">
-                      {selectedDayBookings.map((b, idx) => {
-                        const location = getBookingLocation(b)
-                        const clientPhone = getBookingClientPhone(b)
-                        const clientName = parseBookingNameAndLocation(b?.name).displayName || "—"
-                        const showEmail = b?.email && !isPlaceholderEmail(b.email)
-                        const subtitle =
-                          location && clientPhone
-                            ? `Meeting with ${clientPhone} at ${location}`
-                            : location
-                              ? `Meeting at ${location}`
-                              : clientPhone
-                                ? `Meeting with ${clientPhone}`
-                                : clientName + (showEmail ? ` (${b.email})` : "")
-                        const status = (b?.status as string) || "confirmed"
-                        const isConfirmed = String(status).toLowerCase() === "confirmed"
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => openBooking(b)}
-                            className="w-full rounded-lg border border-border bg-background p-4 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            aria-label={`Open booking details for ${bookingTitle(b)}`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <Avatar
-                                className={cn(
-                                  "h-10 w-10 shrink-0 rounded-full",
-                                  getBookingAvatarColor(idx)
-                                )}
-                              >
-                                <AvatarFallback className="text-sm font-semibold">
-                                  {getInitials(clientName)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h3 className="text-base font-semibold text-primary truncate">
-                                    {bookingTitle(b)}
-                                  </h3>
-                                  <span className="shrink-0 rounded-full p-1 text-muted-foreground" aria-hidden>
-                                    <MoreHorizontalIcon className="h-4 w-4" />
-                                  </span>
-                                </div>
-                                {subtitle ? (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2 break-words">
-                                        {subtitle}
-                                      </p>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-xs">
-                                      {subtitle}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                ) : null}
-                                <div className="flex flex-wrap items-center gap-2 mt-2">
-                                  <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
-                                    {bookingTimeLabel(b)}
-                                  </span>
-                                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                    {isConfirmed ? (
-                                      <>
-                                        <CheckCircle2Icon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-hidden />
-                                        Confirmed
-                                      </>
-                                    ) : (
-                                      <span className="capitalize">{status}</span>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </ScrollArea>
-                )}
-              </div>
-
-              {/* Your Scheduling Link — card per designer spec */}
-              <div className="pt-4 border-t border-border/60">
-                <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_4px_12px_rgba(0,0,0,0.08)]">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-base font-semibold text-foreground">
-                          {tCalendar("yourSchedulingLink")}
-                        </label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex cursor-help rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" aria-hidden>
-                              <HelpCircleIcon className="h-4 w-4" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[240px]">
-                            {tCalendar("schedulingLinkTooltip")}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      {calendarLink ? (
-                        <div
-                          className="flex min-h-10 items-stretch gap-0 rounded-md border-b-2 border-primary/30 bg-transparent focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                          role="group"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault()
-                              onCopyLink()
-                            }
-                          }}
-                        >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className="font-mono text-sm text-primary min-w-0 flex-1 truncate py-2.5 pr-2 cursor-default"
-                                aria-label="Scheduling link URL"
-                              >
-                                {calendarLink}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-[min(90vw,28rem)] font-mono text-xs break-all">
-                              {calendarLink}
-                            </TooltipContent>
-                          </Tooltip>
-                          <div className="flex items-center gap-0.5 pr-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                  onClick={onCopyLink}
-                                  aria-label="Copy scheduling link"
-                                >
-                                  {copied ? (
-                                    <CheckIcon className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden />
-                                  ) : (
-                                    <CopyIcon className="h-4 w-4" aria-hidden />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{copied ? tCalendar("copiedToClipboard") : "Copy"}</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                  onClick={() => setSchedulingLinkViewOpen(true)}
-                                  aria-label="View scheduling link"
-                                >
-                                  <Eye className="h-4 w-4" aria-hidden />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>View</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  asChild
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                  aria-label="Open scheduling link in new tab"
-                                >
-                                  <a href={calendarLink} target="_blank" rel="noreferrer">
-                                    <ExternalLinkIcon className="h-4 w-4" aria-hidden />
-                                  </a>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Open</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {tCalendar("linkInactiveRegenerate")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-
-                {/* View scheduling link dialog */}
-                <Dialog open={schedulingLinkViewOpen} onOpenChange={setSchedulingLinkViewOpen}>
-                  <DialogContent className="sm:max-w-2xl h-[80vh] flex flex-col p-0 gap-0" showCloseButton={false}>
-                    <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border">
-                      <DialogTitle className="text-base font-semibold">
-                        {tCalendar("yourSchedulingLink")}
-                      </DialogTitle>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={() => setSchedulingLinkViewOpen(false)}
-                        aria-label="Close"
-                      >
-                        <XIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {calendarLink ? (
-                      <iframe
-                        src={calendarLink}
-                        title="Scheduling link preview"
-                        className="w-full flex-1 min-h-0 rounded-b-lg"
-                      />
-                    ) : null}
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </>
-            )}
-              </div>
-                  </div>
+              {renderRightSidebar()}
+            </div>
           </TabsContent>
-
           <TabsContent value="availability" className="mt-4 sm:mt-6">
-            <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card p-4 sm:p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-              {availabilityLoading || !hasLoadedAvailability ? (
-                <>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-2">
-                      <Skeleton className="h-7 w-40" />
-                      <Skeleton className="h-4 w-64" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-10 w-20" />
-                      <Skeleton className="h-10 w-20" />
-                    </div>
-                  </div>
-
-                  <Separator className="my-6" />
-
-                  <div className="grid gap-6">
-                    <div className="rounded-2xl border p-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <Skeleton className="h-5 w-40" />
-                          <Skeleton className="h-4 w-56" />
-                        </div>
-                        <Skeleton className="h-10 w-20" />
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {Array.from({ length: 7 }).map((_, i) => (
-                          <Skeleton key={i} className="h-9 w-9 rounded-full" />
-                        ))}
-                      </div>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div className="grid gap-2">
-                          <Skeleton className="h-4 w-12" />
-                          <Skeleton className="h-10 w-full" />
-                        </div>
-                        <div className="grid gap-2">
-                          <Skeleton className="h-4 w-12" />
-                          <Skeleton className="h-10 w-full" />
-                        </div>
-                        <div className="grid gap-2">
-                          <Skeleton className="h-4 w-20" />
-                          <Skeleton className="h-10 w-full" />
-                          <Skeleton className="h-3 w-full" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border">
-                      {Array.from({ length: 7 }).map((_, idx) => (
-                        <div key={idx} className={cn("p-4 md:p-5", idx > 0 ? "border-t" : "")}>
-                          <div className="flex items-start gap-4">
-                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                            <div className="min-w-0 flex-1 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <Skeleton className="h-5 w-24" />
-                                <Skeleton className="h-9 w-9 rounded-md" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <Skeleton className="h-10 w-[160px]" />
-                                  <Skeleton className="h-4 w-4" />
-                                  <Skeleton className="h-10 w-[160px]" />
-                                  <Skeleton className="h-9 w-9 rounded-md" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Weekly hours</h2>
-                      <p className="text-sm text-muted-foreground mt-0.5">Set when you’re typically available for meetings</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
-                        Reload
-                      </Button>
-                      <Button type="button" size="sm" className="rounded-lg bg-primary text-primary-foreground shadow-sm" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading || !profile?.email}>
-                        {savingAvailability ? "Saving…" : "Save"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Separator className="my-5" />
-
-                  <div className="grid gap-5">
-                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-muted/30 dark:bg-muted/10 p-4 sm:p-5">
-                  <div className="flex flex-col gap-4 sm:gap-5">
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground">Apply uniform hours</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">Select days, then set one time range to apply to all.</p>
-                    </div>
-
-                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2 w-full max-w-[280px] sm:max-w-[320px]">
-                      {WEEKDAYS.map((d) => (
-                        <button
-                          key={d.key}
-                          type="button"
-                          onClick={() => setQuickDays((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
-                          className={cn(
-                            "aspect-square w-full min-w-0 rounded-full text-xs font-semibold transition-all",
-                            quickDays[d.key] ? "bg-primary text-primary-foreground shadow-sm" : "border border-[#E5E7EB] dark:border-border bg-background hover:bg-muted/60"
-                          )}
-                          title={d.label}
-                        >
-                          {d.short}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-                      <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-2">
-                        <div className="grid gap-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Start</label>
-                          <Select
-                            value={quickStart}
-                            onValueChange={(v) => {
-                              setQuickStart(v)
-                              if (hhmmToMinutes(quickEnd) < hhmmToMinutes(v)) setQuickEnd(v)
-                            }}
-                          >
-                            <SelectTrigger className="h-9 w-full sm:w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeOptions.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">End</label>
-                          <Select
-                            value={quickEnd}
-                            onValueChange={(v) => {
-                              setQuickEnd(v)
-                              if (hhmmToMinutes(v) < hhmmToMinutes(quickStart)) setQuickStart(v)
-                            }}
-                          >
-                            <SelectTrigger className="h-9 w-full sm:w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeOptions.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 sm:ml-2">
-                        <label className="text-xs font-medium text-muted-foreground">Time zone</label>
-                        <div className="flex gap-2 min-w-0">
-                          <Select
-                            value={timeZone}
-                            onValueChange={(v) => {
-                              setTimeZone(v)
-                              setTimeZoneSource("manual")
-                            }}
-                          >
-                            <SelectTrigger className="h-9 flex-1 min-w-0 sm:w-[200px]">
-                              <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeZoneOptions.map((tz) => (
-                                <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button type="button" size="sm" className="rounded-lg shrink-0 h-9 bg-primary text-primary-foreground" onClick={applyUniformToSelectedDays}>
-                            Apply
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
-                  {WEEKDAYS.map((d, idx) => {
-                    const ranges = weeklyHours[d.key] || []
-                    const isUnavailable = ranges.length === 0
-                    return (
-                      <div
-                        key={d.key}
-                        className={cn(
-                          "py-3 px-4 sm:py-4 sm:px-5 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10",
-                          idx > 0 ? "border-t border-[#E2E8F0] dark:border-border" : ""
-                        )}
-                      >
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          <div
-                            className={cn(
-                              "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-semibold sm:h-9 sm:w-9 sm:text-xs",
-                              isUnavailable
-                                ? "border border-[#E5E7EB] dark:border-border bg-transparent text-muted-foreground"
-                                : "bg-primary text-primary-foreground"
-                            )}
-                          >
-                            {d.short}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium text-foreground">{d.label}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                                onClick={() => addRangeForDay(d.key)}
-                                aria-label={`Add time range for ${d.label}`}
-                              >
-                                <PlusIcon className="h-3.5 w-3.5 stroke-[2]" />
-                              </Button>
-                            </div>
-
-                            {isUnavailable ? (
-                              <p className="mt-1.5 text-xs text-muted-foreground">Unavailable</p>
-                            ) : (
-                              <div className="mt-2 space-y-2">
-                                {ranges.map((r, i) => (
-                                  <div key={i} className="flex flex-wrap items-center gap-2">
-                                    <Select
-                                      value={r.start}
-                                      onValueChange={(v) => {
-                                        updateRangeForDay(d.key, i, "start", v)
-                                        if (hhmmToMinutes(r.end) < hhmmToMinutes(v)) updateRangeForDay(d.key, i, "end", v)
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-9 w-[120px] sm:w-[140px] text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {timeOptions.map((t) => (
-                                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <span className="text-muted-foreground/60 text-xs">–</span>
-                                    <Select
-                                      value={r.end}
-                                      onValueChange={(v) => {
-                                        updateRangeForDay(d.key, i, "end", v)
-                                        if (hhmmToMinutes(v) < hhmmToMinutes(r.start)) updateRangeForDay(d.key, i, "start", v)
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-9 w-[120px] sm:w-[140px] text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {timeOptions.map((t) => (
-                                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <div className="inline-flex items-center">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => removeRangeForDay(d.key, i)}
-                                        aria-label={`Remove time range ${i + 1} for ${d.label}`}
-                                      >
-                                        <XIcon className="h-3.5 w-3.5" />
-                                      </Button>
-                                      {i === ranges.length - 1 && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
-                                          onClick={() => copyDayToSelectedDays(d.key)}
-                                          aria-label={`Copy ${d.label} hours to selected days`}
-                                        >
-                                          <CopyIcon className="h-3.5 w-3.5" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {!activeAvailabilityId && (
-                  <p className="text-xs text-muted-foreground/80">
-                    No availability saved yet. Set your hours above and click Save to create one.
-                  </p>
-                )}
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] min-w-0">
+              <div className="min-w-0">
+                <AvailabilityTab onAvailabilityChanged={() => fetchBookings(currentMonthStr)} />
               </div>
-                </>
-              )}
-            </Card>
+              {renderRightSidebar()}
+            </div>
           </TabsContent>
             </Tabs>
           </div>
