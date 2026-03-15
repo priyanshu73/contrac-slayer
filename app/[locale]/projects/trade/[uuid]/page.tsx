@@ -1,14 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
-import type { ProjectTrade, ProjectMedia } from "@/lib/types"
+import type { ProjectTrade, ProjectTask, ProjectMedia } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, UploadCloud, X, HelpCircle, FileText, Image as ImageIcon, Calendar, ChevronDown, ChevronUp } from "lucide-react"
+import { Loader2, UploadCloud, X, HelpCircle, FileText, Image as ImageIcon, Calendar, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
+
+type StagedFile = { file: File; id: string; preview?: string }
 
 export default function TradePortalPage() {
   const params = useParams()
@@ -18,8 +20,35 @@ export default function TradePortalPage() {
   const tradeUuid = params.uuid as string
 
   const [uploading, setUploading] = useState(false)
-  const [showGCMeida, setShowGCMedia] = useState(false)
+  const [showGCMedia, setShowGCMedia] = useState(false)
   const [expandedTaskIds, setExpandedTaskIds] = useState<number[]>([])
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null)
+
+  const TASK_STATUSES: { value: ProjectTask["status"]; label: string }[] = [
+    { value: "NOT_STARTED", label: "Not started" },
+    { value: "IN_PROGRESS", label: "In progress" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "BLOCKED", label: "Blocked" },
+  ]
+
+  const handleTaskStatusChange = async (taskId: number, newStatus: ProjectTask["status"]) => {
+    if (!tradeUuid || !trade) return
+    setUpdatingTaskId(taskId)
+    try {
+      const updated = await api.updateTradeTaskStatusPublic(tradeUuid, taskId, newStatus) as ProjectTask
+      setTrade({
+        ...trade,
+        tasks: (trade.tasks || []).map((t) => (t.id === taskId ? { ...t, ...updated } : t)),
+      })
+    } catch (err) {
+      console.error("Failed to update task status", err)
+      alert("Failed to update task status")
+    } finally {
+      setUpdatingTaskId(null)
+    }
+  }
 
   useEffect(() => {
     if (!tradeUuid) return
@@ -52,20 +81,40 @@ export default function TradePortalPage() {
     }
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const addFilesToStaging = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length || !trade) return
+    const newStaged: StagedFile[] = Array.from(e.target.files).map((file) => {
+      const id = `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined
+      return { file, id, preview }
+    })
+    setStagedFiles((prev) => [...prev, ...newStaged])
+    e.target.value = ""
+  }
+
+  const removeStagedFile = (id: string) => {
+    setStagedFiles((prev) => {
+      const item = prev.find((s) => s.id === id)
+      if (item?.preview) URL.revokeObjectURL(item.preview)
+      return prev.filter((s) => s.id !== id)
+    })
+  }
+
+  const uploadStagedFiles = async () => {
+    if (!stagedFiles.length || !trade || !tradeUuid) return
     setUploading(true)
     try {
-      const uploadedArray = await api.uploadTradeMediaPublic(
-        tradeUuid as string,
-        Array.from(e.target.files),
-        "TRADE_PROOF"
-      )
-      const updatedTrade = {
+      const files = stagedFiles.map((s) => s.file)
+      const uploadedArray = await api.uploadTradeMediaPublic(tradeUuid, files, "TRADE_PROOF")
+      setStagedFiles((prev) => {
+        prev.forEach((s) => s.preview && URL.revokeObjectURL(s.preview))
+        return []
+      })
+      setTrade({
         ...trade,
-        proof_of_work_media: [...(trade.proof_of_work_media || []), ...uploadedArray]
-      }
-      setTrade(updatedTrade)
+        proof_of_work_media: [...(trade.proof_of_work_media || []), ...uploadedArray],
+      })
+      fileInputRef.current?.value && (fileInputRef.current.value = "")
     } catch (err: any) {
       console.error("Error saving proof of work", err)
       alert("Failed to upload proof of work")
@@ -194,7 +243,21 @@ export default function TradePortalPage() {
                           )}
 
                           {isExpanded && (
-                            <div className="pl-2 pt-2 border-t border-slate-100 space-y-3 animate-in fade-in duration-200">
+                            <div className="pl-2 pt-2 border-t border-slate-100 space-y-3 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-wrap items-center gap-3 gap-y-2">
+                                <span className="text-xs font-medium text-slate-500">Status</span>
+                                <select
+                                  value={task.status}
+                                  onChange={(e) => handleTaskStatusChange(task.id, e.target.value as ProjectTask["status"])}
+                                  disabled={updatingTaskId === task.id}
+                                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                                >
+                                  {TASK_STATUSES.map((s) => (
+                                    <option key={s.value} value={s.value}>{s.label}</option>
+                                  ))}
+                                </select>
+                                {updatingTaskId === task.id && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+                              </div>
                               {task.description && <p className="text-[13px] text-slate-600 leading-relaxed">{task.description}</p>}
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                                 {task.scheduled_start_date && (
@@ -218,6 +281,28 @@ export default function TradePortalPage() {
                                   </div>
                                 )}
                               </div>
+                              {((task.photos?.length ?? 0) + (task.documents?.length ?? 0)) > 0 && (
+                                <div className="border-t border-slate-100 pt-3 mt-3">
+                                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <ImageIcon className="w-3.5 h-3.5" /> Task attachments
+                                  </h5>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {task.photos?.map(m => (
+                                      <div key={m.id} className="aspect-square relative rounded-md overflow-hidden border border-slate-200 bg-slate-100">
+                                        <img src={m.file_url} alt={m.file_name} className="absolute inset-0 w-full h-full object-cover" />
+                                      </div>
+                                    ))}
+                                    {task.documents?.map(m => (
+                                      <div key={m.id} className="aspect-square flex flex-col items-center justify-center bg-slate-100 rounded-md border border-slate-200 p-2 text-center">
+                                        <FileText className="w-4 h-4 text-slate-600 mb-1" />
+                                        <a href={m.file_url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-semibold text-slate-600 truncate w-full hover:underline" onClick={e => e.stopPropagation()}>
+                                          {m.file_name}
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -241,17 +326,17 @@ export default function TradePortalPage() {
           <div className="space-y-6">
             {gcMediaCount > 0 && (
               <div className="space-y-3">
-                <Card className="border-slate-200 shadow-sm p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setShowGCMedia(!showGCMeida)}>
+                <Card className="border-slate-200 shadow-sm p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setShowGCMedia(!showGCMedia)}>
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                     <ImageIcon className="text-blue-500 w-5 h-5" /> GC Reference Attachments
                     <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[10px] ml-2 font-bold">{gcMediaCount} file{gcMediaCount > 1 ? 's' : ''}</span>
                   </div>
                   <div className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md">
-                    {showGCMeida ? 'Hide' : 'Show'}
+                    {showGCMedia ? 'Hide' : 'Show'}
                   </div>
                 </Card>
 
-                {showGCMeida && (
+                {showGCMedia && (
                   <Card className="border-slate-200 shadow-sm p-4 text-sm text-slate-700 animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-2 gap-3">
                       {trade.reference_media?.map(m => m.media_type === "PHOTO" ? (
@@ -281,24 +366,79 @@ export default function TradePortalPage() {
               <div className="p-5 sm:p-6 bg-white space-y-6">
                 <label className={`w-full py-12 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 hover:bg-blue-50 flex flex-col items-center justify-center transition-all ${uploading ? 'opacity-50 cursor-not-allowed scale-[0.98]' : 'cursor-pointer hover:border-blue-400'}`}>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     multiple
                     accept="image/*,video/*,application/pdf"
                     className="hidden"
-                    onChange={handleFileChange}
+                    onChange={addFilesToStaging}
                     disabled={uploading}
                   />
-                  {uploading ? (
-                    <Loader2 className="w-12 h-12 animate-spin text-blue-400 mb-4" />
-                  ) : (
-                    <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-5 border border-blue-100">
-                      <UploadCloud className="w-7 h-7 text-blue-500" />
-                    </div>
-                  )}
-                  <h3 className="font-bold text-slate-800 text-lg sm:text-xl mb-1">{uploading ? 'Uploading securely...' : 'Tap to Upload Proof'}</h3>
-                  <p className="text-slate-500 text-sm mb-4">Photos, videos & PDFs</p>
+                  <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-5 border border-blue-100">
+                    <UploadCloud className="w-7 h-7 text-blue-500" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg sm:text-xl mb-1">Add files to upload</h3>
+                  <p className="text-slate-500 text-sm mb-4">Photos, videos & PDFs — they’ll appear below until you click Upload</p>
                   <p className="text-xs font-medium text-slate-400 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">Drag & drop supported</p>
                 </label>
+
+                {stagedFiles.length > 0 && (
+                  <div className="border border-amber-200 rounded-xl bg-amber-50/80 p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                      Ready to upload — {stagedFiles.length} file{stagedFiles.length !== 1 ? "s" : ""}
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {stagedFiles.map(({ file, id, preview }) => (
+                        <div key={id} className="rounded-lg border border-amber-200 bg-white overflow-hidden relative group">
+                          {preview ? (
+                            <img src={preview} alt={file.name} className="w-full aspect-square object-cover bg-slate-100" />
+                          ) : (
+                            <div className="w-full aspect-square flex flex-col items-center justify-center bg-slate-50 p-2">
+                              <FileText className="w-8 h-8 text-slate-400 mb-1" />
+                              <span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center px-1">{file.name.split(".").pop() || "FILE"}</span>
+                            </div>
+                          )}
+                          <div className="p-2 border-t border-slate-100 flex items-center justify-between gap-1">
+                            <span className="text-[10px] font-medium text-slate-700 truncate flex-1" title={file.name}>{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); removeStagedFile(id) }}
+                              className="shrink-0 p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              aria-label="Remove"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      <Button
+                        onClick={uploadStagedFiles}
+                        disabled={uploading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}
+                        {uploading ? "Uploading…" : "Upload proof of work"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setStagedFiles((prev) => {
+                            prev.forEach((s) => s.preview && URL.revokeObjectURL(s.preview))
+                            return []
+                          })
+                          fileInputRef.current?.value && (fileInputRef.current.value = "")
+                        }}
+                        disabled={uploading}
+                        className="text-slate-600"
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {subMediaCount > 0 && (
                   <div className="border-t border-slate-100 pt-6 mt-6">

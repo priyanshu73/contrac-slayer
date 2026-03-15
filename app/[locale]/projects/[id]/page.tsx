@@ -13,7 +13,7 @@ import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
-import { ChevronLeft, ChevronDown } from "lucide-react"
+import { ChevronLeft, ChevronDown, Loader2 } from "lucide-react"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -68,7 +68,7 @@ export default function ProjectDetailPage() {
   if (!project || loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-sm text-slate-500">{t("loading")}</p>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
