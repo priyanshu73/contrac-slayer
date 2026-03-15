@@ -324,6 +324,17 @@
           "titleRequired": "Por favor ingresa un título para la tarea"
         }
       },
+      "editTask": "Editar tarea",
+      "taskUpdated": "Tarea actualizada",
+      "editFormTitle": "Editar tarea",
+      "editForm": {
+        "saving": "Guardando…",
+        "save": "Guardar cambios",
+        "addMoreImages": "Agregar más imágenes",
+        "deleteImage": "Eliminar imagen",
+        "imageDeleted": "Imagen eliminada",
+        "imagesReadOnly": "Los adjuntos existentes se muestran como referencia. Agrega nuevas imágenes al crear una tarea."
+      },
       "imageUpload": {
         "notConfigured": "La carga de imágenes no está configurada. Establece NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME."
       }

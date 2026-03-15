@@ -208,6 +208,20 @@ class ApiClient {
     return this.request<{ message: string }>('/gmail/disconnect', { method: 'DELETE' })
   }
 
+  /** Send a generic email via contractor's Gmail. Requires Gmail connected. */
+  async gmailSend(params: { to: string; subject: string; body_html: string; body_plain?: string; from_name?: string }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/gmail/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        to: params.to,
+        subject: params.subject,
+        body_html: params.body_html,
+        body_plain: params.body_plain ?? undefined,
+        from_name: params.from_name ?? undefined,
+      }),
+    })
+  }
+
   async uploadLogo(file: File) {
     const formData = new FormData()
     formData.append('file', file)
@@ -1139,6 +1153,19 @@ class ApiClient {
     })
   }
 
+  async updateTradeTaskStatusPublic(tradeUuid: string, taskId: number, status: string) {
+    const response = await fetch(`${this.baseURL}/projects/trade/${tradeUuid}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to update task status')
+    }
+    return response.json()
+  }
+
   async uploadProjectMedia(projectId: number, files: File[], context: string, tradeId?: number, taskId?: number) {
     if (!files || files.length === 0) return []
 
@@ -1160,6 +1187,12 @@ class ApiClient {
     }
 
     return response.json()
+  }
+
+  async deleteProjectMedia(projectId: number, mediaId: number) {
+    await this.request(`/projects/${projectId}/media/${mediaId}`, {
+      method: 'DELETE',
+    })
   }
 
   async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {

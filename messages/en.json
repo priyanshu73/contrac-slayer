@@ -324,6 +324,17 @@
           "titleRequired": "Please enter a task title"
         }
       },
+      "editTask": "Edit task",
+      "taskUpdated": "Task updated",
+      "editFormTitle": "Edit task",
+      "editForm": {
+        "saving": "Saving…",
+        "save": "Save changes",
+        "addMoreImages": "Add more images",
+        "deleteImage": "Delete image",
+        "imageDeleted": "Image removed",
+        "imagesReadOnly": "Existing attachments are shown for reference. Add new images when creating a task."
+      },
       "imageUpload": {
         "notConfigured": "Image upload is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME."
       }

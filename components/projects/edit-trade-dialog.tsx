@@ -291,6 +291,7 @@ export function EditTradeDialog({
                 projectId={projectId}
                 trades={[{ id: trade.id, trade_type: trade.trade_type, subcontractor_name: trade.subcontractor_name }]}
                 initialAssignedTo={trade.subcontractor_name}
+                initialAssignedTradeId={trade.id}
                 onTaskCreated={(task) => {
                     onTradeUpdated({
                         ...trade,
