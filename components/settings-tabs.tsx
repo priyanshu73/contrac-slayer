@@ -225,7 +225,16 @@ export function SettingsTabs() {
       }
       return () => clearTimeout(t)
     } else if (gmail === "error") {
-      setError("Gmail connection was denied or failed. Please try again.")
+      const reason = (searchParams.get("reason") || "").toLowerCase()
+      const detail = searchParams.get("detail")
+      let message = "Google Account connection was denied or failed. Please try again."
+      if (reason === "access_denied" || reason === "denied") {
+        message = "Google Account connection was denied."
+      }
+      if (detail) {
+        message = `${message} ${detail}`
+      }
+      setError(message)
       setActiveSection("integrations")
       loadGmailStatus()
       const t = setTimeout(() => setError(""), 4000)
@@ -779,9 +788,9 @@ export function SettingsTabs() {
               <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Gmail</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Google Account</h3>
                     <p className="text-xs sm:text-sm text-slate-500 mb-4">
-                      Connect your Gmail to send emails (quotes, follow-ups) from your business address.
+                      Connect your Google Account to send emails (quotes, follow-ups) from your business address.
                     </p>
 
                     {gmailStatusLoading ? (
@@ -808,7 +817,7 @@ export function SettingsTabs() {
                               <p className="text-xs text-slate-500">
                                 {gmailStatus?.connected && gmailStatus?.email
                                   ? gmailStatus.email
-                                  : "Connect to send emails from your Gmail."}
+                                  : "Connect to send emails from your Google account."}
                               </p>
                             </div>
                           </div>
@@ -819,7 +828,7 @@ export function SettingsTabs() {
                                 variant="outline"
                                 size="sm"
                                 onClick={async () => {
-                                  if (!confirm("Disconnect Gmail? You will need to connect again to send emails from your Gmail.")) return
+                                  if (!confirm("Disconnect Google Account? You will need to connect again to send emails from your account.")) return
                                   setGmailDisconnectLoading(true)
                                   setError("")
                                   try {
@@ -828,7 +837,7 @@ export function SettingsTabs() {
                                     await loadGmailStatus()
                                     setTimeout(() => setSuccessMessage(""), 3000)
                                   } catch (err: unknown) {
-                                    setError(err instanceof Error ? err.message : "Failed to disconnect Gmail")
+                                    setError(err instanceof Error ? err.message : "Failed to disconnect Google Account")
                                   } finally {
                                     setGmailDisconnectLoading(false)
                                   }
@@ -860,7 +869,7 @@ export function SettingsTabs() {
                               >
                                 <span className="flex items-center gap-2">
                                   <Link2 className="h-4 w-4" />
-                                  Connect Gmail
+                                  Connect Google Account
                                 </span>
                               </Button>
                             )}
