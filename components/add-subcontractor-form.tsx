@@ -54,7 +54,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                 address: form.address.trim() || undefined,
                 notes: form.notes.trim() || undefined,
             })
-            toast({ title: "Subcontractor added successfully" })
+            toast({ title: "Team member added successfully" })
             setForm({ name: "", email: "", phone_number: "", company_name: "", address: "", notes: "" })
             onOpenChange(false)
             onSuccess?.()
@@ -69,7 +69,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Subcontractor</DialogTitle>
+                    <DialogTitle>Add Team Member</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
@@ -136,7 +136,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             Cancel
                         </Button>
                         <Button type="submit" disabled={saving}>
-                            {saving ? "Saving..." : "Add Subcontractor"}
+                            {saving ? "Saving..." : "Add Team Member"}
                         </Button>
                     </DialogFooter>
                 </form>

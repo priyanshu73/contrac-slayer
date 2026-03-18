@@ -215,7 +215,7 @@
   },
   "projects": {
     "title": "Projects",
-    "subtitle": "Track execution timelines, punch lists, documents, and subcontractor scopes in one place.",
+    "subtitle": "Track execution timelines, punch lists, documents, and team member scopes in one place.",
     "createProject": "New Project",
     "untitledProject": "Untitled project",
     "filterLabel": "Filtered by status",
