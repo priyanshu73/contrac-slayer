@@ -70,7 +70,7 @@ export function SubcontractorsList({
         if (!archiveTarget) return
         try {
             await api.deleteSubcontractor(archiveTarget)
-            toast({ title: "Subcontractor archived" })
+            toast({ title: "Team member archived" })
             onSubcontractorArchived?.()
         } catch (err: any) {
             toast({ title: "Failed to archive", description: err.message, variant: "destructive" })
@@ -93,8 +93,8 @@ export function SubcontractorsList({
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Building2 className="h-12 w-12 text-slate-300 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700 mb-1">No subcontractors yet</h3>
-                <p className="text-sm text-slate-500">Add your first subcontractor to get started.</p>
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">No team members yet</h3>
+                <p className="text-sm text-slate-500">Add your first team member to get started.</p>
             </div>
         )
     }
@@ -147,8 +147,8 @@ export function SubcontractorsList({
                 <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Archive subcontractor?</AlertDialogTitle>
-                            <AlertDialogDescription>This will archive the subcontractor. You can reactivate them later.</AlertDialogDescription>
+                            <AlertDialogTitle>Archive team member?</AlertDialogTitle>
+                            <AlertDialogDescription>This will archive the team member. You can reactivate them later.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -228,8 +228,8 @@ export function SubcontractorsList({
             <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Archive subcontractor?</AlertDialogTitle>
-                        <AlertDialogDescription>This will archive the subcontractor. You can reactivate them later.</AlertDialogDescription>
+                        <AlertDialogTitle>Archive team member?</AlertDialogTitle>
+                        <AlertDialogDescription>This will archive the team member. You can reactivate them later.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
