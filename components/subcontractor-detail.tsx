@@ -41,6 +41,7 @@ import { useLocale } from "next-intl"
 import { cn } from "@/lib/utils"
 import { ProjectTrade } from "@/lib/types"
 import { EditTradeDialog } from "./projects/edit-trade-dialog"
+import { AppBreadcrumb } from "./app-breadcrumb"
 
 const SUB_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
 
@@ -199,11 +200,13 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
                 <div className="max-w-4xl mx-auto space-y-6">
                     {/* Breadcrumb */}
-                    <nav className="text-sm text-slate-500 flex items-center gap-1.5">
-                        <a href={`/${locale}/contacts`} className="hover:text-slate-700 transition-colors">Contacts</a>
-                        <span>/</span>
-                        <span className="text-slate-700 font-medium">{subData.name}</span>
-                    </nav>
+                    <AppBreadcrumb
+                        items={[
+                            { label: "Contacts", href: `/${locale}/contacts` },
+                            { label: "Subcontractors", href: `/${locale}/contacts?tab=subcontractors` },
+                            { label: subData.name },
+                        ]}
+                    />
 
                     {/* Profile Card */}
                     <Card className="p-6 border border-slate-200">

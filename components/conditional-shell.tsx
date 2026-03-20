@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
+import { AgentChatPanel } from "@/components/agent-chat-panel"
 
 /** Routes that should NOT show the Navbar / shell UI */
 function isPublicShellRoute(pathname: string): boolean {
@@ -21,6 +22,7 @@ export function ConditionalShell({ children }: { children: React.ReactNode }) {
       {!hideShell && <Navbar />}
       {!hideShell && <EmailVerificationBanner />}
       {children}
+      {!hideShell && <AgentChatPanel />}
     </>
   )
 }

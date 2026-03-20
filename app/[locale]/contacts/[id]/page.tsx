@@ -1,34 +1,21 @@
 import { ClientDetail } from "@/components/client-detail"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { getTranslations } from "next-intl/server"
+import { api } from "@/lib/api"
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { id, locale } = await params
-  const tClients = await getTranslations({ locale, namespace: "clients" })
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex min-h-[56px] sm:h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <div className="mb-4">
-              <Button variant="ghost" className="gap-2" asChild>
-                <a href={`/${locale}/contacts`}>
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Contacts
-                </a>
-              </Button>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold leading-none">{tClients("detailTitle")}</h1>
-              <p className="text-sm text-muted-foreground">{tClients("detailSubtitle")}</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-4 sm:py-6 pb-24 md:pb-6">
+        <AppBreadcrumb
+          className="mb-4"
+          items={[
+            { label: "Contacts", href: `/${locale}/contacts` },
+            { label: "Client Details" },
+          ]}
+        />
         <ClientDetail clientId={id} />
       </main>
     </div>

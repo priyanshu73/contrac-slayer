@@ -13,7 +13,8 @@ import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
-import { ChevronLeft, ChevronDown, Loader2 } from "lucide-react"
+import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { ChevronDown, Loader2 } from "lucide-react"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -78,36 +79,29 @@ export default function ProjectDetailPage() {
       <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
           <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full border border-slate-200 bg-white shrink-0 self-start mt-1"
-                onClick={() => {
-                  window.location.href = `/${locale}/projects`
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex flex-col gap-1.5">
-                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight">
-                  {project.title}
-                </h1>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-                  <div className="flex items-center gap-1 font-medium text-slate-700">
-                    <span className="text-slate-500">From:</span>
-                    <span>{project.scheduled_start_date || "–"}</span>
-                    <span className="text-slate-500 ml-1">To:</span>
-                    <span>{project.scheduled_end_date || "–"}</span>
-                  </div>
-
-                  {project.objective && (
-                    <span className="line-clamp-1 text-slate-500">
-                      • {project.objective}
-                    </span>
-                  )}
+            <div className="flex flex-col gap-0.5">
+              <AppBreadcrumb
+                items={[
+                  { label: "Projects", href: `/${locale}/projects` },
+                  { label: project.title },
+                ]}
+              />
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight">
+                {project.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1 font-medium text-slate-700">
+                  <span className="text-slate-500">From:</span>
+                  <span>{project.scheduled_start_date || "–"}</span>
+                  <span className="text-slate-500 ml-1">To:</span>
+                  <span>{project.scheduled_end_date || "–"}</span>
                 </div>
+
+                {project.objective && (
+                  <span className="line-clamp-1 text-slate-500">
+                    • {project.objective}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex flex-col sm:items-end gap-2 mt-3 sm:mt-0">

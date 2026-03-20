@@ -24,15 +24,18 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { Job } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { useLocale } from "next-intl"
 
 export default function QuoteDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const locale = useLocale()
   const { user, loading: authLoading } = useAuth()
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
   const { toast } = useToast()
   const identifier = params.id as string
-  
+
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +62,7 @@ export default function QuoteDetailPage() {
     // Note: We don't include `user` in deps to prevent double fetching
     // when user object changes from null to populated
     if (authLoading || !identifier) return
-    
+
     fetchJob()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier, authLoading])
@@ -80,11 +83,11 @@ export default function QuoteDetailPage() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Check if identifier is numeric (job ID) or UUID (public link)
       const isNumeric = /^\d+$/.test(identifier)
       const isContractor = user?.is_contractor
-      
+
       // Always try public link first if not numeric (UUID format)
       // Or if user is not authenticated (customer view)
       if (!isNumeric || !isContractor) {
@@ -97,15 +100,15 @@ export default function QuoteDetailPage() {
         } catch (publicErr: any) {
           // If public link fails and it's numeric and user is contractor, try job ID
           if (isNumeric && isContractor) {
-        try {
-          const data = await api.getJob(parseInt(identifier))
-          setJob(data as Job)
-          setIsPublicView(false)
-          if (user?.is_contractor) {
-            fetchChangeOrderData((data as Job).id)
-          }
-          return
-        } catch (err: any) {
+            try {
+              const data = await api.getJob(parseInt(identifier))
+              setJob(data as Job)
+              setIsPublicView(false)
+              if (user?.is_contractor) {
+                fetchChangeOrderData((data as Job).id)
+              }
+              return
+            } catch (err: any) {
               setError(publicErr.message || "Failed to load quote")
             }
           } else {
@@ -184,7 +187,7 @@ export default function QuoteDetailPage() {
   const formatDate = (dateString: string) => {
     // Check if it's a date-only string (YYYY-MM-DD) to avoid timezone issues
     const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
-    
+
     if (isDateOnly) {
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
@@ -194,7 +197,7 @@ export default function QuoteDetailPage() {
         day: 'numeric'
       })
     }
-    
+
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -528,6 +531,17 @@ export default function QuoteDetailPage() {
   // Authenticated contractor view
   return (
     <AuthGuard>
+      <AppBreadcrumb
+        className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 print:hidden"
+        items={[
+          { label: "Quotes", href: `/${locale}/quotes` },
+          {
+            label: job.created_from_job_id
+              ? `Change Order #${identifier}`
+              : `Quote #${identifier}`,
+          },
+        ]}
+      />
       <PersonalizedQuoteView
         job={job}
         showActions={true}

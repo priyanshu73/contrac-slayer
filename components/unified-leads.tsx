@@ -285,70 +285,38 @@ export function UnifiedLeads() {
       setLoading(true)
       setError("")
       
-      // Stage 1: Load request leads first (fast, from ContractorBackend)
-      const requestLeads = await fetchRequestLeads()
-      setLeads(requestLeads)
-      setLoading(false) // Show request leads immediately
+      // Load all leads from the new unified endpoint
+      const response = await api.getUnifiedLeads('all')
       
-      // Stage 2: Load call leads in lightweight mode (without transcripts)
-      setLoadingCallLeads(true)
-      const callLeads = await fetchCallLeads(true) // lightweight = true
-      
-      // Stage 3: Load conversations to get last_message_at timestamps
-      const enrichedLeads = await enrichLeadsWithConversationData([...requestLeads, ...callLeads])
-      
-      // Combine and deduplicate by phone number (normalize for comparison)
-      const normalizePhone = (phone: string | undefined) => {
-        if (!phone) return ''
-        // Remove all non-digits and handle +1 prefix
-        const digits = phone.replace(/\D/g, '')
-        // If it starts with 1 and has 11 digits, remove the leading 1
-        if (digits.length === 11 && digits.startsWith('1')) {
-          return digits.substring(1)
-        }
-        return digits
-      }
-      
-      // Get phone numbers from consolidated request leads (those with contractor_ai_call_lead_id)
-      // Normalize to E.164 format for consistent comparison
-      const consolidatedPhoneNumbers = new Set<string>()
-      enrichedLeads.forEach(lead => {
-        if ((lead as any).contractor_ai_call_lead_id && lead.phone) {
-          const normalized = normalizePhoneToE164(lead.phone)
-          if (normalized) {
-            consolidatedPhoneNumbers.add(normalized)
-          }
+      // Map backend response to the frontend UnifiedLead interface
+      const mappedLeads: UnifiedLead[] = (response.leads || []).map((lead: any) => {
+        const isCallOnly = lead.consolidation_status === 'call_only'
+        const isBoth = lead.consolidation_status === 'both'
+        
+        return {
+          id: isCallOnly ? `call-${lead.contractor_ai_customer_id}` : `request-${lead.id}`,
+          name: lead.name || (isCallOnly ? `Customer ${lead.phone?.slice(-4)}` : "Unknown"),
+          type: isCallOnly ? 'call' : 'request',
+          status: lead.status,
+          priority: lead.priority,
+          email: lead.email,
+          phone: lead.phone,
+          address: lead.address,
+          project_type: lead.project_type,
+          service_type: lead.call_data?.service_type || lead.project_type,
+          description: lead.description,
+          created_at: lead.created_at,
+          last_contact_date: lead.last_contact_date || lead.created_at,
+          contractor_ai_call_lead_id: lead.contractor_ai_customer_id,
+          source: lead.source,
+          // Enrichment flags
+          _needsCallDataLoad: isBoth || isCallOnly,
+          _needsFullLoad: isCallOnly // For call tasks/transcripts
         }
       })
       
-      // Filter out call leads that match consolidated request leads by phone number
-      // Also deduplicate call leads by normalized phone number (E.164 format)
-      const seenCallPhones = new Set<string>()
-      const uniqueCallLeads = enrichedLeads.filter(lead => {
-        // Only filter call leads
-        if (lead.type !== 'call') return true
-        
-        const normalized = normalizePhoneToE164(lead.phone)
-        if (!normalized) return false
-        
-        // Skip if this phone number is already consolidated in a request lead
-        if (consolidatedPhoneNumbers.has(normalized)) {
-          return false
-        }
-        
-        // Skip if we've already seen this phone number in call leads
-        if (seenCallPhones.has(normalized)) {
-          return false
-        }
-        
-        seenCallPhones.add(normalized)
-        return true
-      })
-      
-      // Combine (sorting will be handled by filterLeads)
-      const combined = uniqueCallLeads
-      
-      setLeads(combined)
+      setLeads(mappedLeads)
+      setLoading(false)
       setLoadingCallLeads(false)
     } catch (err: any) {
       console.error('Failed to fetch leads:', err)
@@ -358,138 +326,7 @@ export function UnifiedLeads() {
     }
   }
 
-  // Enrich leads with conversation data (last_message_at timestamps)
-  const enrichLeadsWithConversationData = async (leads: UnifiedLead[]): Promise<UnifiedLead[]> => {
-    try {
-      const spId = getContractorAISpId()
-      if (!spId) return leads
 
-      // Fetch all conversations
-      const conversationsResponse = await contractorAI.getConversations({
-        sp_id: spId.toString(),
-        status: 'all' // Get all conversations
-      })
-
-      const conversations = (conversationsResponse as any).conversations || []
-      
-      // Create a map of phone number to last_message_at
-      const phoneToLastMessage = new Map<string, string>()
-      conversations.forEach((conv: any) => {
-        const customerPhone = conv.customer?.phone_number || ''
-        if (customerPhone && conv.last_message_at) {
-          const normalized = normalizePhoneToE164(customerPhone)
-          if (normalized) {
-            // Keep the most recent message timestamp if multiple conversations exist
-            const existing = phoneToLastMessage.get(normalized)
-            if (!existing || new Date(conv.last_message_at) > new Date(existing)) {
-              phoneToLastMessage.set(normalized, conv.last_message_at)
-            }
-          }
-        }
-      })
-
-      // Enrich leads with last_message_at
-      return leads.map(lead => {
-        if (lead.phone) {
-          const normalized = normalizePhoneToE164(lead.phone)
-          const lastMessageAt = phoneToLastMessage.get(normalized)
-          if (lastMessageAt) {
-            return { ...lead, last_message_at: lastMessageAt }
-          }
-        }
-        return lead
-      })
-    } catch (error) {
-      console.error('Failed to enrich leads with conversation data:', error)
-      // Return leads as-is if enrichment fails
-      return leads
-    }
-  }
-
-  const fetchRequestLeads = async (): Promise<UnifiedLead[]> => {
-    try {
-      // Only fetch if profile exists (should be checked before calling this)
-      if (!user?.contractor_profile) {
-        return []
-      }
-      const data = await api.getMyLeads()
-      return (data as any[]).map(lead => ({
-        id: `request-${lead.id}`,
-        name: lead.name,
-        type: 'request' as const,
-        status: lead.status || 'NEW',
-        email: lead.email,
-        phone: lead.phone,
-        address: lead.address,
-        address_data: lead.address_data ?? undefined,
-        project_type: lead.project_type,
-        description: lead.description,
-        estimated_value: lead.estimated_value,
-        converted_to_job_id: lead.converted_to_job_id,
-        converted_to_client_id: lead.converted_to_client_id,
-        created_at: lead.created_at,
-        attachments: lead.attachments,
-        measurements: lead.measurements,
-        source: lead.source,
-        priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low',
-        // Consolidation tracking - if this lead was consolidated with a call lead
-        contractor_ai_call_lead_id: lead.contractor_ai_call_lead_id,
-        _needsCallDataLoad: !!lead.contractor_ai_call_lead_id // Flag to load call data from contractor-ai
-      }))
-    } catch (error) {
-      // Silently handle errors - profile might not exist yet or other issues
-      // Don't log to console to avoid cluttering production logs
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to fetch request leads:', error)
-      }
-      return []
-    }
-  }
-
-  const fetchCallLeads = async (lightweight = false): Promise<UnifiedLead[]> => {
-    try {
-      const spId = getContractorAISpId()
-      if (!spId) return []
-
-      const response = await contractorAI.getLeads({
-        sp_id: spId.toString(),
-        per_page: 1000,
-        lightweight: lightweight
-      })
-
-      const transformedLeads = ((response as any).leads || [])
-        .filter((lead: any) => !lead.is_consolidated) // Hide consolidated call leads
-        .map((lead: any) => {
-          return {
-            id: `call-${lead.id}`,
-            name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
-            type: 'call' as const,
-            status: normalizeCallStatus(lead.status),
-            priority: lead.priority,
-            phone: lead.phone_number,
-            service_type: lead.service_type,
-            description: lead.summary_text, // May be null in lightweight mode
-            created_at: lead.last_contact_date,
-            last_contact_date: lead.last_contact_date,
-            conversation_count: lead.conversation_count || 0,
-            last_message_preview: lead.last_message_preview,
-            transcript_text: lead.transcript_text, // Will be null in lightweight mode
-            formatted_transcript_text: lead.formatted_transcript_text, // Will be null in lightweight mode
-            summary_text: lead.summary_text, // Will be null in lightweight mode
-            summary_confirmed: lead.summary_confirmed,
-            appointment_link_sent: lead.appointment_link_sent,
-            media_uploaded: lead.media_uploaded,
-            address: lead.location,
-            _needsFullLoad: lightweight && !lead.summary_text // Flag to indicate we need to load full details
-          }
-        })
-      
-      return transformedLeads
-    } catch (error) {
-      console.error('Failed to fetch call leads:', error)
-      return []
-    }
-  }
 
   // Load full lead details (with transcripts) when needed
   const loadFullLeadDetails = useCallback(async (leadId: string): Promise<UnifiedLead | null> => {

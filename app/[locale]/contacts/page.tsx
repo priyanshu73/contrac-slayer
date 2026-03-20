@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { ClientsSearch } from "@/components/clients-search"
 import { ClientsList } from "@/components/clients-list"
 import { SubcontractorsList } from "@/components/subcontractors-list"
@@ -16,7 +17,9 @@ export type ClientsViewMode = "grid" | "list"
 type PeopleTab = "clients" | "subcontractors"
 
 export default function ClientsPage() {
-  const [activeTab, setActiveTab] = useState<PeopleTab>("clients")
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get("tab") as PeopleTab) || "clients"
+  const [activeTab, setActiveTab] = useState<PeopleTab>(initialTab)
   const [clients, setClients] = useState<any[]>([])
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

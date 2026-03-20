@@ -330,6 +330,15 @@ class ApiClient {
     return this.request(`/leads?${params.toString()}`)
   }
 
+  async getUnifiedLeads(filter = 'all', status?: string, limit = 50) {
+    const params = new URLSearchParams()
+    params.append('filter', filter)
+    if (status) params.append('status', status)
+    params.append('limit', limit.toString())
+
+    return this.request<{ leads: any[]; total: number }>(`/leads/unified?${params.toString()}`)
+  }
+
   async getLead(leadId: number) {
     return this.request(`/leads/${leadId}`)
   }
