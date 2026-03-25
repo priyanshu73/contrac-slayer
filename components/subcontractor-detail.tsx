@@ -113,7 +113,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 status: data.status || "ACTIVE",
             })
         } catch (err: any) {
-            toast({ title: "Failed to load team member", description: err.message, variant: "destructive" })
+            toast({ title: "Failed to load crew member", description: err.message, variant: "destructive" })
         } finally {
             setLoading(false)
         }
@@ -134,7 +134,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             })
             setSubData(updated)
             setEditOpen(false)
-            toast({ title: "Team member updated" })
+            toast({ title: "Crew member updated" })
         } catch (err: any) {
             toast({ title: "Update failed", description: err.message, variant: "destructive" })
         }
@@ -144,7 +144,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         if (!subData) return
         try {
             await api.deleteSubcontractor(subData.id)
-            toast({ title: "Team member archived" })
+            toast({ title: "Crew member archived" })
             router.push(`/${locale}/contacts`)
         } catch (err: any) {
             toast({ title: "Archive failed", description: err.message, variant: "destructive" })
@@ -186,7 +186,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-xl font-semibold text-slate-700 mb-2">Team member not found</h2>
+                    <h2 className="text-xl font-semibold text-slate-700 mb-2">Crew member not found</h2>
                     <Button variant="outline" onClick={() => router.push(`/${locale}/contacts`)}>
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Contacts
                     </Button>
@@ -292,7 +292,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
 
                         {!subData.trades || subData.trades.length === 0 ? (
                             <div className="p-8 text-center">
-                                <p className="text-sm text-slate-400">No work scopes found for this team member.</p>
+                                <p className="text-sm text-slate-400">No work scopes found for this crew member.</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-100">
@@ -396,7 +396,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit Team Member</DialogTitle>
+                        <DialogTitle>Edit Crew Member</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleEditSubmit} className="space-y-4">
                         <div className="space-y-2">
@@ -451,7 +451,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Archive {subData.name}?</AlertDialogTitle>
-                        <AlertDialogDescription>This will archive the team member. You can reactivate them later from their profile.</AlertDialogDescription>
+                        <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>

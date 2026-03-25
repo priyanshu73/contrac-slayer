@@ -9,7 +9,9 @@ import { AgentChatPanel } from "@/components/agent-chat-panel"
 function isPublicShellRoute(pathname: string): boolean {
   return (
     !!pathname?.match(/^\/[a-z]{2}\/book\//) ||
-    pathname?.startsWith("/book/")
+    pathname?.startsWith("/book/") ||
+    !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)
+    pathname === "/"
   )
 }
 

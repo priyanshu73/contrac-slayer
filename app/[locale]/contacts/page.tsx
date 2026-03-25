@@ -154,7 +154,7 @@ export default function ClientsPage() {
                 )}
               >
                 <Wrench className="h-4 w-4" />
-                Team members
+                Crew
               </button>
             </div>
 
@@ -171,7 +171,7 @@ export default function ClientsPage() {
                 <div className="flex-1 min-w-0">
                   <input
                     type="text"
-                    placeholder="Search team members..."
+                    placeholder="Search crew..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full sm:max-w-xs h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -215,7 +215,7 @@ export default function ClientsPage() {
                     onClick={() => setAddSubOpen(true)}
                   >
                     <Plus className="h-5 w-5 shrink-0 mr-2" />
-                    Add Team Member
+                    Add Crew Member
                   </Button>
                 )}
               </div>
