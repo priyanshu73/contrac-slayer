@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card } from "@/components/ui/card"
 import {
-    Phone, Mail, Building2, MapPin, MoreVertical, Trash2,
+    Phone, Mail, Building2, MapPin, MoreVertical, Archive,
     Clock, Wrench, ChevronUp, ChevronDown, Link2
 } from "lucide-react"
 import {
@@ -52,6 +52,12 @@ function getAvailabilityBadge(status: string) {
     }
 }
 
+function getStreetAddress(address?: string | null) {
+    if (!address) return "No address on file"
+    const [street] = address.split(",")
+    return street?.trim() || "No address on file"
+}
+
 export function SubcontractorsList({
     subcontractors = [],
     loading = false,
@@ -81,14 +87,14 @@ export function SubcontractorsList({
         })
     }
 
-    const handleDelete = async () => {
+    const handleArchive = async () => {
         if (!archiveTarget) return
         try {
             await api.deleteSubcontractor(archiveTarget)
-            toast({ title: "Crew member deleted" })
+            toast({ title: "Crew member archived" })
             onSubcontractorDeleted?.()
         } catch (err: any) {
-            toast({ title: "Failed to delete", description: err.message, variant: "destructive" })
+            toast({ title: "Failed to archive", description: err.message, variant: "destructive" })
         } finally {
             setArchiveTarget(null)
         }
@@ -173,8 +179,8 @@ export function SubcontractorsList({
                                             Request Availability
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
+                                            <Archive className="h-4 w-4 mr-2" />
+                                            Archive
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -216,12 +222,12 @@ export function SubcontractorsList({
                 <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Delete crew member?</AlertDialogTitle>
-                            <AlertDialogDescription>This will permanently delete the crew member. This action cannot be undone.</AlertDialogDescription>
+                            <AlertDialogTitle>Archive crew member?</AlertDialogTitle>
+                            <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={handleArchive}>Archive</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -345,7 +351,7 @@ export function SubcontractorsList({
                                     <div className="space-y-1.5 hidden sm:block">
                                         <div className="flex items-center gap-1.5 text-xs text-slate-600 truncate">
                                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span className="truncate">{sub.address || "No address on file"}</span>
+                                            <span className="truncate">{getStreetAddress(sub.address)}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {getAvailabilityBadge(sub.daily_availability_status)}
@@ -363,7 +369,7 @@ export function SubcontractorsList({
                                         {sub.address && (
                                             <p className="text-xs text-slate-500 truncate flex items-center mt-1">
                                                 <MapPin className="w-3 h-3 mr-1 shrink-0" />
-                                                {sub.address}
+                                                {getStreetAddress(sub.address)}
                                             </p>
                                         )}
                                     </div>
@@ -401,8 +407,8 @@ export function SubcontractorsList({
                                                     Request Availability
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
+                                                    <Archive className="h-4 w-4 mr-2" />
+                                                    Archive
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -417,12 +423,12 @@ export function SubcontractorsList({
             <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete crew member?</AlertDialogTitle>
-                        <AlertDialogDescription>This will permanently delete the crew member. This action cannot be undone.</AlertDialogDescription>
+                        <AlertDialogTitle>Archive crew member?</AlertDialogTitle>
+                        <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                        <AlertDialogAction onClick={handleArchive}>Archive</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

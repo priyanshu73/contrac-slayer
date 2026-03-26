@@ -33,14 +33,23 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink, Share2,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useLocale } from "next-intl"
 import { cn } from "@/lib/utils"
 import { ProjectTrade } from "@/lib/types"
+import { useAuth } from "@/contexts/AuthContext"
 import { EditTradeDialog } from "./projects/edit-trade-dialog"
+import { TradeSendEmailDialog, TradeSendSmsDialog } from "./projects/trade-share-dialog"
 import { AppBreadcrumb } from "./app-breadcrumb"
 
 const SUB_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
@@ -76,12 +85,16 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
     const router = useRouter()
     const locale = useLocale()
     const { toast } = useToast()
+    const { user } = useAuth()
 
     const [subData, setSubData] = useState<SubcontractorDetailData | null>(null)
     const [loading, setLoading] = useState(true)
     const [editOpen, setEditOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [editTrade, setEditTrade] = useState<ProjectTrade | null>(null)
+    const [sendEmailTrade, setSendEmailTrade] = useState<ProjectTrade | null>(null)
+    const [sendSmsTrade, setSendSmsTrade] = useState<ProjectTrade | null>(null)
+    const spId = user?.contractor_ai_sp_id ?? null
 
     // Edit form state
     const [editForm, setEditForm] = useState({
@@ -174,6 +187,18 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         })
     }
 
+    const handleCopyScopeLink = async (trade: ProjectTrade) => {
+        if (!trade?.uuid) return
+        const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
+        const fullUrl = `${frontendUrl}/${locale}/projects/trade/${trade.uuid}`
+        try {
+            await navigator.clipboard.writeText(fullUrl)
+            toast({ title: "Link copied", description: "Scope link copied to clipboard." })
+        } catch {
+            toast({ title: "Failed to copy", variant: "destructive" })
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-50 p-4 sm:p-8 md:p-12 lg:p-16">
@@ -207,7 +232,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                     <AppBreadcrumb
                         items={[
                             { label: "Contacts", href: `/${locale}/contacts` },
-                            { label: "Subcontractors", href: `/${locale}/contacts?tab=subcontractors` },
+                            { label: "Crew", href: `/${locale}/contacts?tab=subcontractors` },
                             { label: subData.name },
                         ]}
                     />
@@ -339,6 +364,29 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                                         </div>
                                                         <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Agreed Budget</div>
                                                     </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-3 text-slate-600"
+                                                            >
+                                                                <Share2 className="h-3.5 w-3.5 mr-1.5" /> Share Scope
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            <DropdownMenuItem onClick={() => setSendEmailTrade(trade)}>
+                                                                Send via Email
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => setSendSmsTrade(trade)}>
+                                                                Send via SMS
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => handleCopyScopeLink(trade)}>
+                                                                Copy link
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -402,6 +450,23 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                     onTradeUpdated={handleTradeUpdated}
                 />
             )}
+
+            <TradeSendEmailDialog
+                open={!!sendEmailTrade}
+                onOpenChange={(open) => !open && setSendEmailTrade(null)}
+                trade={sendEmailTrade}
+                projectTitle={sendEmailTrade?.project_title || "Project Scope"}
+                locale={locale}
+            />
+
+            <TradeSendSmsDialog
+                open={!!sendSmsTrade}
+                onOpenChange={(open) => !open && setSendSmsTrade(null)}
+                trade={sendSmsTrade}
+                projectTitle={sendSmsTrade?.project_title || "Project Scope"}
+                spId={spId}
+                locale={locale}
+            />
 
             {/* Edit Dialog */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
