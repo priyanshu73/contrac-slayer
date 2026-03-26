@@ -1285,6 +1285,45 @@ class ApiClient {
       method: 'DELETE',
     })
   }
+
+  async getPublicSubcontractor(uuid: string) {
+    const url = `${this.baseURL}/subcontractors/public/${uuid}`
+    const config: RequestInit = {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    }
+    try {
+      const response = await fetch(url, config)
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
+        throw new Error(this.formatApiErrorDetail(error?.detail))
+      }
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) throw error
+      throw new Error('Network error')
+    }
+  }
+
+  async updatePublicSubcontractorAvailability(uuid: string, data: any) {
+    const url = `${this.baseURL}/subcontractors/public/${uuid}`
+    const config: RequestInit = {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }
+    try {
+      const response = await fetch(url, config)
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
+        throw new Error(this.formatApiErrorDetail(error?.detail))
+      }
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) throw error
+      throw new Error('Network error')
+    }
+  }
 }
 
 class ContractorAIClient {

@@ -17,7 +17,7 @@ import {
 import { Card } from "@/components/ui/card"
 import {
     Phone, Mail, Building2, MapPin, MoreVertical, Trash2,
-    Clock, Wrench, ChevronUp, ChevronDown
+    Clock, Wrench, ChevronUp, ChevronDown, Link2
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -67,6 +67,18 @@ export function SubcontractorsList({
 
     const handleRowClick = (id: number) => {
         router.push(`/${locale}/contacts/sub/${id}`)
+    }
+
+    const handleCopyAvailabilityLink = (e: React.MouseEvent, uuid: string) => {
+        e.stopPropagation()
+        if (!uuid) return
+        const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        const fullUrl = `${frontendUrl}/${locale}/availability/${uuid}`
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            toast({ title: "Link Copied", description: "Availability link copied to clipboard." })
+        }).catch(() => {
+            toast({ title: "Failed to copy", variant: "destructive" })
+        })
     }
 
     const handleDelete = async () => {
@@ -156,6 +168,10 @@ export function SubcontractorsList({
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
+                                            <Link2 className="h-4 w-4 mr-2" />
+                                            Request Availability
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                             <Trash2 className="h-4 w-4 mr-2" />
                                             Delete
@@ -380,6 +396,10 @@ export function SubcontractorsList({
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
+                                                    <Link2 className="h-4 w-4 mr-2" />
+                                                    Request Availability
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                                     <Trash2 className="h-4 w-4 mr-2" />
                                                     Delete
