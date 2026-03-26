@@ -240,7 +240,8 @@ export default function ClientsPage() {
               subcontractors={filteredSubcontractors}
               loading={loading}
               viewMode={viewMode}
-              onSubcontractorArchived={fetchSubcontractors}
+              onSubcontractorDeleted={fetchSubcontractors}
+              onSubcontractorUpdated={fetchSubcontractors}
             />
           )}
         </div>

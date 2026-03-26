@@ -1058,6 +1058,7 @@ class ApiClient {
     subcontractor_name: string
     subcontractor_email: string | null
     phone_number: string | null
+    specialty?: string | null
   }>> {
     return this.request('/projects/subcontractors/all')
   }
@@ -1079,9 +1080,11 @@ class ApiClient {
     email?: string
     phone_number?: string
     company_name?: string
+    specialty?: string
     address?: string
     notes?: string
     status?: string
+    daily_availability_status?: 'AVAILABLE' | 'UNAVAILABLE' | 'PENDING'
   }): Promise<any> {
     return this.request('/subcontractors', {
       method: 'POST',
@@ -1094,9 +1097,12 @@ class ApiClient {
     email?: string
     phone_number?: string
     company_name?: string
+    specialty?: string
     address?: string
     notes?: string
     status?: string
+    dispatch_priority?: number
+    daily_availability_status?: 'AVAILABLE' | 'UNAVAILABLE' | 'PENDING'
   }): Promise<any> {
     return this.request(`/subcontractors/${id}`, {
       method: 'PUT',
@@ -1345,6 +1351,10 @@ class ContractorAIClient {
         throw new Error(errorMessage)
       }
 
+      if (response.status === 204) {
+        console.log(`🌐 ContractorAI API: Success response (204 No Content)`)
+        return {} as T
+      }
       const data = await response.json()
       console.log(`🌐 ContractorAI API: Success response:`, data)
       return data

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+
 import {
     Dialog,
     DialogContent,
@@ -29,6 +30,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
         email: "",
         phone_number: "",
         company_name: "",
+        specialty: "",
         address: "",
         notes: "",
     })
@@ -51,11 +53,12 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                 email: form.email.trim() || undefined,
                 phone_number: form.phone_number.trim() || undefined,
                 company_name: form.company_name.trim() || undefined,
+                specialty: form.specialty.trim() || undefined,
                 address: form.address.trim() || undefined,
                 notes: form.notes.trim() || undefined,
             })
             toast({ title: "Crew member added successfully" })
-            setForm({ name: "", email: "", phone_number: "", company_name: "", address: "", notes: "" })
+            setForm({ name: "", email: "", phone_number: "", company_name: "", specialty: "", address: "", notes: "" })
             onOpenChange(false)
             onSuccess?.()
         } catch (err: any) {
@@ -103,14 +106,25 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="sub-company">Company Name</Label>
-                        <Input
-                            id="sub-company"
-                            placeholder="Company name"
-                            value={form.company_name}
-                            onChange={(e) => handleChange("company_name", e.target.value)}
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="sub-company">Company Name</Label>
+                            <Input
+                                id="sub-company"
+                                placeholder="Company name"
+                                value={form.company_name}
+                                onChange={(e) => handleChange("company_name", e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="sub-specialty">Specialty</Label>
+                            <Input
+                                id="sub-specialty"
+                                placeholder="e.g. Plumbing"
+                                value={form.specialty}
+                                onChange={(e) => handleChange("specialty", e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="sub-address">Address</Label>

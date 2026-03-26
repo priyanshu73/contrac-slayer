@@ -55,7 +55,7 @@ export function NewTradeDialog({
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
-    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null }>>([])
+    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null, specialty?: string | null }>>([])
     const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
@@ -101,6 +101,7 @@ export function NewTradeDialog({
         if (existing) {
             if (existing.subcontractor_email) setSubcontractorEmail(existing.subcontractor_email);
             if (existing.phone_number) setContactInfo(existing.phone_number);
+            if (!tradeType && existing.specialty) setTradeType(existing.specialty);
         }
     }
 
@@ -261,6 +262,9 @@ export function NewTradeDialog({
                                                         setSearchQuery(s.subcontractor_name)
                                                         setSubcontractorEmail(s.subcontractor_email ?? "")
                                                         setContactInfo(s.phone_number ?? "")
+                                                        if (!tradeType && s.specialty) {
+                                                            setTradeType(s.specialty)
+                                                        }
                                                         setOpenCombobox(false)
                                                     }}
                                                 >

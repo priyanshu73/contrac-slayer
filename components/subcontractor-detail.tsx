@@ -62,6 +62,7 @@ interface SubcontractorDetailData {
     email?: string
     phone_number?: string
     company_name?: string
+    specialty?: string | null
     address?: string
     address_id?: number
     status: string
@@ -88,6 +89,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         email: "",
         phone_number: "",
         company_name: "",
+        specialty: "",
         address: "",
         notes: "",
         status: "ACTIVE",
@@ -108,6 +110,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 email: data.email || "",
                 phone_number: data.phone_number || "",
                 company_name: data.company_name || "",
+                specialty: data.specialty || "",
                 address: data.address || "",
                 notes: data.notes || "",
                 status: data.status || "ACTIVE",
@@ -128,6 +131,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 email: editForm.email.trim() || undefined,
                 phone_number: editForm.phone_number.trim() || undefined,
                 company_name: editForm.company_name.trim() || undefined,
+                specialty: editForm.specialty.trim() || undefined,
                 address: editForm.address.trim() || undefined,
                 notes: editForm.notes.trim() || undefined,
                 status: editForm.status,
@@ -224,11 +228,18 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                         {subData.status}
                                     </Badge>
                                 </div>
-                                {subData.company_name && (
-                                    <p className="text-sm text-slate-500 mb-3">
-                                        <Building2 className="h-3.5 w-3.5 inline mr-1" />
-                                        {subData.company_name}
-                                    </p>
+                                {(subData.company_name || subData.specialty) && (
+                                    <div className="text-sm text-slate-500 mb-3 space-y-0.5">
+                                        {subData.company_name && (
+                                            <p>
+                                                <Building2 className="h-3.5 w-3.5 inline mr-1" />
+                                                {subData.company_name}
+                                            </p>
+                                        )}
+                                        {subData.specialty && (
+                                            <p className="text-xs font-medium text-blue-600">{subData.specialty}</p>
+                                        )}
+                                    </div>
                                 )}
                                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
                                     {subData.email && (
@@ -413,9 +424,20 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                 <Input id="edit-phone" value={editForm.phone_number} onChange={(e) => setEditForm((p) => ({ ...p, phone_number: e.target.value }))} />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-company">Company</Label>
-                            <Input id="edit-company" value={editForm.company_name} onChange={(e) => setEditForm((p) => ({ ...p, company_name: e.target.value }))} />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-company">Company</Label>
+                                <Input id="edit-company" value={editForm.company_name} onChange={(e) => setEditForm((p) => ({ ...p, company_name: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-specialty">Specialty</Label>
+                                <Input
+                                    id="edit-specialty"
+                                    placeholder="e.g. Plumbing"
+                                    value={editForm.specialty}
+                                    onChange={(e) => setEditForm((p) => ({ ...p, specialty: e.target.value }))}
+                                />
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-address">Address</Label>
