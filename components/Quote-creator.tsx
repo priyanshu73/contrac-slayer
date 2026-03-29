@@ -20,12 +20,13 @@ import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
-import { QuoteItemAutocomplete } from "@/components/quote-item-autocomplete"
+import { LineItemSearchPopover, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
 import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
+  title?: string
   description: string
   quantity: number
   rate: number | string
@@ -802,6 +803,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Convert job items to line items format
       if (initialData.items && initialData.items.length > 0) {
         const lineItems = initialData.items.map((item: any) => ({
+          title: item.title || "",
           description: item.custom_description || item.description || "",
           quantity: item.quantity || 1,
           rate: item.cost_per_unit || item.rate || 0,
@@ -811,7 +813,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           model: item.model,
           externalUrl: item.external_url || item.externalUrl,
           unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
-          applyTax: item.is_taxable !== false, // Preserve tax status from backend, default to true if undefined
+          applyTax: item.is_taxable !== false,
         }))
         setItems(lineItems)
 
@@ -1232,6 +1234,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       quote_expiration_date: dueDate || null,
       location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
       items: validItems.map(item => ({
+        title: item.title?.trim() || null,
         custom_description: item.description.trim(),
         quantity: item.quantity,
         cost_per_unit: getRateNumber(item.rate),
@@ -1270,7 +1273,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 0, rate: "", applyTax: true }])
+    setItems([...items, { title: "", description: "", quantity: 0, rate: "", applyTax: true }])
   }
 
   const removeItem = (index: number) => {
@@ -1360,6 +1363,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         payment_terms: paymentTerms.trim() || null,
         quote_expiration_date: dueDate || null,
         items: validItems.map(item => ({
+          title: item.title?.trim() || null,
           custom_description: item.description.trim(),
           quantity: item.quantity,
           cost_per_unit: getRateNumber(item.rate),
@@ -1368,8 +1372,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           brand: item.brand || null,
           model: item.model || null,
           external_url: item.externalUrl || null,
-          unit_of_measure: item.unitOfMeasure || "each", // Use actual unit from material or default
-          is_taxable: item.applyTax !== false, // Use applyTax field, default to true if undefined
+          unit_of_measure: item.unitOfMeasure || "each",
+          is_taxable: item.applyTax !== false,
           markup_percentage: markupPercentage,
         }))
       }
@@ -1964,8 +1968,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
-              <div aria-hidden />
+            <div className="hidden sm:grid grid-cols-[36px_160px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
+              <div className="text-center" title="Search past items">
+                <svg className="h-3.5 w-3.5 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
@@ -2019,19 +2026,48 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
                   {/* Mobile Layout */}
                   <div className="block sm:hidden space-y-3">
-                    {/* Description */}
-                    <div>
-                      <QuoteItemAutocomplete
-                        value={item.description}
-                        onChange={(desc, price, unit) => {
+                    {/* Search button row */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Line Item</span>
+                      <LineItemSearchPopover
+                        onSelect={(result: LineItemSearchResult) => {
                           const updated = [...items]
-                          updated[index] = { ...updated[index], description: desc }
-                          if (price !== undefined) updated[index].rate = price
-                          if (unit !== undefined) updated[index].unitOfMeasure = unit
+                          updated[index] = {
+                            ...updated[index],
+                            description: result.description,
+                            rate: result.price,
+                            unitOfMeasure: result.unit,
+                          }
+                          if (result.title) updated[index].title = result.title
                           setItems(updated)
                         }}
+                      />
+                    </div>
+                    {/* Title */}
+                    <div>
+                      <Label htmlFor={`item-title-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                        Title
+                      </Label>
+                      <Input
+                        id={`item-title-mobile-${index}`}
+                        value={item.title || ""}
+                        onChange={(e) => updateItem(index, "title", e.target.value)}
+                        placeholder="Item title (optional)"
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    {/* Description */}
+                    <div>
+                      <Label htmlFor={`item-desc-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                        Description
+                      </Label>
+                      <Textarea
+                        id={`item-desc-mobile-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="h-auto min-h-[44px] py-2 px-3 whitespace-normal text-left items-start justify-start bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="min-h-[44px] py-2 px-3 text-sm resize-none"
+                        rows={2}
                       />
                       {item.brand && (
                         <p className="text-[10px] text-muted-foreground mt-1">
@@ -2133,32 +2169,53 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
-                    {/* Image */}
+                  <div className="hidden sm:grid grid-cols-[36px_160px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
+                    {/* Search */}
                     <div className="flex justify-center shrink-0">
-                      <MaterialThumbnail
-                        src={item.thumbnailUrl || item.imageUrl}
-                        alt={item.description}
-                        className="w-8 h-8 flex-shrink-0 rounded"
-                        category={item.category}
-                        index={index}
+                      <LineItemSearchPopover
+                        onSelect={(result: LineItemSearchResult) => {
+                          const updated = [...items]
+                          updated[index] = {
+                            ...updated[index],
+                            description: result.description,
+                            rate: result.price,
+                            unitOfMeasure: result.unit,
+                          }
+                          if (result.title) updated[index].title = result.title
+                          setItems(updated)
+                        }}
                       />
                     </div>
 
-                    {/* Description - more space, expands on focus */}
-                    <div className="min-w-0 pr-1 flex flex-col justify-center">
-                      <QuoteItemAutocomplete
-                        value={item.description}
-                        onChange={(desc, price, unit) => {
-                          const updated = [...items]
-                          updated[index] = { ...updated[index], description: desc }
-                          if (price !== undefined) updated[index].rate = price
-                          if (unit !== undefined) updated[index].unitOfMeasure = unit
-                          setItems(updated)
-                        }}
-                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="h-auto min-h-[44px] py-1.5 px-2 whitespace-normal text-left items-start justify-start bg-white border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+                    {/* Title */}
+                    <div className="min-w-0">
+                      <Input
+                        value={item.title || ""}
+                        onChange={(e) => updateItem(index, "title", e.target.value)}
+                        placeholder="Title (optional)"
+                        className="h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
                       />
+                    </div>
+
+                    {/* Description - plain input with optional thumbnail */}
+                    <div className="min-w-0 pr-1 flex flex-col justify-center">
+                      <div className="flex items-center gap-1.5">
+                        {(item.thumbnailUrl || item.imageUrl) && (
+                          <MaterialThumbnail
+                            src={item.thumbnailUrl || item.imageUrl}
+                            alt={item.description}
+                            className="w-7 h-7 flex-shrink-0 rounded"
+                            category={item.category}
+                            index={index}
+                          />
+                        )}
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          placeholder="Enter item description"
+                          className="h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0"
+                        />
+                      </div>
                       {item.brand && (
                         <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                           {item.brand} {item.model && `- ${item.model}`}

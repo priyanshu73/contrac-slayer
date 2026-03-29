@@ -10,6 +10,7 @@ import { QuoteCreator } from "@/components/Quote-creator"
 
 interface JobItem {
   id: number
+  title?: string
   custom_description: string
   quantity: number
   cost_per_unit: number

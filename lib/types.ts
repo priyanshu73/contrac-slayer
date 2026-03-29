@@ -313,6 +313,7 @@ export interface JobItem {
   id: number
   job_id: number
   material_service_id?: number
+  title?: string
   custom_description?: string
   quantity: number
   unit_of_measure?: string
@@ -379,6 +380,7 @@ export interface ChangeOrderCreate {
   change_order_reason?: string
   job_description?: string
   items?: Array<{
+    title?: string
     custom_description?: string
     quantity: number
     unit_of_measure?: string

@@ -568,6 +568,7 @@ export function PersonalizedQuoteView({
                       <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
                         {(currentJob.items || []).map((item: any, index: number) => {
                           // Handle both JobItem interface and API response format
+                          const itemTitle = item.title || ""
                           const customDescription = item.custom_description || item.description || "Line Item"
                           const thumbnailUrl = item.thumbnail_url || item.thumbnailUrl
                           const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
@@ -597,6 +598,11 @@ export function PersonalizedQuoteView({
                                       </div>
                                     )}
                                     <div className="min-w-0 flex-1">
+                                      {itemTitle && (
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide print:text-[10px]">
+                                          {itemTitle}
+                                        </p>
+                                      )}
                                       <p className="text-sm sm:text-base font-medium text-gray-900 print:text-sm break-words">
                                         {customDescription}
                                       </p>
