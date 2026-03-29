@@ -394,6 +394,7 @@
       "scheduleLabel": "Programado:",
       "tabs": {
         "tasks": "Tareas",
+        "financials": "Finanzas",
         "timeline": "Cronograma de ejecución",
         "punchList": "Punch list",
         "documents": "Documentos y medios",
@@ -773,7 +774,6 @@
     "titleDesc": "Enviar recordatorios, actualizaciones y mensajes a este cliente",
     "spRequired": "Conecte su perfil ContractorOps AI para enviar mensajes.",
     "email": "Correo",
-    "message": "Mensaje",
     "sendSms": "Enviar SMS",
     "sendSmsDesc": "Enviar un mensaje de texto inmediato a este cliente",
     "appointmentReminder": "Recordatorio de Cita",

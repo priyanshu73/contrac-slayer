@@ -18,3 +18,10 @@ export function formatPhoneForDisplay(phone: string): string {
   }
   return phone
 }
+
+export function formatCurrency(amount: number | string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(Number(amount) || 0)
+}

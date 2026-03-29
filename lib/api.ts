@@ -1324,6 +1324,80 @@ class ApiClient {
       throw new Error('Network error')
     }
   }
+
+  // =========================
+  // Project Financials 
+  // =========================
+
+  async getProjectCostItems(projectId: number) {
+    return this.request<any[]>(`/projects/${projectId}/financials/cost-items`)
+  }
+
+  async createProjectCostItem(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/cost-items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProjectCostItem(projectId: number, itemId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/cost-items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectCostItem(projectId: number, itemId: number) {
+    return this.request(`/projects/${projectId}/financials/cost-items/${itemId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProjectMaterials(projectId: number, category?: string) {
+    const query = category ? `?category=${category}` : ''
+    return this.request<any[]>(`/projects/${projectId}/financials/materials${query}`)
+  }
+
+  async createProjectMaterial(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/materials`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProjectMaterial(projectId: number, itemId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/materials/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectMaterial(projectId: number, itemId: number) {
+    return this.request(`/projects/${projectId}/financials/materials/${itemId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProjectPayments(projectId: number) {
+    return this.request<any[]>(`/projects/${projectId}/financials/payments`)
+  }
+
+  async createProjectPayment(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectPayment(projectId: number, paymentId: number) {
+    return this.request(`/projects/${projectId}/financials/payments/${paymentId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProjectFinancialSummary(projectId: number) {
+    return this.request<any>(`/projects/${projectId}/financials/summary`)
+  }
 }
 
 class ContractorAIClient {
@@ -1600,6 +1674,7 @@ class ContractorAIClient {
       body: JSON.stringify(data),
     })
   }
+
 }
 
 export const api = new ApiClient(API_URL!)

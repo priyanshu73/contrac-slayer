@@ -394,6 +394,7 @@
       "scheduleLabel": "Scheduled:",
       "tabs": {
         "tasks": "Tasks",
+        "financials": "Financials",
         "quotes": "Quotes",
         "timeline": "Execution timeline",
         "punchList": "Punch list",
