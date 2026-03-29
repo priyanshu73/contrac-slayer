@@ -15,9 +15,10 @@ import { SummaryInvoicingTab } from './summary-invoicing-tab'
 
 interface ProjectFinancialsProps {
   project: Project
+  onProjectUpdated?: () => Promise<void> | void
 }
 
-export function ProjectFinancials({ project }: ProjectFinancialsProps) {
+export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancialsProps) {
   const { toast } = useToast()
   
   // Shared state that multiple components might need
@@ -90,7 +91,11 @@ export function ProjectFinancials({ project }: ProjectFinancialsProps) {
               </TabsContent>
 
               <TabsContent value="materials" className="p-0 m-0 border-none outline-none">
-                <MaterialsPermitsTab project={project} onRefreshTotal={refreshFinancialData} />
+                <MaterialsPermitsTab
+                  project={project}
+                  onRefreshTotal={refreshFinancialData}
+                  onProjectMediaChanged={onProjectUpdated}
+                />
               </TabsContent>
 
               <TabsContent value="summary" className="p-0 m-0 border-none outline-none">

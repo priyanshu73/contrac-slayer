@@ -936,7 +936,6 @@ export interface ProjectCostItem {
   line_item: string
   status: CostItemStatus
   gc_cost: number
-  markup_pct: number
   client_price: number
   owed_to_sub: number
   paid: number
@@ -968,9 +967,9 @@ export interface ProjectMaterial {
   vendor?: string | null
   detailed_notes?: string | null
   cost: number
-  markup_pct: number
   client_price: number
   po_url?: string | null
+  receipts?: { name: string; url: string }[]
   order: number
   created_at: string
   updated_at?: string
@@ -984,6 +983,7 @@ export interface ProjectMaterialCreate {
   cost?: number
   markup_pct?: number
   po_url?: string | null
+  receipts?: { name: string; url: string }[]
   order?: number
 }
 

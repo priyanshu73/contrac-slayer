@@ -47,6 +47,12 @@ export default function ProjectDetailPage() {
     }
   }, [projectId])
 
+  const refreshProject = async () => {
+    if (!projectId) return
+    const data = await api.getProject(projectId)
+    setProject(data as Project)
+  }
+
   const handleTasksUpdated = (tasks: ProjectTask[]) => {
     setProject((prev) => (prev ? { ...prev, tasks } : prev))
   }
@@ -80,7 +86,7 @@ export default function ProjectDetailPage() {
       <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col">
         <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="max-w-7xl mx-auto flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="w-full max-w-none flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-0.5 lg:flex-1 min-w-0">
               <AppBreadcrumb
                 items={[
@@ -131,14 +137,14 @@ export default function ProjectDetailPage() {
       </div>
 
       <main className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="w-full max-w-none space-y-4">
 
           <TabsContent value="tasks" className="mt-0">
             <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
           </TabsContent>
 
           <TabsContent value="financials" className="mt-0">
-            <ProjectFinancials project={project} />
+            <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
           </TabsContent>
 
           <TabsContent value="documents" className="mt-0 space-y-6">

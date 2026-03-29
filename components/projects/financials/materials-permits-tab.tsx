@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Project, ProjectMaterial } from '@/lib/types'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
@@ -14,18 +14,31 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Trash2, Plus, Loader2, Link2 } from 'lucide-react'
+import { Trash2, Plus, Loader2, Link2, Eye, Upload } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface MaterialsPermitsTabProps {
   project: Project
   onRefreshTotal: () => void
+  onProjectMediaChanged?: () => Promise<void> | void
 }
 
-export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermitsTabProps) {
+export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaChanged }: MaterialsPermitsTabProps) {
   const { toast } = useToast()
   const [items, setItems] = useState<ProjectMaterial[]>([])
   const [loading, setLoading] = useState(true)
+  const [uploadingReceiptItemId, setUploadingReceiptItemId] = useState<number | null>(null)
+  const [receiptPopoverItemId, setReceiptPopoverItemId] = useState<number | null>(null)
+  const [pendingReceiptItemId, setPendingReceiptItemId] = useState<number | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{name: string, url: string} | null>(null)
+  const receiptInputRef = useRef<HTMLInputElement | null>(null)
+
+  const getReceipts = (item: ProjectMaterial) => {
+    if (item.receipts && item.receipts.length > 0) return item.receipts
+    if (item.po_url) return [{ name: 'Attached Receipt', url: item.po_url }]
+    return []
+  }
 
   const loadData = async () => {
     try {
@@ -48,7 +61,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
       const updated = await api.updateProjectMaterial(project.id, itemId, updates)
       setItems(prev => prev.map(i => i.id === itemId ? (updated as ProjectMaterial) : i))
       
-      if (updates.cost !== undefined || updates.markup_pct !== undefined) {
+      if (updates.cost !== undefined || updates.client_price !== undefined) {
         onRefreshTotal()
       }
     } catch (err: any) {
@@ -66,6 +79,80 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
     } catch (err: any) {
       toast({ title: 'Delete failed', variant: 'destructive' })
     }
+  }
+
+  const openFilePickerForItem = (itemId: number) => {
+    setPendingReceiptItemId(itemId)
+    receiptInputRef.current?.click()
+  }
+
+  const handleReceiptUpload = async (files: FileList | File[], item: ProjectMaterial) => {
+    try {
+      setUploadingReceiptItemId(item.id)
+      const fileArray = Array.from(files)
+      const uploaded = await api.uploadProjectMedia(project.id, fileArray, 'PROJECT_DOCUMENT')
+      
+      const uploadedUrls = uploaded.map((u: any) => ({ name: u.file_name, url: u.file_url }))
+
+      const currentReceipts = item.receipts || (item.po_url ? [{ name: 'Receipt', url: item.po_url }] : [])
+      const newReceipts = [...currentReceipts, ...uploadedUrls]
+      const poUrl = newReceipts.length > 0 ? newReceipts[0].url : null
+
+      const updated = await api.updateProjectMaterial(project.id, item.id, { 
+        receipts: newReceipts,
+        po_url: poUrl
+      })
+      setItems(prev => prev.map(i => i.id === item.id ? (updated as ProjectMaterial) : i))
+      toast({ title: 'Receipt(s) attached' })
+      await onProjectMediaChanged?.()
+    } catch (err: any) {
+      toast({
+        title: 'Receipt upload failed',
+        description: err.message || 'Unable to upload receipt.',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploadingReceiptItemId(null)
+    }
+  }
+
+  const handleDeleteReceipt = async (item: ProjectMaterial, index: number) => {
+    const currentReceipts = item.receipts || (item.po_url ? [{ name: 'Receipt', url: item.po_url }] : [])
+    const newReceipts = [...currentReceipts]
+    newReceipts.splice(index, 1)
+    try {
+      setUploadingReceiptItemId(item.id)
+      const poUrl = newReceipts.length > 0 ? newReceipts[0].url : null
+      const updated = await api.updateProjectMaterial(project.id, item.id, { 
+        receipts: newReceipts,
+        po_url: poUrl
+      })
+      setItems(prev => prev.map(i => i.id === item.id ? (updated as ProjectMaterial) : i))
+      toast({ title: 'Receipt removed' })
+    } catch (err: any) {
+      toast({ title: 'Failed to remove receipt', variant: 'destructive' })
+    } finally {
+      setUploadingReceiptItemId(null)
+    }
+  }
+
+  const handleReceiptInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    const itemId = pendingReceiptItemId
+    if (!files || files.length === 0 || !itemId) {
+      e.currentTarget.value = ''
+      setPendingReceiptItemId(null)
+      return
+    }
+    const item = items.find(i => i.id === itemId)
+    if (!item) {
+      e.currentTarget.value = ''
+      setPendingReceiptItemId(null)
+      return
+    }
+    await handleReceiptUpload(files, item)
+    e.currentTarget.value = ''
+    setPendingReceiptItemId(null)
   }
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -89,7 +176,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
         category: createCategory,
         item_name: newItemName.trim(),
         cost: 0,
-        markup_pct: 0
+        client_price: 0
       })
       setItems(prev => [...prev, newItem as ProjectMaterial])
       setCreateDialogOpen(false)
@@ -127,7 +214,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
                 <TableHead>Vendor</TableHead>
                 <TableHead>Detailed Notes</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right w-[100px]">Markup %</TableHead>
                 <TableHead className="text-right font-bold text-slate-700">Client Price</TableHead>
                 <TableHead className="w-[100px] text-center">PO / Receipt</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -170,22 +256,71 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                     <Input 
-                        type="number" 
-                        className="w-16 h-8 text-right ml-auto text-slate-500 group-hover:border-orange-300 transition-colors" 
-                        defaultValue={item.markup_pct.toString()} 
-                        onBlur={(e) => {
-                          if(Number(e.target.value) !== item.markup_pct) handleUpdate(item.id, { markup_pct: Number(e.target.value) })
-                        }}
-                      />
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-slate-800">
-                    {formatCurrency(item.client_price)}
+                    <Input 
+                      type="number" 
+                      className="w-24 h-8 text-right font-bold text-slate-800 ml-auto" 
+                      defaultValue={item.client_price.toString()} 
+                      onBlur={(e) => {
+                        if(Number(e.target.value) !== item.client_price) handleUpdate(item.id, { client_price: Number(e.target.value) })
+                      }}
+                    />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-50">
-                      <Link2 className="w-4 h-4" />
-                    </Button>
+                    <Popover
+                      open={receiptPopoverItemId === item.id}
+                      onOpenChange={(open) => setReceiptPopoverItemId(open ? item.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 hover:bg-orange-50 ${getReceipts(item).length > 0 ? 'text-emerald-600 hover:text-emerald-700' : 'text-orange-500 hover:text-orange-600'}`}
+                          disabled={uploadingReceiptItemId === item.id}
+                          title={getReceipts(item).length > 0 ? `${getReceipts(item).length} receipt(s) attached` : 'Attach receipt'}
+                        >
+                          {uploadingReceiptItemId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="center" className="w-56 p-2">
+                        <div className="space-y-1">
+                          {getReceipts(item).length > 0 && (
+                            <div className="mb-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+                              {getReceipts(item).map((receipt, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-1 p-1 rounded hover:bg-slate-100 group">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="flex-1 justify-start h-auto py-1.5 px-2 font-normal text-xs truncate"
+                                    onClick={() => setPreviewAttachment(receipt)}
+                                    title={receipt.name}
+                                  >
+                                    <Eye className="w-3.5 h-3.5 mr-2 shrink-0 text-slate-400 group-hover:text-emerald-600" />
+                                    <span className="truncate">{receipt.name}</span>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 shrink-0 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50"
+                                    onClick={() => handleDeleteReceipt(item, idx)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-sm"
+                            onClick={() => openFilePickerForItem(item.id)}
+                          >
+                            <Upload className="w-4 h-4 mr-2" /> 
+                            {getReceipts(item).length > 0 ? 'Add more receipts' : 'Attach receipt'}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100" onClick={() => handleDelete(item.id)}>
@@ -220,7 +355,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
                 <TableHead>Service / Permit Name</TableHead>
                 <TableHead>Agency / Vendor</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right w-[100px]">Markup %</TableHead>
                 <TableHead className="text-right font-bold text-slate-700">Client Price</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -254,17 +388,14 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                     <Input 
-                        type="number" 
-                        className="w-16 h-8 text-right ml-auto text-slate-500 group-hover:border-orange-300 transition-colors" 
-                        defaultValue={item.markup_pct.toString()} 
-                        onBlur={(e) => {
-                          if(Number(e.target.value) !== item.markup_pct) handleUpdate(item.id, { markup_pct: Number(e.target.value) })
-                        }}
-                      />
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-slate-800">
-                    {formatCurrency(item.client_price)}
+                    <Input 
+                      type="number" 
+                      className="w-24 h-8 text-right font-bold text-slate-800 ml-auto" 
+                      defaultValue={item.client_price.toString()} 
+                      onBlur={(e) => {
+                        if(Number(e.target.value) !== item.client_price) handleUpdate(item.id, { client_price: Number(e.target.value) })
+                      }}
+                    />
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100" onClick={() => handleDelete(item.id)}>
@@ -321,6 +452,42 @@ export function MaterialsPermitsTab({ project, onRefreshTotal }: MaterialsPermit
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      <input
+        ref={receiptInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        onChange={handleReceiptInputChange}
+      />
+
+      <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
+        <DialogContent className="max-w-[90vw] w-full h-[90vh] p-0 flex flex-col gap-0 overflow-hidden bg-slate-100">
+          <DialogHeader className="pt-4 pb-3 px-4 bg-white flex flex-row items-center justify-between shrink-0 shadow-sm z-10">
+            <DialogTitle className="text-base truncate pr-8 font-medium text-slate-800">{previewAttachment?.name || 'Preview'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden relative w-full h-[calc(90vh-65px)] flex items-center justify-center">
+            {previewAttachment && (
+              previewAttachment.url.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ? (
+                <img src={previewAttachment.url} alt={previewAttachment.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+              ) : previewAttachment.url.toLowerCase().endsWith('.pdf') ? (
+                <iframe src={`${previewAttachment.url}#view=FitH`} className="w-full h-full border-0 bg-white" title={previewAttachment.name} />
+              ) : (
+                <div className="text-center p-8 flex flex-col items-center bg-white rounded-xl shadow-sm border max-w-md mx-auto">
+                  <div className="bg-slate-50 p-4 rounded-full mb-4">
+                    <Link2 className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-slate-800 mb-2">No Preview Available</h3>
+                  <p className="text-slate-500 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                  <Button onClick={() => window.open(previewAttachment.url, '_blank')} className="bg-orange-500 hover:bg-orange-600">
+                    Download File
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

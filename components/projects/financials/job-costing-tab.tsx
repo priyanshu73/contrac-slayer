@@ -20,10 +20,12 @@ import {
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Plus, Loader2, Save } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface JobCostingTabProps {
   project: Project
@@ -78,7 +80,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
       setItems(prev => prev.map(i => i.id === itemId ? (updated as ProjectCostItem) : i))
       
       // If cost/markup changed, it might affect the total summary
-      if (updates.gc_cost !== undefined || updates.markup_pct !== undefined || updates.paid !== undefined) {
+      if (updates.gc_cost !== undefined || updates.client_price !== undefined || updates.paid !== undefined) {
         onRefreshTotal()
       }
     } catch (err: any) {
@@ -87,14 +89,17 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
   }
 
   const handleDeleteItem = async (itemId: number) => {
-    if (!confirm('Delete this line item?')) return
     try {
+      setDeletingItemId(itemId)
       await api.deleteProjectCostItem(project.id, itemId)
       setItems(prev => prev.filter(i => i.id !== itemId))
       onRefreshTotal()
+      setDeleteConfirmId(null)
       toast({ title: 'Item deleted' })
     } catch (err: any) {
       toast({ title: 'Delete failed', variant: 'destructive' })
+    } finally {
+      setDeletingItemId(null)
     }
   }
 
@@ -103,6 +108,8 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
   const [createDialogPhase, setCreateDialogPhase] = useState('')
   const [newItemName, setNewItemName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null)
 
   const openCreateDialog = (type: 'phase' | 'item', phaseContext?: string) => {
     setCreateDialogType(type)
@@ -118,13 +125,13 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
     try {
       setIsSubmitting(true)
       const phaseToUse = createDialogType === 'phase' ? newItemName.trim().toUpperCase() : createDialogPhase
-      const lineItemToUse = createDialogType === 'phase' ? 'General Scope' : newItemName.trim()
+      const lineItemToUse = createDialogType === 'phase' ? '' : newItemName.trim()
 
       const newItem = await api.createProjectCostItem(project.id, {
         phase: phaseToUse,
         line_item: lineItemToUse,
         gc_cost: 0,
-        markup_pct: 0
+        client_price: 0
       })
       setItems(prev => [...prev, newItem as ProjectCostItem])
       setCreateDialogOpen(false)
@@ -188,46 +195,88 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-6">
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
+                <div className="rounded-md border overflow-x-hidden">
+                  <Table className="table-fixed w-full">
                     <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead className="w-[200px]">Line Item</TableHead>
-                        <TableHead>Subcontractor</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">GC Cost</TableHead>
-                        <TableHead className="text-right w-[100px]">Markup %</TableHead>
-                        <TableHead className="text-right font-bold text-slate-800">Client Price</TableHead>
-                        <TableHead className="text-right w-[120px]">Paid</TableHead>
+                        <TableHead className="w-[40%]">Line Item</TableHead>
+                        <TableHead className="w-[150px] min-w-[150px] text-right">GC Cost</TableHead>
+                        <TableHead className="w-[150px] min-w-[150px] text-right font-bold text-slate-800">Client Price</TableHead>
+                        <TableHead className="w-[150px] min-w-[150px] text-right">Paid</TableHead>
+                        <TableHead className="w-[120px] min-w-[120px] text-center">Status</TableHead>
+                        <TableHead className="w-[130px] min-w-[130px] text-right">Subcontractor</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {phaseItems.map(item => (
                         <TableRow key={item.id} className="group hover:bg-slate-50 border-b">
-                          <TableCell className="font-medium text-slate-700">{item.line_item}</TableCell>
-                          
-                          <TableCell>
-                            <Select 
-                              value={item.subcontractor_id?.toString() || 'unassigned'}
-                              onValueChange={(val) => handleUpdateItem(item.id, { subcontractor_id: val === 'unassigned' ? null : Number(val)})}
-                            >
-                              <SelectTrigger className="h-8 text-xs w-[140px] border-dashed">
-                                <SelectValue placeholder="Unassigned" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="unassigned">Unassigned</SelectItem>
-                                {/* Maps subs placeholder */}
-                              </SelectContent>
-                            </Select>
+                          <TableCell className="font-medium text-slate-700 align-top pt-3 min-w-0">
+                            <Textarea 
+                              className="border-transparent hover:border-slate-200 bg-transparent min-h-[32px] h-auto p-1.5 shadow-none focus-visible:ring-1 w-full resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]" 
+                              defaultValue={item.line_item}
+                              rows={1}
+                              ref={(el) => {
+                                if (!el) return
+                                el.style.height = 'auto'
+                                el.style.height = `${el.scrollHeight}px`
+                              }}
+                              onInput={(e) => {
+                                e.currentTarget.style.height = 'auto';
+                                e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                              }}
+                              onBlur={e => { if(e.target.value !== item.line_item) handleUpdateItem(item.id, { line_item: e.target.value }) }}
+                            />
                           </TableCell>
 
-                          <TableCell>
+                          <TableCell className="text-right align-top">
+                            <Input 
+                              type="number" 
+                              className="w-full h-8 text-right bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
+                              defaultValue={item.gc_cost.toString()} 
+                              onBlur={(e) => {
+                                if(Number(e.target.value) !== item.gc_cost) 
+                                  handleUpdateItem(item.id, { gc_cost: Number(e.target.value) })
+                              }}
+                            />
+                            <div className="mt-1 text-left text-[11px] font-medium text-emerald-600">
+                              Profit: {formatCurrency(Number(item.client_price) - Number(item.gc_cost))}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <Input 
+                              type="number" 
+                              className="w-full h-8 text-right font-bold text-slate-800 bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
+                              defaultValue={item.client_price.toString()} 
+                              onBlur={(e) => {
+                                if(Number(e.target.value) !== item.client_price) 
+                                  handleUpdateItem(item.id, { client_price: Number(e.target.value) })
+                              }}
+                            />
+                          </TableCell>
+
+                          <TableCell className="text-right align-top">
+                            <Input 
+                              type="number" 
+                              className={`w-full h-8 text-right font-semibold bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1 ${item.paid >= item.gc_cost && item.gc_cost > 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-700'}`}
+                              defaultValue={item.paid.toString()} 
+                              onBlur={(e) => {
+                                if(Number(e.target.value) !== item.paid) 
+                                  handleUpdateItem(item.id, { paid: Number(e.target.value) })
+                              }}
+                            />
+                            <div className="mt-1 text-left text-[11px] font-medium text-red-600">
+                              Unpaid: ({formatCurrency(Math.max(Number(item.client_price) - Number(item.paid), 0))})
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="px-2">
                             <Select 
                               value={item.status}
                               onValueChange={(val) => handleUpdateItem(item.id, { status: val })}
                             >
-                              <SelectTrigger className={`h-8 text-xs w-[130px] border-none font-semibold ${getStatusColor(item.status)}`}>
+                              <SelectTrigger className={`h-7 min-h-0 text-[11px] w-full border-transparent hover:border-slate-200 shadow-none bg-transparent font-semibold justify-center px-1.5 [&_svg]:hidden ${getStatusColor(item.status)}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -240,58 +289,56 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                           </TableCell>
 
                           <TableCell className="text-right">
-                            <Input 
-                              type="number" 
-                              className="w-24 h-8 text-right ml-auto" 
-                              defaultValue={item.gc_cost.toString()} 
-                              onBlur={(e) => {
-                                if(Number(e.target.value) !== item.gc_cost) 
-                                  handleUpdateItem(item.id, { gc_cost: Number(e.target.value) })
-                              }}
-                            />
-                          </TableCell>
-
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end group/input">
-                              <Input 
-                                type="number" 
-                                className="w-16 h-8 text-right border-slate-200 group-hover/input:border-orange-300 transition-colors" 
-                                defaultValue={item.markup_pct.toString()} 
-                                onBlur={(e) => {
-                                  if(Number(e.target.value) !== item.markup_pct) 
-                                    handleUpdateItem(item.id, { markup_pct: Number(e.target.value) })
-                                }}
-                              />
-                            </div>
-                          </TableCell>
-
-                          <TableCell className="text-right font-bold text-slate-800">
-                            {formatCurrency(item.client_price)}
-                          </TableCell>
-
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end">
-                              <Input 
-                                type="number" 
-                                className={`w-24 h-8 text-right font-semibold ${item.paid >= item.gc_cost && item.gc_cost > 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-700'}`}
-                                defaultValue={item.paid.toString()} 
-                                onBlur={(e) => {
-                                  if(Number(e.target.value) !== item.paid) 
-                                    handleUpdateItem(item.id, { paid: Number(e.target.value) })
-                                }}
-                              />
-                            </div>
+                            <Select 
+                              value={item.subcontractor_id?.toString() || 'unassigned'}
+                              onValueChange={(val) => handleUpdateItem(item.id, { subcontractor_id: val === 'unassigned' ? null : Number(val)})}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-full border-dashed bg-transparent shadow-none hover:border-slate-300">
+                                <SelectValue placeholder="Unassigned" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {/* Maps subs placeholder */}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
 
                           <TableCell>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                              onClick={() => handleDeleteItem(item.id)}
+                            <Popover
+                              open={deleteConfirmId === item.id}
+                              onOpenChange={(open) => setDeleteConfirmId(open ? item.id : null)}
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                              <PopoverTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent side="top" align="end" className="w-52 p-3">
+                                <p className="mb-2 text-xs text-slate-700">Delete this line item?</p>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => setDeleteConfirmId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                                    disabled={deletingItemId === item.id}
+                                    onClick={() => handleDeleteItem(item.id)}
+                                  >
+                                    Confirm
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -345,7 +392,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
               <Input 
                 value={newItemName}
                 onChange={e => setNewItemName(e.target.value)}
-                placeholder={createDialogType === 'phase' ? 'e.g. FRAMING' : 'e.g. Labor / Rough Lumber'}
+                placeholder={createDialogType === 'phase' ? 'e.g. FRAMING' : 'e.g. Rough Lumber / Labor'}
                 autoFocus
                 required
               />
