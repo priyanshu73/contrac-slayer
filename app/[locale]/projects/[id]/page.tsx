@@ -13,6 +13,7 @@ import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
+import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { ChevronDown, Loader2 } from "lucide-react"
 
@@ -75,18 +76,19 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col">
+        <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-0.5">
+          <div className="max-w-7xl mx-auto flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-0.5 lg:flex-1 min-w-0">
               <AppBreadcrumb
                 items={[
                   { label: "Projects", href: `/${locale}/projects` },
                   { label: project.title },
                 ]}
               />
-              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight truncate">
                 {project.title}
               </h1>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
@@ -104,7 +106,17 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col sm:items-end gap-2 mt-3 sm:mt-0">
+
+            <div className="flex justify-start lg:justify-center overflow-x-auto sm:my-2 lg:my-0 lg:mx-4 shrink-0">
+              <TabsList className="bg-slate-100/80 flex flex-nowrap w-max mb-1 lg:mb-0">
+                <TabsTrigger value="tasks">{t("tabs.tasks") || "Tasks"}</TabsTrigger>
+                <TabsTrigger value="financials">{t("tabs.financials") || "Financials"}</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="trades">{t("tabs.trades") || "Team & scopes"}</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex flex-col lg:items-end gap-2 lg:flex-1 shrink-0 mt-1 lg:mt-0">
               <div className="flex items-center gap-3">
                 <StatusDropdown status={project.status} onChange={handleStatusChange} />
                 {project.contract_value != null && (
@@ -118,29 +130,28 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-        <div className="max-w-7xl mx-auto space-y-4">          <Tabs defaultValue="tasks" className="space-y-4">
-          <TabsList className="bg-slate-100 flex flex-nowrap overflow-x-auto">
-            <TabsTrigger value="tasks">{t("tabs.tasks") || "Tasks"}</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="trades">{t("tabs.trades") || "Team & scopes"}</TabsTrigger>
-          </TabsList>
+      <main className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
+        <div className="max-w-7xl mx-auto space-y-4">
 
-          <TabsContent value="tasks" className="mt-4">
+          <TabsContent value="tasks" className="mt-0">
             <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
           </TabsContent>
 
-          <TabsContent value="documents" className="mt-4 space-y-6">
+          <TabsContent value="financials" className="mt-0">
+            <ProjectFinancials project={project} />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-0 space-y-6">
             <ProjectQuotes project={project} />
             <ProjectDocuments project={project} />
           </TabsContent>
 
-          <TabsContent value="trades" className="mt-4">
+          <TabsContent value="trades" className="mt-0">
             <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
           </TabsContent>
-        </Tabs>
         </div>
       </main>
+      </Tabs>
     </div>
   )
 }

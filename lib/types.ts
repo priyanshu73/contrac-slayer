@@ -918,3 +918,106 @@ export const getRateLabelSuffix = (chargeType: LaborChargeType, unitType?: UnitT
       return ''
   }
 }
+
+// ============================================
+// PROJECT FINANCIALS
+// ============================================
+
+export type CostItemStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'GC_APPROVED' | 'COMPLETED'
+export type MaterialCategory = 'JOB_MATERIAL' | 'SITE_SERVICE'
+export type FinancialPaymentMethod = 'CHECK' | 'WIRE' | 'ACH' | 'CREDIT_CARD' | 'CASH' | 'OTHER'
+
+export interface ProjectCostItem {
+  id: number
+  project_id: number
+  subcontractor_id?: number | null
+  phase: string
+  phase_order: number
+  line_item: string
+  status: CostItemStatus
+  gc_cost: number
+  markup_pct: number
+  client_price: number
+  owed_to_sub: number
+  paid: number
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectCostItemCreate {
+  subcontractor_id?: number | null
+  phase: string
+  phase_order?: number
+  line_item: string
+  status?: CostItemStatus
+  gc_cost?: number
+  markup_pct?: number
+  owed_to_sub?: number
+  paid?: number
+  order?: number
+}
+
+export type ProjectCostItemUpdate = Partial<ProjectCostItemCreate>
+
+export interface ProjectMaterial {
+  id: number
+  project_id: number
+  category: MaterialCategory
+  item_name: string
+  vendor?: string | null
+  detailed_notes?: string | null
+  cost: number
+  markup_pct: number
+  client_price: number
+  po_url?: string | null
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectMaterialCreate {
+  category?: MaterialCategory
+  item_name: string
+  vendor?: string | null
+  detailed_notes?: string | null
+  cost?: number
+  markup_pct?: number
+  po_url?: string | null
+  order?: number
+}
+
+export type ProjectMaterialUpdate = Partial<ProjectMaterialCreate>
+
+export interface ProjectPayment {
+  id: number
+  project_id: number
+  payment_method: FinancialPaymentMethod
+  invoice_number?: string | null
+  amount: number
+  payment_date: string
+  notes?: string | null
+  created_at: string
+}
+
+export interface ProjectPaymentCreate {
+  payment_method: FinancialPaymentMethod
+  invoice_number?: string | null
+  amount: number
+  payment_date: string
+  notes?: string | null
+}
+
+export interface ProjectFinancialSummary {
+  total_project_value: number
+  total_cost_items: number
+  total_materials: number
+  total_invoiced: number
+  total_paid: number
+  remaining_balance: number
+  profit_to_date: number
+  invoiced_pct: number
+  collected_pct: number
+  approved_co_total: number
+  adjusted_budget: number
+}
