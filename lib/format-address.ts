@@ -105,6 +105,51 @@ export function formatCityState(
 }
 
 /**
+ * Clean a raw address string for professional display.
+ * Strips zip codes, country names, and state full-names → abbreviations.
+ *
+ * "300 North Washington Street, Gettysburg, Pennsylvania 17325, United States"
+ *  → "300 North Washington Street, Gettysburg, PA"
+ */
+export function cleanAddressString(raw: string | null | undefined): string {
+  if (!raw?.trim()) return ''
+
+  const STATE_ABBREV: Record<string, string> = {
+    alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
+    colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
+    hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA',
+    kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
+    massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
+    missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+    'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+    'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK',
+    oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+    'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT',
+    virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
+    wyoming: 'WY',
+  }
+
+  const parts = raw.split(',').map(p => p.trim()).filter(Boolean)
+  const cleaned: string[] = []
+
+  for (const part of parts) {
+    if (/^united states$/i.test(part) || /^usa?$/i.test(part)) continue
+
+    let p = part.replace(/\s+\d{5}(-\d{4})?$/, '')
+    if (/^\d{5}(-\d{4})?$/.test(p.trim())) continue
+
+    const lower = p.toLowerCase()
+    if (STATE_ABBREV[lower]) {
+      p = STATE_ABBREV[lower]
+    }
+
+    if (p.trim()) cleaned.push(p.trim())
+  }
+
+  return cleaned.slice(0, 3).join(', ')
+}
+
+/**
  * Street-only display for UI (no city, state, zip, country).
  * Use this for client cards/lists. For map links, always use the full address.
  *

@@ -21,6 +21,7 @@ import { Check } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
@@ -447,7 +448,7 @@ export function PersonalizedQuoteView({
                           {contractorProfile?.company_name || "Quote"}
                         </h1>
                         <p className="text-xs sm:text-sm print:text-xs text-gray-600 mt-0.5 sm:mt-1">
-                          {contractorProfile?.address || ""}
+                          {cleanAddressString(contractorProfile?.address) || ""}
                         </p>
                         {contractorProfile?.phone_number && (
                           <p className="text-xs sm:text-sm print:text-xs text-gray-600">
@@ -483,7 +484,7 @@ export function PersonalizedQuoteView({
                       </p>
                       {currentJob.client?.address && (
                         <div className="flex items-center gap-2 print:block">
-                          <p className="text-xs sm:text-sm print:text-xs text-gray-600 flex-1">{currentJob.client.address}</p>
+                          <p className="text-xs sm:text-sm print:text-xs text-gray-600 flex-1">{cleanAddressString(currentJob.client.address)}</p>
                           {!isPublicView && (
                             <Button variant="ghost" size="sm" asChild className="h-6 sm:h-7 px-1.5 sm:px-2 print:hidden text-xs">
                               <a
