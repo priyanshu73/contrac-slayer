@@ -335,6 +335,7 @@ export default function QuoteDetailPage() {
       await api.sendQuoteEmail(job.id, to, quoteUrl)
       setSentToEmail(to)
       setSendEmailSuccess(true)
+      await fetchJob()
       toast({
         title: "Quote sent",
         description: `Sent to ${to}.`,
@@ -465,6 +466,12 @@ export default function QuoteDetailPage() {
         reference_type: "job",
         reference_id: job.id,
       })
+
+      if (String(job.status || "").toUpperCase() === "DRAFT") {
+        const updatedJob = await api.updateJob(job.id, { status: "SENT" })
+        setJob(updatedJob as Job)
+      }
+
       setSmsSentSuccessTo(customerName)
       setTimeout(() => setSmsSentSuccessTo(null), 5000)
     } catch (err: any) {

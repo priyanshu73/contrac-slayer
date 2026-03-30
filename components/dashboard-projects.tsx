@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
-import { Plus, Copy, ChevronDown, ChevronRight, FolderPlus } from "lucide-react"
+import { Plus, ChevronRight, FolderPlus } from "lucide-react"
 import type { ProjectListItem } from "@/lib/types"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
 export function DashboardProjects() {
@@ -61,46 +60,9 @@ export function DashboardProjects() {
 
   return (
     <Card className="p-3 shadow-sm border-slate-200">
-      {/* QUOTES ACTIONS SECTION */}
-      <div className="mb-4 pb-4 border-b border-slate-100 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{t('recentQuotes') || "Quotes"}</h2>
-        <div className="flex items-center gap-1.5">
-          <Link 
-            href={`/${locale}/quotes`}
-            className="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded transition-colors"
-          >
-            {t('viewAll') || "View All"}
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-7 px-2 text-xs">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {t('createQuote') || "Create Quote"}
-                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/new`} className="flex items-center cursor-pointer">
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span>New Blank Quote</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/copy`} className="flex items-center cursor-pointer">
-                  <Copy className="mr-2 h-4 w-4" />
-                  <span>Copy Existing Quote</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
       {/* PROJECTS SECTION */}
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{tNav('projects') || "Projects"}</h2>
+        <h2 className="text-base font-semibold">{tNav('projects') || "Projects"}</h2>
         <Link 
           href={`/${locale}/projects`}
           className="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
@@ -147,7 +109,7 @@ export function DashboardProjects() {
               <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-medium text-slate-900 group-hover:text-primary transition-colors truncate">
+                    <span className="text-[15px] font-medium text-slate-900 group-hover:text-primary transition-colors truncate">
                       {project.title || tProj('untitledProject') || "Untitled Project"}
                     </span>
                     <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 border ${getStatusColor(project.status)}`}>
