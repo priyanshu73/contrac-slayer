@@ -70,7 +70,7 @@ export default function DashboardPage() {
             >
               <Link href={`/${locale}/quotes/new`}>
                 <FilePlus2 className="h-4 w-4 text-sky-700" />
-                <span className="text-[15px] font-semibold text-slate-900">{t('createQuote') || "Create Quote"}</span>
+                <span className="text-lg font-semibold text-slate-900">{t('createQuote') || "Create Quote"}</span>
               </Link>
             </Button>
             <Button
@@ -80,7 +80,7 @@ export default function DashboardPage() {
             >
               <Link href={`/${locale}/quotes`}>
                 <Files className="h-4 w-4 text-indigo-700" />
-                <span className="text-[15px] font-semibold text-slate-900">View Quotes</span>
+                <span className="text-lg font-semibold text-slate-900">View Quotes</span>
               </Link>
             </Button>
             <Button
@@ -89,7 +89,7 @@ export default function DashboardPage() {
               onClick={() => setCreateAppointmentOpen(true)}
             >
               <CalendarPlus2 className="h-4 w-4 text-emerald-700" />
-              <span className="text-[15px] font-semibold text-slate-900">Schedule Appointment</span>
+              <span className="text-lg font-semibold text-slate-900">Schedule Appointment</span>
             </Button>
             <Button
               asChild
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             >
               <Link href={`/${locale}/contacts/new`}>
                 <UserPlus className="h-4 w-4 text-amber-700" />
-                <span className="text-[15px] font-semibold text-slate-900">{tActions('addClient') || "Add Client"}</span>
+                <span className="text-lg font-semibold text-slate-900">{tActions('addClient') || "Add Client"}</span>
               </Link>
             </Button>
           </div>

@@ -62,10 +62,10 @@ export function DashboardProjects() {
     <Card className="p-3 shadow-sm border-slate-200">
       {/* PROJECTS SECTION */}
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{tNav('projects') || "Projects"}</h2>
+        <h2 className="text-lg font-semibold">{tNav('projects') || "Projects"}</h2>
         <Link 
           href={`/${locale}/projects`}
-          className="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-sm font-medium text-sky-700 hover:bg-sky-100 hover:text-sky-900 transition-colors"
         >
           {t('viewAll') || "View All"}
           <ChevronRight className="w-3.5 h-3.5" />

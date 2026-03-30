@@ -154,7 +154,7 @@ export function NewProjectDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-lg font-semibold text-slate-900">
                         {t("title")}
@@ -165,35 +165,6 @@ export function NewProjectDialog({
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
-                    {/* Title */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="project-title" className="text-sm font-medium text-slate-700">
-                            {t("fields.title")} <span className="text-rose-500">*</span>
-                        </Label>
-                        <Input
-                            id="project-title"
-                            placeholder={t("fields.titlePlaceholder")}
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="border-slate-200"
-                        />
-                    </div>
-
-                    {/* Objective / Description */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
-                            {t("fields.objective")}
-                        </Label>
-                        <textarea
-                            id="project-objective"
-                            rows={3}
-                            placeholder={t("fields.objectivePlaceholder")}
-                            value={objective}
-                            onChange={(e) => setObjective(e.target.value)}
-                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
-                        />
-                    </div>
-
                     {/* Client dropdown */}
                     <div className="space-y-1.5" ref={clientRef}>
                         <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
@@ -285,6 +256,35 @@ export function NewProjectDialog({
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* Title */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="project-title" className="text-sm font-medium text-slate-700">
+                            {t("fields.title")} <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                            id="project-title"
+                            placeholder={t("fields.titlePlaceholder")}
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="border-slate-200"
+                        />
+                    </div>
+
+                    {/* Objective / Description */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
+                            {t("fields.objective")}
+                        </Label>
+                        <textarea
+                            id="project-objective"
+                            rows={3}
+                            placeholder={t("fields.objectivePlaceholder")}
+                            value={objective}
+                            onChange={(e) => setObjective(e.target.value)}
+                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
+                        />
                     </div>
 
                     {/* Date pickers */}
