@@ -32,6 +32,8 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
   const [receiptPopoverItemId, setReceiptPopoverItemId] = useState<number | null>(null)
   const [pendingReceiptItemId, setPendingReceiptItemId] = useState<number | null>(null)
   const [previewAttachment, setPreviewAttachment] = useState<{name: string, url: string} | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null)
   const receiptInputRef = useRef<HTMLInputElement | null>(null)
 
   const getReceipts = (item: ProjectMaterial) => {
@@ -70,14 +72,17 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
   }
 
   const handleDelete = async (itemId: number) => {
-    if (!confirm('Delete this item?')) return
     try {
+      setDeletingItemId(itemId)
       await api.deleteProjectMaterial(project.id, itemId)
       setItems(prev => prev.filter(i => i.id !== itemId))
       onRefreshTotal()
+      setDeleteConfirmId(null)
       toast({ title: 'Deleted' })
     } catch (err: any) {
       toast({ title: 'Delete failed', variant: 'destructive' })
+    } finally {
+      setDeletingItemId(null)
     }
   }
 
@@ -137,21 +142,22 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
   }
 
   const handleReceiptInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
+    const target = e.target
+    const files = target.files
     const itemId = pendingReceiptItemId
     if (!files || files.length === 0 || !itemId) {
-      e.currentTarget.value = ''
+      target.value = ''
       setPendingReceiptItemId(null)
       return
     }
     const item = items.find(i => i.id === itemId)
     if (!item) {
-      e.currentTarget.value = ''
+      target.value = ''
       setPendingReceiptItemId(null)
       return
     }
     await handleReceiptUpload(files, item)
-    e.currentTarget.value = ''
+    target.value = ''
     setPendingReceiptItemId(null)
   }
 
@@ -323,9 +329,41 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                     </Popover>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <Popover
+                      open={deleteConfirmId === item.id}
+                      onOpenChange={(open) => setDeleteConfirmId(open ? item.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" className="w-52 p-3">
+                        <p className="mb-2 text-xs text-slate-700">Delete this material?</p>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setDeleteConfirmId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            disabled={deletingItemId === item.id}
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
                 </TableRow>
               ))}
@@ -398,9 +436,41 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                     />
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <Popover
+                      open={deleteConfirmId === item.id}
+                      onOpenChange={(open) => setDeleteConfirmId(open ? item.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" className="w-52 p-3">
+                        <p className="mb-2 text-xs text-slate-700">Delete this service?</p>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setDeleteConfirmId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            disabled={deletingItemId === item.id}
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
                 </TableRow>
               ))}

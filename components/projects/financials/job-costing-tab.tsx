@@ -53,10 +53,19 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
 
   const loadSubs = async () => {
     try {
-      if (project.contractor_id) {
-        // Use existing dispatch/subcontractor list from API
-        // For simplicity, we assume an endpoint exists or we map trades
-        // In real app, you'd fetch /subcontractors
+      if (project.trades && project.trades.length > 0) {
+        const uniqueSubs = new Map()
+        project.trades.forEach(trade => {
+          if (trade.subcontractor_id) {
+            if (!uniqueSubs.has(trade.subcontractor_id)) {
+              uniqueSubs.set(trade.subcontractor_id, {
+                id: trade.subcontractor_id,
+                name: trade.subcontractor_name || trade.trade_type
+              })
+            }
+          }
+        })
+        setSubs(Array.from(uniqueSubs.values()))
       }
     } catch(e) {}
   }
@@ -298,7 +307,11 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                                {/* Maps subs placeholder */}
+                                {subs.map(sub => (
+                                  <SelectItem key={sub.id} value={sub.id.toString()}>
+                                    {sub.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </TableCell>
