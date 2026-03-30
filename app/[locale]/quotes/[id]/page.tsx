@@ -96,6 +96,34 @@ export default function QuoteDetailPage() {
     return () => { cancelled = true }
   }, [job, isPublicView, user?.is_contractor])
 
+  // When quote is INVOICED with a QBO invoice, sync payment from QBO (marks job PAID when paid in full)
+  useEffect(() => {
+    if (!job || isPublicView || !user?.is_contractor || !qboConnected) return
+    const st = String(job.status ?? "").toUpperCase()
+    if (st !== "INVOICED" || !job.qbo_invoice_id) return
+    let cancelled = false
+    api
+      .syncQBOInvoicePaymentStatus(job.id)
+      .then(async (res) => {
+        if (cancelled || !res.updated) return
+        try {
+          const data = await api.getJob(job.id)
+          if (!cancelled) {
+            setJob(data as Job)
+            fetchChangeOrderData(job.id)
+          }
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {
+        /* QBO errors — keep showing INVOICED */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [job?.id, job?.status, job?.qbo_invoice_id, qboConnected, isPublicView, user?.is_contractor])
+
   const fetchJob = async () => {
     try {
       setLoading(true)

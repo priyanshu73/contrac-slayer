@@ -26,6 +26,17 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
       setQboError(null)
       const data = await api.getQBOProjectInvoiceDetail(project.id)
       setQboDetail(data)
+      if (data.has_invoice && data.job_id) {
+        try {
+          const sync = await api.syncQBOInvoicePaymentStatus(data.job_id)
+          if (sync.updated) {
+            const refreshed = await api.getQBOProjectInvoiceDetail(project.id)
+            setQboDetail(refreshed)
+          }
+        } catch {
+          /* ignore sync errors */
+        }
+      }
     } catch (err: any) {
       if (err?.message?.includes('not connected') || err?.message?.includes('No quote/job linked')) {
         setQboDetail(null)

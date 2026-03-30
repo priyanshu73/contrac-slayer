@@ -265,6 +265,18 @@ class ApiClient {
     return this.request<{ balance: number; total: number; status: string; email_status: string }>(`/quickbooks/invoice/${jobId}/status`)
   }
 
+  /** If QBO shows invoice fully paid, updates job INVOICED → PAID. Safe to call on quote load. */
+  async syncQBOInvoicePaymentStatus(jobId: number): Promise<{
+    updated: boolean
+    job_status: string
+    qbo_status: string
+    balance: number
+    total: number
+    amount_paid: number
+  }> {
+    return this.request(`/quickbooks/invoice/${jobId}/sync-payment-status`, { method: 'POST' })
+  }
+
   async getQBOInvoiceDetail(jobId: number): Promise<QBOInvoiceDetail> {
     return this.request<QBOInvoiceDetail>(`/quickbooks/invoice/${jobId}/detail`)
   }

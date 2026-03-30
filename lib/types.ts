@@ -388,6 +388,8 @@ export interface QBOInvoiceLineItem {
 }
 
 export interface QBOInvoiceDetail {
+  /** Present when loaded via project invoice-detail (for QBO payment sync). */
+  job_id?: number
   qbo_invoice_id: string
   qbo_invoice_url: string
   doc_number: string
