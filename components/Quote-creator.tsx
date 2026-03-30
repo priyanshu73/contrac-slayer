@@ -20,7 +20,7 @@ import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
-import { LineItemSearchPopover, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
+import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
 import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -1968,10 +1968,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[36px_160px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
-              <div className="text-center" title="Search past items">
-                <svg className="h-3.5 w-3.5 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              </div>
+            <div className="hidden sm:grid grid-cols-[180px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
@@ -2169,11 +2166,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[36px_160px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
-                    {/* Search */}
-                    <div className="flex justify-center shrink-0">
-                      <LineItemSearchPopover
-                        onSelect={(result: LineItemSearchResult) => {
+                  <div className="hidden sm:grid grid-cols-[180px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-start">
+                    {/* Title - with inline autocomplete search */}
+                    <div className="min-w-0">
+                      <LineItemTitleAutocomplete
+                        value={item.title || ""}
+                        onChange={(val) => updateItem(index, "title", val)}
+                        onSelect={(result) => {
                           const updated = [...items]
                           updated[index] = {
                             ...updated[index],
@@ -2184,36 +2183,42 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           if (result.title) updated[index].title = result.title
                           setItems(updated)
                         }}
+                        placeholder="Item name"
                       />
                     </div>
 
-                    {/* Title */}
-                    <div className="min-w-0">
-                      <Input
-                        value={item.title || ""}
-                        onChange={(e) => updateItem(index, "title", e.target.value)}
-                        placeholder="Title (optional)"
-                        className="h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
-                      />
-                    </div>
-
-                    {/* Description - plain input with optional thumbnail */}
-                    <div className="min-w-0 pr-1 flex flex-col justify-center">
-                      <div className="flex items-center gap-1.5">
+                    {/* Description - always visible, auto-expanding */}
+                    <div className="min-w-0 flex flex-col">
+                      <div className="flex items-start gap-1.5">
                         {(item.thumbnailUrl || item.imageUrl) && (
                           <MaterialThumbnail
                             src={item.thumbnailUrl || item.imageUrl}
                             alt={item.description}
-                            className="w-7 h-7 flex-shrink-0 rounded"
+                            className="w-7 h-7 flex-shrink-0 rounded mt-1.5"
                             category={item.category}
                             index={index}
                           />
                         )}
-                        <Input
+                        <Textarea
                           value={item.description}
-                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          onChange={(e) => {
+                            updateItem(index, "description", e.target.value)
+                            e.target.style.height = 'auto'
+                            e.target.style.height = e.target.scrollHeight + 'px'
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto'
+                            e.target.style.height = e.target.scrollHeight + 'px'
+                          }}
                           placeholder="Enter item description"
-                          className="h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0"
+                          className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
+                          rows={1}
+                          ref={(el) => {
+                            if (el) {
+                              el.style.height = 'auto'
+                              el.style.height = el.scrollHeight + 'px'
+                            }
+                          }}
                         />
                       </div>
                       {item.brand && (

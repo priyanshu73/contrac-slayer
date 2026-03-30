@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle } from "lucide-react"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink } from "lucide-react"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
@@ -57,6 +57,11 @@ export default function QuoteDetailPage() {
     revised_amount: number
   } | null>(null)
 
+  // QBO invoice state
+  const [qboConnected, setQboConnected] = useState(false)
+  const [qboInvoiceLoading, setQboInvoiceLoading] = useState(false)
+  const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false)
+
   useEffect(() => {
     // Wait for auth to finish loading before fetching
     // Note: We don't include `user` in deps to prevent double fetching
@@ -75,6 +80,18 @@ export default function QuoteDetailPage() {
       if (!cancelled) setGmailConnected(res.connected)
     }).catch(() => {
       if (!cancelled) setGmailConnected(false)
+    })
+    return () => { cancelled = true }
+  }, [job, isPublicView, user?.is_contractor])
+
+  // Fetch QBO status when contractor is viewing quote
+  useEffect(() => {
+    if (!job || isPublicView || !user?.is_contractor) return
+    let cancelled = false
+    api.getQBOStatus().then((res) => {
+      if (!cancelled) setQboConnected(res.connected)
+    }).catch(() => {
+      if (!cancelled) setQboConnected(false)
     })
     return () => { cancelled = true }
   }, [job, isPublicView, user?.is_contractor])
@@ -311,9 +328,63 @@ export default function QuoteDetailPage() {
     router.push(`/quotes/${identifier}/edit`)
   }
 
-  const handleCreateInvoice = () => {
-    // TODO: Implement create invoice functionality
-    router.push(`/invoices/new?jobId=${identifier}`)
+  const handleCreateInvoice = async () => {
+    if (!job) return
+
+    if (qboConnected && !job.qbo_invoice_id) {
+      // Create invoice in QuickBooks
+      setQboInvoiceLoading(true)
+      try {
+        const result = await api.createQBOInvoice(job.id, true)
+        toast({
+          title: "Invoice created in QuickBooks",
+          description: (
+            <span>
+              Invoice created and emailed to client.{" "}
+              <a
+                href={result.invoice_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium"
+              >
+                View in QuickBooks →
+              </a>
+            </span>
+          ),
+        })
+        await fetchJob()
+      } catch (err: any) {
+        toast({
+          title: "Failed to create invoice",
+          description: err?.message || "Something went wrong.",
+          variant: "destructive",
+        })
+      } finally {
+        setQboInvoiceLoading(false)
+      }
+    } else {
+      router.push(`/invoices/new?jobId=${identifier}`)
+    }
+  }
+
+  const handleSendInvoiceEmail = async () => {
+    if (!job) return
+    setSendingInvoiceEmail(true)
+    try {
+      const result = await api.sendQBOInvoiceEmail(job.id)
+      toast({
+        title: "Invoice sent",
+        description: result.message || "Invoice emailed to client.",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Failed to send invoice",
+        description: err?.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setSendingInvoiceEmail(false)
+    }
   }
 
   const handleSignatureUpdate = async () => {
@@ -371,7 +442,7 @@ export default function QuoteDetailPage() {
     } catch (err: any) {
       toast({
         title: "Send failed",
-        description: err?.message || "Failed to send SMS.",
+        description: "Failed to send SMS. Please try again.",
         variant: "destructive",
       })
     }
@@ -565,6 +636,8 @@ export default function QuoteDetailPage() {
         followupSending={followupSending}
         gmailConnected={gmailConnected}
         onCreateInvoice={handleCreateInvoice}
+        onSendInvoiceEmail={handleSendInvoiceEmail}
+        sendingInvoiceEmail={sendingInvoiceEmail}
         onCreateChangeOrder={handleCreateChangeOrder}
         onSignatureUpdate={handleSignatureUpdate}
         onStatusUpdate={() => { fetchJob(); fetchChangeOrderData(job.id) }}

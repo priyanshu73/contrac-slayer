@@ -1,7 +1,7 @@
 "use client"
 
 import { StatsCardsReal } from "@/components/stats-cards-real"
-import { RecentQuotesReal } from "@/components/recent-quotes-real"
+import { DashboardProjects } from "@/components/dashboard-projects"
 import { UpcomingJobs } from "@/components/upcoming-jobs"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
@@ -21,7 +21,7 @@ export default function DashboardPage() {
           {/* Recent Activity - Quotes and Upcoming Meetings equal width */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 min-w-0">
             <div className="min-w-0">
-              <RecentQuotesReal />
+              <DashboardProjects />
             </div>
             <div className="min-w-0">
               <UpcomingJobs />

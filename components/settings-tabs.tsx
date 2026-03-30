@@ -20,6 +20,8 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 import { CostBookSettings } from "@/components/cost-book-settings"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { AddressData } from "@/lib/types/address"
 
 type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book"
 
@@ -151,6 +153,12 @@ export function SettingsTabs() {
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false)
   const [gmailDisconnectLoading, setGmailDisconnectLoading] = useState(false)
 
+  // QuickBooks integration state
+  const [qboStatus, setQboStatus] = useState<{ connected: boolean; company_name: string | null; auto_invoice: boolean; realm_id: string | null } | null>(null)
+  const [qboStatusLoading, setQboStatusLoading] = useState(false)
+  const [qboDisconnectLoading, setQboDisconnectLoading] = useState(false)
+  const [qboAutoInvoiceLoading, setQboAutoInvoiceLoading] = useState(false)
+
   const [formData, setFormData] = useState({
     company_name: "",
     email: "",
@@ -170,7 +178,9 @@ export function SettingsTabs() {
   })
 
   const [initialFormData, setInitialFormData] = useState(formData)
-  
+  const [addressData, setAddressData] = useState<AddressData | null>(null)
+  const [manualAddress, setManualAddress] = useState(false)
+
   // Use centralized hook for ContractorOps AI number
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
 
@@ -202,9 +212,22 @@ export function SettingsTabs() {
     }
   }
 
+  const loadQboStatus = async () => {
+    setQboStatusLoading(true)
+    try {
+      const data = await api.getQBOStatus()
+      setQboStatus(data)
+    } catch {
+      setQboStatus(null)
+    } finally {
+      setQboStatusLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (activeSection === "integrations") {
       loadGmailStatus()
+      loadQboStatus()
     }
   }, [activeSection])
 
@@ -249,16 +272,55 @@ export function SettingsTabs() {
     }
   }, [searchParams])
 
+  // Show success/error from QBO OAuth callback (?quickbooks=connected or ?quickbooks=error)
+  useEffect(() => {
+    const qb = searchParams.get("quickbooks")
+    if (qb === "connected") {
+      setSuccessMessage("QuickBooks connected successfully!")
+      setActiveSection("integrations")
+      loadQboStatus()
+      const t = setTimeout(() => setSuccessMessage(""), 4000)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.delete("quickbooks")
+        const qs = params.toString()
+        window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
+      }
+      return () => clearTimeout(t)
+    } else if (qb === "error") {
+      setError("QuickBooks connection failed. Please try again.")
+      setActiveSection("integrations")
+      loadQboStatus()
+      const t = setTimeout(() => setError(""), 4000)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.delete("quickbooks")
+        const qs = params.toString()
+        window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
+      }
+      return () => clearTimeout(t)
+    }
+  }, [searchParams])
+
   const loadProfile = async () => {
     try {
       setIsLoading(true)
       const data = await api.getMyProfile()
       setProfile(data)
+      // Clean address for display: strip zip codes and country, keep street/city/state
+      let displayAddress = data.address || ""
+      if (displayAddress.includes(",")) {
+        const parts = displayAddress.split(",").map((p: string) => p.trim())
+        const cleaned = parts
+          .map((p: string) => p.replace(/\s+\d{5}(-\d{4})?$/, ""))  // strip trailing zip
+          .filter((p: string) => !/^\d{5}/.test(p) && !/united states|usa|^us$/i.test(p) && p.length > 0)
+        displayAddress = cleaned.slice(0, 3).join(", ")
+      }
       const newFormData = {
         company_name: data.company_name || "",
         email: data.email || "",
         phone_number: data.phone_number || "",
-        address: data.address || "",
+        address: displayAddress,
         website_url: data.website_url || "",
         default_zip_code: data.default_zip_code || "",
         default_labor_charge_type: data.default_labor_charge_type || LaborChargeType.HOURLY,
@@ -314,7 +376,7 @@ export function SettingsTabs() {
       setError("")
       setSuccessMessage("")
 
-      await api.updateProfile({
+      const profilePayload: Record<string, any> = {
         company_name: formData.company_name,
         email: formData.email,
         phone_number: formData.phone_number || null,
@@ -329,7 +391,11 @@ export function SettingsTabs() {
         low_tier_markup: parseFloat(formData.low_tier_markup),
         mid_tier_markup: parseFloat(formData.mid_tier_markup),
         high_tier_markup: parseFloat(formData.high_tier_markup),
-      })
+      }
+      if (addressData) {
+        profilePayload.address_data = addressData
+      }
+      await api.updateProfile(profilePayload)
 
       setSuccessMessage("Profile updated successfully!")
       await loadProfile()
@@ -545,17 +611,50 @@ export function SettingsTabs() {
                         {/* Business Address & Zip */}
                         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                              {t('businessAddress')}
-                            </Label>
-                            <Input
-                              id="address"
-                              placeholder="123 Main Street, City, State ZIP"
-                              value={formData.address}
-                              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                              disabled={isSaving}
-                              className="h-10 border-slate-200"
-                            />
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="address" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                {t('businessAddress')}
+                              </Label>
+                              <button
+                                type="button"
+                                onClick={() => setManualAddress(!manualAddress)}
+                                className="text-xs text-sky-600 hover:text-sky-800 hover:underline"
+                              >
+                                {manualAddress ? "Use address search" : "Enter manually"}
+                              </button>
+                            </div>
+                            {manualAddress ? (
+                              <Input
+                                id="address"
+                                placeholder="123 Main Street, City, State ZIP"
+                                value={formData.address}
+                                onChange={(e) => {
+                                  setFormData({ ...formData, address: e.target.value })
+                                  setAddressData(null)
+                                }}
+                                disabled={isSaving}
+                                className="h-10 border-slate-200"
+                              />
+                            ) : (
+                              <MapboxAddressInput
+                                label=""
+                                placeholder="Start typing your business address..."
+                                defaultValue={formData.address}
+                                onAddressSelect={(data) => {
+                                  setAddressData(data)
+                                  if (data) {
+                                    const short = [data.street_line, data.city, data.state].filter(Boolean).join(", ")
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      address: short || data.formatted_address || "",
+                                      default_zip_code: data.zip || prev.default_zip_code,
+                                    }))
+                                  }
+                                }}
+                                id="address"
+                                className="[&_input]:h-10 [&_input]:border-slate-200"
+                              />
+                            )}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="default-zip" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -879,6 +978,139 @@ export function SettingsTabs() {
                           <p className="text-xs text-slate-500 border-t border-slate-200 pt-3">
                             Disconnecting revokes access with Google and removes stored tokens. You can connect again anytime.
                           </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* QuickBooks Online Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">QuickBooks Online</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mb-4">
+                      Connect QuickBooks to automatically create invoices from accepted quotes. Clients can pay directly through QuickBooks.
+                    </p>
+
+                    {qboStatusLoading ? (
+                      <div className="flex items-center gap-2 text-slate-500 text-sm">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                        Checking connection…
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 p-1">
+                              <svg className="h-full w-full" viewBox="0 0 40 40" aria-label="QuickBooks">
+                                <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                                <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                                <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">
+                                {qboStatus?.connected ? "Connected" : "Not connected"}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {qboStatus?.connected && qboStatus?.company_name
+                                  ? qboStatus.company_name
+                                  : "Connect to push invoices to QuickBooks."}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {qboStatus?.connected ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!confirm("Disconnect QuickBooks? You will need to connect again to push invoices.")) return
+                                  setQboDisconnectLoading(true)
+                                  setError("")
+                                  try {
+                                    await api.disconnectQBO()
+                                    setSuccessMessage("QuickBooks disconnected.")
+                                    await loadQboStatus()
+                                    setTimeout(() => setSuccessMessage(""), 3000)
+                                  } catch (err: unknown) {
+                                    setError(err instanceof Error ? err.message : "Failed to disconnect QuickBooks")
+                                  } finally {
+                                    setQboDisconnectLoading(false)
+                                  }
+                                }}
+                                disabled={qboDisconnectLoading}
+                                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                              >
+                                {qboDisconnectLoading ? (
+                                  <span className="flex items-center gap-2">
+                                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                    Disconnecting…
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-2">
+                                    <Unlink className="h-4 w-4" />
+                                    Disconnect
+                                  </span>
+                                )}
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  const returnUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : ""
+                                  window.location.href = api.getQBOAuthorizeUrl(returnUrl)
+                                }}
+                                className="bg-[#2CA01C] hover:bg-[#238016]"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Link2 className="h-4 w-4" />
+                                  Connect QuickBooks
+                                </span>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {qboStatus?.connected && (
+                          <div className="border-t border-slate-200 pt-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-slate-700">Auto-Invoice</p>
+                                <p className="text-xs text-slate-500">Automatically create a QuickBooks invoice when a client accepts a quote</p>
+                              </div>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={qboStatus.auto_invoice}
+                                onClick={async () => {
+                                  setQboAutoInvoiceLoading(true)
+                                  try {
+                                    const result = await api.updateQBOSettings(!qboStatus.auto_invoice)
+                                    setQboStatus({ ...qboStatus, auto_invoice: result.auto_invoice })
+                                  } catch (err: unknown) {
+                                    setError(err instanceof Error ? err.message : "Failed to update setting")
+                                  } finally {
+                                    setQboAutoInvoiceLoading(false)
+                                  }
+                                }}
+                                disabled={qboAutoInvoiceLoading}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#2CA01C] focus:ring-offset-2 ${
+                                  qboStatus.auto_invoice ? 'bg-[#2CA01C]' : 'bg-slate-200'
+                                } ${qboAutoInvoiceLoading ? 'opacity-50' : ''}`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    qboStatus.auto_invoice ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              Disconnecting revokes access with Intuit and removes stored tokens. You can connect again anytime.
+                            </p>
+                          </div>
                         )}
                       </div>
                     )}

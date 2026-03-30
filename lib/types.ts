@@ -374,6 +374,35 @@ export interface Job {
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
+  // QuickBooks sync
+  qbo_invoice_id?: string
+  qbo_invoice_url?: string
+  qbo_synced_at?: string
+}
+
+export interface QBOInvoiceLineItem {
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+}
+
+export interface QBOInvoiceDetail {
+  qbo_invoice_id: string
+  qbo_invoice_url: string
+  doc_number: string
+  txn_date: string
+  due_date: string
+  status: string
+  email_status: string
+  subtotal: number
+  tax_total: number
+  total: number
+  balance: number
+  amount_paid: number
+  line_items: QBOInvoiceLineItem[]
+  customer_memo: string
+  synced_at: string | null
 }
 
 export interface ChangeOrderCreate {

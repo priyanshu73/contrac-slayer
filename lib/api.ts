@@ -20,28 +20,34 @@ class ApiClient {
 
   private formatApiErrorDetail(detail: unknown): string {
     if (!detail) return 'An error occurred'
-    if (typeof detail === 'string') return detail
-    if (typeof detail === 'object') {
+    let msg: string
+    if (typeof detail === 'string') {
+      msg = detail
+    } else if (typeof detail === 'object') {
       const maybe = detail as Record<string, any>
-      if (typeof maybe.message === 'string' && maybe.message.trim()) return maybe.message
-      if (typeof maybe.error === 'string' && maybe.error.trim()) return maybe.error
-      // Backend may return { message, neetocal } for NeetoCal 422; prefer message, else extract from neetocal
-      const neetocal = maybe.neetocal
-      if (neetocal != null) {
-        if (typeof neetocal === 'string' && neetocal.trim()) return neetocal.trim()
-        if (typeof neetocal === 'object') {
-          const nc = neetocal as Record<string, any>
-          if (typeof nc.error === 'string' && nc.error.trim()) return nc.error
-          if (typeof nc.message === 'string' && nc.message.trim()) return nc.message
+      if (typeof maybe.message === 'string' && maybe.message.trim()) { msg = maybe.message }
+      else if (typeof maybe.error === 'string' && maybe.error.trim()) { msg = maybe.error }
+      else {
+        const neetocal = maybe.neetocal
+        if (neetocal != null) {
+          if (typeof neetocal === 'string' && neetocal.trim()) { msg = neetocal.trim() }
+          else if (typeof neetocal === 'object') {
+            const nc = neetocal as Record<string, any>
+            if (typeof nc.error === 'string' && nc.error.trim()) { msg = nc.error }
+            else if (typeof nc.message === 'string' && nc.message.trim()) { msg = nc.message }
+            else { msg = 'An error occurred' }
+          } else { msg = 'An error occurred' }
+        } else {
+          try { msg = JSON.stringify(detail) } catch { msg = 'An error occurred' }
         }
       }
-      try {
-        return JSON.stringify(detail)
-      } catch {
-        return 'An error occurred'
-      }
+    } else {
+      msg = String(detail)
     }
-    return String(detail)
+    if (/sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(msg)) {
+      return 'Something went wrong. Please try again.'
+    }
+    return msg
   }
 
   private async request<T>(
@@ -220,6 +226,51 @@ class ApiClient {
         from_name: params.from_name ?? undefined,
       }),
     })
+  }
+
+  // --- QuickBooks Online ---
+  async getQBOStatus(): Promise<{ connected: boolean; company_name: string | null; auto_invoice: boolean; realm_id: string | null }> {
+    return this.request<{ connected: boolean; company_name: string | null; auto_invoice: boolean; realm_id: string | null }>('/quickbooks/status')
+  }
+
+  /** Full URL to start QBO OAuth; redirect the browser here. */
+  getQBOAuthorizeUrl(redirectSuccess?: string): string {
+    const url = `${this.baseURL}/quickbooks/authorize`
+    if (redirectSuccess) {
+      return `${url}?redirect_success=${encodeURIComponent(redirectSuccess)}`
+    }
+    return url
+  }
+
+  async disconnectQBO(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/quickbooks/disconnect', { method: 'DELETE' })
+  }
+
+  async updateQBOSettings(autoInvoice: boolean): Promise<{ auto_invoice: boolean }> {
+    return this.request<{ auto_invoice: boolean }>(`/quickbooks/settings?auto_invoice=${autoInvoice}`, { method: 'PUT' })
+  }
+
+  async createQBOInvoice(jobId: number, sendEmail: boolean = true): Promise<{ qbo_invoice_id: string; invoice_url: string; message: string }> {
+    return this.request<{ qbo_invoice_id: string; invoice_url: string; message: string }>(
+      `/quickbooks/invoice/${jobId}?send_email=${sendEmail}`,
+      { method: 'POST' }
+    )
+  }
+
+  async sendQBOInvoiceEmail(jobId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/quickbooks/invoice/${jobId}/send`, { method: 'POST' })
+  }
+
+  async getQBOInvoiceStatus(jobId: number): Promise<{ balance: number; total: number; status: string; email_status: string }> {
+    return this.request<{ balance: number; total: number; status: string; email_status: string }>(`/quickbooks/invoice/${jobId}/status`)
+  }
+
+  async getQBOInvoiceDetail(jobId: number): Promise<QBOInvoiceDetail> {
+    return this.request<QBOInvoiceDetail>(`/quickbooks/invoice/${jobId}/detail`)
+  }
+
+  async getQBOProjectInvoiceDetail(projectId: number): Promise<QBOInvoiceDetail & { has_invoice: boolean }> {
+    return this.request<QBOInvoiceDetail & { has_invoice: boolean }>(`/quickbooks/project/${projectId}/invoice-detail`)
   }
 
   async uploadLogo(file: File) {
@@ -1448,20 +1499,24 @@ class ContractorAIClient {
       console.log(`🌐 ContractorAI API: Response headers:`, Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        let rawError = `HTTP ${response.status}: ${response.statusText}`
         try {
           const error = await response.json()
-          errorMessage = error.error || error.message || errorMessage
+          rawError = error.error || error.message || rawError
         } catch (parseError) {
           console.error(`🌐 ContractorAI API: Failed to parse error response:`, parseError)
         }
-        const isSpNotFound = response.status === 404 && String(errorMessage).toLowerCase().includes('service provider not found')
+        const isSpNotFound = response.status === 404 && String(rawError).toLowerCase().includes('service provider not found')
         if (isSpNotFound) {
           console.warn(`🌐 ContractorAI API: Service provider not found (linked contact may have been removed)`)
         } else {
-          console.error(`🌐 ContractorAI API: Request failed:`, errorMessage)
+          console.error(`🌐 ContractorAI API: Request failed:`, rawError)
         }
-        throw new Error(errorMessage)
+        const isTechnicalError = /sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(rawError)
+        const userMessage = isTechnicalError
+          ? 'Something went wrong. Please try again.'
+          : rawError
+        throw new Error(userMessage)
       }
 
       if (response.status === 204) {

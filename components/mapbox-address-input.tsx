@@ -127,7 +127,10 @@ export function MapboxAddressInput({
     const addressData = mapboxFeatureToAddressData(feature);
     
     if (addressData) {
-      setInputValue(addressData.formatted_address || '');
+      const shortDisplay = [addressData.street_line, addressData.city, addressData.state]
+        .filter(Boolean)
+        .join(', ');
+      setInputValue(shortDisplay || addressData.formatted_address || '');
       onAddressSelect(addressData);
       setSuggestions([]);
       setShowSuggestions(false);

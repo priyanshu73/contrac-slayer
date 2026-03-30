@@ -195,3 +195,151 @@ export function LineItemSearchPopover({
     </Popover>
   )
 }
+
+
+// ─── Inline Title Autocomplete ─────────────────────────────────────
+// A controlled text input that also shows search suggestions as you type.
+
+interface LineItemTitleAutocompleteProps {
+  value: string
+  onChange: (value: string) => void
+  onSelect: (result: LineItemSearchResult) => void
+  placeholder?: string
+  className?: string
+}
+
+export function LineItemTitleAutocomplete({
+  value,
+  onChange,
+  onSelect,
+  placeholder = "Item name",
+  className,
+}: LineItemTitleAutocompleteProps) {
+  const [open, setOpen] = React.useState(false)
+  const debouncedQuery = useDebounce(value.trim(), 350)
+  const [suggestions, setSuggestions] = React.useState<AutocompleteSuggestion[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // Fetch suggestions when debounced query changes
+  React.useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.length < 2) {
+      setSuggestions([])
+      return
+    }
+
+    let isMounted = true
+
+    async function fetchSuggestions() {
+      setLoading(true)
+      try {
+        const results = await api.getQuoteItemsAutocomplete(debouncedQuery, "all")
+        if (isMounted) {
+          setSuggestions(results)
+          if (results.length > 0) setOpen(true)
+        }
+      } catch (err) {
+        console.error("Autocomplete fetch error", err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    fetchSuggestions()
+    return () => { isMounted = false }
+  }, [debouncedQuery])
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={containerRef} className="relative flex-1 min-w-0">
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value)
+            if (e.target.value.trim().length >= 2) {
+              setOpen(true)
+            } else {
+              setOpen(false)
+            }
+          }}
+          onFocus={() => {
+            if (suggestions.length > 0 && value.trim().length >= 2) {
+              setOpen(true)
+            }
+          }}
+          placeholder={placeholder}
+          className={cn(
+            "h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors pr-7",
+            className
+          )}
+          autoComplete="off"
+        />
+        {loading && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown suggestions */}
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full min-w-[300px] max-h-[240px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <div className="py-1">
+            {suggestions.map((suggestion, i) => (
+              <button
+                key={`${i}-${suggestion.description}`}
+                type="button"
+                className="w-full flex justify-between items-center px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault() // Prevent input blur
+                  onSelect({
+                    title: suggestion.title || undefined,
+                    description: suggestion.description,
+                    price: suggestion.price,
+                    unit: suggestion.unit,
+                  })
+                  setOpen(false)
+                }}
+              >
+                <div className="flex flex-col min-w-0 flex-1 mr-3">
+                  {suggestion.title && (
+                    <span className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      {suggestion.title}
+                    </span>
+                  )}
+                  <span className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {suggestion.description}
+                  </span>
+                  <span className="text-[10px] text-slate-400 capitalize">
+                    {suggestion.source === "master" ? "Cost Book" : "Past Quote"}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end text-sm flex-shrink-0">
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    ${suggestion.price.toFixed(2)}
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    per {suggestion.unit}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
