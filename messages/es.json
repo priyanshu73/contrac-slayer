@@ -858,6 +858,15 @@
     "customerModified": "Cliente modificó"
   },
   "quotes": {
+    "listTitle": "Cotizaciones",
+    "listSubtitle": "Busca, filtra por cliente y revisa el estado.",
+    "searchPlaceholder": "Buscar por nombre, correo o teléfono del cliente",
+    "allClients": "Todos los clientes",
+    "statusFilter": "Estado",
+    "clearFilters": "Limpiar filtros",
+    "noMatches": "No hay cotizaciones con estos filtros.",
+    "tryAdjustFilters": "Prueba a limpiar los filtros o cambiar la búsqueda.",
+    "quoteNumber": "Cotización n.º {id}",
     "changeStatus": "Cambiar estado",
     "statusUpdated": "Estado de la cotización actualizado a {status}.",
     "sendToClient": "Enviar al Cliente",

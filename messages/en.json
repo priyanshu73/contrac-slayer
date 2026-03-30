@@ -875,6 +875,15 @@
     "customerModified": "Customer modified"
   },
   "quotes": {
+    "listTitle": "Quotes",
+    "listSubtitle": "Search, filter by client, and track status.",
+    "searchPlaceholder": "Search by client name, email, or phone",
+    "allClients": "All clients",
+    "statusFilter": "Status",
+    "clearFilters": "Clear filters",
+    "noMatches": "No quotes match your filters.",
+    "tryAdjustFilters": "Try clearing filters or changing your search.",
+    "quoteNumber": "Quote #{id}",
     "changeStatus": "Change status",
     "statusUpdated": "Quote status updated to {status}.",
     "sendToClient": "Send to Client",

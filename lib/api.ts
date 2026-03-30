@@ -419,9 +419,18 @@ class ApiClient {
     })
   }
 
-  async getMyJobs(status?: string, skip = 0, limit = 20) {
+  async getMyJobs(
+    status?: string,
+    skip = 0,
+    limit = 20,
+    clientId?: number,
+    search?: string
+  ) {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
+    if (clientId != null) params.append('client_id', String(clientId))
+    const q = search?.trim()
+    if (q) params.append('search', q)
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
 
