@@ -62,22 +62,22 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   return (
     <div className="animate-in fade-in duration-500">
       <Tabs defaultValue="job-costing" className="w-full space-y-6">
-        <TabsList className="bg-slate-100 p-1 rounded-lg w-full flex overflow-x-auto flex-nowrap">
+        <TabsList className="w-full flex overflow-x-auto flex-nowrap rounded-xl border border-slate-200 bg-slate-100 p-1.5 shadow-sm">
           <TabsTrigger 
             value="job-costing" 
-            className="flex-1 whitespace-nowrap data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
           >
             Job Costing (Labour & Subs)
           </TabsTrigger>
           <TabsTrigger 
             value="materials"
-            className="flex-1 whitespace-nowrap data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
           >
             Materials & Permits
           </TabsTrigger>
           <TabsTrigger 
             value="summary"
-            className="flex-1 whitespace-nowrap data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
           >
             Summary & Invoicing
           </TabsTrigger>

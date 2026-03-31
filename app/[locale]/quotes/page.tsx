@@ -15,6 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { FileText, Plus, RefreshCw, Search, Trash2, ChevronRight } from "lucide-react"
+import { FileText, Plus, Search, Trash2, ChevronRight, ChevronDown } from "lucide-react"
 
 interface ClientInfo {
   id: number
@@ -53,10 +59,7 @@ const ITEMS_PER_PAGE = 10
 const STATUS_ORDER = [
   "DRAFT",
   "SENT",
-  "VIEWED",
-  "CUSTOMER_MODIFIED",
   "ACCEPTED",
-  "REJECTED",
   "IN_PROGRESS",
   "COMPLETED",
   "INVOICED",
@@ -139,7 +142,7 @@ export default function QuotesPage() {
 
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined)
+  const [activeStatuses, setActiveStatuses] = useState<string[]>([])
   const [clientFilterId, setClientFilterId] = useState<number | undefined>(undefined)
   const [searchInput, setSearchInput] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -186,34 +189,64 @@ export default function QuotesPage() {
       try {
         setLoading(true)
         const skip = (page - 1) * ITEMS_PER_PAGE
-        const data = (await api.getMyJobs(
-          activeFilter,
-          skip,
-          ITEMS_PER_PAGE + 1,
-          clientFilterId,
-          debouncedSearch || undefined
-        )) as Quote[]
+        const selectedStatuses = STATUS_ORDER.filter((code) => activeStatuses.includes(code))
 
-        if (data.length > ITEMS_PER_PAGE) {
-          setHasMore(true)
-          setQuotes(data.slice(0, ITEMS_PER_PAGE))
-        } else {
-          setHasMore(false)
-          setQuotes(data)
+        if (selectedStatuses.length <= 1) {
+          const statusFilter = selectedStatuses[0]
+          const data = (await api.getMyJobs(
+            statusFilter,
+            skip,
+            ITEMS_PER_PAGE + 1,
+            clientFilterId,
+            debouncedSearch || undefined
+          )) as Quote[]
+
+          if (data.length > ITEMS_PER_PAGE) {
+            setHasMore(true)
+            setQuotes(data.slice(0, ITEMS_PER_PAGE))
+          } else {
+            setHasMore(false)
+            setQuotes(data)
+          }
+          return
         }
+
+        const batchSize = 100
+        const maxBatches = 10
+        let cursor = 0
+        let allJobs: Quote[] = []
+
+        for (let i = 0; i < maxBatches; i++) {
+          const chunk = (await api.getMyJobs(
+            undefined,
+            cursor,
+            batchSize,
+            clientFilterId,
+            debouncedSearch || undefined
+          )) as Quote[]
+          allJobs = allJobs.concat(chunk)
+          if (chunk.length < batchSize) break
+          cursor += batchSize
+        }
+
+        const filtered = allJobs.filter((quote) =>
+          selectedStatuses.some((statusCode) => statusCode === String(quote.status).toUpperCase())
+        )
+        setQuotes(filtered.slice(skip, skip + ITEMS_PER_PAGE))
+        setHasMore(skip + ITEMS_PER_PAGE < filtered.length)
       } catch (error) {
         console.error("Failed to fetch quotes:", error)
       } finally {
         setLoading(false)
       }
     },
-    [activeFilter, debouncedSearch, clientFilterId]
+    [activeStatuses, debouncedSearch, clientFilterId]
   )
 
   useEffect(() => {
     setCurrentPage(1)
     loadPage(1)
-  }, [activeFilter, debouncedSearch, clientFilterId, loadPage])
+  }, [activeStatuses, debouncedSearch, clientFilterId, loadPage])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -221,18 +254,19 @@ export default function QuotesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const handleRefresh = () => {
-    loadPage(currentPage)
-  }
-
-  const hasActiveFilters =
-    activeFilter !== undefined || clientFilterId !== undefined || debouncedSearch.length > 0
+  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || debouncedSearch.length > 0
 
   const clearFilters = () => {
-    setActiveFilter(undefined)
+    setActiveStatuses([])
     setClientFilterId(undefined)
     setSearchInput("")
     setDebouncedSearch("")
+  }
+
+  const toggleStatusFilter = (statusCode: string) => {
+    setActiveStatuses((prev) =>
+      prev.includes(statusCode) ? prev.filter((s) => s !== statusCode) : [...prev, statusCode]
+    )
   }
 
   const statusLabel = useMemo(() => {
@@ -251,6 +285,12 @@ export default function QuotesPage() {
     }
     return (code: string) => map[code] ?? formatStatusLabel(code)
   }, [tFilters])
+
+  const statusFilterLabel = useMemo(() => {
+    if (activeStatuses.length === 0) return tFilters("all")
+    if (activeStatuses.length === 1) return statusLabel(activeStatuses[0])
+    return `${activeStatuses.length} statuses`
+  }, [activeStatuses, statusLabel, tFilters])
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
     e.preventDefault()
@@ -319,10 +359,6 @@ export default function QuotesPage() {
             <p className="text-sm text-muted-foreground mt-1.5 pl-0 sm:pl-12">{tQuotes("listSubtitle")}</p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-1.5">
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
             <Button asChild size="sm" className="gap-1.5">
               <a href={`${basePath}/new`}>
                 <Plus className="h-4 w-4" />
@@ -332,34 +368,39 @@ export default function QuotesPage() {
           </div>
         </div>
 
-        <Card className="p-4 md:p-5 mb-5 shadow-sm border-border/80 bg-card/80 backdrop-blur-sm">
-          <div className="flex flex-col gap-4">
-            <div className="relative">
+        <div className="mb-5 bg-transparent">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder={tQuotes("searchPlaceholder")}
-                className="pl-9 h-10 bg-background"
+                className="h-10 bg-transparent pl-9"
                 aria-label={tQuotes("searchPlaceholder")}
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {tQuotes("statusFilter")}
-                </span>
-                <Select
-                  value={activeFilter ?? "all"}
-                  onValueChange={(v) => setActiveFilter(v === "all" ? undefined : v)}
-                >
-                  <SelectTrigger className="h-10 bg-background">
-                    <SelectValue placeholder={tFilters("all")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{tFilters("all")}</SelectItem>
+            <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
+              <div className="min-w-[150px]">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 w-full min-w-[150px] justify-between bg-transparent px-3 font-normal"
+                    >
+                      <span className="truncate">{statusFilterLabel}</span>
+                      <ChevronDown className="h-4 w-4 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[240px]">
                     {STATUS_ORDER.map((code) => (
-                      <SelectItem key={code} value={code}>
+                      <DropdownMenuCheckboxItem
+                        key={code}
+                        checked={activeStatuses.includes(code)}
+                        onCheckedChange={() => toggleStatusFilter(code)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
                         <span className="flex items-center gap-2">
                           <span
                             className={`inline-block h-2 w-2 rounded-full shrink-0 ${
@@ -376,19 +417,18 @@ export default function QuotesPage() {
                           />
                           {statusLabel(code)}
                         </span>
-                      </SelectItem>
+                      </DropdownMenuCheckboxItem>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</span>
+              <div className="min-w-[180px]">
                 <Select
                   value={clientFilterId != null ? String(clientFilterId) : "all"}
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
-                  <SelectTrigger className="h-10 bg-background">
-                    <SelectValue placeholder={tQuotes("allClients")} />
+                  <SelectTrigger className="h-10 bg-transparent">
+                    <SelectValue placeholder="Client" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
                     <SelectItem value="all">{tQuotes("allClients")}</SelectItem>
@@ -401,14 +441,14 @@ export default function QuotesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {hasActiveFilters && (
+                <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={clearFilters}>
+                  {tQuotes("clearFilters")}
+                </Button>
+              )}
             </div>
-            {hasActiveFilters && (
-              <Button type="button" variant="ghost" size="sm" className="self-start -mt-1 h-8 text-xs" onClick={clearFilters}>
-                {tQuotes("clearFilters")}
-              </Button>
-            )}
           </div>
-        </Card>
+        </div>
 
         {loading ? (
           <div className="space-y-3">

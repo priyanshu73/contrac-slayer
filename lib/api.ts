@@ -420,14 +420,20 @@ class ApiClient {
   }
 
   async getMyJobs(
-    status?: string,
+    status?: string | string[],
     skip = 0,
     limit = 20,
     clientId?: number,
     search?: string
   ) {
     const params = new URLSearchParams()
-    if (status) params.append('status', status)
+    if (Array.isArray(status)) {
+      status.forEach((s) => {
+        if (s) params.append('status', s)
+      })
+    } else if (status) {
+      params.append('status', status)
+    }
     if (clientId != null) params.append('client_id', String(clientId))
     const q = search?.trim()
     if (q) params.append('search', q)

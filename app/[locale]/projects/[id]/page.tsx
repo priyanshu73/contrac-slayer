@@ -114,11 +114,31 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="flex justify-start lg:justify-center overflow-x-auto sm:my-2 lg:my-0 lg:mx-4 shrink-0">
-              <TabsList className="bg-slate-100/80 flex flex-nowrap w-max mb-1 lg:mb-0">
-                <TabsTrigger value="tasks">{t("tabs.tasks") || "Tasks"}</TabsTrigger>
-                <TabsTrigger value="financials">{t("tabs.financials") || "Financials"}</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="trades">{t("tabs.trades") || "Team & scopes"}</TabsTrigger>
+              <TabsList className="mb-1 flex w-max flex-nowrap rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm lg:mb-0">
+                <TabsTrigger
+                  value="tasks"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.tasks") || "Tasks"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="financials"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.financials") || "Financials"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="documents"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger
+                  value="trades"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.trades") || "Team & scopes"}
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -190,4 +210,3 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
     </div>
   )
 }
-

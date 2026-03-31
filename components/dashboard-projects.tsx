@@ -65,7 +65,7 @@ export function DashboardProjects() {
         <h2 className="text-lg font-semibold">{tNav('projects') || "Projects"}</h2>
         <Link 
           href={`/${locale}/projects`}
-          className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-sm font-medium text-sky-700 hover:bg-sky-100 hover:text-sky-900 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 hover:border-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 transition-colors"
         >
           {t('viewAll') || "View All"}
           <ChevronRight className="w-3.5 h-3.5" />
@@ -93,7 +93,7 @@ export function DashboardProjects() {
           <p className="text-xs text-slate-500 mb-4 max-w-[200px] mx-auto">
             Create a project to track tasks, timelines, and trades.
           </p>
-          <Button size="sm" className="h-8 text-xs bg-slate-900 text-white hover:bg-slate-800" onClick={() => setDialogOpen(true)}>
+          <Button size="sm" className="h-8 text-xs bg-sky-600 text-white hover:bg-sky-700" onClick={() => setDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Create Project
           </Button>
@@ -138,7 +138,11 @@ export function DashboardProjects() {
               </div>
             </Link>
           ))}
-          <Button size="sm" variant="outline" className="w-full h-8 mt-2 text-xs text-slate-600" onClick={() => setDialogOpen(true)}>
+          <Button
+            size="sm"
+            className="w-full h-9 mt-2 text-sm font-semibold bg-sky-600 text-white hover:bg-sky-700 shadow-sm"
+            onClick={() => setDialogOpen(true)}
+          >
             <Plus className="w-3.5 h-3.5 mr-1" />
             New Project
           </Button>
