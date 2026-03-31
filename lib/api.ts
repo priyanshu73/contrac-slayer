@@ -2,7 +2,7 @@
  * API client layer for backend communication
  */
 
-import { User, ContractorProfile } from './types'
+import type { User, ContractorProfile, QBOInvoiceDetail, QBOProjectInvoiceDetailResponse } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
@@ -281,8 +281,8 @@ class ApiClient {
     return this.request<QBOInvoiceDetail>(`/quickbooks/invoice/${jobId}/detail`)
   }
 
-  async getQBOProjectInvoiceDetail(projectId: number): Promise<QBOInvoiceDetail & { has_invoice: boolean }> {
-    return this.request<QBOInvoiceDetail & { has_invoice: boolean }>(`/quickbooks/project/${projectId}/invoice-detail`)
+  async getQBOProjectInvoiceDetail(projectId: number): Promise<QBOProjectInvoiceDetailResponse> {
+    return this.request<QBOProjectInvoiceDetailResponse>(`/quickbooks/project/${projectId}/invoice-detail`)
   }
 
   async uploadLogo(file: File) {

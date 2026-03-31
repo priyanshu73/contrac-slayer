@@ -670,6 +670,7 @@ export default function QuoteDetailPage() {
         onSendFollowupSubmit={handleSendFollowupSubmit}
         followupSending={followupSending}
         gmailConnected={gmailConnected}
+        qboConnected={qboConnected}
         onCreateInvoice={handleCreateInvoice}
         onSendInvoiceEmail={handleSendInvoiceEmail}
         sendingInvoiceEmail={sendingInvoiceEmail}

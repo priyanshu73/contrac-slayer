@@ -407,6 +407,26 @@ export interface QBOInvoiceDetail {
   synced_at: string | null
 }
 
+/** Paid quote on project with no QuickBooks invoice id/url — shown under QuickBooks as “other payments”. */
+export interface ManualPaidQuoteSnapshot {
+  job_id: number
+  title: string
+  job_number?: string | null
+  total_amount: number
+  client_name?: string | null
+}
+
+/** Response from GET /quickbooks/project/{id}/invoice-detail */
+export interface QBOProjectInvoiceDetailResponse {
+  quickbooks_connected: boolean
+  has_invoice: boolean
+  multiple_invoices: boolean
+  invoice_count: number
+  invoices: Array<QBOInvoiceDetail & { job_id: number }>
+  /** PAID linked jobs without QBO invoice id/url */
+  manual_paid_quotes: ManualPaidQuoteSnapshot[]
+}
+
 export interface ChangeOrderCreate {
   change_order_reason?: string
   job_description?: string
@@ -1045,6 +1065,11 @@ export interface ProjectFinancialSummary {
   total_cost_items: number
   total_materials: number
   total_invoiced: number
+  /** Sum of payments logged in the Payments Received sidebar */
+  payments_logged_total?: number
+  /** Sum of amount paid on linked QuickBooks invoices (0 if not connected or on error) */
+  quickbooks_collected_total?: number
+  /** Effective client cash received: max(logged, QuickBooks) */
   total_paid: number
   remaining_balance: number
   profit_to_date: number

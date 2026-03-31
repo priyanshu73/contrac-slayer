@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check } from "lucide-react"
+import { Check, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -46,6 +46,8 @@ interface PersonalizedQuoteViewProps {
   onSendFollowupSubmit?: (sendSms: boolean, sendEmail: boolean) => void
   followupSending?: boolean
   gmailConnected?: boolean
+  /** QuickBooks OAuth connected (from GET /quickbooks/status). Used to gate "Open in QuickBooks". */
+  qboConnected?: boolean
   onCreateInvoice?: () => void
   onSendInvoiceEmail?: () => void
   sendingInvoiceEmail?: boolean
@@ -84,6 +86,7 @@ export function PersonalizedQuoteView({
   onSendFollowupSubmit,
   followupSending = false,
   gmailConnected = false,
+  qboConnected = false,
   onCreateInvoice,
   onSendInvoiceEmail,
   sendingInvoiceEmail = false,
@@ -959,16 +962,6 @@ export function PersonalizedQuoteView({
                                 </>
                               )}
                             </Button>
-                            {currentJob.qbo_invoice_url && (
-                              <a
-                                href={currentJob.qbo_invoice_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-sky-600 hover:underline"
-                              >
-                                View in QuickBooks
-                              </a>
-                            )}
                           </div>
                         ) : (
                           /* Normal quote send options */
@@ -1076,6 +1069,20 @@ export function PersonalizedQuoteView({
                           </svg>
                           Edit Quote
                         </Button>
+                        {qboConnected &&
+                          currentJob.qbo_invoice_id &&
+                          Boolean(currentJob.qbo_invoice_url?.trim()) && (
+                            <Button size="lg" className="w-full justify-start h-12 text-base" variant="outline" asChild>
+                              <a
+                                href={currentJob.qbo_invoice_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink className="mr-3 h-5 w-5 shrink-0" />
+                                Open in QuickBooks
+                              </a>
+                            </Button>
+                          )}
                         {onCreateChangeOrder &&
                           ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
                             <Button

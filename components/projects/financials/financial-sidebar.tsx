@@ -98,7 +98,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
   }
 
   // Use the safe summary or default to 0s
-  const totalPaid = summary?.total_paid || 0
+  const totalPaid = summary?.total_paid ?? 0
   const remainingBalance = summary?.remaining_balance || 0
   const adjustedBudget = summary?.adjusted_budget || 0
   const collectedPct = summary?.collected_pct || 0
@@ -115,12 +115,12 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
           <Dialog open={openPaymentModal} onOpenChange={setOpenPaymentModal}>
             <DialogTrigger asChild>
               <Button size="sm" className="h-8 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                <Plus className="w-4 h-4 mr-1" /> Log Payment
+                <Plus className="w-4 h-4 mr-1" /> Add
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Log Payment Received</DialogTitle>
+                <DialogTitle>Log payment</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddPayment} className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -195,11 +195,11 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
           <div className="p-4 space-y-4 bg-white">
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Total Paid</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Collected</p>
                 <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalPaid)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Due</p>
                 <p className="text-lg font-bold text-orange-500">{formatCurrency(remainingBalance)}</p>
               </div>
             </div>
@@ -207,8 +207,12 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
             {/* Progress Bar */}
             <div className="space-y-1 mt-2">
               <div className="flex justify-between text-xs font-medium text-slate-500">
-                <span>{collectedPct}% Collected</span>
-                <span>Budget: {formatCurrency(adjustedBudget)}</span>
+                <span className="tabular-nums">
+                  {Number.isInteger(collectedPct) ? collectedPct : collectedPct.toFixed(1)}% collected
+                </span>
+                {adjustedBudget > 0 && (
+                  <span className="tabular-nums">Budget {formatCurrency(adjustedBudget)}</span>
+                )}
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div 
@@ -221,9 +225,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
 
           <div className="divide-y border-t bg-slate-50/50">
             {payments.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400 italic">
-                No payments recorded yet
-              </div>
+              <div className="p-5 text-center text-xs text-slate-400">No entries</div>
             ) : (
               payments.map(payment => (
                 <div key={payment.id} className="p-4 flex items-center justify-between group">
