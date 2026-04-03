@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Project, ProjectCostItem, CostItemStatus } from '@/lib/types'
 import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { 
@@ -34,6 +35,8 @@ interface JobCostingTabProps {
 
 export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
   const { toast } = useToast()
+  const { user } = useAuth()
+  const companyName = user?.contractor_profile?.company_name || 'Contractor'
   const [items, setItems] = useState<ProjectCostItem[]>([])
   const [loading, setLoading] = useState(true)
   const [subs, setSubs] = useState<any[]>([])
@@ -209,7 +212,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="w-[40%]">Line Item</TableHead>
-                        <TableHead className="w-[150px] min-w-[150px] text-right">GC Cost</TableHead>
+                        <TableHead className="w-[150px] min-w-[150px] text-right">{companyName} Cost</TableHead>
                         <TableHead className="w-[150px] min-w-[150px] text-right font-bold text-slate-800">Client Price</TableHead>
                         <TableHead className="w-[150px] min-w-[150px] text-right">Paid</TableHead>
                         <TableHead className="w-[120px] min-w-[120px] text-center">Status</TableHead>
@@ -291,7 +294,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                               <SelectContent>
                                 <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                                 <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                                <SelectItem value="GC_APPROVED">GC Approved</SelectItem>
+                                <SelectItem value="GC_APPROVED">{companyName} Approved</SelectItem>
                                 <SelectItem value="COMPLETED">Completed</SelectItem>
                               </SelectContent>
                             </Select>
@@ -378,7 +381,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
         <h3 className="font-bold tracking-widest text-sm text-slate-300">TOTAL PROJECT SUBS</h3>
         <div className="flex gap-8 text-sm">
           <div className="text-right">
-            <span className="text-slate-400 mr-2 text-xs">Total GC Cost</span>
+            <span className="text-slate-400 mr-2 text-xs">Total {companyName} Cost</span>
             <span className="font-semibold">{formatCurrency(totalGcCost)}</span>
           </div>
           <div className="text-right">

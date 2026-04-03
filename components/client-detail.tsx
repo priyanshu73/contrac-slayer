@@ -267,7 +267,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
         description: `${clientData.name} has been archived.`,
       })
       toast({ title: tClients("notifications.deleted") });
-      router.push("/contacts");
+      router.push(`/${locale}/clients`);
     } catch (err: any) {
       toast({
         title: tCommon("error"),
@@ -381,7 +381,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               {error || "The client you're looking for doesn't exist or hasn't been created yet."}
             </p>
             <Button variant="outline" asChild>
-              <a href={`/${locale}/contacts`}>{tClients("backToClients")}</a>
+              <a href={`/${locale}/clients`}>{tClients("backToClients")}</a>
             </Button>
           </div>
         </div>

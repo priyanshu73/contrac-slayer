@@ -21,8 +21,8 @@ interface PageContext {
 }
 
 const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
-    { pattern: /\/contacts\/sub\/([^/]+)/, page: "subcontractor_detail" },
-    { pattern: /\/contacts\/([^/]+)/, page: "client_detail" },
+    { pattern: /\/crew\/([^/]+)/, page: "subcontractor_detail" },
+    { pattern: /\/clients\/([^/]+)/, page: "client_detail" },
     { pattern: /\/leads\/([^/]+)/, page: "lead_detail" },
     { pattern: /\/projects\/([^/]+)/, page: "project_detail" },
     { pattern: /\/quotes\/([^/]+)/, page: "quote_detail" },
@@ -32,7 +32,7 @@ const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
 
 const LIST_ROUTES: { pattern: RegExp; page: string }[] = [
     { pattern: /\/dashboard/, page: "dashboard" },
-    { pattern: /\/contacts/, page: "contacts" },
+    { pattern: /\/(clients|crew)/, page: "contacts" },
     { pattern: /\/leads/, page: "leads" },
     { pattern: /\/projects/, page: "projects" },
     { pattern: /\/quotes/, page: "quotes" },
@@ -230,7 +230,7 @@ export function AgentChatPanel() {
         if (!toolNameOrPath) return ""
         const lowered = toolNameOrPath.toLowerCase()
         if (lowered.includes("subcontractor") || lowered.includes("/sub/")) return "text-orange-500"
-        if (lowered.includes("client") || (lowered.includes("/contacts/") && !lowered.includes("/sub/"))) return "text-violet-500"
+        if (lowered.includes("client") || lowered.includes("/clients/")) return "text-violet-500"
         if (lowered.includes("project")) return "text-emerald-500"
         if (lowered.includes("lead")) return "text-rose-500 dark:text-rose-400"
         if (lowered.includes("quote") || lowered.includes("job")) return "text-amber-500"
@@ -910,7 +910,7 @@ export function AgentChatPanel() {
 
                                                                 const isAppRoute = internalPath?.startsWith("/quotes/")
                                                                     || internalPath?.startsWith("/projects/")
-                                                                    || internalPath?.startsWith("/contacts/")
+                                                                    || internalPath?.startsWith("/clients/") || internalPath?.startsWith("/crew/")
                                                                     || internalPath?.startsWith("/leads/")
                                                                     || internalPath?.startsWith("/calendar/")
 

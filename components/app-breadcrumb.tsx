@@ -23,8 +23,8 @@ interface AppBreadcrumbProps {
  * Usage example:
  *   <AppBreadcrumb
  *     items={[
- *       { label: "Contacts", href: `/${locale}/contacts` },
- *       { label: "Subcontractors", href: `/${locale}/contacts?tab=subcontractors` },
+ *       { label: "Clients", href: `/${locale}/clients` },
+ *       { label: "Crew", href: `/${locale}/crew` },
  *       { label: subcontractorName },
  *     ]}
  *   />

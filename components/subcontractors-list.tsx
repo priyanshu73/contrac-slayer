@@ -72,7 +72,7 @@ export function SubcontractorsList({
     const [updatingId, setUpdatingId] = useState<number | null>(null)
 
     const handleRowClick = (id: number) => {
-        router.push(`/${locale}/contacts/sub/${id}`)
+        router.push(`/${locale}/crew/${id}`)
     }
 
     const handleCopyAvailabilityLink = (e: React.MouseEvent, uuid: string) => {

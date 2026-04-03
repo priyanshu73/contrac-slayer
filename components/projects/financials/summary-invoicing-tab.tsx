@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Project,
   ProjectFinancialSummary,
@@ -12,7 +13,6 @@ import {
 } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,11 +35,6 @@ interface SummaryInvoicingTabProps {
 }
 
 type InvoiceRow = QBOInvoiceDetail & { job_id: number }
-
-function pctDisplay(n: number): string {
-  const t = Math.round(n * 10) / 10
-  return Number.isInteger(t) ? String(t) : t.toFixed(1)
-}
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -250,6 +245,8 @@ function ManualPaidQuotesSection({
 
 export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabProps) {
   const locale = useLocale()
+  const { user } = useAuth()
+  const companyName = user?.contractor_profile?.company_name || 'Contractor'
   const settingsIntegrationsHref = `/${locale}/settings?tab=integrations`
 
   const [qboPayload, setQboPayload] = useState<QBOProjectInvoiceDetailResponse | null>(null)
@@ -290,17 +287,6 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
     fetchQBODetail()
   }, [fetchQBODetail])
 
-  const invoicedNum = Number(summary.total_invoiced)
-  const budgetAdj = Number(summary.adjusted_budget)
-  const chartBudget = Math.max(budgetAdj, invoicedNum, budgetAdj > 0 || invoicedNum > 0 ? 0 : 1)
-  const remainingToInvoice = Math.max(0, chartBudget - invoicedNum)
-
-  const chartData = [
-    { name: 'Invoiced', value: invoicedNum },
-    { name: 'Remaining to Invoice', value: remainingToInvoice },
-  ]
-
-  const COLORS = ['#F26522', '#cbd5e1']
 
   let qboSectionBody: ReactNode = null
 
@@ -391,117 +377,43 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
 
   return (
     <div className="p-6 space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold tracking-tight text-slate-800">Snapshot</h2>
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold tracking-tight text-slate-800">Snapshot</h2>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-slate-50 border-slate-200">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Adjusted Budget</p>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{formatCurrency(summary.adjusted_budget)}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-orange-50 border-orange-100">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-orange-600 uppercase">Total Invoiced</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{formatCurrency(summary.total_invoiced)}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-50 border-slate-200">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Payments Logged</p>
-                <p className="text-2xl font-bold text-slate-700 mt-1">
-                  {formatCurrency(
-                    summary.payments_logged_total !== undefined
-                      ? summary.payments_logged_total
-                      : (summary.total_paid ?? 0),
-                  )}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-emerald-50 border-emerald-100">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-emerald-700 uppercase">Collected</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(summary.total_paid)}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-blue-50 border-blue-100 col-span-2">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-blue-600 uppercase">GC Profit to Date</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(summary.profit_to_date)}</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardContent className="p-5 space-y-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-slate-600">Invoiced</span>
-                  <span className="text-slate-800 tabular-nums">{pctDisplay(summary.invoiced_pct)}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                  <div
-                    className="bg-orange-500 h-3"
-                    style={{ width: `${Math.min(summary.invoiced_pct, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-slate-600">Collected</span>
-                  <span className="text-slate-800 tabular-nums">{pctDisplay(summary.collected_pct)}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-3"
-                    style={{ width: `${Math.min(summary.collected_pct, 100)}%` }}
-                  />
-                </div>
-              </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Card className="bg-amber-50 border-amber-100">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Material Cost</p>
+              <p className="text-lg font-bold text-amber-700 mt-1 tabular-nums">{formatCurrency(summary.total_materials)}</p>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold tracking-tight text-slate-800">Billing</h2>
+          <Card className="bg-slate-50 border-slate-200">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{companyName} Cost</p>
+              <p className="text-lg font-bold text-slate-700 mt-1 tabular-nums">{formatCurrency(summary.total_cost_items)}</p>
+            </CardContent>
+          </Card>
 
-          <Card className="flex flex-col items-center p-6 border-slate-200">
-            <div className="h-48 w-full relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+          <Card className="bg-orange-50 border-orange-100">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">Total Invoiced</p>
+              <p className="text-lg font-bold text-orange-600 mt-1 tabular-nums">{formatCurrency(summary.total_invoiced)}</p>
+            </CardContent>
+          </Card>
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-2">
-                <span className="text-lg font-bold text-slate-800 tabular-nums leading-tight">
-                  {pctDisplay(summary.invoiced_pct)}%
-                </span>
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-0.5">
-                  invoiced
-                </span>
-              </div>
-            </div>
+          <Card className="bg-emerald-50 border-emerald-100">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Collected</p>
+              <p className="text-lg font-bold text-emerald-600 mt-1 tabular-nums">{formatCurrency(summary.total_paid)}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-blue-50 border-blue-100">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">{companyName} Profit</p>
+              <p className="text-lg font-bold text-blue-600 mt-1 tabular-nums">{formatCurrency(summary.profit_to_date)}</p>
+            </CardContent>
           </Card>
         </div>
       </div>

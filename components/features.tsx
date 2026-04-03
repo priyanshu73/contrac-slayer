@@ -2,11 +2,11 @@
 
 import React, { useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { InvoicePreview } from "@/components/invoice-preview";
 import { AIConversationPreview } from "@/components/ai-conversation-preview";
-import { ProductRecommendations } from "@/components/product-recommendations";
+import { DispatchPreview } from "@/components/dispatch-preview";
+import { JobCostingPreview } from "@/components/job-costing-preview";
 import ProjectManagementCard from "@/components/project-management-card";
-import { FileText, MessageSquare, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Phone, DollarSign, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function Features() {
   const t = useTranslations('landing');
@@ -15,6 +15,21 @@ export function Features() {
   const scroll = (dir: number) => {
     const el = scrollerRef.current;
     if (!el) return;
+    
+    // Check if we reached the scroll boundaries (with a small buffer)
+    const isAtEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 10;
+    const isAtStart = el.scrollLeft <= 10;
+    
+    // Loop around behavior
+    if (dir === 1 && isAtEnd) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+      return;
+    }
+    if (dir === -1 && isAtStart) {
+      el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+      return;
+    }
+
     // Scroll by exactly one slide width (including gap) so each view shows a full slide
     const first = el.firstElementChild as HTMLElement | null;
     if (!first) return;
@@ -27,9 +42,14 @@ export function Features() {
 
   // Auto-slide: rotate slides every N ms but keep manual controls active.
   const autoRef = useRef<number | null>(null);
-  const AUTO_INTERVAL = 6000; // 6s
+  const AUTO_INTERVAL = 7000; // 7s
 
   useEffect(() => {
+    // Ensure we always start at the first slide on refresh/mount
+    if (scrollerRef.current) {
+      scrollerRef.current.scrollTo({ left: 0, behavior: "instant" });
+    }
+
     const start = () => {
       stop();
       autoRef.current = window.setInterval(() => scroll(1), AUTO_INTERVAL);
@@ -63,31 +83,31 @@ export function Features() {
 
   const slides = [
     {
-      id: "invoices",
-      title: t('featuresInvoiceTitle'),
-      body: t('featuresInvoiceBody'),
-      icon: <FileText className="h-6 w-6 text-primary" />,
-      preview: <InvoicePreview />,
-    },
-    {
       id: "calls",
       title: t('featuresCallsTitle'),
       body: t('featuresCallsBody'),
-      icon: <MessageSquare className="h-6 w-6 text-accent" />,
+      icon: <MessageSquare className="h-6 w-6 text-indigo-600" />,
       preview: <AIConversationPreview />,
     },
     {
-      id: "products",
-      title: t('featuresProductsTitle'),
-      body: t('featuresProductsBody'),
-      icon: <ShoppingCart className="h-6 w-6 text-chart-3" />,
-      preview: <ProductRecommendations />,
+      id: "dispatch",
+      title: t('featuresDispatchTitle'),
+      body: t('featuresDispatchBody'),
+      icon: <Phone className="h-6 w-6 text-orange-500" />,
+      preview: <DispatchPreview />,
+    },
+    {
+      id: "fin",
+      title: t('featuresFinTitle'),
+      body: t('featuresFinBody'),
+      icon: <DollarSign className="h-6 w-6 text-emerald-600" />,
+      preview: <JobCostingPreview />,
     },
     {
       id: "pm",
       title: t('featuresPmTitle'),
       body: t('featuresPmBody'),
-      icon: null,
+      icon: <LayoutDashboard className="h-6 w-6 text-blue-600" />,
       preview: <ProjectManagementCard />,
     },
   ];

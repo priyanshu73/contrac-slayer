@@ -153,7 +153,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
               <Button asChild className="w-full sm:w-auto h-11 sm:h-auto font-medium">
-                <a href={`/${locale}/contacts/new`}>{tClients("addFirstClient")}</a>
+                <a href={`/${locale}/clients/new`}>{tClients("addFirstClient")}</a>
               </Button>
             </div>
           </div>
@@ -171,7 +171,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
   }
 
   const handleRowClick = (clientId: number) => {
-    router.push(`/${locale}/contacts/${clientId}`)
+    router.push(`/${locale}/clients/${clientId}`)
   }
 
   return (
@@ -268,7 +268,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
-                                <Link href={`/${locale}/contacts/${client.id}`}>
+                                <Link href={`/${locale}/clients/${client.id}`}>
                                   <Eye className="h-4 w-4" aria-label="View" />
                                 </Link>
                               </Button>
@@ -462,7 +462,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
 
                 <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
                   <Button asChild variant="outline" size="sm" className="w-full h-10 touch-manipulation hover:bg-slate-50 hover:text-primary transition-colors">
-                    <Link href={`/${locale}/contacts/${client.id}`} className="flex items-center justify-center gap-1.5">
+                    <Link href={`/${locale}/clients/${client.id}`} className="flex items-center justify-center gap-1.5">
                       <Eye className="h-3.5 w-3.5" />
                       {tClients("view")}
                     </Link>

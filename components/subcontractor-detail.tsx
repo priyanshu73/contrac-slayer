@@ -162,7 +162,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         try {
             await api.deleteSubcontractor(subData.id)
             toast({ title: "Crew member archived" })
-            router.push(`/${locale}/contacts`)
+            router.push(`/${locale}/crew`)
         } catch (err: any) {
             toast({ title: "Archive failed", description: err.message, variant: "destructive" })
         } finally {
@@ -216,7 +216,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-xl font-semibold text-slate-700 mb-2">Crew member not found</h2>
-                    <Button variant="outline" onClick={() => router.push(`/${locale}/contacts`)}>
+                    <Button variant="outline" onClick={() => router.push(`/${locale}/crew`)}>
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Contacts
                     </Button>
                 </div>
@@ -231,8 +231,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                     {/* Breadcrumb */}
                     <AppBreadcrumb
                         items={[
-                            { label: "Contacts", href: `/${locale}/contacts` },
-                            { label: "Crew", href: `/${locale}/contacts?tab=subcontractors` },
+                            { label: "Crew", href: `/${locale}/crew` },
                             { label: subData.name },
                         ]}
                     />
