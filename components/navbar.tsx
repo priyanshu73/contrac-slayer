@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
+  FileText,
   MessageSquare,
   Calendar,
   Users,
@@ -17,6 +18,7 @@ import {
   MessageCircle,
   Settings,
   FolderKanban,
+  ListTodo,
   LogOut,
   ChevronsLeft,
   ChevronsRight,
@@ -67,11 +69,13 @@ export function Navbar() {
 
   const navLinks = [
     { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
+    { href: `/${locale}/quotes`, label: t('quotes'), icon: FileText },
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
     { href: `/${locale}/clients`, label: "Clients", icon: Users },
     { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
     { href: `/${locale}/projects`, label: t('projects'), icon: FolderKanban },
+    { href: `/${locale}/tasks`, label: t('tasks'), icon: ListTodo },
   ]
 
   const actionLinks = [

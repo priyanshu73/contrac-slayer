@@ -539,6 +539,11 @@ export interface ProjectTask {
   documents?: ProjectMedia[]
 }
 
+export interface ContractorTask extends ProjectTask {
+  project_title?: string
+  project_status?: ProjectStatus
+}
+
 export interface ProjectTrade {
   id: number
   uuid: string

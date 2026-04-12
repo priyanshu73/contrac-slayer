@@ -404,6 +404,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [aiLoading, setAiLoading] = useState(false)
   const [aiLoadingStage, setAiLoadingStage] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
+  const [descriptionEditorsOpen, setDescriptionEditorsOpen] = useState<number[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
@@ -1223,7 +1224,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const buildJobUpdatePayload = (notesOverride?: string, itemsOverride?: LineItem[]) => {
     const sourceItems = itemsOverride ?? items
     const validItems = sourceItems.filter(item =>
-      item.description.trim() &&
+      (item.description.trim() || (item.title && item.title.trim())) &&
       (item.quantity || 0) > 0 &&
       getRateNumber(item.rate) > 0
     )
@@ -1278,7 +1279,19 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
+    setDescriptionEditorsOpen((prev) =>
+      prev
+        .filter((i) => i !== index)
+        .map((i) => (i > index ? i - 1 : i))
+    )
   }
+
+  const showDescriptionEditor = (index: number) => {
+    setDescriptionEditorsOpen((prev) => (prev.includes(index) ? prev : [...prev, index]))
+  }
+
+  const isDescriptionEditorVisible = (index: number, item: LineItem) =>
+    descriptionEditorsOpen.includes(index) || item.description.trim().length > 0
 
   const handleSubstitute = (index: number) => {
     setSubstituteItemIndex(index)
@@ -1315,15 +1328,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (!clientEmail.trim()) return "Client email is required"
     // Address is now optional - removed validation
 
-    // Check if at least one line item has description and rate
+    // Check if at least one line item has description or title and rate
     const validItems = items.filter(item =>
-      item.description.trim() &&
+      (item.description.trim() || (item.title && item.title.trim())) &&
       (item.quantity || 0) > 0 &&
       getRateNumber(item.rate) > 0
     )
 
     if (validItems.length === 0) {
-      return "At least one line item with description, quantity, and rate is required"
+      return "At least one line item with a title or description, quantity, and rate is required"
     }
 
     return null
@@ -1345,7 +1358,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     try {
       // Filter out empty items
       const validItems = items.filter(item =>
-        item.description.trim() &&
+        (item.description.trim() || (item.title && item.title.trim())) &&
         (item.quantity || 0) > 0 &&
         getRateNumber(item.rate) > 0
       )
@@ -1968,9 +1981,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[180px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
+            <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title & Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
@@ -2166,63 +2178,91 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[180px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-start">
-                    {/* Title - with inline autocomplete search */}
-                    <div className="min-w-0">
-                      <LineItemTitleAutocomplete
-                        value={item.title || ""}
-                        onChange={(val) => updateItem(index, "title", val)}
-                        onSelect={(result) => {
-                          const updated = [...items]
-                          updated[index] = {
-                            ...updated[index],
-                            description: result.description,
-                            rate: result.price,
-                            unitOfMeasure: result.unit,
-                          }
-                          if (result.title) updated[index].title = result.title
-                          setItems(updated)
-                        }}
-                        placeholder="Item name"
-                      />
-                    </div>
-
-                    {/* Description - always visible, auto-expanding */}
-                    <div className="min-w-0 flex flex-col">
-                      <div className="flex items-start gap-1.5">
-                        {(item.thumbnailUrl || item.imageUrl) && (
-                          <MaterialThumbnail
-                            src={item.thumbnailUrl || item.imageUrl}
-                            alt={item.description}
-                            className="w-7 h-7 flex-shrink-0 rounded mt-1.5"
-                            category={item.category}
-                            index={index}
+                  <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px_40px] gap-2 items-start">
+                    {/* Title + Description stacked in one column */}
+                    <div className="min-w-0 flex flex-col gap-1.5">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <LineItemTitleAutocomplete
+                            value={item.title || ""}
+                            onChange={(val) => updateItem(index, "title", val)}
+                            onSelect={(result) => {
+                              const updated = [...items]
+                              updated[index] = {
+                                ...updated[index],
+                                description: result.description,
+                                rate: result.price,
+                                unitOfMeasure: result.unit,
+                              }
+                              if (result.title) updated[index].title = result.title
+                              setItems(updated)
+                              if (result.description?.trim()) {
+                                showDescriptionEditor(index)
+                              }
+                            }}
+                            placeholder="Item name"
                           />
+                        </div>
+                        {!isDescriptionEditorVisible(index, item) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => showDescriptionEditor(index)}
+                                  className="h-9 w-9 shrink-0 border border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-700"
+                                  aria-label="Add description"
+                                >
+                                  <span className="text-lg leading-none">+</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Add description</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
-                        <Textarea
-                          value={item.description}
-                          onChange={(e) => {
-                            updateItem(index, "description", e.target.value)
-                            e.target.style.height = 'auto'
-                            e.target.style.height = e.target.scrollHeight + 'px'
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.height = 'auto'
-                            e.target.style.height = e.target.scrollHeight + 'px'
-                          }}
-                          placeholder="Enter item description"
-                          className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
-                          rows={1}
-                          ref={(el) => {
-                            if (el) {
-                              el.style.height = 'auto'
-                              el.style.height = el.scrollHeight + 'px'
-                            }
-                          }}
-                        />
                       </div>
+
+                      {isDescriptionEditorVisible(index, item) && (
+                        <div className="flex items-start gap-1.5">
+                          {(item.thumbnailUrl || item.imageUrl) && (
+                            <MaterialThumbnail
+                              src={item.thumbnailUrl || item.imageUrl}
+                              alt={item.description}
+                              className="w-7 h-7 flex-shrink-0 rounded mt-1.5"
+                              category={item.category}
+                              index={index}
+                            />
+                          )}
+                          <Textarea
+                            value={item.description}
+                            onChange={(e) => {
+                              updateItem(index, "description", e.target.value)
+                              e.target.style.height = 'auto'
+                              e.target.style.height = e.target.scrollHeight + 'px'
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.height = 'auto'
+                              e.target.style.height = e.target.scrollHeight + 'px'
+                            }}
+                            placeholder="Enter item description"
+                            className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
+                            rows={1}
+                            ref={(el) => {
+                              if (el) {
+                                el.style.height = 'auto'
+                                el.style.height = el.scrollHeight + 'px'
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
                       {item.brand && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        <p className="text-[10px] text-muted-foreground truncate">
                           {item.brand} {item.model && `- ${item.model}`}
                         </p>
                       )}

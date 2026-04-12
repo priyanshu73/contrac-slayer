@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -219,8 +220,14 @@ export function LineItemTitleAutocomplete({
   const debouncedQuery = useDebounce(value.trim(), 350)
   const [suggestions, setSuggestions] = React.useState<AutocompleteSuggestion[]>([])
   const [loading, setLoading] = React.useState(false)
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
+
+  const syncHeight = React.useCallback((element?: HTMLTextAreaElement | null) => {
+    if (!element) return
+    element.style.height = "auto"
+    element.style.height = `${element.scrollHeight}px`
+  }, [])
 
   // Fetch suggestions when debounced query changes
   React.useEffect(() => {
@@ -261,14 +268,19 @@ export function LineItemTitleAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  React.useEffect(() => {
+    syncHeight(textareaRef.current)
+  }, [value, syncHeight])
+
   return (
     <div ref={containerRef} className="relative flex-1 min-w-0">
       <div className="relative">
-        <Input
-          ref={inputRef}
+        <Textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => {
             onChange(e.target.value)
+            syncHeight(e.target)
             if (e.target.value.trim().length >= 2) {
               setOpen(true)
             } else {
@@ -276,19 +288,21 @@ export function LineItemTitleAutocomplete({
             }
           }}
           onFocus={() => {
+            syncHeight(textareaRef.current)
             if (suggestions.length > 0 && value.trim().length >= 2) {
               setOpen(true)
             }
           }}
           placeholder={placeholder}
           className={cn(
-            "h-9 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors pr-7",
+            "min-h-[36px] py-2 pr-7 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors resize-none overflow-hidden",
             className
           )}
+          rows={1}
           autoComplete="off"
         />
         {loading && (
-          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <div className="absolute right-2 top-3">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           </div>
         )}

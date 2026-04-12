@@ -213,6 +213,7 @@
     "clients": "Clients",
     "people": "People",
     "projects": "Projects",
+    "tasks": "Tasks",
     "invoices": "Invoices",
     "calendar": "Calendar",
     "settings": "Settings",
@@ -439,6 +440,54 @@
       "acceptanceCriteria": "Acceptance criteria",
       "acceptScope": "Accept scope",
       "pricingNote": "Pricing, other trades, and contractor margin details are managed by the general contractor and are not shown here."
+    }
+  },
+  "taskBoard": {
+    "title": "Tasks",
+    "subtitle": "See every task across projects, create new work, and assign it to yourself or a subcontractor.",
+    "newTask": "New Task",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "selectProject": "Select project",
+    "allProjects": "All projects",
+    "allAssignees": "All assignees",
+    "allStatuses": "All statuses",
+    "unassigned": "Unassigned",
+    "assignToMe": "Assign to me",
+    "clearFilters": "Clear filters",
+    "empty": "No tasks match these filters yet.",
+    "openProject": "Open project",
+    "dueLabel": "Due",
+    "projectLabel": "Project",
+    "assigneeLabel": "Assigned to",
+    "loadError": "Could not load tasks right now.",
+    "updateSuccess": "Task updated",
+    "updateError": "Could not update task",
+    "createProjectPrompt": "Pick a project to add the task into.",
+    "createDialog": {
+      "title": "Create task",
+      "description": "Choose which project this task belongs to, then fill in the task details.",
+      "continue": "Continue"
+    },
+    "deleteDialog": {
+      "title": "Delete task?",
+      "description": "This will permanently remove \"{task}\" from the project."
+    },
+    "filters": {
+      "searchPlaceholder": "Search tasks, descriptions, projects, or assignees"
+    },
+    "stats": {
+      "total": "Total tasks",
+      "mine": "Assigned to me",
+      "subcontracted": "Assigned to subcontractors",
+      "completed": "Completed"
+    },
+    "status": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "blocked": "Blocked"
     }
   },
   "common": {

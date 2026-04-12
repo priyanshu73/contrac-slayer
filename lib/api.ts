@@ -1108,6 +1108,10 @@ class ApiClient {
     return this.request(`/projects/${projectId}/tasks`)
   }
 
+  async getAllProjectTasks() {
+    return this.request('/project-tasks')
+  }
+
   async createProjectTask(projectId: number, data: any) {
     return this.request(`/projects/${projectId}/tasks`, {
       method: 'POST',

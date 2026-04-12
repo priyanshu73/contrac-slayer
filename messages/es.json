@@ -213,6 +213,7 @@
     "clients": "Clientes",
     "people": "Personas",
     "projects": "Proyectos",
+    "tasks": "Tareas",
     "invoices": "Facturas",
     "calendar": "Calendario",
     "settings": "Configuración",
@@ -422,6 +423,54 @@
       "acceptanceCriteria": "Criterios de aceptación",
       "acceptScope": "Aceptar alcance",
       "pricingNote": "Los precios, otros trades y márgenes internos del contratista general se gestionan en ContractorOps y no se muestran aquí."
+    }
+  },
+  "taskBoard": {
+    "title": "Tareas",
+    "subtitle": "Ve todas las tareas de tus proyectos, crea trabajo nuevo y asígnalo a ti mismo o a un subcontratista.",
+    "newTask": "Nueva tarea",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando...",
+    "selectProject": "Seleccionar proyecto",
+    "allProjects": "Todos los proyectos",
+    "allAssignees": "Todos los asignados",
+    "allStatuses": "Todos los estados",
+    "unassigned": "Sin asignar",
+    "assignToMe": "Asignarme",
+    "clearFilters": "Limpiar filtros",
+    "empty": "Todavía no hay tareas que coincidan con estos filtros.",
+    "openProject": "Abrir proyecto",
+    "dueLabel": "Vence",
+    "projectLabel": "Proyecto",
+    "assigneeLabel": "Asignado a",
+    "loadError": "No se pudieron cargar las tareas.",
+    "updateSuccess": "Tarea actualizada",
+    "updateError": "No se pudo actualizar la tarea",
+    "createProjectPrompt": "Elige un proyecto donde agregar la tarea.",
+    "createDialog": {
+      "title": "Crear tarea",
+      "description": "Elige a qué proyecto pertenece esta tarea y luego completa los detalles.",
+      "continue": "Continuar"
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar tarea?",
+      "description": "Esto eliminará permanentemente \"{task}\" del proyecto."
+    },
+    "filters": {
+      "searchPlaceholder": "Busca por tarea, descripción, proyecto o asignado"
+    },
+    "stats": {
+      "total": "Tareas totales",
+      "mine": "Asignadas a mí",
+      "subcontracted": "Asignadas a subcontratistas",
+      "completed": "Completadas"
+    },
+    "status": {
+      "not_started": "Sin comenzar",
+      "in_progress": "En progreso",
+      "completed": "Completada",
+      "blocked": "Bloqueada"
     }
   },
   "common": {
