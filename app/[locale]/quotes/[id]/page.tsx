@@ -358,41 +358,36 @@ export default function QuoteDetailPage() {
   }
 
   const handleCreateInvoice = async () => {
-    if (!job) return
+    if (!job || !qboConnected || job.qbo_invoice_id) return
 
-    if (qboConnected && !job.qbo_invoice_id) {
-      // Create invoice in QuickBooks
-      setQboInvoiceLoading(true)
-      try {
-        const result = await api.createQBOInvoice(job.id, true)
-        toast({
-          title: "Invoice created in QuickBooks",
-          description: (
-            <span>
-              Invoice created and emailed to client.{" "}
-              <a
-                href={result.invoice_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-medium"
-              >
-                View in QuickBooks →
-              </a>
-            </span>
-          ),
-        })
-        await fetchJob()
-      } catch (err: any) {
-        toast({
-          title: "Failed to create invoice",
-          description: err?.message || "Something went wrong.",
-          variant: "destructive",
-        })
-      } finally {
-        setQboInvoiceLoading(false)
-      }
-    } else {
-      router.push(`/invoices/new?jobId=${identifier}`)
+    setQboInvoiceLoading(true)
+    try {
+      const result = await api.createQBOInvoice(job.id, true)
+      toast({
+        title: "Invoice created in QuickBooks",
+        description: (
+          <span>
+            Invoice created and emailed to client.{" "}
+            <a
+              href={result.invoice_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              View in QuickBooks →
+            </a>
+          </span>
+        ),
+      })
+      await fetchJob()
+    } catch (err: any) {
+      toast({
+        title: "Failed to create invoice",
+        description: err?.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setQboInvoiceLoading(false)
     }
   }
 
@@ -672,6 +667,7 @@ export default function QuoteDetailPage() {
         gmailConnected={gmailConnected}
         qboConnected={qboConnected}
         onCreateInvoice={handleCreateInvoice}
+        creatingInvoice={qboInvoiceLoading}
         onSendInvoiceEmail={handleSendInvoiceEmail}
         sendingInvoiceEmail={sendingInvoiceEmail}
         onCreateChangeOrder={handleCreateChangeOrder}

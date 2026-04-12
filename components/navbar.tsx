@@ -47,7 +47,7 @@ export function Navbar() {
     try {
       const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
       if (stored === "true") setCollapsed(true)
-    } catch {}
+    } catch { }
   }, [])
 
   const toggleCollapsed = () => {
@@ -55,7 +55,7 @@ export function Navbar() {
       const next = !prev
       try {
         localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
-      } catch {}
+      } catch { }
       return next
     })
   }
@@ -166,13 +166,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
-                  collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-                } ${
-                  isActive
+                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+                  } ${isActive
                     ? "bg-sky-500/10 text-sky-700"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                  }`}
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" />
                 {!collapsed && <span className="truncate">{link.label}</span>}
@@ -211,13 +209,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
-                  collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-                } ${
-                  isActive
+                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+                  } ${isActive
                     ? "bg-sky-500/10 text-sky-700"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                  }`}
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" />
                 {!collapsed && <span className="truncate">{link.label}</span>}
@@ -257,13 +253,11 @@ export function Navbar() {
             const settingsLink = (
               <Link
                 href={`/${locale}/settings`}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors mx-2 my-1.5 ${
-                  collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-                } ${
-                  isSettingsActive
+                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors mx-2 my-1.5 ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+                  } ${isSettingsActive
                     ? "bg-sky-500/10 text-sky-700"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                  }`}
               >
                 <Settings className="h-[18px] w-[18px] shrink-0" />
                 {!collapsed && <span className="truncate">{t('settings')}</span>}
@@ -286,9 +280,8 @@ export function Navbar() {
           {/* Collapse toggle */}
           <button
             onClick={toggleCollapsed}
-            className={`flex items-center gap-3 w-full text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mx-0 px-2 py-3 border-t border-border ${
-              collapsed ? "justify-center" : "px-5"
-            }`}
+            className={`flex items-center gap-3 w-full text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mx-0 px-2 py-3 border-t border-border ${collapsed ? "justify-center" : "px-5"
+              }`}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -314,9 +307,8 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${
-                  isActive ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
-                }`}
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 ${isActive ? "bg-sky-500/10 text-sky-700" : "text-muted-foreground"
+                  }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="truncate text-center text-xs font-medium leading-tight">{link.label}</span>
@@ -339,14 +331,14 @@ export function useSidebarMargin(): string {
     try {
       const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
       if (stored === "true") setCollapsed(true)
-    } catch {}
+    } catch { }
 
     // Listen for storage changes so the margin updates in sync
     const handler = () => {
       try {
         const val = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
         setCollapsed(val === "true")
-      } catch {}
+      } catch { }
     }
     window.addEventListener("storage", handler)
     return () => window.removeEventListener("storage", handler)

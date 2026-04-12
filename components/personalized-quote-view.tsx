@@ -49,6 +49,7 @@ interface PersonalizedQuoteViewProps {
   /** QuickBooks OAuth connected (from GET /quickbooks/status). Used to gate "Open in QuickBooks". */
   qboConnected?: boolean
   onCreateInvoice?: () => void
+  creatingInvoice?: boolean
   onSendInvoiceEmail?: () => void
   sendingInvoiceEmail?: boolean
   onCreateChangeOrder?: () => void
@@ -88,6 +89,7 @@ export function PersonalizedQuoteView({
   gmailConnected = false,
   qboConnected = false,
   onCreateInvoice,
+  creatingInvoice = false,
   onSendInvoiceEmail,
   sendingInvoiceEmail = false,
   onCreateChangeOrder,
@@ -1058,6 +1060,37 @@ export function PersonalizedQuoteView({
                           </svg>
                           Edit Quote
                         </Button>
+                        {qboConnected &&
+                          !currentJob.qbo_invoice_id &&
+                          onCreateInvoice &&
+                          ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
+                            <Button
+                              size="lg"
+                              className="w-full justify-start h-12 text-base"
+                              variant="outline"
+                              onClick={onCreateInvoice}
+                              disabled={creatingInvoice}
+                            >
+                              {creatingInvoice ? (
+                                <>
+                                  <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                  </svg>
+                                  Creating…
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="mr-3 h-5 w-5 shrink-0" viewBox="0 0 40 40" fill="none">
+                                    <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                                    <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                                    <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                                  </svg>
+                                  Create Invoice
+                                </>
+                              )}
+                            </Button>
+                          )}
                         {qboConnected &&
                           currentJob.qbo_invoice_id &&
                           Boolean(currentJob.qbo_invoice_url?.trim()) && (

@@ -989,7 +989,7 @@ export function SettingsTabs() {
                   <div className="p-4 sm:p-6">
                     <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">QuickBooks Online</h3>
                     <p className="text-xs sm:text-sm text-slate-500 mb-4">
-                      Connect QuickBooks to automatically create invoices from accepted quotes. Clients can pay directly through QuickBooks.
+                      Connect QuickBooks to create and manage invoices. Clients can pay directly through QuickBooks.
                     </p>
 
                     {qboStatusLoading ? (
@@ -1074,39 +1074,7 @@ export function SettingsTabs() {
                           </div>
                         </div>
                         {qboStatus?.connected && (
-                          <div className="border-t border-slate-200 pt-3 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-slate-700">Auto-Invoice</p>
-                                <p className="text-xs text-slate-500">Automatically create a QuickBooks invoice when a client accepts a quote</p>
-                              </div>
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={qboStatus.auto_invoice}
-                                onClick={async () => {
-                                  setQboAutoInvoiceLoading(true)
-                                  try {
-                                    const result = await api.updateQBOSettings(!qboStatus.auto_invoice)
-                                    setQboStatus({ ...qboStatus, auto_invoice: result.auto_invoice })
-                                  } catch (err: unknown) {
-                                    setError(err instanceof Error ? err.message : "Failed to update setting")
-                                  } finally {
-                                    setQboAutoInvoiceLoading(false)
-                                  }
-                                }}
-                                disabled={qboAutoInvoiceLoading}
-                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#2CA01C] focus:ring-offset-2 ${
-                                  qboStatus.auto_invoice ? 'bg-[#2CA01C]' : 'bg-slate-200'
-                                } ${qboAutoInvoiceLoading ? 'opacity-50' : ''}`}
-                              >
-                                <span
-                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                    qboStatus.auto_invoice ? 'translate-x-5' : 'translate-x-0'
-                                  }`}
-                                />
-                              </button>
-                            </div>
+                          <div className="border-t border-slate-200 pt-3">
                             <p className="text-xs text-slate-500">
                               Disconnecting revokes access with Intuit and removes stored tokens. You can connect again anytime.
                             </p>
