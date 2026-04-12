@@ -285,6 +285,47 @@ class ApiClient {
     return this.request<QBOProjectInvoiceDetailResponse>(`/quickbooks/project/${projectId}/invoice-detail`)
   }
 
+  // --- Native ContractorOps Invoices ---
+  async createInvoiceFromJob(jobId: number): Promise<any> {
+    return this.request(`/jobs/${jobId}/invoice`, { method: 'POST' })
+  }
+
+  async getInvoices(status?: string, skip = 0, limit = 50, jobId?: number): Promise<{ items: any[]; total: number }> {
+    const params = new URLSearchParams()
+    if (status) params.append('status', status)
+    if (jobId) params.append('job_id', jobId.toString())
+    params.append('skip', skip.toString())
+    params.append('limit', limit.toString())
+    return this.request<{ items: any[]; total: number }>(`/invoices?${params.toString()}`)
+  }
+
+  async getInvoiceDetail(invoiceId: number): Promise<any> {
+    return this.request(`/invoices/${invoiceId}`)
+  }
+
+  async updateInvoiceStatus(invoiceId: number, status: string): Promise<{ status: string; message: string }> {
+    return this.request<{ status: string; message: string }>(`/invoices/${invoiceId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  async recordInvoicePayment(invoiceId: number, data: {
+    amount: number;
+    payment_method: string;
+    reference_number?: string;
+    notes?: string;
+  }): Promise<any> {
+    return this.request(`/invoices/${invoiceId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async sendInvoiceViaEmail(invoiceId: number): Promise<{ message: string; status: string }> {
+    return this.request<{ message: string; status: string }>(`/invoices/${invoiceId}/send`, { method: 'POST' })
+  }
+
   async uploadLogo(file: File) {
     const formData = new FormData()
     formData.append('file', file)

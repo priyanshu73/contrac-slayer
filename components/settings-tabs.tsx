@@ -987,12 +987,35 @@ export function SettingsTabs() {
                 {/* QuickBooks Online Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">QuickBooks Online</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">QuickBooks Online</h3>
+                      {typeof window !== 'undefined' && window.location.hostname === 'contractorops.ai' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-200">
+                          Coming Soon
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs sm:text-sm text-slate-500 mb-4">
                       Connect QuickBooks to create and manage invoices. Clients can pay directly through QuickBooks.
                     </p>
 
-                    {qboStatusLoading ? (
+                    {typeof window !== 'undefined' && window.location.hostname === 'contractorops.ai' ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 opacity-50">
+                            <svg className="h-full w-full" viewBox="0 0 40 40" aria-label="QuickBooks">
+                              <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                              <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                              <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500">QuickBooks integration is coming soon</p>
+                            <p className="text-xs text-slate-400">We&apos;re working on bringing this feature to production. Stay tuned!</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : qboStatusLoading ? (
                       <div className="flex items-center gap-2 text-slate-500 text-sm">
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
                         Checking connection…

@@ -28,7 +28,7 @@ import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 
 interface PersonalizedQuoteViewProps {
   job: Job
@@ -48,7 +48,7 @@ interface PersonalizedQuoteViewProps {
   gmailConnected?: boolean
   /** QuickBooks OAuth connected (from GET /quickbooks/status). Used to gate "Open in QuickBooks". */
   qboConnected?: boolean
-  onCreateInvoice?: () => void
+  onCreateInvoice?: (alsoCreateQBO?: boolean) => void
   creatingInvoice?: boolean
   onSendInvoiceEmail?: () => void
   sendingInvoiceEmail?: boolean
@@ -104,6 +104,7 @@ export function PersonalizedQuoteView({
   const isMobile = useIsMobile()
   const { toast } = useToast()
   const t = useTranslations("quotes")
+  const locale = useLocale()
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -115,6 +116,9 @@ export function PersonalizedQuoteView({
   const [generatingLink, setGeneratingLink] = useState(false)
   const [followupSendSms, setFollowupSendSms] = useState(true)
   const [followupSendEmail, setFollowupSendEmail] = useState(true)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [alsoCreateQBO, setAlsoCreateQBO] = useState(false)
+  const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null)
   // Only force email off when Gmail disconnects; don't overwrite when user unchecks
   useEffect(() => {
     if (!gmailConnected) setFollowupSendEmail(false)
@@ -124,6 +128,17 @@ export function PersonalizedQuoteView({
   useEffect(() => {
     setCurrentJob(job)
   }, [job])
+
+  useEffect(() => {
+    // Check if an invoice exists for this job
+    if (job.id && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'INVOICED'].includes(job.status.toString().toUpperCase())) {
+      api.getInvoices(undefined, 0, 1, job.id).then(res => {
+        if (res.items && res.items.length > 0) {
+          setExistingInvoiceId(res.items[0].id)
+        }
+      }).catch(err => console.error("Failed to fetch existing invoices for job", err))
+    }
+  }, [job.id, job.status])
 
   useEffect(() => {
     // For public customer views, use contractor info from job if available
@@ -1060,15 +1075,28 @@ export function PersonalizedQuoteView({
                           </svg>
                           Edit Quote
                         </Button>
-                        {qboConnected &&
-                          !currentJob.qbo_invoice_id &&
+                        {existingInvoiceId ? (
+                            <Button
+                              size="lg"
+                              className="w-full justify-start h-12 text-base"
+                              variant="outline"
+                              asChild
+                            >
+                              <Link href={`/${locale}/invoices/${existingInvoiceId}`}>
+                                <svg className="mr-3 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                View Invoice
+                              </Link>
+                            </Button>
+                        ) : (
                           onCreateInvoice &&
                           ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
                             <Button
                               size="lg"
                               className="w-full justify-start h-12 text-base"
                               variant="outline"
-                              onClick={onCreateInvoice}
+                              onClick={() => { setAlsoCreateQBO(false); setShowInvoiceModal(true) }}
                               disabled={creatingInvoice}
                             >
                               {creatingInvoice ? (
@@ -1081,16 +1109,15 @@ export function PersonalizedQuoteView({
                                 </>
                               ) : (
                                 <>
-                                  <svg className="mr-3 h-5 w-5 shrink-0" viewBox="0 0 40 40" fill="none">
-                                    <circle cx="20" cy="20" r="20" fill="#2CA01C" />
-                                    <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
-                                    <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                                  <svg className="mr-3 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                   Create Invoice
                                 </>
                               )}
                             </Button>
-                          )}
+                          )
+                        )}
                         {qboConnected &&
                           currentJob.qbo_invoice_id &&
                           Boolean(currentJob.qbo_invoice_url?.trim()) && (
@@ -1324,6 +1351,81 @@ export function PersonalizedQuoteView({
             isSubmitting={signingInProgress}
           />
         )}
+
+        {/* Create Invoice Sub-Modal */}
+        <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogTitle className="text-lg font-semibold">Create Invoice</DialogTitle>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-gray-600">
+                Create an invoice for <strong>{currentJob.client?.name || "this client"}</strong> based on the accepted quote.
+              </p>
+
+              {/* ContractorOps invoice - always on */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-50 border border-sky-200">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-sky-500 bg-sky-500">
+                  <Check className="h-3 w-3 text-white stroke-[3]" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Create ContractorOps Invoice</p>
+                  <p className="text-xs text-gray-500">Invoice will be saved and available in your Invoices tab</p>
+                </div>
+              </div>
+
+              {/* Optional QBO invoice */}
+              {qboConnected && !currentJob.qbo_invoice_id && (
+                <button
+                  type="button"
+                  className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${
+                    alsoCreateQBO
+                      ? "bg-green-50 border-green-300"
+                      : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => setAlsoCreateQBO(!alsoCreateQBO)}
+                >
+                  <div
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                      alsoCreateQBO ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"
+                    }`}
+                  >
+                    {alsoCreateQBO && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <svg className="h-4 w-4 shrink-0" viewBox="0 0 40 40" fill="none">
+                        <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                        <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                        <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                      </svg>
+                      <p className="text-sm font-medium text-gray-900">Also create QuickBooks invoice</p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">Sync this invoice to QuickBooks Online</p>
+                  </div>
+                </button>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowInvoiceModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setShowInvoiceModal(false)
+                    onCreateInvoice?.(alsoCreateQBO)
+                  }}
+                  disabled={creatingInvoice}
+                >
+                  {creatingInvoice ? "Creating…" : "Create Invoice"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>

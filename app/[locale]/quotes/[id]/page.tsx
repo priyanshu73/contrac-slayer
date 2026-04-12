@@ -357,29 +357,55 @@ export default function QuoteDetailPage() {
     router.push(`/quotes/${identifier}/edit`)
   }
 
-  const handleCreateInvoice = async () => {
-    if (!job || !qboConnected || job.qbo_invoice_id) return
+  const handleCreateInvoice = async (alsoCreateQBO?: boolean) => {
+    if (!job) return
 
     setQboInvoiceLoading(true)
     try {
-      const result = await api.createQBOInvoice(job.id, true)
-      toast({
-        title: "Invoice created in QuickBooks",
-        description: (
-          <span>
-            Invoice created and emailed to client.{" "}
-            <a
-              href={result.invoice_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-medium"
-            >
-              View in QuickBooks →
-            </a>
-          </span>
-        ),
-      })
+      // 1. Always create native ContractorOps invoice
+      const nativeResult = await api.createInvoiceFromJob(job.id)
+      const invoiceId = nativeResult?.id
+
+      // 2. Optionally create QBO invoice
+      if (alsoCreateQBO && qboConnected && !job.qbo_invoice_id) {
+        try {
+          const qboResult = await api.createQBOInvoice(job.id, true)
+          toast({
+            title: "Invoice created",
+            description: (
+              <span>
+                Invoice created in ContractorOps and QuickBooks.{" "}
+                <a
+                  href={qboResult.invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  View in QuickBooks →
+                </a>
+              </span>
+            ),
+          })
+        } catch (qboErr: any) {
+          // Native invoice succeeded but QBO failed — still success
+          toast({
+            title: "Invoice created",
+            description: `Invoice created in ContractorOps, but QuickBooks sync failed: ${qboErr?.message || "Unknown error"}`,
+          })
+        }
+      } else {
+        toast({
+          title: "Invoice created",
+          description: `Invoice ${nativeResult?.invoice_number || ""} has been created. View it in your Invoices tab.`,
+        })
+      }
+
       await fetchJob()
+
+      // Navigate to the invoice detail
+      if (invoiceId) {
+        router.push(`/${locale}/invoices/${invoiceId}`)
+      }
     } catch (err: any) {
       toast({
         title: "Failed to create invoice",

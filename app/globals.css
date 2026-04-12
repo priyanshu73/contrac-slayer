@@ -274,4 +274,19 @@
     max-width: 100% !important;
     height: auto !important;
   }
+
+  /* Force table cells to show in print (overrides hidden sm:table-cell) */
+  [class*="print:table-cell"] {
+    display: table-cell !important;
+  }
+
+  /* Remove min-width constraints in print */
+  [class*="print:min-w-0"] {
+    min-width: 0 !important;
+  }
+
+  /* Hide mobile-only elements in print */
+  [class*="print:hidden"] {
+    display: none !important;
+  }
 }

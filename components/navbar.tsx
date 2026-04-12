@@ -10,6 +10,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   FileText,
+  Receipt,
   MessageSquare,
   Calendar,
   Users,
@@ -70,6 +71,7 @@ export function Navbar() {
   const navLinks = [
     { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
     { href: `/${locale}/quotes`, label: t('quotes'), icon: FileText },
+    { href: `/${locale}/invoices`, label: t('invoices'), icon: Receipt },
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
     { href: `/${locale}/clients`, label: "Clients", icon: Users },
@@ -299,8 +301,8 @@ export function Navbar() {
       {/* ===== MOBILE BOTTOM NAV ===== */}
       <div className="fixed bottom-0 left-0 right-0 z-50 w-full overflow-x-hidden border-t border-border bg-card md:hidden print:hidden">
         <div className="grid grid-cols-5 min-w-0 gap-1 p-2">
-          {/* Mobile: Dashboard, Leads, Clients, Projects, Calendar */}
-          {[navLinks[0], navLinks[1], navLinks[3], navLinks[5], navLinks[2]].map((link) => {
+          {/* Mobile: Dashboard, Quotes, Calendar, Clients, Leads */}
+          {[navLinks[0], navLinks[1], navLinks[4], navLinks[5], navLinks[3]].map((link) => {
             const isActive = pathname === link.href || (link.href !== `/${locale}/dashboard` && pathname?.startsWith(link.href))
             const Icon = link.icon
             return (
