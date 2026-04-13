@@ -1,8 +1,12 @@
-import { LeadDetail } from "@/components/lead-detail"
-import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { LeadDetail } from "@/components/lead-detail";
+import { AppBreadcrumb } from "@/components/app-breadcrumb";
 
-export default async function LeadDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
-  const { id, locale } = await params
+export default async function LeadDetailPage({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}) {
+  const { id, locale } = await params;
 
   return (
     <div className="min-h-screen bg-background">
@@ -17,5 +21,5 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ loc
         <LeadDetail leadId={id} />
       </main>
     </div>
-  )
+  );
 }
