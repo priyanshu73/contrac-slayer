@@ -426,13 +426,15 @@ export function ProjectTasks({ project, onTasksUpdated }: ProjectTasksProps) {
 export interface AddTaskDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    projectId: number
+    projectId: number | null
     trades?: { id: number; trade_type: string; subcontractor_name: string }[]
     onTaskCreated: (task: ProjectTask) => void
     /** Pre-fill assigned subcontractor name (used for display; prefer initialAssignedTradeId when adding from a trade) */
     initialAssignedTo?: string
     /** Pre-fill by trade id so assignment is by id, not name. Use when adding a task from within a trade context. */
     initialAssignedTradeId?: number
+    projects?: { id: number; title: string }[]
+    onProjectChange?: (projectId: number) => void
 }
 
 /** Display label for a trade in the "Assigned to" dropdown (avoids losing trade id when same name appears for multiple trades). */
@@ -842,97 +844,34 @@ export function AddTaskDialog({
     onTaskCreated,
     initialAssignedTo,
     initialAssignedTradeId,
+    projects,
+    onProjectChange,
 }: AddTaskDialogProps) {
     const t = useTranslations("projects.tasks")
     const { toast } = useToast()
 
     const [title, setTitle] = useState("")
-    const [description, setDescription] = useState("")
-    const [priority, setPriority] = useState<TaskPriority>("MEDIUM")
-    const [status, setStatus] = useState<TaskStatus>("NOT_STARTED")
-    const [category, setCategory] = useState("")
-    const [assignedTo, setAssignedTo] = useState(initialAssignedTo || "")
-    const [assignedTradeId, setAssignedTradeId] = useState<number | null>(initialAssignedTradeId ?? null)
-    const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false)
-    const assignedToContainerRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (assignedToContainerRef.current && !assignedToContainerRef.current.contains(event.target as Node)) {
-                setShowAssignedToDropdown(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
-    const [startDate, setStartDate] = useState("")
-    const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
-
-    // Image upload: files sent to backend, backend uploads to Cloudinary
-    const [uploadedFiles, setUploadedFiles] = useState<{ file: File; url: string }[]>([])
-    const [uploading, setUploading] = useState(false)
-
-    useEffect(() => {
-        if (!open) return
-        if (initialAssignedTradeId != null && trades?.length) {
-            const t = trades.find((x) => x.id === initialAssignedTradeId)
-            if (t) {
-                setAssignedTo(tradeOptionLabel(t))
-                setAssignedTradeId(initialAssignedTradeId)
-                return
-            }
-        }
-        if (initialAssignedTo) {
-            setAssignedTo(initialAssignedTo)
-            const firstMatch = trades?.find((x) => (x.subcontractor_name ?? "").trim() === initialAssignedTo.trim())
-            setAssignedTradeId(firstMatch?.id ?? null)
-        }
-    }, [open, initialAssignedTo, initialAssignedTradeId, trades])
 
     // Reset form when dialog closes
     const resetForm = useCallback(() => {
         setTitle("")
-        setDescription("")
-        setPriority("MEDIUM")
-        setStatus("NOT_STARTED")
-        setCategory("")
-        setAssignedTo(initialAssignedTo || "")
-        setAssignedTradeId(initialAssignedTradeId != null ? initialAssignedTradeId : null)
-        setStartDate("")
-        setEndDate("")
-        setUploadedFiles((prev) => {
-            prev.forEach((p) => URL.revokeObjectURL(p.url))
-            return []
-        })
-    }, [initialAssignedTo, initialAssignedTradeId])
+    }, [])
 
     const handleOpenChange = (o: boolean) => {
         if (!o) resetForm()
         onOpenChange(o)
     }
 
-    const handleTaskImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.length) {
-            const newFiles = Array.from(e.target.files).map((file) => ({
-                file,
-                url: URL.createObjectURL(file),
-            }))
-            setUploadedFiles((prev) => [...prev, ...newFiles])
-        }
-        e.target.value = ""
-    }
-
-    const removeTaskImage = (index: number) => {
-        setUploadedFiles((prev) => {
-            const copy = [...prev]
-            URL.revokeObjectURL(copy[index].url)
-            copy.splice(index, 1)
-            return copy
-        })
-    }
-
     const handleSubmit = async () => {
+        if (!projectId) {
+            toast({
+                title: "Please select a project",
+                variant: "destructive",
+            })
+            return
+        }
+
         if (!title.trim()) {
             toast({
                 title: t("addForm.validation.titleRequired"),
@@ -946,62 +885,32 @@ export function AddTaskDialog({
             const payload: Record<string, any> = {
                 title: title.trim(),
                 task_type: "TIMELINE",
-                status,
-                priority,
+                status: "NOT_STARTED",
+                priority: "MEDIUM",
                 project_id: projectId,
             }
-            if (description.trim()) payload.description = description.trim()
-            if (category.trim()) payload.category = category.trim()
-            if (assignedTradeId != null && trades?.some((t) => t.id === assignedTradeId)) {
-                const trade = trades!.find((t) => t.id === assignedTradeId)!
-                payload.assigned_trade_id = assignedTradeId
-                payload.assigned_to = (trade.subcontractor_name ?? "").trim() || tradeOptionLabel(trade)
-            } else if (assignedTo.trim()) {
-                payload.assigned_to = assignedTo.trim()
-                const matchingTrade = trades?.find((t) => tradeOptionLabel(t) === assignedTo.trim() || (t.subcontractor_name ?? "").trim() === assignedTo.trim())
-                if (matchingTrade) {
-                    payload.assigned_trade_id = matchingTrade.id
-                }
+
+            let finalTradeId = initialAssignedTradeId ?? null
+            let finalAssignedTo = initialAssignedTo?.trim() ?? ""
+
+            if (finalTradeId == null && finalAssignedTo && trades?.length) {
+                const match = trades.find((t) => (t.subcontractor_name ?? "").trim() === finalAssignedTo)
+                if (match) finalTradeId = match.id
+            } else if (finalTradeId != null && trades?.length) {
+                const match = trades.find((t) => t.id === finalTradeId)
+                if (match) finalAssignedTo = match.subcontractor_name ?? ""
             }
-            if (startDate) payload.scheduled_start_date = startDate
-            if (endDate) payload.scheduled_end_date = endDate
+
+            if (finalTradeId != null) payload.assigned_trade_id = finalTradeId
+            if (finalAssignedTo) payload.assigned_to = finalAssignedTo
 
             const created = (await api.createProjectTask(
                 projectId,
                 payload
             )) as ProjectTask
 
-            let taskToAdd = created
-            // Upload images to backend; backend uploads to Cloudinary and attaches to task
-            if (uploadedFiles.length > 0) {
-                setUploading(true)
-                try {
-                    const uploadedMedia = await api.uploadProjectMedia(
-                        projectId,
-                        uploadedFiles.map((f) => f.file),
-                        "TASK_PHOTO",
-                        undefined,
-                        created.id
-                    ) as ProjectMedia[]
-                    // Merge so the task list shows attachments immediately (project Tasks tab + trade portal refetch will have them too)
-                    taskToAdd = {
-                        ...created,
-                        photos: [...(created.photos || []), ...(uploadedMedia || [])],
-                        photo_count: (created.photo_count ?? 0) + (uploadedMedia?.length ?? 0),
-                    }
-                } catch (err) {
-                    toast({
-                        title: t("taskCreated"),
-                        description: t("imageUpload.uploadFailed") || "Task created but image upload failed.",
-                        variant: "destructive",
-                    })
-                } finally {
-                    setUploading(false)
-                }
-            }
-
             toast({ title: t("taskCreated") })
-            onTaskCreated(taskToAdd)
+            onTaskCreated(created)
             resetForm()
         } catch (err: any) {
             toast({
@@ -1016,14 +925,35 @@ export function AddTaskDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
                     <DialogTitle className="text-lg font-semibold text-slate-900">
                         {t("addFormTitle")}
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 py-2">
+                <div className="py-4 space-y-4">
+                    {/* Project Selection (only if projects prop is passed) */}
+                    {projects && projects.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-slate-700">
+                                Project
+                            </Label>
+                            <select
+                                value={projectId ?? ""}
+                                onChange={(e) => onProjectChange?.(Number(e.target.value))}
+                                className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                            >
+                                <option value="" disabled>Select a project</option>
+                                {projects.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     {/* Title */}
                     <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-slate-700">
@@ -1034,196 +964,8 @@ export function AddTaskDialog({
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             className="border-slate-200"
+                            autoFocus
                         />
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">
-                            {t("addForm.description")}
-                        </Label>
-                        <textarea
-                            rows={2}
-                            placeholder={t("addForm.descriptionPlaceholder")}
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
-                        />
-                    </div>
-
-
-
-                    {/* Priority & Status */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.priority")}
-                            </Label>
-                            <select
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                            >
-                                {PRIORITY_OPTIONS.map((p) => (
-                                    <option key={p} value={p}>
-                                        {t(`priority.${p.toLowerCase()}`)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.status")}
-                            </Label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                            >
-                                {STATUS_OPTIONS.map((s) => (
-                                    <option key={s} value={s}>
-                                        {t(`status.${s.toLowerCase()}`)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Category & Assigned to */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.category")}
-                            </Label>
-                            <Input
-                                placeholder={t("addForm.categoryPlaceholder")}
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                                className="border-slate-200"
-                            />
-                        </div>
-                        <div className="space-y-1.5 relative" ref={assignedToContainerRef}>
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.assignedTo")}
-                            </Label>
-                            <Input
-                                placeholder={t("addForm.assignedToPlaceholder")}
-                                value={assignedTo}
-                                onChange={(e) => {
-                                    const v = e.target.value
-                                    setAssignedTo(v)
-                                    setShowAssignedToDropdown(true)
-                                    const match = trades?.find((t) => tradeOptionLabel(t) === v.trim())
-                                    setAssignedTradeId(match?.id ?? null)
-                                }}
-                                onFocus={() => setShowAssignedToDropdown(true)}
-                                className="border-slate-200"
-                            />
-                            {showAssignedToDropdown && trades && trades.length > 0 && (
-                                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                    <ul className="py-1">
-                                        {trades
-                                            .filter((t) => tradeOptionLabel(t).toLowerCase().includes(assignedTo.toLowerCase()))
-                                            .map((t) => (
-                                                <li
-                                                    key={t.id}
-                                                    className="px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
-                                                    onClick={() => {
-                                                        setAssignedTo(tradeOptionLabel(t))
-                                                        setAssignedTradeId(t.id)
-                                                        setShowAssignedToDropdown(false)
-                                                    }}
-                                                >
-                                                    {tradeOptionLabel(t)}
-                                                </li>
-                                            ))}
-                                        {trades.filter((t) => tradeOptionLabel(t).toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
-                                            <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
-                                        )}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.startDate")}
-                            </Label>
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="border-slate-200"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">
-                                {t("addForm.endDate")}
-                            </Label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="border-slate-200"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Image upload: files sent to backend, backend uploads to Cloudinary */}
-                    <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">
-                            {t("addForm.images")}
-                        </Label>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {uploadedFiles.map((item, i) => (
-                                <div
-                                    key={i}
-                                    className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-200 group"
-                                >
-                                    {item.file.type.startsWith("image/") ? (
-                                        <img
-                                            src={item.url}
-                                            alt={item.file.name}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-1">
-                                            <span className="text-xs font-medium text-slate-700 truncate w-full text-center">
-                                                {item.file.name.split(".").pop()?.toUpperCase()}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => removeTaskImage(i)}
-                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X className="h-4 w-4 text-white" />
-                                    </button>
-                                </div>
-                            ))}
-                            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*,video/*"
-                                    className="hidden"
-                                    onChange={handleTaskImageChange}
-                                    disabled={submitting || uploading}
-                                />
-                                {uploading ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    <ImagePlus className="h-5 w-5" />
-                                )}
-                            </label>
-                        </div>
-                        <p className="text-[11px] text-slate-400">
-                            {t("addForm.imagesHint")}
-                        </p>
                     </div>
                 </div>
 

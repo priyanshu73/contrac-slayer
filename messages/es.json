@@ -373,7 +373,11 @@
     "documents": {
       "empty": "Aún no se han subido documentos o fotos del proyecto.",
       "contractsTitle": "Contratos y documentos",
-      "photosTitle": "Fotos del proyecto"
+      "photosTitle": "Fotos del proyecto",
+      "title": "Documentos del Proyecto",
+      "addAttachment": "Añadir Archivo",
+      "uploadSuccess": "Carga exitosa",
+      "uploadError": "Carga fallida"
     },
     "changeOrders": {
       "title": "Órdenes de cambio",

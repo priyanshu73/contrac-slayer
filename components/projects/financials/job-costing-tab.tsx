@@ -207,25 +207,25 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-6">
-                <div className="rounded-md border overflow-x-hidden">
+                <div className="rounded-md border overflow-hidden">
                   <Table className="table-fixed w-full">
                     <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead className="w-[40%]">Line Item</TableHead>
-                        <TableHead className="w-[150px] min-w-[150px] text-right">{companyName} Cost</TableHead>
-                        <TableHead className="w-[150px] min-w-[150px] text-right font-bold text-slate-800">Client Price</TableHead>
-                        <TableHead className="w-[150px] min-w-[150px] text-right">Paid</TableHead>
-                        <TableHead className="w-[120px] min-w-[120px] text-center">Status</TableHead>
-                        <TableHead className="w-[130px] min-w-[130px] text-right">Subcontractor</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead className="w-[28%] text-sm">Line Item</TableHead>
+                        <TableHead className="w-[14%] text-right text-sm">{companyName} Cost</TableHead>
+                        <TableHead className="w-[14%] text-right text-sm font-bold text-slate-800">Client Price</TableHead>
+                        <TableHead className="w-[14%] text-right text-sm">Paid</TableHead>
+                        <TableHead className="w-[13%] text-center text-sm">Status</TableHead>
+                        <TableHead className="w-[14%] text-right text-sm">Subcontractor</TableHead>
+                        <TableHead className="w-[3%]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {phaseItems.map(item => (
                         <TableRow key={item.id} className="group hover:bg-slate-50 border-b">
-                          <TableCell className="font-medium text-slate-700 align-top pt-3 min-w-0">
+                          <TableCell className="font-medium text-slate-700 align-top pt-2 min-w-0 text-sm">
                             <Textarea 
-                              className="border-transparent hover:border-slate-200 bg-transparent min-h-[32px] h-auto p-1.5 shadow-none focus-visible:ring-1 w-full resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]" 
+                              className="border-transparent hover:border-slate-200 bg-transparent min-h-[28px] h-auto p-1 text-sm shadow-none focus-visible:ring-1 w-full resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]" 
                               defaultValue={item.line_item}
                               rows={1}
                               ref={(el) => {
@@ -241,25 +241,25 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                             />
                           </TableCell>
 
-                          <TableCell className="text-right align-top">
+                          <TableCell className="text-right align-top text-sm">
                             <Input 
                               type="number" 
-                              className="w-full h-8 text-right bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
+                              className="w-full h-7 px-1.5 text-sm text-right bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
                               defaultValue={item.gc_cost.toString()} 
                               onBlur={(e) => {
                                 if(Number(e.target.value) !== item.gc_cost) 
                                   handleUpdateItem(item.id, { gc_cost: Number(e.target.value) })
                               }}
                             />
-                            <div className="mt-1 text-left text-[11px] font-medium text-emerald-600">
+                            <div className="mt-1 text-left text-[10px] font-medium text-emerald-600">
                               Profit: {formatCurrency(Number(item.client_price) - Number(item.gc_cost))}
                             </div>
                           </TableCell>
 
-                          <TableCell className="text-right">
+                          <TableCell className="text-right text-sm">
                             <Input 
                               type="number" 
-                              className="w-full h-8 text-right font-bold text-slate-800 bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
+                              className="w-full h-7 px-1.5 text-sm text-right font-bold text-slate-800 bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1" 
                               defaultValue={item.client_price.toString()} 
                               onBlur={(e) => {
                                 if(Number(e.target.value) !== item.client_price) 
@@ -268,27 +268,27 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                             />
                           </TableCell>
 
-                          <TableCell className="text-right align-top">
+                          <TableCell className="text-right align-top text-sm">
                             <Input 
                               type="number" 
-                              className={`w-full h-8 text-right font-semibold bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1 ${item.paid >= item.gc_cost && item.gc_cost > 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-700'}`}
+                              className={`w-full h-7 px-1.5 text-sm text-right font-semibold bg-transparent border-transparent hover:border-slate-200 shadow-none focus-visible:ring-1 ${item.paid >= item.gc_cost && item.gc_cost > 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-700'}`}
                               defaultValue={item.paid.toString()} 
                               onBlur={(e) => {
                                 if(Number(e.target.value) !== item.paid) 
                                   handleUpdateItem(item.id, { paid: Number(e.target.value) })
                               }}
                             />
-                            <div className="mt-1 text-left text-[11px] font-medium text-red-600">
+                            <div className="mt-1 text-left text-[10px] font-medium text-red-600">
                               Unpaid: ({formatCurrency(Math.max(Number(item.client_price) - Number(item.paid), 0))})
                             </div>
                           </TableCell>
 
-                          <TableCell className="px-2">
+                          <TableCell className="px-1.5">
                             <Select 
                               value={item.status}
                               onValueChange={(val) => handleUpdateItem(item.id, { status: val })}
                             >
-                              <SelectTrigger className={`h-7 min-h-0 text-[11px] w-full border-transparent hover:border-slate-200 shadow-none bg-transparent font-semibold justify-center px-1.5 [&_svg]:hidden ${getStatusColor(item.status)}`}>
+                              <SelectTrigger className={`h-7 min-h-0 text-[10px] w-full border-transparent hover:border-slate-200 shadow-none bg-transparent font-semibold justify-center px-1 [&_svg]:hidden ${getStatusColor(item.status)}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -305,7 +305,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                               value={item.subcontractor_id?.toString() || 'unassigned'}
                               onValueChange={(val) => handleUpdateItem(item.id, { subcontractor_id: val === 'unassigned' ? null : Number(val)})}
                             >
-                              <SelectTrigger className="h-8 text-xs w-full border-dashed bg-transparent shadow-none hover:border-slate-300">
+                              <SelectTrigger className="h-7 text-[10px] w-full px-2 border-dashed bg-transparent shadow-none hover:border-slate-300">
                                 <SelectValue placeholder="Unassigned" />
                               </SelectTrigger>
                               <SelectContent>
@@ -319,7 +319,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                             </Select>
                           </TableCell>
 
-                          <TableCell>
+                          <TableCell className="px-1">
                             <Popover
                               open={deleteConfirmId === item.id}
                               onOpenChange={(open) => setDeleteConfirmId(open ? item.id : null)}
@@ -328,7 +328,7 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                                  className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -377,9 +377,9 @@ export function JobCostingTab({ project, onRefreshTotal }: JobCostingTabProps) {
         })}
       </Accordion>
 
-      <div className="bg-slate-900 text-white p-4 flex justify-between items-center rounded-b-lg mt-4 shadow-inner">
+      <div className="bg-slate-900 text-white p-4 flex flex-col gap-3 rounded-b-lg mt-4 shadow-inner lg:flex-row lg:justify-between lg:items-center">
         <h3 className="font-bold tracking-widest text-sm text-slate-300">TOTAL PROJECT SUBS</h3>
-        <div className="flex gap-8 text-sm">
+        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm lg:justify-end">
           <div className="text-right">
             <span className="text-slate-400 mr-2 text-xs">Total {companyName} Cost</span>
             <span className="font-semibold">{formatCurrency(totalGcCost)}</span>

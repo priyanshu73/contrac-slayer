@@ -65,7 +65,6 @@ export default function TaskBoardPage() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "ALL">("ALL")
   const [assigneeFilter, setAssigneeFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
-  const [projectPickerOpen, setProjectPickerOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createProjectId, setCreateProjectId] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<ContractorTask | null>(null)
@@ -236,36 +235,22 @@ export default function TaskBoardPage() {
       ...prev,
     ])
     setCreateOpen(false)
-    setProjectPickerOpen(false)
     setCreateProjectId(null)
     toast({ title: taskT("taskCreated") })
   }
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     if (projects.length === 0) return
-    setCreateProjectId(selectedProjectId === "ALL" ? projects[0].id : selectedProjectId)
-    setProjectPickerOpen(true)
+    setCreateProjectId(null)
+    setCreateOpen(true)
   }
 
-  const handleConfirmProjectForCreate = async () => {
-    if (createProjectId == null) {
-      toast({
-        title: t("createProjectPrompt"),
-        variant: "destructive",
-      })
-      return
-    }
-
+  const handleProjectChange = async (newId: number) => {
+    setCreateProjectId(newId)
     try {
-      await ensureProjectLoaded(createProjectId)
-      setProjectPickerOpen(false)
-      setCreateOpen(true)
-    } catch (error: any) {
-      toast({
-        title: t("loadError"),
-        description: error?.message,
-        variant: "destructive",
-      })
+      await ensureProjectLoaded(newId)
+    } catch (error) {
+      console.error("Failed to load project details for task creation", error)
     }
   }
 
@@ -529,46 +514,16 @@ export default function TaskBoardPage() {
         </div>
       </main>
 
-      <Dialog open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("createDialog.title")}</DialogTitle>
-            <DialogDescription>{t("createDialog.description")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">{t("selectProject")}</label>
-            <select
-              value={createProjectId ?? ""}
-              onChange={(e) => setCreateProjectId(e.target.value ? Number(e.target.value) : null)}
-              className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
-            >
-              <option value="">{t("selectProject")}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProjectPickerOpen(false)}>
-              {t("cancel")}
-            </Button>
-            <Button onClick={handleConfirmProjectForCreate}>{t("createDialog.continue")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {selectedCreateProject && (
-        <AddTaskDialog
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          projectId={selectedCreateProject.id}
-          trades={selectedCreateProject.trades}
-          onTaskCreated={handleTaskCreated}
-          initialAssignedTo={myAssigneeLabel}
-        />
-      )}
+      <AddTaskDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        projectId={createProjectId}
+        trades={selectedCreateProject ? selectedCreateProject.trades : undefined}
+        onTaskCreated={handleTaskCreated}
+        initialAssignedTo={myAssigneeLabel}
+        projects={projects}
+        onProjectChange={handleProjectChange}
+      />
 
       {editingTask && projectDetails[editingTask.project_id] && (
         <EditTaskDialog

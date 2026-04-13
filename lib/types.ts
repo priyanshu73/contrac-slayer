@@ -498,6 +498,7 @@ export interface Project {
   tasks?: ProjectTask[]
   trades?: ProjectTrade[]
   media?: ProjectMedia[]
+  attachments?: Attachment[]
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number

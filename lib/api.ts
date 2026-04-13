@@ -1333,6 +1333,33 @@ class ApiClient {
     })
   }
 
+  async uploadProjectAttachment(projectId: number, files: File[], description?: string) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    if (description) formData.append('description', description)
+
+    const response = await fetch(`${this.baseURL}/projects/${projectId}/attachments`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload project attachment')
+    }
+
+    return response.json()
+  }
+
+  async deleteProjectAttachment(projectId: number, attachmentId: number) {
+    await this.request(`/projects/${projectId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {
     if (!files || files.length === 0) return []
 

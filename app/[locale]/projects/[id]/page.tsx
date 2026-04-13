@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { api } from "@/lib/api"
@@ -15,12 +15,14 @@ import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { ChevronDown, Loader2, User, Search, X } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ProjectDetailPage() {
   const params = useParams()
   const locale = useLocale()
   const t = useTranslations("projects.detail")
+  const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -59,6 +61,20 @@ export default function ProjectDetailPage() {
 
   const handleTradesUpdated = (trades: ProjectTrade[]) => {
     setProject((prev) => (prev ? { ...prev, trades } : prev))
+  }
+
+  const handleClientChange = async (newClientId: number | null) => {
+    if (!project) return
+    const prevClientId = project.client_id
+    setProject({ ...project, client_id: newClientId ?? undefined })
+    try {
+      await api.updateProject(project.id, { client_id: newClientId })
+      toast({ title: "Client updated" })
+    } catch (err) {
+      console.error("Failed to update client", err)
+      setProject({ ...project, client_id: prevClientId })
+      toast({ title: "Failed to update client", variant: "destructive" })
+    }
   }
 
   const handleStatusChange = async (newStatus: string) => {
@@ -104,6 +120,12 @@ export default function ProjectDetailPage() {
                   <span className="text-slate-500 ml-1">To:</span>
                   <span>{project.scheduled_end_date || "–"}</span>
                 </div>
+
+                <ClientPicker
+                  projectId={project.id}
+                  currentClientId={project.client_id}
+                  onChange={handleClientChange}
+                />
 
                 {project.objective && (
                   <span className="line-clamp-1 text-slate-500">
@@ -207,6 +229,110 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
         <span>{t(status.toLowerCase() as any)}</span>
         <ChevronDown className="w-3 h-3 opacity-70" />
       </div>
+    </div>
+  )
+}
+
+interface SimpleClient { id: number; name: string; phone?: string }
+
+function ClientPicker({
+  projectId,
+  currentClientId,
+  onChange,
+}: {
+  projectId: number
+  currentClientId?: number
+  onChange: (clientId: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [clients, setClients] = useState<SimpleClient[]>([])
+  const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState("")
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    api.getClients(0, 200)
+      .then((data: any) => setClients(Array.isArray(data) ? data : data?.items ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return clients.filter(c => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
+  }, [clients, search])
+
+  const current = clients.find(c => c.id === currentClientId)
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+      >
+        <User className="w-3 h-3" />
+        {current ? current.name : <span className="text-slate-400">Assign Client</span>}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-50 w-56 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search clients..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+            ) : filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-slate-400">No clients found</p>
+            ) : (
+              <>
+                {currentClientId && (
+                  <button
+                    className="w-full px-3 py-2 text-left text-xs text-rose-500 hover:bg-rose-50 flex items-center gap-1.5 border-b border-slate-100"
+                    onClick={() => { onChange(null); setOpen(false) }}
+                  >
+                    <X className="w-3 h-3" /> Remove client
+                  </button>
+                )}
+                {filtered.map(c => (
+                  <button
+                    key={c.id}
+                    className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                      c.id === currentClientId ? "bg-slate-50 font-semibold" : ""
+                    }`}
+                    onClick={() => { onChange(c.id); setOpen(false); setSearch("") }}
+                  >
+                    <span className="text-slate-900">{c.name}</span>
+                    {c.phone && <span className="text-slate-400 ml-1.5">{c.phone}</span>}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

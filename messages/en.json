@@ -373,7 +373,11 @@
     "documents": {
       "empty": "No project documents or photos uploaded yet.",
       "contractsTitle": "Contracts & documents",
-      "photosTitle": "Project photos"
+      "photosTitle": "Project photos",
+      "title": "Project Documents",
+      "addAttachment": "Add Attachment",
+      "uploadSuccess": "Upload successful",
+      "uploadError": "Upload failed"
     },
     "changeOrders": {
       "title": "Change orders",
