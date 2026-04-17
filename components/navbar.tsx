@@ -73,6 +73,7 @@ export function Navbar() {
     { href: `/${locale}/quotes`, label: t('quotes'), icon: FileText },
     { href: `/${locale}/invoices`, label: t('invoices'), icon: Receipt },
     { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
+    { href: `/${locale}/lead-generator-agent`, label: t('leadGeneratorAgent'), icon: Zap },
     { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
     { href: `/${locale}/clients`, label: "Clients", icon: Users },
     { href: `/${locale}/crew`, label: "Crew", icon: Wrench },

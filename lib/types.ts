@@ -1084,3 +1084,220 @@ export interface ProjectFinancialSummary {
   approved_co_total: number
   adjusted_budget: number
 }
+
+// ============================================
+// LEAD GENERATOR AGENT / CAMPAIGNS
+// ============================================
+
+export type CampaignExecutionMode = 'AUTOPILOT' | 'REVIEW'
+
+export type CampaignStatus =
+  | 'DRAFT'
+  | 'BRIEFING'
+  | 'AWAITING_REVIEW'
+  | 'DISCOVERING'
+  | 'GENERATING'
+  | 'SENDING'
+  | 'ACTIVE'
+  | 'COMPLETED'
+  | 'PAUSED'
+  | 'FAILED'
+  | 'CANCELLED'
+
+export type CampaignEventType =
+  | 'BRIEF_READY'
+  | 'DISCOVERY_COMPLETE'
+  | 'REFILL_RECOMMENDED'
+  | 'MESSAGING_READY'
+  | 'AUTH_ERROR'
+  | 'CAMPAIGN_COMPLETE'
+
+export type CampaignEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+
+export type CampaignEmailDraftStatus = 'DRAFT' | 'APPROVED' | 'QUEUED' | 'SENT' | 'FAILED'
+
+export interface DiscoveryForecastScenario {
+  relevant_businesses: number
+  reachable_with_both: number
+  reachable_with_email: number
+  reachable_with_phone: number
+  email_only: number
+  phone_only: number
+  recommended_reachable: number
+}
+
+export interface DiscoveryForecastSegment {
+  segment_key: string
+  segment_label: string
+  priority: number
+  profile_note: string
+  geography_multiplier: number
+  scenarios: Record<string, DiscoveryForecastScenario>
+}
+
+export interface DiscoveryForecast {
+  preferred_channel: string
+  expanded_geography: Record<string, any>
+  segment_forecasts: DiscoveryForecastSegment[]
+  aggregate_forecast: Record<string, DiscoveryForecastScenario>
+  rationale: string[]
+}
+
+export interface CampaignEvent {
+  id: number
+  uuid: string
+  campaign_id: number
+  event_type: CampaignEventType
+  status: CampaignEventStatus
+  summary: string
+  details?: Record<string, any> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignLead {
+  id: number
+  uuid: string
+  campaign_id: number
+  discovered_lead_id?: number | null
+  business_name: string
+  website?: string | null
+  domain?: string | null
+  email?: string | null
+  phone?: string | null
+  contact_name?: string | null
+  contact_title?: string | null
+  segment_type?: string | null
+  score?: number | null
+  score_reason?: string | null
+  meta_context?: Record<string, any> | null
+  scheduled_date?: string | null
+  email_status: string
+  sms_status: string
+  do_not_contact: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignEmailDraft {
+  id: number
+  uuid: string
+  campaign_id: number
+  campaign_lead_id: number
+  subject: string
+  body: string
+  rationale?: string | null
+  status: CampaignEmailDraftStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface DiscoveredCampaignLead {
+  id: number
+  uuid: string
+  discovery_run_id: number
+  business_name: string
+  website?: string | null
+  domain?: string | null
+  email?: string | null
+  phone?: string | null
+  contact_name?: string | null
+  contact_title?: string | null
+  serp_position?: number | null
+  serp_rating?: number | null
+  serp_review_count?: number | null
+  meta_context?: Record<string, any> | null
+  score?: number | null
+  score_reason?: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DiscoveryRun {
+  id: number
+  uuid: string
+  contractor_id: number
+  campaign_id?: number | null
+  name?: string | null
+  segment: string
+  location: Record<string, any>
+  priority?: number | null
+  queries_generated?: string[] | null
+  status: string
+  error_message?: string | null
+  results_found: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Campaign {
+  id: number
+  uuid: string
+  contractor_id: number
+  name: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  settings: Record<string, any>
+  email_instructions?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  daily_limit: number
+  total_leads_target: number
+  execution_mode: CampaignExecutionMode
+  status: CampaignStatus
+  awaiting_checkpoint?: string | null
+  campaign_brief?: Record<string, any> | null
+  discovery_forecast?: DiscoveryForecast | null
+  brief_approved: boolean
+  last_error?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignDetail extends Campaign {
+  events: CampaignEvent[]
+  leads: CampaignLead[]
+  email_drafts: CampaignEmailDraft[]
+}
+
+export interface DiscoveryForecastRequest {
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  preferred_channel: string
+  max_zip_codes: number
+}
+
+export interface CampaignPayload {
+  name: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  settings: Record<string, any>
+  email_instructions?: string
+  start_date?: string | null
+  end_date?: string | null
+  daily_limit: number
+  total_leads_target: number
+  execution_mode: CampaignExecutionMode
+}
+
+export interface CampaignGenerateBriefResponse {
+  campaign: Campaign
+  event: CampaignEvent
+}
+
+export interface CampaignLaunchResponse {
+  campaign: Campaign
+  events: CampaignEvent[]
+}
+
+export interface CampaignStagedLeadsResponse {
+  leads: DiscoveredCampaignLead[]
+}
+
+export interface StagedLeadActionResponse {
+  campaign: Campaign
+  promoted_leads: CampaignLead[]
+  rejected_count: number
+  generated_drafts: CampaignEmailDraft[]
+}
