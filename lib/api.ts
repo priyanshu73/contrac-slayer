@@ -2,7 +2,21 @@
  * API client layer for backend communication
  */
 
-import type { User, ContractorProfile, QBOInvoiceDetail, QBOProjectInvoiceDetailResponse } from './types'
+import type {
+  Campaign,
+  CampaignDetail,
+  CampaignGenerateBriefResponse,
+  CampaignLaunchResponse,
+  CampaignPayload,
+  CampaignStagedLeadsResponse,
+  ContractorProfile,
+  DiscoveryForecast,
+  DiscoveryForecastRequest,
+  QBOInvoiceDetail,
+  QBOProjectInvoiceDetailResponse,
+  StagedLeadActionResponse,
+  User,
+} from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
@@ -1548,6 +1562,105 @@ class ApiClient {
   async getProjectFinancialSummary(projectId: number) {
     return this.request<any>(`/projects/${projectId}/financials/summary`)
   }
+
+  async getCampaigns(): Promise<Campaign[]> {
+    return this.request<Campaign[]>('/campaigns')
+  }
+
+  async getCampaign(campaignUuid: string): Promise<CampaignDetail> {
+    return this.request<CampaignDetail>(`/campaigns/${campaignUuid}`)
+  }
+
+  async createCampaign(data: CampaignPayload): Promise<Campaign> {
+    return this.request<Campaign>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCampaign(campaignUuid: string, data: Partial<CampaignPayload>): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getCampaignForecast(data: DiscoveryForecastRequest): Promise<DiscoveryForecast> {
+    return this.request<DiscoveryForecast>('/campaigns/discovery-forecast', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async generateCampaignBrief(campaignUuid: string): Promise<CampaignGenerateBriefResponse> {
+    return this.request<CampaignGenerateBriefResponse>(`/campaigns/${campaignUuid}/generate-brief`, {
+      method: 'POST',
+    })
+  }
+
+  async approveCampaignBrief(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/approve-brief`, {
+      method: 'POST',
+    })
+  }
+
+  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+      method: 'POST',
+    })
+  }
+
+  async getCampaignEvents(campaignUuid: string) {
+    return this.request(`/campaigns/${campaignUuid}/events`)
+  }
+
+  async getCampaignStagedLeads(campaignUuid: string): Promise<CampaignStagedLeadsResponse> {
+    return this.request<CampaignStagedLeadsResponse>(`/campaigns/${campaignUuid}/staged-leads`)
+  }
+
+  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+    return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+    })
+  }
+
+  async rejectCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+    return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+    })
+  }
+
+  async refillCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/refill`, {
+      method: 'POST',
+    })
+  }
+
+  async resumeCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/resume`, {
+      method: 'POST',
+    })
+  }
+
+  async approveCampaignMessaging(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/approve-messaging`, {
+      method: 'POST',
+    })
+  }
+
+  async sendCampaignBatch(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/send-batch`, {
+      method: 'POST',
+    })
+  }
+
+  async pauseCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
+      method: 'POST',
+    })
+  }
 }
 
 class ContractorAIClient {
@@ -1728,6 +1841,105 @@ class ContractorAIClient {
     message?: string
   }> {
     return this.request(`/interactions/${interactionId}/project-summary`)
+  }
+
+  async getCampaigns(): Promise<Campaign[]> {
+    return this.request<Campaign[]>('/campaigns')
+  }
+
+  async getCampaign(campaignUuid: string): Promise<CampaignDetail> {
+    return this.request<CampaignDetail>(`/campaigns/${campaignUuid}`)
+  }
+
+  async createCampaign(data: CampaignPayload): Promise<Campaign> {
+    return this.request<Campaign>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCampaign(campaignUuid: string, data: Partial<CampaignPayload>): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getCampaignForecast(data: DiscoveryForecastRequest): Promise<DiscoveryForecast> {
+    return this.request<DiscoveryForecast>('/campaigns/discovery-forecast', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async generateCampaignBrief(campaignUuid: string): Promise<CampaignGenerateBriefResponse> {
+    return this.request<CampaignGenerateBriefResponse>(`/campaigns/${campaignUuid}/generate-brief`, {
+      method: 'POST',
+    })
+  }
+
+  async approveCampaignBrief(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/approve-brief`, {
+      method: 'POST',
+    })
+  }
+
+  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+      method: 'POST',
+    })
+  }
+
+  async getCampaignEvents(campaignUuid: string) {
+    return this.request(`/campaigns/${campaignUuid}/events`)
+  }
+
+  async getCampaignStagedLeads(campaignUuid: string): Promise<CampaignStagedLeadsResponse> {
+    return this.request<CampaignStagedLeadsResponse>(`/campaigns/${campaignUuid}/staged-leads`)
+  }
+
+  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+    return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+    })
+  }
+
+  async rejectCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+    return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+    })
+  }
+
+  async refillCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/refill`, {
+      method: 'POST',
+    })
+  }
+
+  async resumeCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/resume`, {
+      method: 'POST',
+    })
+  }
+
+  async approveCampaignMessaging(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/approve-messaging`, {
+      method: 'POST',
+    })
+  }
+
+  async sendCampaignBatch(campaignUuid: string): Promise<CampaignLaunchResponse> {
+    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/send-batch`, {
+      method: 'POST',
+    })
+  }
+
+  async pauseCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
+      method: 'POST',
+    })
   }
 
   async healthCheck() {
