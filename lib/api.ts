@@ -1275,6 +1275,60 @@ class ApiClient {
     return response.json()
   }
 
+  async generateAfterImage(jobId: number, beforeImageUrl: string, options?: {
+    userPrompt?: string
+    lineItems?: Array<{
+      title?: string
+      description?: string
+      custom_description?: string
+      quantity?: number
+      unit_of_measure?: string
+    }>
+  }): Promise<{ after_image_url: string }> {
+    return this.request<{ after_image_url: string }>(`/jobs/${jobId}/generate-after-image`, {
+      method: 'POST',
+      body: JSON.stringify({
+        before_image_url: beforeImageUrl,
+        user_prompt: options?.userPrompt,
+        line_items: options?.lineItems,
+      }),
+    })
+  }
+
+  async generateAfterImagePreview(params: {
+    beforeImage: File
+    jobTitle: string
+    jobDescription: string
+    userPrompt?: string
+    lineItems: Array<{
+      title?: string
+      description?: string
+      custom_description?: string
+      quantity?: number
+      unit_of_measure?: string
+    }>
+  }): Promise<{ after_image_url: string }> {
+    const formData = new FormData()
+    formData.append('before_image', params.beforeImage)
+    formData.append('job_title', params.jobTitle)
+    formData.append('job_description', params.jobDescription)
+    formData.append('user_prompt', params.userPrompt || '')
+    formData.append('line_items_json', JSON.stringify(params.lineItems))
+
+    const response = await fetch(`${this.baseURL}/jobs/generate-after-image-preview`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to generate after image')
+    }
+
+    return response.json()
+  }
+
   async createProjectTrade(projectId: number, data: any) {
     return this.request(`/projects/${projectId}/trades`, {
       method: 'POST',

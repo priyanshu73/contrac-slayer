@@ -313,6 +313,22 @@ export function PersonalizedQuoteView({
 
   const total = currentJob.total_amount || 0
 
+  const isBeforePhotoMedia = (fileName?: string | null) => {
+    if (!fileName) return false
+    return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+  }
+
+  const isAfterRenderMedia = (fileName?: string | null) => {
+    if (!fileName) return false
+    return fileName.toLowerCase() === "ai-after-render.png"
+  }
+
+  const beforePhotoMedia = currentJob.project_media?.find((media) => isBeforePhotoMedia(media.file_name)) || null
+  const afterRenderMedia = currentJob.project_media?.find((media) => isAfterRenderMedia(media.file_name)) || null
+  const attachmentMedia = (currentJob.project_media || []).filter((media) => {
+    return !isBeforePhotoMedia(media.file_name) && !isAfterRenderMedia(media.file_name)
+  })
+
   // Calculate breakdown - handle both interface and API response formats
   const baseSubtotal = (currentJob.items || []).reduce(
     (sum, item: any) => {
@@ -675,14 +691,56 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
+                {(beforePhotoMedia || afterRenderMedia) && (
+                  <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4">
+                      Project Preview
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {beforePhotoMedia && (
+                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                          <div className="aspect-[4/3] bg-gray-100">
+                            <img
+                              src={beforePhotoMedia.file_url}
+                              alt="Before preview"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="border-t border-gray-200 px-4 py-3">
+                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                              Before
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {afterRenderMedia && (
+                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                          <div className="aspect-[4/3] bg-gray-100">
+                            <img
+                              src={afterRenderMedia.file_url}
+                              alt="After rendering"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="border-t border-gray-200 px-4 py-3">
+                            <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                              After (Estimated)
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Attachments */}
-                {currentJob.project_media && currentJob.project_media.length > 0 && (
+                {attachmentMedia.length > 0 && (
                   <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
                       Attachments
                     </h3>
                     <div className="flex flex-wrap gap-4">
-                      {currentJob.project_media.map((media) => {
+                      {attachmentMedia.map((media) => {
                         const isImage = media.media_type === "PHOTO" || media.file_url.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i)
 
                         return (
@@ -1431,4 +1489,3 @@ export function PersonalizedQuoteView({
     </div>
   )
 }
-

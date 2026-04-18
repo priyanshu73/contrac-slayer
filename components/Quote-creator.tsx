@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -21,8 +22,9 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
+import { BeforeAfterPanel } from "@/components/before-after-panel"
 import Image from "next/image"
-import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
+import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
@@ -146,6 +148,40 @@ function getRateNumber(rate: LineItem["rate"]): number {
   if (typeof rate === "number") return rate
   const n = Number.parseFloat(rate)
   return Number.isFinite(n) ? n : 0
+}
+
+const AFTER_RENDER_FILENAME = "ai-after-render.png"
+
+function isBeforePhotoFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+}
+
+function isAfterRenderFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return fileName.toLowerCase() === AFTER_RENDER_FILENAME
+}
+
+function sanitizeFileExtension(fileName?: string | null): string {
+  const extension = fileName?.split(".").pop()?.toLowerCase()
+  if (!extension || extension === fileName?.toLowerCase()) return "png"
+  return extension.replace(/[^a-z0-9]/g, "") || "png"
+}
+
+function dataUrlToFile(dataUrl: string, fileName: string): File {
+  const [header, data] = dataUrl.split(",")
+  const mimeMatch = header.match(/data:(.*?);base64/)
+  const mimeType = mimeMatch?.[1] || "image/png"
+  const binary = atob(data)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new File([bytes], fileName, { type: mimeType })
+}
+
+function fileLooksDuplicate(file: File, existingFiles: File[]): boolean {
+  return existingFiles.some((existing) => existing.name === file.name && existing.size === file.size)
 }
 
 // Unit Selector Component
@@ -456,6 +492,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [createError, setCreateError] = useState<string | null>(null)
   const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [beforeAfterBeforeFile, setBeforeAfterBeforeFile] = useState<File | null>(null)
+  const [beforeAfterBeforePreview, setBeforeAfterBeforePreview] = useState<string | null>(null)
+  const [beforeAfterAfterDataUrl, setBeforeAfterAfterDataUrl] = useState<string | null>(null)
+  const [beforeAfterAfterNeedsUpload, setBeforeAfterAfterNeedsUpload] = useState(false)
+  const [isBeforeAfterModalOpen, setIsBeforeAfterModalOpen] = useState(false)
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -477,6 +518,27 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const openCloudinaryWidget = () => {
     document.getElementById('quote-attachment-input')?.click()
   }
+
+  const beforeAfterTrigger = (
+    <button
+      type="button"
+      onClick={() => setIsBeforeAfterModalOpen(true)}
+      className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:text-emerald-700"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900">AI Before and After</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Minimal before/after image generator
+          </p>
+        </div>
+      </div>
+      <span className="text-xs font-medium text-slate-500">Open</span>
+    </button>
+  )
 
   // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
@@ -829,15 +891,24 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Load attached project media
       if (initialData.project_media && initialData.project_media.length > 0) {
         setUploadedImages(initialData.project_media.map((media: any) => ({
-          preview: media.file_url,
-          file: null, // It's an existing file from backend, no new File object
-          isExisting: true,
-          mediaId: media.id,
-          fileName: media.file_name
+          url: media.file_url,
+          name: media.file_name || "attachment",
+          size: media.file_size || 0,
         })))
+
+        const beforeMedia = initialData.project_media.find((media: any) => isBeforePhotoFilename(media.file_name))
+        const afterMedia = initialData.project_media.find((media: any) => isAfterRenderFilename(media.file_name))
+        setBeforeAfterBeforeFile(null)
+        setBeforeAfterBeforePreview(beforeMedia?.file_url || null)
+        setBeforeAfterAfterDataUrl(afterMedia?.file_url || null)
+        setBeforeAfterAfterNeedsUpload(false)
       } else {
         // Clear if no media
         setUploadedImages([])
+        setBeforeAfterBeforeFile(null)
+        setBeforeAfterBeforePreview(null)
+        setBeforeAfterAfterDataUrl(null)
+        setBeforeAfterAfterNeedsUpload(false)
       }
 
       // Mark as loaded and ensure loadingMarkup is false for editing
@@ -1446,16 +1517,32 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       const finalJobId = (response as any)?.id || (quoteId ? parseInt(quoteId, 10) : null)
 
       // Attach any uploaded images
-      if (finalJobId && uploadedImages.length > 0) {
-        // Collect new files to upload
-        const newFiles = uploadedImages.filter(img => img.file).map(img => img.file as File);
+      if (finalJobId) {
+        const filesToUpload = uploadedImages
+          .filter(img => img.file)
+          .map(img => img.file as File)
 
-        // Upload new files
-        if (newFiles.length > 0) {
+        if (beforeAfterBeforeFile) {
+          const beforeExtension = sanitizeFileExtension(beforeAfterBeforeFile.name)
+          const beforeFileForUpload = new File(
+            [beforeAfterBeforeFile],
+            `before-photo.${beforeExtension}`,
+            { type: beforeAfterBeforeFile.type || `image/${beforeExtension}` }
+          )
+          if (!fileLooksDuplicate(beforeAfterBeforeFile, filesToUpload)) {
+            filesToUpload.push(beforeFileForUpload)
+          }
+        }
+
+        if (beforeAfterAfterDataUrl && beforeAfterAfterNeedsUpload) {
+          filesToUpload.push(dataUrlToFile(beforeAfterAfterDataUrl, AFTER_RENDER_FILENAME))
+        }
+
+        if (filesToUpload.length > 0) {
           try {
-            await api.uploadJobMedia(finalJobId, newFiles);
+            await api.uploadJobMedia(finalJobId, filesToUpload)
           } catch (imgError) {
-            console.error("Failed to upload new job media:", imgError);
+            console.error("Failed to upload new job media:", imgError)
           }
         }
       }
@@ -1509,9 +1596,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   return (
     <div className="mx-auto max-w-[1800px] px-4 sm:px-6">
-      <div className="flex flex-col lg:flex-row gap-8 pt-6">
+      <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 pt-6">
         {/* Left Column - Main Content */}
-        <div className="flex-1 space-y-6 min-w-0">
+        <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
           {/* Client Information */}
           <Card className="p-6" id="material-search">
             <div className="flex items-center justify-between mb-4">
@@ -1625,31 +1712,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </div>
               </div>
             )}
-          </Card>
-
-          {/* Measurements Input */}
-          <Card className="overflow-hidden">
-            <div className="px-6 py-4 border-b bg-slate-50/80 dark:bg-slate-800/50">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/10">
-                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">Project Measurements</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Add measurements for more accurate estimates
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <MeasurementsInput
-                value={measurements}
-                onChange={setMeasurements}
-              />
-            </div>
           </Card>
 
           {/* Material Search */}
@@ -1966,6 +2028,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </CollapsibleContent>
               </div>
             </Collapsible>
+
+            <div className="mt-3">
+              {beforeAfterTrigger}
+            </div>
           </div>
 
           {/* Line Items */}
@@ -2567,6 +2633,22 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
           </Card>
 
+          <div className="border-t border-border/70 pt-4">
+            <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-background/70 p-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold">Measurements</h2>
+                <p className="text-sm text-muted-foreground">
+                  Optional. Add dimensions only if they help the estimate.
+                </p>
+              </div>
+              <MeasurementsInput
+                value={measurements}
+                onChange={setMeasurements}
+                minimal
+              />
+            </div>
+          </div>
+
           {/* Error Display */}
           {createError && (
             <Card className="p-4 border-red-200 bg-red-50">
@@ -2631,102 +2713,103 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         </div>
 
         {/* Right Column - AI Assistant */}
-        <div className="hidden lg:block lg:w-[500px] xl:w-[500px] 2xl:w-[500px] space-y-6 pt-6 flex-shrink-0">
-          {/* AI Line Items Assistant */}
-          <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 sticky top-6 rounded-xl">
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-base font-semibold">AI Estimate Generator</h2>
-                  <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
-                    Beta
-                  </span>
-                </div>
-                <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
-                  <span>Still in development — feel free to try it out.</span>
-                </div>
-              </div>
+        <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
+          <div className="sticky top-6 space-y-6">
+            {/* AI Line Items Assistant */}
+            <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 rounded-xl">
               <div className="space-y-4">
-                {/* Template Selector - hidden while in development */}
-                {!HIDE_AI_TEMPLATES && templates.length > 0 && (
-                  <div>
-                    <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
-                      Project Template
-                    </Label>
-                    <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={templateComboOpen}
-                          className="w-full justify-between bg-background"
-                          disabled={loadingTemplates}
-                        >
-                          {loadingTemplates ? (
-                            "Loading templates..."
-                          ) : isCustomProject ? (
-                            "✏️ Custom Project"
-                          ) : selectedTemplateId ? (
-                            (() => {
-                              const template = templates.find((t) => t.id === selectedTemplateId)
-                              return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
-                            })()
-                          ) : (
-                            "Select a project type..."
-                          )}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search templates..." />
-                          <CommandList>
-                            <CommandEmpty>No template found.</CommandEmpty>
-                            <CommandGroup>
-                              <CommandItem
-                                value="custom"
-                                onSelect={() => {
-                                  handleTemplateChange('custom')
-                                  setTemplateComboOpen(false)
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    isCustomProject ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                ✏️ Custom Project
-                              </CommandItem>
-                              {sortedTemplates.map((t) => (
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                    <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
+                      Beta
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                    <span>Still in development — feel free to try it out.</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {/* Template Selector - hidden while in development */}
+                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
+                    <div>
+                      <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
+                        Project Template
+                      </Label>
+                      <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={templateComboOpen}
+                            className="w-full justify-between bg-background"
+                            disabled={loadingTemplates}
+                          >
+                            {loadingTemplates ? (
+                              "Loading templates..."
+                            ) : isCustomProject ? (
+                              "✏️ Custom Project"
+                            ) : selectedTemplateId ? (
+                              (() => {
+                                const template = templates.find((t) => t.id === selectedTemplateId)
+                                return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
+                              })()
+                            ) : (
+                              "Select a project type..."
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search templates..." />
+                            <CommandList>
+                              <CommandEmpty>No template found.</CommandEmpty>
+                              <CommandGroup>
                                 <CommandItem
-                                  key={t.id}
-                                  value={`${t.project_type} ${t.trade}`}
+                                  value="custom"
                                   onSelect={() => {
-                                    handleTemplateChange(String(t.id))
+                                    handleTemplateChange('custom')
                                     setTemplateComboOpen(false)
                                   }}
                                 >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                      isCustomProject ? "opacity-100" : "opacity-0"
                                     )}
                                   />
-                                  {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                  ✏️ Custom Project
                                 </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
+                                {sortedTemplates.map((t) => (
+                                  <CommandItem
+                                    key={t.id}
+                                    value={`${t.project_type} ${t.trade}`}
+                                    onSelect={() => {
+                                      handleTemplateChange(String(t.id))
+                                      setTemplateComboOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
 
-                {/* Dynamic Variable Form (when template selected) */}
-                {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
+                  {/* Dynamic Variable Form (when template selected) */}
+                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                   <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                     {loadingTemplateDetail ? (
@@ -2797,8 +2880,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
                 )}
 
-                {/* Custom Project Description (when custom or no templates) */}
-                {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
+                  {/* Custom Project Description (when custom or no templates) */}
+                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                   <>
                     <div>
                       <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
@@ -2885,51 +2968,51 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </Select>
                   </div>
                 </div>
-                {(() => {
-                  const desc = serviceDescription.trim()
-                  const wordCount = desc ? desc.split(/\s+/).length : 0
-                  const tooShort = desc.length < 30 || wordCount < 6
-                  return (
-                    <div className="flex flex-col gap-2 w-full">
-                      <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                        {aiLoading ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            {aiLoadingMessages[aiLoadingStage]}
-                          </span>
-                        ) : (
-                          <>
-                            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            Generate AI Estimate
-                          </>
-                        )}
-                      </Button>
-                      {aiLoading && (
-                        <div className="w-full space-y-2">
-                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all duration-1000 ease-out"
-                              style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
-                            />
+                  {(() => {
+                    const desc = serviceDescription.trim()
+                    const wordCount = desc ? desc.split(/\s+/).length : 0
+                    const tooShort = desc.length < 30 || wordCount < 6
+                    return (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                          {aiLoading ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              {aiLoadingMessages[aiLoadingStage]}
+                            </span>
+                          ) : (
+                            <>
+                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              Generate AI Estimate
+                            </>
+                          )}
+                        </Button>
+                        {aiLoading && (
+                          <div className="w-full space-y-2">
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary transition-all duration-1000 ease-out"
+                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                              This usually takes 15-30 seconds
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground text-center">
-                            This usually takes 15-30 seconds
+                        )}
+                        {!aiLoading && tooShort && (
+                          <p className="text-xs text-muted-foreground w-full">
+                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
                           </p>
-                        </div>
-                      )}
-                      {!aiLoading && tooShort && (
-                        <p className="text-xs text-muted-foreground w-full">
-                          Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
-                        </p>
-                      )}
-                    </div>
-                  )
-                })()}
+                        )}
+                      </div>
+                    )
+                  })()}
 
-                {/* AI accuracy feedback - desktop */}
-                {showAccuracyQuestion && (
+                  {/* AI accuracy feedback - desktop */}
+                  {showAccuracyQuestion && (
                   <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
                     <p className="text-sm font-medium">How accurate was this?</p>
                     <div className="flex items-center justify-center gap-1">
@@ -2947,12 +3030,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
                   </div>
                 )}
-                {aiAccuracySubmitted && (
-                  <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
-                )}
+                  {aiAccuracySubmitted && (
+                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                  )}
 
-                {/* Display Measurements if available */}
-                {measurements.items && measurements.items.length > 0 && (
+                  {/* Display Measurements if available */}
+                  {measurements.items && measurements.items.length > 0 && (
                   <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
                     <div className="flex items-center gap-2 mb-2">
                       <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2982,14 +3065,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       ))}
                     </div>
                   </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            {beforeAfterTrigger}
+          </div>
 
           {/* Assumptions Display */}
           {assumptions.length > 0 && (
-            <Card className="p-5 sm:p-6 sticky top-6 rounded-xl border border-border">
+            <Card className="p-5 sm:p-6 rounded-xl border border-border">
               <div>
                 <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3010,6 +3096,40 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           )}
         </div>
       </div>
+
+      <Dialog open={isBeforeAfterModalOpen} onOpenChange={setIsBeforeAfterModalOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl" showCloseButton={false}>
+          <DialogHeader className="pr-8">
+            <DialogTitle>AI Before and After</DialogTitle>
+            <DialogDescription>
+              Upload a photo, choose the quote items to include, and generate the after image.
+            </DialogDescription>
+          </DialogHeader>
+
+          <BeforeAfterPanel
+            jobId={quoteId ? parseInt(quoteId, 10) : null}
+            lineItems={items.map((item) => ({
+              title: item.title,
+              description: item.description,
+              quantity: item.quantity,
+              unitOfMeasure: item.unitOfMeasure,
+            }))}
+            jobDescription={serviceDescription}
+            jobTitle={projectTitle}
+            beforeImageFile={beforeAfterBeforeFile}
+            beforeImagePreview={beforeAfterBeforePreview}
+            generatedAfterUrl={beforeAfterAfterDataUrl}
+            onBeforeImageSelect={(file, preview) => {
+              setBeforeAfterBeforeFile(file)
+              setBeforeAfterBeforePreview(preview)
+            }}
+            onAfterImageGenerated={(dataUrl) => {
+              setBeforeAfterAfterDataUrl(dataUrl)
+              setBeforeAfterAfterNeedsUpload(true)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Substitute Modal */}
       {showSubstitute && substituteItemIndex !== null && (

@@ -19,6 +19,7 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
+  Zap,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -96,13 +97,11 @@ export function Navbar() {
     { href: `/${locale}/invoices`, label: t("invoices"), icon: Receipt },
     { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
     { href: `/${locale}/clients`, label: t("clients"), icon: Users },
-    { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
-    { href: `/${locale}/quotes`, label: t('quotes'), icon: FileText },
-    { href: `/${locale}/invoices`, label: t('invoices'), icon: Receipt },
-    { href: `/${locale}/leads`, label: t('leads'), icon: MessageSquare },
-    { href: `/${locale}/lead-generator-agent`, label: t('leadGeneratorAgent'), icon: Zap },
-    { href: `/${locale}/calendar`, label: t('calendar'), icon: Calendar },
-    { href: `/${locale}/clients`, label: "Clients", icon: Users },
+    {
+      href: `/${locale}/lead-generator-agent`,
+      label: t("leadGeneratorAgent"),
+      icon: Zap,
+    },
     { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
     { href: `/${locale}/projects`, label: t("projects"), icon: FolderKanban },
     { href: `/${locale}/tasks`, label: t("tasks"), icon: ListTodo },
