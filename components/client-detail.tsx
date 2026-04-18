@@ -45,7 +45,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, FolderOpen, Plus, ChevronRight } from "lucide-react"
+import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, FolderOpen, Plus, ChevronRight, Mail } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import type { ProjectListItem, ProjectStatus } from "@/lib/types"
@@ -394,12 +394,33 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   )
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-24 md:pb-8">
+    <div className="space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:space-y-6 sm:pb-24 md:pb-8">
       {/* 1. Identity Card - Name | Service address (middle) | Phone & Email */}
-      <Card className="p-4 sm:p-5">
+      <Card className="overflow-hidden rounded-lg border-slate-200 p-0 shadow-sm sm:rounded-xl sm:p-5">
+        <div className="bg-slate-950 px-4 py-5 text-white sm:hidden">
+          <div className="flex items-start gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl font-bold ring-1 ring-white/15">
+              {clientData.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center gap-2">
+                <Badge className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white ring-1 ring-white/15">
+                  {getStatusLabel(clientData.status)}
+                </Badge>
+                <span className="text-xs text-white/60">{tClients("clientSince", { date: formatDate(clientData.created_at) })}</span>
+              </div>
+              <h1 className="break-words text-2xl font-bold leading-tight">{clientData.name}</h1>
+              {clientData.company_name && (
+                <p className="mt-1 truncate text-sm font-medium text-white/70">{clientData.company_name}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-0">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4 md:gap-6">
           {/* Left: Name + meta */}
-          <div className="flex items-start gap-3 min-w-0 shrink-0">
+          <div className="hidden items-start gap-3 min-w-0 shrink-0 sm:flex">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary ring-2 ring-primary/10">
               <span className="text-lg sm:text-xl font-bold">{clientData.name.charAt(0).toUpperCase()}</span>
             </div>
@@ -481,21 +502,38 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           })()}
 
           {/* Right: Create Quote + Create Project + Edit + Delete on same line */}
-          <div className="flex flex-wrap items-center gap-2 min-w-0 shrink-0 pt-2 sm:pt-0 border-t border-border/60 sm:border-t-0 mt-2 sm:mt-0">
-            <Button size="sm" className="sm:min-w-[140px] min-h-[44px] sm:min-h-0 touch-manipulation" asChild>
+          <div className="grid grid-cols-2 gap-2 min-w-0 shrink-0 pt-2 sm:mt-0 sm:flex sm:flex-wrap sm:items-center sm:border-t-0 sm:pt-0">
+            <Button size="sm" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" asChild>
               <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
                 <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                 {tClients("createQuote")}
               </a>
             </Button>
-            <Button size="sm" variant="outline" className="sm:min-w-[140px] min-h-[44px] sm:min-h-0 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
+            <Button size="sm" variant="outline" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
               <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
               Project
             </Button>
+            {clientData.phone && (
+              <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
+                <a href={`tel:${clientData.phone}`}>
+                  <Phone className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                  {tClients("call")}
+                </a>
+              </Button>
+            )}
+            {clientData.email && (
+              <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
+                <a href={`mailto:${clientData.email}`}>
+                  <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                  {tClients("email")}
+                </a>
+              </Button>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 touch-manipulation" onClick={() => setEditOpen(true)}>
+                <Button variant="outline" size="icon" className="h-11 w-full rounded-lg sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" />
+                  <span className="ml-1.5 sm:hidden">{tCommon("edit")}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{tCommon("edit")}</TooltipContent>
@@ -505,15 +543,17 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 sm:h-8 sm:w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-destructive hover:text-destructive touch-manipulation"
+                  className="h-11 w-full rounded-lg text-destructive hover:text-destructive sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation"
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
+                  <span className="ml-1.5 sm:hidden">{tCommon("delete")}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{tCommon("delete")}</TooltipContent>
             </Tooltip>
           </div>
+        </div>
         </div>
       </Card>
 
@@ -521,22 +561,22 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 min-w-0">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
           {/* Quotes, Leads, Projects - Segmented tabs */}
-          <Card className="p-4 sm:p-6 min-w-0 overflow-hidden">
+          <Card className="rounded-lg p-3 sm:rounded-xl sm:p-6 min-w-0 overflow-hidden">
             <Tabs defaultValue="quotes">
-              <div className="flex gap-2 p-1 bg-muted rounded-lg mb-4 sm:mb-6 min-w-0 overflow-hidden">
+              <div className="mb-4 min-w-0 overflow-x-auto rounded-lg bg-muted p-1 sm:mb-6">
                 <TabsList className="w-full grid grid-cols-3 h-auto p-0 bg-transparent min-w-0">
-                  <TabsTrigger value="quotes" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                  <TabsTrigger value="quotes" className="flex-1 min-w-0 px-1.5 sm:px-4 py-2.5 rounded-md font-medium text-xs sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1 overflow-hidden">
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="truncate">{tClients("quotes")}</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientData.quotes.length}</Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="leads" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                  <TabsTrigger value="leads" className="flex-1 min-w-0 px-1.5 sm:px-4 py-2.5 rounded-md font-medium text-xs sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1 overflow-hidden">
                     <MessageSquare className="h-4 w-4 shrink-0" />
                     <span className="truncate hidden sm:inline">{tClients("quoteRequests")}</span>
                     <span className="truncate sm:hidden">Requests</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientData.leads.length}</Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="projects" className="flex-1 min-w-0 px-2 sm:px-4 py-2.5 rounded-md font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 overflow-hidden">
+                  <TabsTrigger value="projects" className="flex-1 min-w-0 px-1.5 sm:px-4 py-2.5 rounded-md font-medium text-xs sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1 overflow-hidden">
                     <FolderOpen className="h-4 w-4 shrink-0" />
                     <span className="truncate">Projects</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientProjects.length}</Badge>
@@ -558,13 +598,13 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                   clientData.quotes.map((quote) => (
                     <Card
                       key={quote.id}
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
+                      className="rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden sm:p-4"
                       onClick={() => router.push(`/${locale}/quotes/${quote.id}`)}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 min-w-0 overflow-hidden">
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2 min-w-0">
-                            <h3 className="font-semibold text-base truncate min-w-0">
+                            <h3 className="min-w-0 max-w-full truncate text-base font-semibold">
                               {quote.title || quote.job_number || `Quote #${quote.id}`}
                             </h3>
                             <Badge className={`${getStatusColor(quote.status)} shrink-0`}>
@@ -627,10 +667,10 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                   clientData.leads.map((lead) => (
                     <Card
                       key={lead.id}
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer min-w-0 overflow-hidden touch-manipulation min-h-[72px]"
+                      className="rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer min-w-0 overflow-hidden touch-manipulation min-h-[72px] sm:p-4"
                       onClick={() => router.push(`/${locale}/leads/${lead.id}`)}
                     >
-                      <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
+                      <div className="flex flex-col gap-3 min-w-0 overflow-hidden sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
                             <h3 className="font-semibold truncate min-w-0">{lead.name}</h3>
@@ -664,7 +704,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                             )}
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                        <div className="flex flex-shrink-0 flex-row items-center justify-between gap-2 text-left sm:flex-col sm:items-end sm:text-right">
                           {lead.estimated_value && (
                             <div className="text-sm font-semibold">
                               {tClients("est")}: {formatCurrency(lead.estimated_value)}
@@ -674,6 +714,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="min-h-[44px] rounded-lg sm:min-h-0"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 router.push(`/${locale}/quotes/${lead.converted_to_job_id}`)
@@ -685,6 +726,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="min-h-[44px] rounded-lg sm:min-h-0"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 router.push(`/quotes/new?leadId=${lead.id}`)
@@ -721,10 +763,10 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                     {clientProjects.map((project) => (
                       <Card
                         key={project.id}
-                        className="p-4 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden"
+                        className="rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer touch-manipulation min-h-[72px] min-w-0 overflow-hidden sm:p-4"
                         onClick={() => router.push(`/${locale}/projects/${project.id}`)}
                       >
-                        <div className="flex items-start justify-between gap-4 min-w-0 overflow-hidden">
+                        <div className="flex items-start justify-between gap-3 min-w-0 overflow-hidden sm:gap-4">
                           <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="flex flex-wrap items-center gap-2 mb-1 min-w-0">
                               <h3 className="font-semibold text-base truncate min-w-0">
@@ -816,6 +858,34 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               getInsightsLabel={tClients("getInsights")}
               onRefresh={fetchClientDetails}
             />
+          )}
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        <div className="grid grid-cols-3 gap-2">
+          <Button asChild className="h-12 rounded-lg text-xs">
+            <a href={`/${locale}/quotes/new?clientId=${clientData.id}`} className="flex items-center justify-center gap-1.5">
+              <FileText className="h-4 w-4" />
+              {tClients("createQuote")}
+            </a>
+          </Button>
+          <Button variant="outline" className="h-12 rounded-lg" onClick={() => setNewProjectOpen(true)}>
+            <FolderOpen className="h-4 w-4" />
+            Project
+          </Button>
+          {clientData.phone ? (
+            <Button variant="outline" className="h-12 rounded-lg" asChild>
+              <a href={`tel:${clientData.phone}`} className="flex items-center justify-center gap-1.5">
+                <Phone className="h-4 w-4" />
+                {tClients("call")}
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" className="h-12 rounded-lg" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
           )}
         </div>
       </div>

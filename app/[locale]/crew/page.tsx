@@ -47,10 +47,24 @@ export default function CrewPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
+      <div className="border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm md:sticky md:top-0 md:z-10">
+        <div className="px-4 py-4 sm:px-8 sm:py-4 md:px-12 lg:px-16">
           <div className="max-w-7xl mx-auto space-y-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Crew</h1>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Crew</h1>
+                <p className="mt-0.5 text-xs font-medium text-slate-500 md:hidden">
+                  {loading ? "Loading..." : `${filteredSubcontractors.length} crew members`}
+                </p>
+              </div>
+              <Button
+                className="h-11 shrink-0 rounded-lg px-3 text-sm font-semibold md:hidden"
+                onClick={() => setAddSubOpen(true)}
+              >
+                <Plus className="h-5 w-5 shrink-0" />
+                Add
+              </Button>
+            </div>
 
             {/* Search + Controls */}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
@@ -60,11 +74,11 @@ export default function CrewPage() {
                   placeholder="Search crew..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:max-w-xs h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:h-10 sm:max-w-xs sm:text-sm sm:shadow-none"
                 />
               </div>
 
-              <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
+              <div className="hidden w-full items-center gap-2 sm:flex sm:w-auto sm:gap-3">
                 <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                   <button
                     type="button"

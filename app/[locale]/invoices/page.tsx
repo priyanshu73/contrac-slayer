@@ -239,7 +239,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-24 md:pb-10">
-      <main className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
+      <main className="container mx-auto max-w-5xl px-4 py-5 md:py-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
@@ -254,7 +254,7 @@ export default function InvoicesPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-5 bg-transparent">
+        <div className="mb-5 rounded-lg border border-border/70 bg-card p-3 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -262,7 +262,7 @@ export default function InvoicesPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by client name or invoice number..."
-                className="h-10 bg-transparent pl-9"
+                className="h-11 rounded-lg bg-background pl-9 text-base md:h-10 md:bg-transparent md:text-sm"
                 aria-label="Search invoices"
               />
             </div>
@@ -273,7 +273,7 @@ export default function InvoicesPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 w-full min-w-[150px] justify-between bg-transparent px-3 font-normal"
+                      className="h-11 w-full min-w-[150px] justify-between rounded-lg bg-background px-3 font-normal md:h-10 md:bg-transparent"
                     >
                       <span className="truncate">{statusFilterLabel}</span>
                       <ChevronDown className="h-4 w-4 opacity-60" />
@@ -315,7 +315,7 @@ export default function InvoicesPage() {
                   value={clientFilterId != null ? String(clientFilterId) : "all"}
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
-                  <SelectTrigger className="h-10 bg-transparent">
+                  <SelectTrigger className="h-11 rounded-lg bg-background md:h-10 md:bg-transparent">
                     <SelectValue placeholder="All Clients" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
@@ -330,7 +330,7 @@ export default function InvoicesPage() {
                 </Select>
               </div>
               {hasActiveFilters && (
-                <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={clearFilters}>
+                <Button type="button" variant="ghost" size="sm" className="h-11 rounded-lg px-2 text-xs md:h-10" onClick={clearFilters}>
                   Clear Filters
                 </Button>
               )}
@@ -379,7 +379,7 @@ export default function InvoicesPage() {
             {invoices.map((invoice) => (
               <div key={invoice.id} className="group relative">
                 <Card
-                  className={`p-4 md:p-5 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer border-border/80 bg-card/90 hover:border-primary/30 ${statusAccentClass(invoice.status)}`}
+                  className={`rounded-lg p-4 md:p-5 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer border-border/80 bg-card/90 hover:border-primary/30 ${statusAccentClass(invoice.status)}`}
                   onClick={() => router.push(`${basePath}/${invoice.id}`)}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -415,14 +415,14 @@ export default function InvoicesPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex sm:flex-col items-center sm:items-end gap-3 shrink-0">
+                    <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
                       <span className="text-xl font-bold text-primary tabular-nums">
                         {formatCurrency(invoice.total_amount)}
                       </span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 opacity-70 sm:opacity-0 sm:group-hover:opacity-100"
+                        className="h-9 w-9 rounded-lg p-0 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           router.push(`${basePath}/${invoice.id}`)
@@ -442,6 +442,7 @@ export default function InvoicesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 rounded-lg"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
@@ -451,6 +452,7 @@ export default function InvoicesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 rounded-lg"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >
