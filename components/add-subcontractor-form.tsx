@@ -70,7 +70,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Add Crew Member</DialogTitle>
                 </DialogHeader>
@@ -85,7 +85,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="sub-email">Email</Label>
                             <Input
@@ -106,7 +106,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="sub-company">Company Name</Label>
                             <Input
@@ -145,7 +145,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             onChange={(e) => handleChange("notes", e.target.value)}
                         />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>

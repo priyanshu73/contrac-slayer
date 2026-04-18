@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users, Eye } from "lucide-react"
+import { Calendar, Trash2, RotateCcw, Phone, MapPin, ExternalLink, Users, Eye, Mail } from "lucide-react"
 import { useTranslations, useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { formatAddressStreetForDisplay } from "@/lib/format-address"
@@ -141,7 +141,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
 
   if (clients.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-12 text-center">
+      <div className="rounded-lg border border-slate-100 bg-white p-8 text-center shadow-sm sm:p-12">
         <div className="flex flex-col items-center justify-center gap-4">
           <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
             <Users className="h-8 w-8 text-slate-400" />
@@ -354,58 +354,151 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
         </div>
       )}
 
-      {/* List view: Compact list on mobile - min 44px tap targets */}
+      {/* List view: rich mobile contact cards - min 44px tap targets */}
       {viewMode === "list" && (
-        <div className="md:hidden space-y-2">
-          {clients.map((client) => (
-            <div
-              key={client.id}
-              role="button"
-              tabIndex={0}
-              className={cn(
-                "flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all cursor-pointer touch-manipulation min-h-[72px]",
-                "hover:shadow-md hover:border-slate-200 active:bg-slate-50"
-              )}
-              onClick={() => handleRowClick(client.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  handleRowClick(client.id)
-                }
-              }}
-            >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-base font-semibold">
-                {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-slate-900 truncate text-base">{client.name || client.full_name || "Unknown"}</h3>
-                  {client.status && (
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border", getStatusColor(client.status))}>
-                      {getStatusLabel(client.status)}
-                    </span>
-                  )}
+        <div className="md:hidden space-y-3">
+          {clients.map((client) => {
+            const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
+            const lastAction = getLastActionDate(client, locale)
+            const isArchived = String(client?.status ?? "").toUpperCase() === "ARCHIVED"
+
+            return (
+              <article key={client.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="min-h-[88px] cursor-pointer p-4 transition-colors touch-manipulation active:bg-slate-50"
+                  onClick={() => handleRowClick(client.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      handleRowClick(client.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-base font-bold text-primary ring-1 ring-primary/10">
+                      {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-semibold leading-6 text-slate-950">
+                            {client.name || client.full_name || "Unknown"}
+                          </h3>
+                          {lastAction && (
+                            <p className="mt-0.5 truncate text-xs font-medium text-slate-400">
+                              {tClients("lastActivity")}: {lastAction}
+                            </p>
+                          )}
+                        </div>
+                        {client.status && (
+                          <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium", getStatusColor(client.status))}>
+                            {getStatusLabel(client.status)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                    {client.phone && (
+                      <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-xs">
+                          <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        </span>
+                        <span className="min-w-0 truncate font-medium">{formatPhoneForDisplay(client.phone)}</span>
+                      </div>
+                    )}
+                    {client.email && (
+                      <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-xs">
+                          <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        </span>
+                        <span className="min-w-0 truncate">{client.email}</span>
+                      </div>
+                    )}
+                    {fullAddress && (
+                      <div className="flex min-w-0 items-start gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-xs">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        </span>
+                        <span className="line-clamp-2 min-w-0 leading-5">{fullAddress}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-slate-500 truncate mt-0.5">{client.email || "—"}</p>
-              </div>
-              <Eye className="h-5 w-5 text-slate-400 shrink-0" aria-hidden />
-            </div>
-          ))}
+
+                <div className="grid grid-cols-4 border-t border-slate-100 bg-slate-50/70">
+                  <Link
+                    href={`/${locale}/clients/${client.id}`}
+                    className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-semibold leading-none text-slate-700 active:bg-white"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span className="max-w-full truncate">{tClients("view")}</span>
+                  </Link>
+                  <a
+                    href={client.phone ? `tel:${client.phone}` : undefined}
+                    aria-disabled={!client.phone}
+                    onClick={(e) => {
+                      if (!client.phone) e.preventDefault()
+                      e.stopPropagation()
+                    }}
+                    className={cn(
+                      "flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 border-l border-slate-100 px-1 text-[11px] font-semibold leading-none active:bg-white",
+                      client.phone ? "text-primary" : "pointer-events-none text-slate-300"
+                    )}
+                  >
+                    <Phone className="h-4 w-4" />
+                    <span className="max-w-full truncate">{tClients("call")}</span>
+                  </a>
+                  <button
+                    type="button"
+                    disabled={!onScheduleClick}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onScheduleClick?.(client)
+                    }}
+                    aria-label={tClients("scheduleCall")}
+                    className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 border-l border-slate-100 px-1 text-[11px] font-semibold leading-none text-slate-700 disabled:pointer-events-none disabled:text-slate-300 active:bg-white"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <span className="max-w-full truncate">Book</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      isArchived ? setRestoreTarget(client) : setArchiveTarget(client)
+                    }}
+                    aria-label={isArchived ? tClients("unarchive") : tClients("archiveClientButton")}
+                    className={cn(
+                      "flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 border-l border-slate-100 px-1 text-[11px] font-semibold leading-none active:bg-white",
+                      isArchived ? "text-primary" : "text-rose-600"
+                    )}
+                  >
+                    {isArchived ? <RotateCcw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                    <span className="max-w-full truncate">{isArchived ? "Restore" : "Archive"}</span>
+                  </button>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
 
       {/* Grid view: Card layout */}
       {viewMode === "grid" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {clients.map((client) => {
             const fullAddress = formatAddressStreetForDisplay(client.address, client.address_data) || client.address || ""
             return (
               <div
                 key={client.id}
-                className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all touch-manipulation"
+                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all touch-manipulation hover:border-slate-200 hover:shadow-md sm:rounded-xl sm:border-slate-100"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary sm:h-10 sm:w-10 sm:rounded-full">
                     {(client.name || client.full_name || "C").charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -423,7 +516,10 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                       )}
                     </div>
                     {client.email && (
-                      <p className="mt-0.5 text-sm text-slate-500 truncate">{client.email}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-slate-500">
+                        <Mail className="h-3.5 w-3.5 shrink-0 sm:hidden" />
+                        <span className="truncate">{client.email}</span>
+                      </p>
                     )}
                   </div>
                 </div>
@@ -460,8 +556,8 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                   <p className="mt-2 text-xs text-slate-500">Last activity: {getLastActionDate(client, locale)}</p>
                 )}
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm" className="w-full h-10 touch-manipulation hover:bg-slate-50 hover:text-primary transition-colors">
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 sm:flex sm:flex-wrap">
+                  <Button asChild variant="outline" size="sm" className="col-span-3 h-11 w-full rounded-lg touch-manipulation transition-colors hover:bg-slate-50 hover:text-primary sm:h-10">
                     <Link href={`/${locale}/clients/${client.id}`} className="flex items-center justify-center gap-1.5">
                       <Eye className="h-3.5 w-3.5" />
                       {tClients("view")}
@@ -472,7 +568,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                       size="sm"
                       variant="outline"
                       type="button"
-                      className="border-slate-200"
+                      className="h-11 rounded-lg border-slate-200 sm:h-9"
                       onClick={(e) => {
                         e.stopPropagation()
                         onScheduleClick(client)
@@ -482,7 +578,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                     </Button>
                   )}
                   {client.phone && (
-                    <Button size="sm" variant="outline" className="border-slate-200" asChild>
+                    <Button size="sm" variant="outline" className="h-11 rounded-lg border-slate-200 sm:h-9" asChild>
                       <a href={`tel:${client.phone}`}>
                         <Phone className="h-3.5 w-3.5" />
                       </a>
@@ -492,7 +588,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-slate-200 text-slate-500 hover:text-primary"
+                      className="h-11 rounded-lg border-slate-200 text-slate-500 hover:text-primary sm:h-9"
                       onClick={(e) => {
                         e.stopPropagation()
                         setRestoreTarget(client)
@@ -504,7 +600,7 @@ export function ClientsList({ clients = [], loading = false, viewMode = "list", 
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200"
+                      className="h-11 rounded-lg border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-600 sm:h-9"
                       onClick={(e) => {
                         e.stopPropagation()
                         setArchiveTarget(client)

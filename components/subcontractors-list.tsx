@@ -266,7 +266,7 @@ export function SubcontractorsList({
     })
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
             {sortedSpecialties.map(specialty => (
                 <div key={specialty} className="space-y-3">
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider px-1 flex items-center">
@@ -277,7 +277,7 @@ export function SubcontractorsList({
                         </span>
                     </h3>
                     
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:rounded-xl">
                         <div className="hidden sm:grid grid-cols-[80px_1.5fr_1.5fr_1.5fr_48px] gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
                             <span className="text-center">Dispatch</span>
                             <span>Crew Member</span>
@@ -297,13 +297,13 @@ export function SubcontractorsList({
                                 <div
                                     key={sub.id}
                                     className={cn(
-                                        "grid grid-cols-1 sm:grid-cols-[80px_1.5fr_1.5fr_1.5fr_48px] gap-3 sm:gap-4 px-4 py-3 items-center cursor-pointer hover:bg-slate-50 transition-colors",
+                                        "grid grid-cols-1 items-center gap-3 px-4 py-4 transition-colors cursor-pointer hover:bg-slate-50 sm:grid-cols-[80px_1.5fr_1.5fr_1.5fr_48px] sm:gap-4 sm:py-3",
                                         idx !== currentGroupList.length - 1 && "border-b border-slate-100"
                                     )}
                                     onClick={() => handleRowClick(sub.id)}
                                 >
                                     {/* Priority Controls */}
-                                    <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-slate-50 border border-slate-100 sm:bg-transparent sm:border-0" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex flex-row items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2 sm:flex-col sm:justify-center sm:bg-transparent sm:border-0" onClick={(e) => e.stopPropagation()}>
                                         <button 
                                             type="button"
                                             disabled={updatingId === sub.id || isFirst}
@@ -336,7 +336,7 @@ export function SubcontractorsList({
                                         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-semibold text-sm shrink-0">
                                             {(sub.name || "?")[0].toUpperCase()}
                                         </div>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-sm text-slate-900 truncate">{sub.name}</p>
                                             {sub.company_name && (
                                                 <p className="text-xs text-slate-500 truncate flex items-center mt-0.5">
@@ -364,7 +364,7 @@ export function SubcontractorsList({
                                     </div>
                                     
                                     {/* Mobile Location & Availability */}
-                                    <div className="sm:hidden space-y-1 mt-1 border-t border-slate-100 pt-2">
+                                    <div className="sm:hidden space-y-2 rounded-lg bg-slate-50 px-3 py-2">
                                         {getAvailabilityBadge(sub.daily_availability_status)}
                                         {sub.address && (
                                             <p className="text-xs text-slate-500 truncate flex items-center mt-1">
@@ -375,7 +375,7 @@ export function SubcontractorsList({
                                     </div>
                                     
                                     {/* Contact */}
-                                    <div className="text-xs text-slate-500 space-y-1.5 sm:block flex gap-3 sm:gap-0 mt-1 sm:mt-0">
+                                    <div className="flex gap-3 text-xs text-slate-500 sm:block sm:space-y-1.5 sm:gap-0 sm:mt-0">
                                         {sub.email && (
                                             <div className="flex items-center gap-1.5 truncate">
                                                 <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -412,6 +412,27 @@ export function SubcontractorsList({
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="h-10 rounded-lg text-xs"
+                                            onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}
+                                        >
+                                            <Link2 className="mr-1.5 h-4 w-4" />
+                                            Availability
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="h-10 rounded-lg text-xs text-rose-600 hover:text-rose-600"
+                                            onClick={() => setArchiveTarget(sub.id)}
+                                        >
+                                            <Archive className="mr-1.5 h-4 w-4" />
+                                            Archive
+                                        </Button>
                                     </div>
                                 </div>
                             )

@@ -66,10 +66,6 @@ export function StatsCardsReal() {
     try {
       await navigator.clipboard.writeText(twilioNumber)
       setPhoneCopied(true)
-      toast({
-        title: tPhone("numberCopied"),
-        description: tPhone("numberCopiedDesc"),
-      })
       setTimeout(() => setPhoneCopied(false), 2000)
     } catch {
       toast({
@@ -182,62 +178,59 @@ export function StatsCardsReal() {
         </div>
       </Card>
 
-      {/* Active Jobs Card - full width on mobile; 1 of 4 on desktop */}
-      {statsLoading ? (
-        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-2 md:order-3 overflow-hidden", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
-            <div className="h-10 w-10 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
-            <div className="space-y-0.5 flex-1 min-w-0 md:w-full flex flex-col justify-center">
-              <div className="h-8 w-12 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] md:h-7" />
-              <div className="h-4 w-24 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] ml-auto md:ml-0" />
+      <Card className={cn("order-2 grid grid-cols-2 gap-0 overflow-hidden p-0 md:contents", glassCard)}>
+        {/* Active Jobs Card - merged with revenue on mobile; separate card on desktop */}
+        {statsLoading ? (
+          <div className={cn("min-w-0 border-r border-white/40 p-3 md:border-r-0 md:h-full md:order-3 md:overflow-hidden", desktopCardLayout, "md:rounded-lg md:border md:border-white/30 md:bg-white/25 md:backdrop-blur-md md:shadow-sm")}>
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="h-9 w-9 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
+              <div className="h-7 w-12 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%]" />
+              <div className="h-4 w-20 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%]" />
             </div>
           </div>
-        </Card>
-      ) : (
-        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-2 md:order-3 overflow-hidden", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center md:contents">
-              <p className="text-2xl font-bold tracking-tight tabular-nums md:leading-tight">{stats?.active_jobs ?? 0}</p>
-              <p className="text-sm text-muted-foreground">{t('activeJobs')}</p>
+        ) : (
+          <div className={cn("min-w-0 border-r border-white/40 p-3 md:border-r-0 md:h-full md:order-3 md:overflow-hidden", desktopCardLayout, "md:rounded-lg md:border md:border-white/30 md:bg-white/25 md:backdrop-blur-md md:shadow-sm md:hover:shadow-md md:transition-all md:duration-300")}>
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 md:h-10 md:w-10">
+                <svg className="h-4 w-4 text-amber-600 md:h-5 md:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold tracking-tight tabular-nums md:leading-tight">{stats?.active_jobs ?? 0}</p>
+                <p className="truncate text-xs font-medium text-muted-foreground md:text-sm">{t('activeJobs')}</p>
+              </div>
             </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {/* Revenue Card - full width on mobile; 1 of 4 on desktop */}
-      {statsLoading ? (
-        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-4 overflow-hidden", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
-            <div className="h-10 w-10 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
-            <div className="space-y-0.5 flex-1 min-w-0 md:w-full flex flex-col justify-center">
-              <div className="h-8 w-16 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] md:h-7" />
-              <div className="h-4 w-24 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%] ml-auto md:ml-0" />
+        {/* Revenue Card - merged with active jobs on mobile; separate card on desktop */}
+        {statsLoading ? (
+          <div className={cn("min-w-0 p-3 md:h-full md:order-4 md:overflow-hidden", desktopCardLayout, "md:rounded-lg md:border md:border-white/30 md:bg-white/25 md:backdrop-blur-md md:shadow-sm")}>
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="h-9 w-9 shrink-0 bg-gradient-to-r from-muted via-muted/50 to-muted rounded-full animate-shimmer bg-[length:200%_100%]" />
+              <div className="h-7 w-16 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%]" />
+              <div className="h-4 w-20 bg-gradient-to-r from-muted via-muted/50 to-muted rounded animate-shimmer bg-[length:200%_100%]" />
             </div>
           </div>
-        </Card>
-      ) : (
-        <Card className={cn("p-3 md:p-4 min-w-0 h-full order-4 overflow-hidden", desktopCardLayout, glassCard)}>
-          <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center md:contents overflow-hidden">
-              <p className="text-2xl font-bold tracking-tight text-emerald-600 tabular-nums md:leading-tight">
-                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.revenue ?? 0)}
-              </p>
-              <p className="text-sm text-muted-foreground">{t('paidQuotes')}</p>
+        ) : (
+          <div className={cn("min-w-0 p-3 md:h-full md:order-4 md:overflow-hidden", desktopCardLayout, "md:rounded-lg md:border md:border-white/30 md:bg-white/25 md:backdrop-blur-md md:shadow-sm md:hover:shadow-md md:transition-all md:duration-300")}>
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 md:h-10 md:w-10">
+                <svg className="h-4 w-4 text-emerald-600 md:h-5 md:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <p className="truncate text-2xl font-bold tracking-tight text-emerald-600 tabular-nums md:leading-tight">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.revenue ?? 0)}
+                </p>
+                <p className="truncate text-xs font-medium text-muted-foreground md:text-sm">{t('paidQuotes')}</p>
+              </div>
             </div>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
     </div>
   )
 }
-

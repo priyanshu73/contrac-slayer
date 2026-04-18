@@ -313,8 +313,8 @@ export default function TaskBoardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
+      <div className="border-b border-slate-200 bg-slate-50/90 backdrop-blur-md md:sticky md:top-0 md:z-10">
+        <div className="px-4 py-4 sm:px-8 sm:py-4 md:px-12 lg:px-16">
           <div className="max-w-7xl mx-auto flex flex-col gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -323,31 +323,31 @@ export default function TaskBoardPage() {
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
               </div>
-              <Button onClick={handleOpenCreate} disabled={projects.length === 0}>
+              <Button className="h-11 rounded-lg sm:w-fit" onClick={handleOpenCreate} disabled={projects.length === 0}>
                 {t("newTask")}
               </Button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
               <StatCard icon={ClipboardList} label={t("stats.total")} value={stats.total} />
               <StatCard icon={UserRound} label={t("stats.mine")} value={stats.mine} />
               <StatCard icon={Wrench} label={t("stats.subcontracted")} value={stats.subcontracted} />
               <StatCard icon={CheckCircle2} label={t("stats.completed")} value={stats.completed} />
             </div>
 
-            <div className="grid gap-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+            <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("filters.searchPlaceholder")}
-                className="bg-white"
+                className="h-11 bg-slate-50 md:h-10 md:bg-white"
               />
               <select
                 value={selectedProjectId}
                 onChange={(e) =>
                   setSelectedProjectId(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
                 }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allProjects")}</option>
                 {projects.map((project) => (
@@ -359,7 +359,7 @@ export default function TaskBoardPage() {
               <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allAssignees")}</option>
                 {assigneeOptions.map((assignee) => (
@@ -371,7 +371,7 @@ export default function TaskBoardPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "ALL")}
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allStatuses")}</option>
                 {STATUS_OPTIONS.map((status) => (
@@ -382,6 +382,7 @@ export default function TaskBoardPage() {
               </select>
               <Button
                 variant="outline"
+                className="h-11 rounded-lg md:h-9 md:rounded-md"
                 onClick={() => {
                   setSearch("")
                   setSelectedProjectId("ALL")
@@ -405,7 +406,7 @@ export default function TaskBoardPage() {
           ) : (
             <div className="space-y-2.5">
               {filteredTasks.map((task) => (
-                <Card key={task.id} className="gap-0 border-slate-200 px-4 py-3 shadow-sm">
+                <Card key={task.id} className="gap-0 rounded-lg border-slate-200 px-4 py-4 shadow-sm md:py-3">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -431,12 +432,12 @@ export default function TaskBoardPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
+                      <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                         <select
                           value={task.status}
                           onChange={(e) => updateTask(task.id, { status: e.target.value as TaskStatus })}
                           disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                          className="h-8 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:min-w-[150px]"
+                          className="h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[150px] md:rounded-md"
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status} value={status}>
@@ -454,7 +455,7 @@ export default function TaskBoardPage() {
                             })
                           }
                           disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                          className="h-8 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:min-w-[190px]"
+                          className="h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[190px] md:rounded-md"
                         >
                           <option value="">{t("unassigned")}</option>
                           <option value={myAssigneeLabel}>{t("assignToMe")}</option>
@@ -471,7 +472,7 @@ export default function TaskBoardPage() {
                           type="button"
                           onClick={() => handleOpenEdit(task)}
                           disabled={deletingTaskId === task.id}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                          className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 md:h-7 md:w-7 md:border-0 md:rounded-md"
                           aria-label={taskT("editTask")}
                           title={taskT("editTask")}
                         >
@@ -481,7 +482,7 @@ export default function TaskBoardPage() {
                           type="button"
                           onClick={() => setDeleteTarget(task)}
                           disabled={deletingTaskId === task.id}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                          className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 md:h-7 md:w-7 md:border-0 md:rounded-md"
                           aria-label={t("delete")}
                           title={t("delete")}
                         >
