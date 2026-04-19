@@ -23,7 +23,7 @@ import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
-import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -320,11 +320,35 @@ export function PersonalizedQuoteView({
 
   const isAfterRenderMedia = (fileName?: string | null) => {
     if (!fileName) return false
-    return fileName.toLowerCase() === "ai-after-render.png"
+    return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
   }
 
-  const beforePhotoMedia = currentJob.project_media?.find((media) => isBeforePhotoMedia(media.file_name)) || null
-  const afterRenderMedia = currentJob.project_media?.find((media) => isAfterRenderMedia(media.file_name)) || null
+  const extractBeforeAfterIndex = (fileName?: string | null) => {
+    if (!fileName) return null
+    const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+    if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
+
+    const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+    if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+
+    return null
+  }
+
+  const beforeAfterPairs = Array.from(
+    (currentJob.project_media || []).reduce((map, media) => {
+      const index = extractBeforeAfterIndex(media.file_name)
+      if (!index) return map
+
+      const existing = map.get(index) || { index, before: null as ProjectMedia | null, after: null as ProjectMedia | null }
+      if (isBeforePhotoMedia(media.file_name)) existing.before = media
+      if (isAfterRenderMedia(media.file_name)) existing.after = media
+      map.set(index, existing)
+      return map
+    }, new Map<number, { index: number; before: ProjectMedia | null; after: ProjectMedia | null }>())
+  )
+    .map(([, pair]) => pair)
+    .sort((left, right) => left.index - right.index)
+
   const attachmentMedia = (currentJob.project_media || []).filter((media) => {
     return !isBeforePhotoMedia(media.file_name) && !isAfterRenderMedia(media.file_name)
   })
@@ -691,44 +715,55 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
-                {(beforePhotoMedia || afterRenderMedia) && (
+                {beforeAfterPairs.length > 0 && (
                   <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4">
                       Project Preview
                     </h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {beforePhotoMedia && (
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                          <div className="aspect-[4/3] bg-gray-100">
-                            <img
-                              src={beforePhotoMedia.file_url}
-                              alt="Before preview"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="border-t border-gray-200 px-4 py-3">
-                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                              Before
-                            </span>
+                    <div className="space-y-4">
+                      {beforeAfterPairs.map((pair) => (
+                        <div key={pair.index} className="space-y-2">
+                          {beforeAfterPairs.length > 1 && (
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                              Pair {pair.index}
+                            </p>
+                          )}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pair.before && (
+                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <div className="aspect-[4/3] bg-gray-100">
+                                  <img
+                                    src={pair.before.file_url}
+                                    alt={`Before preview ${pair.index}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <div className="border-t border-gray-200 px-4 py-3">
+                                  <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                    Before
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            {pair.after && (
+                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <div className="aspect-[4/3] bg-gray-100">
+                                  <img
+                                    src={pair.after.file_url}
+                                    alt={`After rendering ${pair.index}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <div className="border-t border-gray-200 px-4 py-3">
+                                  <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                    After (Estimated)
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
-                      {afterRenderMedia && (
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                          <div className="aspect-[4/3] bg-gray-100">
-                            <img
-                              src={afterRenderMedia.file_url}
-                              alt="After rendering"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="border-t border-gray-200 px-4 py-3">
-                            <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                              After (Estimated)
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 )}

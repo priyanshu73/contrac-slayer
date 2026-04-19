@@ -1276,6 +1276,7 @@ class ApiClient {
   }
 
   async generateAfterImage(jobId: number, beforeImageUrl: string, options?: {
+    afterImageDescription: string
     userPrompt?: string
     lineItems?: Array<{
       title?: string
@@ -1289,6 +1290,7 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({
         before_image_url: beforeImageUrl,
+        after_image_description: options?.afterImageDescription,
         user_prompt: options?.userPrompt,
         line_items: options?.lineItems,
       }),
@@ -1299,6 +1301,7 @@ class ApiClient {
     beforeImage: File
     jobTitle: string
     jobDescription: string
+    afterImageDescription: string
     userPrompt?: string
     lineItems: Array<{
       title?: string
@@ -1312,6 +1315,7 @@ class ApiClient {
     formData.append('before_image', params.beforeImage)
     formData.append('job_title', params.jobTitle)
     formData.append('job_description', params.jobDescription)
+    formData.append('after_image_description', params.afterImageDescription)
     formData.append('user_prompt', params.userPrompt || '')
     formData.append('line_items_json', JSON.stringify(params.lineItems))
 
@@ -1324,6 +1328,52 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
       throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to generate after image')
+    }
+
+    return response.json()
+  }
+
+  async generateAfterImagesBatch(jobId: number, params: {
+    beforeImages: File[]
+    afterImageDescription: string
+    userPrompt?: string
+    lineItems?: Array<{
+      title?: string
+      description?: string
+      custom_description?: string
+      quantity?: number
+      unit_of_measure?: string
+    }>
+  }): Promise<{
+    items: Array<{
+      image_index: number
+      success: boolean
+      before_file_name?: string | null
+      after_file_name?: string | null
+      before_image_url?: string | null
+      after_image_url?: string | null
+      before_media_id?: number | null
+      after_media_id?: number | null
+      error?: string | null
+    }>
+  }> {
+    const formData = new FormData()
+    params.beforeImages.forEach((file) => {
+      formData.append('before_images', file)
+    })
+    formData.append('after_image_description', params.afterImageDescription)
+    formData.append('user_prompt', params.userPrompt || '')
+    formData.append('line_items_json', JSON.stringify(params.lineItems || []))
+
+    const response = await fetch(`${this.baseURL}/jobs/${jobId}/generate-after-images`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to generate before and after images')
     }
 
     return response.json()

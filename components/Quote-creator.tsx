@@ -22,7 +22,7 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
-import { BeforeAfterPanel } from "@/components/before-after-panel"
+import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import Image from "next/image"
 import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -74,6 +74,29 @@ interface MaterialSearchResponse {
   total_pages: number
   has_next: boolean
   has_prev: boolean
+}
+
+const deriveLineItemTitle = (title?: string, description?: string): string => {
+  const explicitTitle = (title || "").trim()
+  if (explicitTitle) return explicitTitle
+
+  const cleanedDescription = (description || "").replace(/\s+/g, " ").trim()
+  if (!cleanedDescription) return ""
+
+  let base = cleanedDescription
+    .split(/\b(?:for|with|including|includes|installed|installation|install|to|over|using|at|on|in)\b/i)[0]
+    ?.trim()
+    ?.replace(/[,\-.]+$/g, "") || ""
+
+  base = base.replace(/^(premium|professional|new|basic|standard|automated|custom)\s+/i, "").trim()
+
+  if (!base) return ""
+
+  return base
+    .split(/\s+/)
+    .slice(0, 5)
+    .map((word) => (/^[A-Z0-9]{2,4}$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(" ")
 }
 
 // Common units for construction and landscaping
@@ -150,8 +173,6 @@ function getRateNumber(rate: LineItem["rate"]): number {
   return Number.isFinite(n) ? n : 0
 }
 
-const AFTER_RENDER_FILENAME = "ai-after-render.png"
-
 function isBeforePhotoFilename(fileName?: string | null): boolean {
   if (!fileName) return false
   return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
@@ -159,29 +180,62 @@ function isBeforePhotoFilename(fileName?: string | null): boolean {
 
 function isAfterRenderFilename(fileName?: string | null): boolean {
   if (!fileName) return false
-  return fileName.toLowerCase() === AFTER_RENDER_FILENAME
+  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
 }
 
-function sanitizeFileExtension(fileName?: string | null): string {
-  const extension = fileName?.split(".").pop()?.toLowerCase()
-  if (!extension || extension === fileName?.toLowerCase()) return "png"
-  return extension.replace(/[^a-z0-9]/g, "") || "png"
-}
-
-function dataUrlToFile(dataUrl: string, fileName: string): File {
-  const [header, data] = dataUrl.split(",")
-  const mimeMatch = header.match(/data:(.*?);base64/)
-  const mimeType = mimeMatch?.[1] || "image/png"
-  const binary = atob(data)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
+function extractBeforeAfterIndex(fileName?: string | null): number | null {
+  if (!fileName) return null
+  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+  if (beforeMatch) {
+    return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
   }
-  return new File([bytes], fileName, { type: mimeType })
+
+  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+  if (afterMatch) {
+    return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+  }
+
+  return null
 }
 
-function fileLooksDuplicate(file: File, existingFiles: File[]): boolean {
-  return existingFiles.some((existing) => existing.name === file.name && existing.size === file.size)
+function buildBeforeAfterPairsFromMedia(mediaItems: any[]): BeforeAfterImagePair[] {
+  const pairMap = new Map<number, BeforeAfterImagePair>()
+
+  for (const media of mediaItems) {
+    const index = extractBeforeAfterIndex(media.file_name)
+    if (!index) continue
+
+    const existing = pairMap.get(index) || {
+      id: `saved-before-after-${index}`,
+      beforePreview: "",
+      beforeFile: null,
+      beforeFileName: null,
+      afterUrl: null,
+      afterFileName: null,
+      status: "saved" as const,
+      error: null,
+    }
+
+    if (isBeforePhotoFilename(media.file_name)) {
+      existing.beforePreview = media.file_url
+      existing.beforeFileName = media.file_name
+    }
+
+    if (isAfterRenderFilename(media.file_name)) {
+      existing.afterUrl = media.file_url
+      existing.afterFileName = media.file_name
+    }
+
+    pairMap.set(index, existing)
+  }
+
+  return Array.from(pairMap.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([, pair]) => ({
+      ...pair,
+      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+    }))
+    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
 // Unit Selector Component
@@ -227,17 +281,17 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
     <div className="space-y-1 w-full min-w-0">
       {!isCustom ? (
         <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-auto">
+          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-9 text-xs leading-tight">
             <SelectValue placeholder="Select unit..." />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="text-xs">
             {/* Suggested units based on description */}
             {suggestedUnits.length > 0 && (
               <>
                 {suggestedUnits.map(unit => {
                   const unitInfo = COMMON_UNITS.find(u => u.value === unit)
                   return (
-                    <SelectItem key={unit} value={unit}>
+                    <SelectItem key={unit} value={unit} className="text-xs">
                       {unitInfo?.label || unit}
                     </SelectItem>
                   )
@@ -248,14 +302,14 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
 
             {/* Remaining common units (excluding suggested ones) */}
             {remainingUnits.map(unit => (
-              <SelectItem key={unit.value} value={unit.value}>
+              <SelectItem key={unit.value} value={unit.value} className="text-xs">
                 {unit.label}
               </SelectItem>
             ))}
 
             {/* Custom option */}
             <div className="border-t my-1"></div>
-            <SelectItem value="custom">
+            <SelectItem value="custom" className="text-xs">
               + Add custom unit
             </SelectItem>
           </SelectContent>
@@ -492,10 +546,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [createError, setCreateError] = useState<string | null>(null)
   const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [beforeAfterBeforeFile, setBeforeAfterBeforeFile] = useState<File | null>(null)
-  const [beforeAfterBeforePreview, setBeforeAfterBeforePreview] = useState<string | null>(null)
-  const [beforeAfterAfterDataUrl, setBeforeAfterAfterDataUrl] = useState<string | null>(null)
-  const [beforeAfterAfterNeedsUpload, setBeforeAfterAfterNeedsUpload] = useState(false)
+  const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
   const [isBeforeAfterModalOpen, setIsBeforeAfterModalOpen] = useState(false)
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,7 +583,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-900">AI Before and After</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Minimal before/after image generator
+            Generate and save up to 5 before/after pairs
           </p>
         </div>
       </div>
@@ -895,20 +946,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           name: media.file_name || "attachment",
           size: media.file_size || 0,
         })))
-
-        const beforeMedia = initialData.project_media.find((media: any) => isBeforePhotoFilename(media.file_name))
-        const afterMedia = initialData.project_media.find((media: any) => isAfterRenderFilename(media.file_name))
-        setBeforeAfterBeforeFile(null)
-        setBeforeAfterBeforePreview(beforeMedia?.file_url || null)
-        setBeforeAfterAfterDataUrl(afterMedia?.file_url || null)
-        setBeforeAfterAfterNeedsUpload(false)
+        setBeforeAfterImagePairs(buildBeforeAfterPairsFromMedia(initialData.project_media))
       } else {
         // Clear if no media
         setUploadedImages([])
-        setBeforeAfterBeforeFile(null)
-        setBeforeAfterBeforePreview(null)
-        setBeforeAfterAfterDataUrl(null)
-        setBeforeAfterAfterNeedsUpload(false)
+        setBeforeAfterImagePairs([])
       }
 
       // Mark as loaded and ensure loadingMarkup is false for editing
@@ -1246,6 +1288,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Safely convert response line items to LineItem format
       const lineItems = Array.isArray(response.line_items) ? response.line_items : []
       const newItems: LineItem[] = lineItems.map((item: any, idx: number) => ({
+        title: deriveLineItemTitle(item.title, item.description),
         description: item.description,
         quantity: item.quantity || 1,
         rate: item.rate || 0,
@@ -1521,22 +1564,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         const filesToUpload = uploadedImages
           .filter(img => img.file)
           .map(img => img.file as File)
-
-        if (beforeAfterBeforeFile) {
-          const beforeExtension = sanitizeFileExtension(beforeAfterBeforeFile.name)
-          const beforeFileForUpload = new File(
-            [beforeAfterBeforeFile],
-            `before-photo.${beforeExtension}`,
-            { type: beforeAfterBeforeFile.type || `image/${beforeExtension}` }
-          )
-          if (!fileLooksDuplicate(beforeAfterBeforeFile, filesToUpload)) {
-            filesToUpload.push(beforeFileForUpload)
-          }
-        }
-
-        if (beforeAfterAfterDataUrl && beforeAfterAfterNeedsUpload) {
-          filesToUpload.push(dataUrlToFile(beforeAfterAfterDataUrl, AFTER_RENDER_FILENAME))
-        }
 
         if (filesToUpload.length > 0) {
           try {
@@ -1970,15 +1997,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
                       {/* AI accuracy feedback - mobile */}
                       {showAccuracyQuestion && (
-                        <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                          <p className="text-sm font-medium">How accurate was this?</p>
-                          <div className="flex items-center justify-center gap-1">
+                        <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
+                          <p className="text-xs font-medium text-center">How accurate was this?</p>
+                          <div className="flex items-center justify-center gap-1.5">
                             {[1, 2, 3, 4, 5].map((n) => (
                               <button
                                 key={n}
                                 type="button"
                                 onClick={() => handleAccuracyRating(n)}
-                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
                                 aria-label={`Rate ${n} out of 5`}
                               >
                                 {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
@@ -1989,6 +2016,25 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
                       {aiAccuracySubmitted && (
                         <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                      )}
+
+                      {assumptions.length > 0 && (
+                        <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Assumptions
+                          </h3>
+                          <ul className="space-y-1 text-sm text-muted-foreground">
+                            {assumptions.map((assumption, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-primary mt-1">•</span>
+                                <span>{assumption}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                       {/* Display Measurements if available */}
@@ -2047,14 +2093,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
+            <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title & Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
-              <div></div>
             </div>
 
             <div className="space-y-1.5">
@@ -2087,16 +2132,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     variant="ghost"
                     size="icon"
                     onClick={() => removeItem(index)}
-                    className="absolute top-0 right-0 sm:hidden h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="absolute right-0 top-0 z-10 h-7 w-7 -translate-y-1/4 translate-x-1/4 rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:border-red-200 hover:bg-red-500 hover:text-white"
+                    aria-label="Remove item"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    <X className="h-4 w-4" />
                   </Button>
 
                   {/* Mobile Layout */}
@@ -2244,7 +2283,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px_40px] gap-2 items-start">
+                  <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 items-start">
                     {/* Title + Description stacked in one column */}
                     <div className="min-w-0 flex flex-col gap-1.5">
                       <div className="flex items-start gap-2">
@@ -2403,25 +2442,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           setItems(updatedItems)
                         }}
                       />
-                    </div>
-
-                    {/* Delete Button */}
-                    <div className="flex justify-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -3013,15 +3033,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
                   {/* AI accuracy feedback - desktop */}
                   {showAccuracyQuestion && (
-                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                    <p className="text-sm font-medium">How accurate was this?</p>
-                    <div className="flex items-center justify-center gap-1">
+                  <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
+                    <p className="text-xs font-medium text-center">How accurate was this?</p>
+                    <div className="flex items-center justify-center gap-1.5">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
                           key={n}
                           type="button"
                           onClick={() => handleAccuracyRating(n)}
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
                           aria-label={`Rate ${n} out of 5`}
                         >
                           {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
@@ -3032,6 +3052,25 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 )}
                   {aiAccuracySubmitted && (
                     <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                  )}
+
+                  {assumptions.length > 0 && (
+                  <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Assumptions
+                    </h3>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      {assumptions.map((assumption, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-primary mt-1">•</span>
+                          <span>{assumption}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                   )}
 
                   {/* Display Measurements if available */}
@@ -3073,27 +3112,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             {beforeAfterTrigger}
           </div>
 
-          {/* Assumptions Display */}
-          {assumptions.length > 0 && (
-            <Card className="p-5 sm:p-6 rounded-xl border border-border">
-              <div>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Assumptions
-                </h3>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {assumptions.map((assumption, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-primary mt-1">•</span>
-                      <span>{assumption}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -3102,7 +3120,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           <DialogHeader className="pr-8">
             <DialogTitle>AI Before and After</DialogTitle>
             <DialogDescription>
-              Upload a photo, choose the quote items to include, and generate the after image.
+              Upload up to 5 photos, choose the quote items to include, and generate saved before/after pairs for this quote.
             </DialogDescription>
           </DialogHeader>
 
@@ -3116,17 +3134,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             }))}
             jobDescription={serviceDescription}
             jobTitle={projectTitle}
-            beforeImageFile={beforeAfterBeforeFile}
-            beforeImagePreview={beforeAfterBeforePreview}
-            generatedAfterUrl={beforeAfterAfterDataUrl}
-            onBeforeImageSelect={(file, preview) => {
-              setBeforeAfterBeforeFile(file)
-              setBeforeAfterBeforePreview(preview)
-            }}
-            onAfterImageGenerated={(dataUrl) => {
-              setBeforeAfterAfterDataUrl(dataUrl)
-              setBeforeAfterAfterNeedsUpload(true)
-            }}
+            imagePairs={beforeAfterImagePairs}
+            onImagePairsChange={setBeforeAfterImagePairs}
           />
         </DialogContent>
       </Dialog>
