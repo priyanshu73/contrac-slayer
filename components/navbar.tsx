@@ -143,30 +143,7 @@ export function Navbar() {
     navLinks.find((link) => link.href === `/${locale}/invoices`),
     navLinks.find((link) => link.href === `/${locale}/projects`),
   ]);
-  const mobileMenuLinks = uniqueLinksByHref([
-    ...mobilePrimaryLinks,
-    ...actionLinks,
-    settingsLink,
-  ]);
-
-  const getMobilePageTitle = () => {
-    if (!pathname) return "";
-    const allLinks = [...navLinks, ...actionLinks, settingsLink];
-    const exact = allLinks.find((link) => pathname === link.href);
-    if (exact) return exact.label;
-    const nested = allLinks
-      .filter(
-        (link) =>
-          link.href !== `/${locale}/dashboard` &&
-          pathname.startsWith(`${link.href}/`),
-      )
-      .sort((a, b) => b.href.length - a.href.length)[0];
-    if (nested) return nested.label;
-    if (pathname.includes("/billing")) return "Billing";
-    if (pathname.includes("/request")) return "Requests";
-    if (pathname.includes("/admin")) return "Admin";
-    return t("dashboard");
-  };
+  const mobileMenuLinks = uniqueLinksByHref([...mobilePrimaryLinks, ...actionLinks]);
 
   if (loading) {
     return (
@@ -223,14 +200,14 @@ export function Navbar() {
   return (
     <TooltipProvider delayDuration={0}>
       {/* ===== MOBILE TOP HEADER ===== */}
-      <header className="sticky top-0 z-[60] border-b border-sky-200/70 bg-sky-50/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-sky-50/85 md:hidden print:hidden">
+      <header className="sticky top-0 z-[60] bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85 md:hidden print:hidden">
         <div className="relative flex h-14 items-center justify-between px-4">
           <button
             type="button"
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((open) => !open)}
-            className="group flex h-10 w-10 items-center justify-center rounded-lg border border-sky-200 bg-white text-sky-700 shadow-sm transition-colors active:bg-sky-100"
+            className="group flex h-10 w-10 items-center justify-center text-slate-700 transition-colors active:text-slate-950"
           >
             <span className="relative h-4 w-5">
               <span
@@ -248,22 +225,18 @@ export function Navbar() {
                   mobileMenuOpen ? "-translate-y-[7px] -rotate-45" : ""
                 }`}
               />
-            </span>
+              </span>
           </button>
-
-          <h1 className="pointer-events-none absolute left-1/2 max-w-[58vw] -translate-x-1/2 truncate text-center text-[17px] font-bold capitalize tracking-tight text-slate-950">
-            {getMobilePageTitle()}
-          </h1>
-
+          <div className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[15px] font-semibold tracking-[0.08em] text-slate-900">
+            <span className="font-semibold">ContractorOps</span>
+            <span className="ml-1 font-light tracking-[0.14em] text-slate-500">AI</span>
+          </div>
           <Link
-            href={`/${locale}/dashboard`}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-sky-200/80"
+            href={settingsLink.href}
+            className="flex h-10 w-10 items-center justify-center text-slate-700 transition-colors active:text-slate-950"
+            aria-label={settingsLink.label}
           >
-            <img
-              src="/logo.png"
-              alt="ContractorOps AI"
-              className="h-7 w-7 object-contain"
-            />
+            <Settings className="h-5 w-5" />
           </Link>
         </div>
       </header>
@@ -283,14 +256,12 @@ export function Navbar() {
           onClick={() => setMobileMenuOpen(false)}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-[30vw] flex-col overflow-hidden border-r border-sky-200 bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 flex w-[44vw] min-w-[168px] flex-col overflow-hidden border-r border-sky-100 bg-white shadow-2xl transition-transform duration-300 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex-1 space-y-2 overflow-y-auto p-2 pt-3">
-            {mobileMenuLinks
-              .filter((link) => link.href !== settingsLink.href)
-              .map((link) => {
+          <div className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+            {mobileMenuLinks.map((link) => {
                 const isActive =
                   pathname === link.href ||
                   (link.href !== `/${locale}/dashboard` &&
@@ -300,55 +271,29 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-center transition-all ${
+                    className={`flex min-h-[48px] items-center gap-3 px-3 py-3 text-left transition-colors ${
                       isActive
-                        ? "bg-sky-600 text-white shadow-sm"
-                        : mobilePrimaryLinks.some(
-                              (primary) => primary.href === link.href,
-                            )
-                          ? "bg-sky-50 text-sky-800 ring-1 ring-sky-100 active:bg-sky-100"
-                          : "text-slate-600 active:bg-sky-50"
+                        ? "text-sky-950"
+                        : "text-sky-800 hover:text-sky-950 active:text-sky-950"
                     }`}
                     title={link.label}
                   >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    <span className="max-w-full truncate text-[10px] font-semibold leading-tight">
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    <span className={`min-w-0 truncate text-[12px] leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
                       {link.label}
                     </span>
                   </Link>
                 );
               })}
           </div>
-          <div className="mt-auto space-y-2 border-t border-slate-100 p-2">
-            {(() => {
-              const isSettingsActive =
-                pathname === settingsLink.href ||
-                Boolean(pathname?.startsWith(`${settingsLink.href}/`));
-              const Icon = settingsLink.icon;
-              return (
-                <Link
-                  href={settingsLink.href}
-                  className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-center transition-all ${
-                    isSettingsActive
-                      ? "bg-sky-600 text-white shadow-sm"
-                      : "text-slate-600 active:bg-sky-50"
-                  }`}
-                  title={settingsLink.label}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span className="max-w-full truncate text-[10px] font-semibold leading-tight">
-                    {settingsLink.label}
-                  </span>
-                </Link>
-              );
-            })()}
+          <div className="mt-auto border-t border-slate-100 px-2 py-3">
             <button
               type="button"
               onClick={logout}
-              className="flex min-h-[58px] w-full flex-col items-center justify-center gap-1 rounded-lg px-1 text-center text-rose-600 active:bg-rose-50"
+              className="flex min-h-[48px] w-full items-center gap-3 px-3 py-3 text-left text-rose-600 transition-colors hover:text-rose-700 active:text-rose-700"
             >
-              <LogOut className="h-5 w-5" />
-              <span className="max-w-full truncate text-[10px] font-semibold leading-tight">
+              <LogOut className="h-[18px] w-[18px] shrink-0" />
+              <span className="min-w-0 truncate text-[11px] font-semibold leading-tight">
                 {tAuth("logout")}
               </span>
             </button>
