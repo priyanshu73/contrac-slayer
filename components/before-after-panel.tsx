@@ -53,7 +53,7 @@ interface BeforeAfterPanelProps {
   onImagePairsChange: (pairs: BeforeAfterImagePair[]) => void
 }
 
-const MAX_BEFORE_AFTER_IMAGES = 5
+const UI_MAX_BEFORE_AFTER_IMAGES = 1
 
 const loadingMessages = [
   "AI is rendering your project...",
@@ -140,9 +140,9 @@ export function BeforeAfterPanel({
     const files = Array.from(event.target.files || [])
     if (files.length === 0) return
 
-    const availableSlots = MAX_BEFORE_AFTER_IMAGES - imagePairs.length
+    const availableSlots = UI_MAX_BEFORE_AFTER_IMAGES - imagePairs.length
     if (availableSlots <= 0) {
-      setGenerationError(`You can upload up to ${MAX_BEFORE_AFTER_IMAGES} before photos per quote.`)
+      setGenerationError("Only one before photo can be added right now.")
       event.target.value = ""
       return
     }
@@ -162,7 +162,7 @@ export function BeforeAfterPanel({
     onImagePairsChange([...imagePairs, ...newPairs])
     setGenerationError(
       files.length > filesToAdd.length
-        ? `Only the first ${availableSlots} image${availableSlots === 1 ? "" : "s"} were added.`
+        ? "Only the first image was added."
         : null
     )
     event.target.value = ""
@@ -170,7 +170,7 @@ export function BeforeAfterPanel({
 
   const handleGenerate = async () => {
     if (!jobId) {
-      setGenerationError("Save the quote first so we can generate and store up to 5 before/after pairs.")
+      setGenerationError("Save the quote first so we can generate and store the before/after pair.")
       return
     }
 
@@ -304,7 +304,7 @@ export function BeforeAfterPanel({
           <span>Before & After Preview</span>
         </div>
         <p className="text-sm text-slate-600">
-          Upload up to 5 before photos, choose the quote items to include, and we&apos;ll generate and save each before/after pair on the quote.
+          Upload a before photo, choose the quote items to include, and we&apos;ll generate and save the before/after preview on the quote.
         </p>
         {!jobId && (
           <p className="text-xs text-amber-700">
@@ -320,16 +320,13 @@ export function BeforeAfterPanel({
             variant="outline"
             onClick={() => inputRef.current?.click()}
             className="h-auto min-h-10 rounded-full px-4 py-2"
-            disabled={imagePairs.length >= MAX_BEFORE_AFTER_IMAGES}
+            disabled={imagePairs.length >= UI_MAX_BEFORE_AFTER_IMAGES}
           >
             <div className="flex items-center gap-2">
               <ImagePlus className="h-4 w-4 shrink-0" />
               <div className="text-left">
                 <div className="text-sm font-medium text-slate-900">
-                  {imagePairs.length > 0 ? "Add more before photos" : "Upload before photos"}
-                </div>
-                <div className="text-[10px] leading-3 text-slate-400">
-                  Up to {MAX_BEFORE_AFTER_IMAGES} photos
+                  {imagePairs.length > 0 ? "Replace before photo" : "Upload before photo"}
                 </div>
               </div>
             </div>
@@ -338,7 +335,6 @@ export function BeforeAfterPanel({
             ref={inputRef}
             type="file"
             accept="image/*"
-            multiple
             className="hidden"
             onChange={handleSelectFiles}
           />
@@ -347,8 +343,7 @@ export function BeforeAfterPanel({
               <div className="flex items-center gap-2 text-slate-700">
                 <Check className="h-4 w-4 text-emerald-600" />
                 <span>
-                  {imagePairs.length}/{MAX_BEFORE_AFTER_IMAGES} before photo
-                  {imagePairs.length === 1 ? "" : "s"} ready
+                  Before photo ready
                 </span>
               </div>
             ) : null}
@@ -573,11 +568,17 @@ export function BeforeAfterPanel({
                           className="h-full w-full object-cover"
                         />
                       </div>
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium leading-tight text-emerald-700">
                           After (Estimated)
                         </span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleDownload(pair, index)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(pair, index)}
+                          className="w-full sm:w-auto"
+                        >
                           <Download className="mr-2 h-4 w-4" />
                           Download
                         </Button>
