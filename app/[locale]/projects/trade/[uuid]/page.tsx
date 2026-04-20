@@ -140,14 +140,14 @@ export default function TradePortalPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Details */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="border-slate-200 shadow-sm p-4 sm:p-6 space-y-3">
+            <Card className="border-slate-200 shadow-sm p-4 sm:p-5 md:p-6 space-y-3">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center text-white shrink-0">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Your Scope of Work</h1>
-                  <p className="text-sm text-slate-500 mt-1">Project: {trade.trade_type}</p>
+                  <h1 className="hidden text-xl sm:text-2xl font-bold text-slate-900 md:block">Your Scope of Work</h1>
+                  <p className="text-sm text-slate-500 md:mt-1">Project: {trade.trade_type}</p>
                 </div>
               </div>
             </Card>

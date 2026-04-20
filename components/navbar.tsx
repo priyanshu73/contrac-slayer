@@ -31,6 +31,10 @@ import {
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
 
+function getLocalizedRoute(pathname: string | null | undefined): string {
+  return pathname?.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
+}
+
 export function Navbar() {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
@@ -121,6 +125,46 @@ export function Navbar() {
     icon: Settings,
   };
 
+  const currentRoute = getLocalizedRoute(pathname);
+  const getPageTitle = () => {
+    if (currentRoute === "/dashboard") return t("dashboard");
+    if (currentRoute === "/leads") return t("leads");
+    if (currentRoute.startsWith("/leads/")) return "Lead Details";
+    if (currentRoute === "/quotes/new") return "New Quote";
+    if (currentRoute === "/quotes/copy") return "Copy Quote";
+    if (currentRoute.match(/^\/quotes\/[^/]+\/edit$/)) return "Edit Quote";
+    if (currentRoute.startsWith("/quotes/")) return "Quote Details";
+    if (currentRoute === "/quotes") return t("quotes");
+    if (currentRoute.startsWith("/invoices/") && currentRoute.endsWith("/customer")) return "Customer Invoice";
+    if (currentRoute.startsWith("/invoices/")) return "Invoice Details";
+    if (currentRoute === "/invoices") return t("invoices");
+    if (currentRoute.startsWith("/calendar/")) return "Booking Details";
+    if (currentRoute === "/calendar") return t("calendar");
+    if (currentRoute === "/clients/new") return "New Client";
+    if (currentRoute.startsWith("/clients/")) return "Client Details";
+    if (currentRoute === "/clients") return t("clients");
+    if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
+    if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
+    if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
+    if (currentRoute.startsWith("/crew/")) return "Crew Details";
+    if (currentRoute === "/crew") return "Crew";
+    if (currentRoute.startsWith("/projects/trade/")) return "Trade Scope";
+    if (currentRoute.startsWith("/projects/")) return "Project Details";
+    if (currentRoute === "/projects") return t("projects");
+    if (currentRoute === "/tasks") return t("tasks");
+    if (currentRoute === "/actions/scheduling") return "Generate Lead";
+    if (currentRoute.startsWith("/settings")) return t("settings");
+    if (currentRoute.startsWith("/billing")) return "Billing";
+    if (currentRoute.startsWith("/admin")) return "Admin";
+    if (currentRoute.startsWith("/privacy")) return "Privacy";
+    if (currentRoute.startsWith("/request/settings")) return "Request Settings";
+    if (currentRoute.startsWith("/request")) return "Quote Request";
+    if (currentRoute.startsWith("/availability")) return "Availability";
+    return "Dashboard";
+  };
+
+  const pageTitle = getPageTitle();
+
   const uniqueLinksByHref = <T extends { href: string }>(
     links: Array<T | undefined>,
   ) => {
@@ -168,7 +212,7 @@ export function Navbar() {
     return null;
   }
 
-  // Show only logo on profile-setup page
+  // Show only the current page title on profile-setup.
   if (isProfileSetup) {
     return (
       <nav className="border-b border-border bg-card sticky top-0 z-40 print:hidden md:hidden">
@@ -176,15 +220,10 @@ export function Navbar() {
           <div className="flex h-12 items-center">
             <Link
               href={`/${locale}/dashboard`}
-              className="flex items-center gap-2"
+              className="min-w-0"
             >
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="w-7 h-7 object-contain"
-              />
-              <span className="text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-                ContractorOps AI
+              <span className="truncate font-serif text-xl font-semibold tracking-[0.02em] text-slate-950">
+                Profile Setup
               </span>
             </Link>
           </div>
@@ -227,9 +266,8 @@ export function Navbar() {
               />
               </span>
           </button>
-          <div className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[15px] font-semibold tracking-[0.08em] text-slate-900">
-            <span className="font-semibold">ContractorOps</span>
-            <span className="ml-1 font-light tracking-[0.14em] text-slate-500">AI</span>
+          <div className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 truncate whitespace-nowrap font-serif text-[19px] font-semibold tracking-[0.03em] text-slate-950">
+            {pageTitle}
           </div>
           <Link
             href={settingsLink.href}
@@ -250,17 +288,17 @@ export function Navbar() {
         <button
           type="button"
           aria-label="Close menu"
-          className={`absolute inset-y-0 right-0 w-[70vw] bg-slate-950/15 backdrop-blur-[1px] transition-opacity duration-300 ${
+          className={`absolute inset-y-0 right-0 w-full bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
             mobileMenuOpen ? "opacity-100" : "opacity-0"
           }`}
           onClick={() => setMobileMenuOpen(false)}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-[44vw] min-w-[168px] flex-col overflow-hidden border-r border-sky-100 bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 flex w-[min(82vw,340px)] flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#111111_0%,#090909_48%,#171717_100%)] text-white shadow-[20px_0_50px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+          <div className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
             {mobileMenuLinks.map((link) => {
                 const isActive =
                   pathname === link.href ||
@@ -271,29 +309,39 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex min-h-[48px] items-center gap-3 px-3 py-3 text-left transition-colors ${
+                    className={`group flex min-h-[52px] items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all active:scale-[0.99] ${
                       isActive
-                        ? "text-sky-950"
-                        : "text-sky-800 hover:text-sky-950 active:text-sky-950"
+                        ? "bg-[rgba(255,255,255,0.96)] text-neutral-950 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+                        : "text-white/78 hover:bg-white/8 hover:text-white active:bg-white/12"
                     }`}
                     title={link.label}
                   >
-                    <Icon className="h-[18px] w-[18px] shrink-0" />
-                    <span className={`min-w-0 truncate text-[12px] leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                        isActive
+                          ? "bg-black text-white"
+                          : "bg-white/8 text-white/72 group-hover:bg-white/12 group-hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                    </span>
+                    <span className={`min-w-0 truncate text-[14px] leading-tight tracking-[0.01em] ${isActive ? "font-semibold" : "font-medium"}`}>
                       {link.label}
                     </span>
                   </Link>
                 );
               })}
           </div>
-          <div className="mt-auto border-t border-slate-100 px-2 py-3">
+          <div className="mt-auto border-t border-white/10 bg-white/[0.03] px-3 py-3">
             <button
               type="button"
               onClick={logout}
-              className="flex min-h-[48px] w-full items-center gap-3 px-3 py-3 text-left text-rose-600 transition-colors hover:text-rose-700 active:text-rose-700"
+              className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-rose-200 transition-all hover:bg-rose-500/10 hover:text-rose-100 active:scale-[0.99] active:bg-rose-500/15"
             >
-              <LogOut className="h-[18px] w-[18px] shrink-0" />
-              <span className="min-w-0 truncate text-[11px] font-semibold leading-tight">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/12 text-rose-200">
+                <LogOut className="h-[18px] w-[18px] shrink-0" />
+              </span>
+              <span className="min-w-0 truncate text-[14px] font-semibold leading-tight tracking-[0.01em]">
                 {tAuth("logout")}
               </span>
             </button>

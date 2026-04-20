@@ -39,8 +39,10 @@ export default function SchedulingPage() {
         <main className="container mx-auto px-4 py-6">
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
-              <p className="text-muted-foreground">{t("pageDescription")}</p>
+              <h1 className="hidden text-2xl font-bold md:block">{t("pageTitle")}</h1>
+              <p className="rounded-2xl border border-border/70 bg-card/90 p-4 text-sm text-muted-foreground shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:text-base md:shadow-none">
+                {t("pageDescription")}
+              </p>
             </div>
 
             {loading ? (

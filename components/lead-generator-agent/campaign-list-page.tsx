@@ -75,11 +75,11 @@ export function CampaignListPage() {
         <div className="space-y-6">
           <section className="rounded-3xl border border-sky-100 bg-white/90 p-6 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-2">
+              <div className="space-y-3 md:space-y-2">
                 <Badge className="border-sky-200 bg-sky-50 text-sky-700" variant="outline">
                   Lead Generator Agent
                 </Badge>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Plan, launch, and review outbound campaigns</h1>
+                <h1 className="hidden text-3xl font-semibold tracking-tight text-slate-950 md:block">Plan, launch, and review outbound campaigns</h1>
                 <p className="max-w-3xl text-sm text-slate-600">
                   Estimate reachable leads, launch in Copilot or Autopilot mode, and keep the next required action visible at every checkpoint.
                 </p>

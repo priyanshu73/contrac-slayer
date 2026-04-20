@@ -83,8 +83,8 @@ export function NewCampaignPage() {
               </div>
               <div className="mt-5 max-w-3xl">
                 <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Lead Generator Agent</Badge>
-                <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">New campaign</h1>
-                <p className="mt-3 max-w-2xl text-lg leading-7 text-slate-600">
+                <h1 className="hidden mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:block">New campaign</h1>
+                <p className="mt-4 max-w-2xl text-lg leading-7 text-slate-600 md:mt-3">
                   Pick a market, choose who to reach, and preview the lead volume.
                 </p>
               </div>

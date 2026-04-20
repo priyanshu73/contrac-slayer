@@ -314,40 +314,40 @@ export default function TaskBoardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="border-b border-slate-200 bg-slate-50/90 backdrop-blur-md md:sticky md:top-0 md:z-10">
-        <div className="px-4 py-4 sm:px-8 sm:py-4 md:px-12 lg:px-16">
+        <div className="px-4 py-3 sm:px-8 md:px-12 md:py-4 lg:px-16">
           <div className="max-w-7xl mx-auto flex flex-col gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
+                <h1 className="hidden text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight md:block">
                   {t("title")}
                 </h1>
-                <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
+                <p className="text-sm text-slate-500 md:mt-1">{t("subtitle")}</p>
               </div>
               <Button className="h-11 rounded-lg sm:w-fit" onClick={handleOpenCreate} disabled={projects.length === 0}>
                 {t("newTask")}
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
               <StatCard icon={ClipboardList} label={t("stats.total")} value={stats.total} />
               <StatCard icon={UserRound} label={t("stats.mine")} value={stats.mine} />
               <StatCard icon={Wrench} label={t("stats.subcontracted")} value={stats.subcontracted} />
               <StatCard icon={CheckCircle2} label={t("stats.completed")} value={stats.completed} />
             </div>
 
-            <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+            <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("filters.searchPlaceholder")}
-                className="h-11 bg-slate-50 md:h-10 md:bg-white"
+                className="h-12 rounded-xl bg-slate-50 md:h-10 md:rounded-md md:bg-white"
               />
               <select
                 value={selectedProjectId}
                 onChange={(e) =>
                   setSelectedProjectId(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
                 }
-                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allProjects")}</option>
                 {projects.map((project) => (
@@ -359,7 +359,7 @@ export default function TaskBoardPage() {
               <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allAssignees")}</option>
                 {assigneeOptions.map((assignee) => (
@@ -371,7 +371,7 @@ export default function TaskBoardPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "ALL")}
-                className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 md:h-10 md:rounded-md md:bg-white"
               >
                 <option value="ALL">{t("allStatuses")}</option>
                 {STATUS_OPTIONS.map((status) => (
@@ -382,7 +382,7 @@ export default function TaskBoardPage() {
               </select>
               <Button
                 variant="outline"
-                className="h-11 rounded-lg md:h-9 md:rounded-md"
+                className="h-11 rounded-xl md:h-9 md:rounded-md"
                 onClick={() => {
                   setSearch("")
                   setSelectedProjectId("ALL")
@@ -397,16 +397,16 @@ export default function TaskBoardPage() {
         </div>
       </div>
 
-      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-8">
+      <main className="px-3 py-4 pb-24 sm:px-8 sm:py-6 md:px-12 md:pb-8 lg:px-16">
         <div className="max-w-7xl mx-auto">
           {filteredTasks.length === 0 ? (
             <Card className="border-slate-200 shadow-sm p-8 text-center text-sm text-slate-500">
               {t("empty")}
             </Card>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-3 md:space-y-2.5">
               {filteredTasks.map((task) => (
-                <Card key={task.id} className="gap-0 rounded-lg border-slate-200 px-4 py-4 shadow-sm md:py-3">
+                <Card key={task.id} className="gap-0 rounded-2xl border-slate-200 px-4 py-4 shadow-sm md:rounded-lg md:py-3">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -437,7 +437,7 @@ export default function TaskBoardPage() {
                           value={task.status}
                           onChange={(e) => updateTask(task.id, { status: e.target.value as TaskStatus })}
                           disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                          className="h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[150px] md:rounded-md"
+                          className="h-11 rounded-xl border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[150px] md:rounded-md"
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status} value={status}>
@@ -455,7 +455,7 @@ export default function TaskBoardPage() {
                             })
                           }
                           disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                          className="h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[190px] md:rounded-md"
+                          className="h-11 rounded-xl border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[190px] md:rounded-md"
                         >
                           <option value="">{t("unassigned")}</option>
                           <option value={myAssigneeLabel}>{t("assignToMe")}</option>
@@ -472,7 +472,7 @@ export default function TaskBoardPage() {
                           type="button"
                           onClick={() => handleOpenEdit(task)}
                           disabled={deletingTaskId === task.id}
-                          className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 md:h-7 md:w-7 md:border-0 md:rounded-md"
+                          className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors active:bg-slate-100 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 md:h-7 md:w-7 md:rounded-md md:border-0"
                           aria-label={taskT("editTask")}
                           title={taskT("editTask")}
                         >
@@ -482,7 +482,7 @@ export default function TaskBoardPage() {
                           type="button"
                           onClick={() => setDeleteTarget(task)}
                           disabled={deletingTaskId === task.id}
-                          className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 md:h-7 md:w-7 md:border-0 md:rounded-md"
+                          className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors active:bg-rose-50 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 md:h-7 md:w-7 md:rounded-md md:border-0"
                           aria-label={t("delete")}
                           title={t("delete")}
                         >
@@ -502,7 +502,7 @@ export default function TaskBoardPage() {
                         onClick={() => {
                           window.location.href = `/${locale}/projects/${task.project_id}`
                         }}
-                        className="justify-start px-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                        className="w-full justify-start rounded-xl px-3 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:w-auto md:rounded-md md:px-2"
                       >
                         {t("openProject")}
                       </Button>

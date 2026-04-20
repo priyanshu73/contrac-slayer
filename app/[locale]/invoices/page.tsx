@@ -239,9 +239,9 @@ export default function InvoicesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-24 md:pb-10">
-      <main className="container mx-auto max-w-5xl px-4 py-5 md:py-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+      <main className="container mx-auto max-w-5xl px-3 py-4 md:px-4 md:py-8">
+        {/* Desktop Header */}
+        <div className="mb-6 hidden flex-col gap-4 sm:flex-row sm:items-start sm:justify-between md:flex">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -254,7 +254,7 @@ export default function InvoicesPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-5 rounded-lg border border-border/70 bg-card p-3 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <div className="mb-4 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm md:mb-5 md:rounded-lg md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -262,18 +262,18 @@ export default function InvoicesPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by client name or invoice number..."
-                className="h-11 rounded-lg bg-background pl-9 text-base md:h-10 md:bg-transparent md:text-sm"
+                className="h-12 rounded-xl bg-background pl-9 text-base shadow-xs md:h-10 md:rounded-lg md:bg-transparent md:text-sm md:shadow-none"
                 aria-label="Search invoices"
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
-              <div className="min-w-[150px]">
+              <div className="min-w-[150px] flex-1 md:flex-none">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 w-full min-w-[150px] justify-between rounded-lg bg-background px-3 font-normal md:h-10 md:bg-transparent"
+                      className="h-11 w-full min-w-[150px] justify-between rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-lg md:bg-transparent"
                     >
                       <span className="truncate">{statusFilterLabel}</span>
                       <ChevronDown className="h-4 w-4 opacity-60" />
@@ -310,12 +310,12 @@ export default function InvoicesPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <div className="min-w-[180px]">
+              <div className="min-w-[180px] flex-1 md:flex-none">
                 <Select
                   value={clientFilterId != null ? String(clientFilterId) : "all"}
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
-                  <SelectTrigger className="h-11 rounded-lg bg-background md:h-10 md:bg-transparent">
+                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-lg md:bg-transparent">
                     <SelectValue placeholder="All Clients" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
@@ -330,7 +330,7 @@ export default function InvoicesPage() {
                 </Select>
               </div>
               {hasActiveFilters && (
-                <Button type="button" variant="ghost" size="sm" className="h-11 rounded-lg px-2 text-xs md:h-10" onClick={clearFilters}>
+                <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-lg" onClick={clearFilters}>
                   Clear Filters
                 </Button>
               )}
@@ -342,7 +342,7 @@ export default function InvoicesPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="p-4 border-l-4 border-l-muted animate-pulse">
+              <Card key={i} className="rounded-2xl border-l-4 border-l-muted p-4 animate-pulse md:rounded-xl">
                 <div className="flex justify-between gap-4">
                   <div className="space-y-2 flex-1">
                     <div className="h-4 bg-muted rounded w-1/3" />
@@ -354,7 +354,7 @@ export default function InvoicesPage() {
             ))}
           </div>
         ) : invoices.length === 0 ? (
-          <Card className="p-10 text-center border-dashed bg-muted/20">
+          <Card className="rounded-2xl border-dashed bg-muted/20 p-7 text-center md:p-10">
             <div className="flex flex-col items-center gap-3 max-w-md mx-auto">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <Receipt className="w-7 h-7 text-primary" />
@@ -368,7 +368,7 @@ export default function InvoicesPage() {
                   : "Invoices will appear here once you create them from accepted quotes."}
               </p>
               {hasActiveFilters && (
-                <Button size="sm" variant="outline" className="mt-2" onClick={clearFilters}>
+                <Button size="sm" variant="outline" className="mt-2 w-full md:w-auto" onClick={clearFilters}>
                   Clear Filters
                 </Button>
               )}
@@ -379,10 +379,10 @@ export default function InvoicesPage() {
             {invoices.map((invoice) => (
               <div key={invoice.id} className="group relative">
                 <Card
-                  className={`rounded-lg p-4 md:p-5 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer border-border/80 bg-card/90 hover:border-primary/30 ${statusAccentClass(invoice.status)}`}
+                  className={`rounded-2xl border-l-4 border-border/80 bg-card/95 p-4 shadow-sm transition-all active:scale-[0.99] hover:border-primary/30 hover:shadow-md md:rounded-lg md:p-5 md:active:scale-100 ${statusAccentClass(invoice.status)}`}
                   onClick={() => router.push(`${basePath}/${invoice.id}`)}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-medium text-muted-foreground tabular-nums">
@@ -405,24 +405,24 @@ export default function InvoicesPage() {
                         {invoice.client_email && <span className="truncate max-w-full">{invoice.client_email}</span>}
                         {invoice.client_phone && <span>{invoice.client_phone}</span>}
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-0 text-[11px] text-muted-foreground pt-0.5">
-                        <span>Issued {formatDate(invoice.issue_date)}</span>
-                        <span>Due {formatDate(invoice.due_date)}</span>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:mt-0 md:flex md:flex-wrap md:gap-x-4 md:gap-y-0 md:pt-0.5">
+                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">Issued {formatDate(invoice.issue_date)}</span>
+                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">Due {formatDate(invoice.due_date)}</span>
                         {invoice.balance_due > 0 && invoice.balance_due < invoice.total_amount && (
-                          <span className="text-amber-600 font-medium">
+                          <span className="col-span-2 rounded-lg bg-amber-50 px-2 py-1 font-medium text-amber-700 md:bg-transparent md:p-0 md:text-amber-600">
                             Balance: {formatCurrency(invoice.balance_due)}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
+                    <div className="flex items-center justify-between rounded-xl bg-muted/45 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
                       <span className="text-xl font-bold text-primary tabular-nums">
                         {formatCurrency(invoice.total_amount)}
                       </span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-9 w-9 rounded-lg p-0 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
+                        className="h-11 w-11 rounded-xl p-0 opacity-100 sm:h-8 sm:w-8 sm:rounded-lg sm:opacity-0 sm:group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           router.push(`${basePath}/${invoice.id}`)
@@ -442,17 +442,17 @@ export default function InvoicesPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-10 rounded-lg"
+                  className="h-11 min-w-24 rounded-xl md:h-10 md:rounded-lg"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground px-4 tabular-nums">Page {currentPage}</span>
+                <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">Page {currentPage}</span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-10 rounded-lg"
+                  className="h-11 min-w-24 rounded-xl md:h-10 md:rounded-lg"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >

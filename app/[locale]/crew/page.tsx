@@ -46,13 +46,12 @@ export default function CrewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Sticky Header */}
       <div className="border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm md:sticky md:top-0 md:z-10">
-        <div className="px-4 py-4 sm:px-8 sm:py-4 md:px-12 lg:px-16">
+        <div className="px-4 py-3 sm:px-8 md:px-12 md:py-4 lg:px-16">
           <div className="max-w-7xl mx-auto space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Crew</h1>
+                <h1 className="hidden text-2xl font-bold tracking-tight text-slate-900 md:block">Crew</h1>
                 <p className="mt-0.5 text-xs font-medium text-slate-500 md:hidden">
                   {loading ? "Loading..." : `${filteredSubcontractors.length} crew members`}
                 </p>

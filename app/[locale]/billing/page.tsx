@@ -66,14 +66,13 @@ export default function BillingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-24 md:pb-6">
-      <main className="container mx-auto px-4 py-8 md:py-12">
-        {/* Header */}
-        <div className="text-center mb-10 md:mb-16">
+      <main className="container mx-auto px-4 py-6 md:py-12">
+        <div className="text-center mb-8 md:mb-16">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
             {t("freeTrial")}
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
+          <h1 className="hidden text-3xl md:block md:text-4xl font-bold mb-4">
             {t("pageTitle")}
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">

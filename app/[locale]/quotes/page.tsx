@@ -347,8 +347,19 @@ export default function QuotesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-24 md:pb-10">
-      <main className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+      <main className="container mx-auto max-w-5xl px-3 py-4 md:px-4 md:py-8">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between md:hidden">
+          <p className="text-sm text-muted-foreground">{tQuotes("listSubtitle")}</p>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" className="w-full gap-1.5 rounded-xl sm:w-auto">
+              <a href={`${basePath}/new`}>
+                <Plus className="h-4 w-4" />
+                New Quote
+              </a>
+            </Button>
+          </div>
+        </div>
+        <div className="mb-6 hidden flex-col gap-4 sm:flex-row sm:items-start sm:justify-between md:flex">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -368,7 +379,7 @@ export default function QuotesPage() {
           </div>
         </div>
 
-        <div className="mb-5 bg-transparent">
+        <div className="mb-5 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -376,18 +387,18 @@ export default function QuotesPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder={tQuotes("searchPlaceholder")}
-                className="h-10 bg-transparent pl-9"
+                className="h-12 rounded-xl bg-background pl-9 text-base shadow-xs md:h-10 md:rounded-md md:bg-transparent md:text-sm md:shadow-none"
                 aria-label={tQuotes("searchPlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
-              <div className="min-w-[150px]">
+              <div className="min-w-[150px] flex-1 md:flex-none">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 w-full min-w-[150px] justify-between bg-transparent px-3 font-normal"
+                      className="h-11 w-full min-w-[150px] justify-between rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-md md:bg-transparent"
                     >
                       <span className="truncate">{statusFilterLabel}</span>
                       <ChevronDown className="h-4 w-4 opacity-60" />
@@ -422,12 +433,12 @@ export default function QuotesPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <div className="min-w-[180px]">
+              <div className="min-w-[180px] flex-1 md:flex-none">
                 <Select
                   value={clientFilterId != null ? String(clientFilterId) : "all"}
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
-                  <SelectTrigger className="h-10 bg-transparent">
+                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
                     <SelectValue placeholder="Client" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
@@ -442,7 +453,7 @@ export default function QuotesPage() {
                 </Select>
               </div>
               {hasActiveFilters && (
-                <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={clearFilters}>
+                <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-md" onClick={clearFilters}>
                   {tQuotes("clearFilters")}
                 </Button>
               )}
@@ -453,7 +464,7 @@ export default function QuotesPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="p-4 border-l-4 border-l-muted animate-pulse">
+              <Card key={i} className="rounded-2xl border-l-4 border-l-muted p-4 animate-pulse md:rounded-xl">
                 <div className="flex justify-between gap-4">
                   <div className="space-y-2 flex-1">
                     <div className="h-4 bg-muted rounded w-1/3" />
@@ -465,7 +476,7 @@ export default function QuotesPage() {
             ))}
           </div>
         ) : quotes.length === 0 ? (
-          <Card className="p-10 text-center border-dashed bg-muted/20">
+          <Card className="rounded-2xl border-dashed bg-muted/20 p-7 text-center md:p-10">
             <div className="flex flex-col items-center gap-3 max-w-md mx-auto">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <FileText className="w-7 h-7 text-primary" />
@@ -475,7 +486,7 @@ export default function QuotesPage() {
                 {hasActiveFilters ? tQuotes("tryAdjustFilters") : "Create your first quote to get started."}
               </p>
               {!hasActiveFilters && (
-                <Button size="sm" asChild className="mt-2">
+                <Button size="sm" asChild className="mt-2 w-full md:w-auto">
                   <a href={`${basePath}/new`}>Create Quote</a>
                 </Button>
               )}
@@ -486,7 +497,7 @@ export default function QuotesPage() {
             {quotes.map((quote) => (
               <div key={quote.id} className="group relative">
                 <Card
-                  className={`p-4 md:p-5 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer border-border/80 bg-card/90 hover:border-primary/30 ${statusAccentClass(quote.status)}`}
+                  className={`rounded-2xl border-l-4 border-border/80 bg-card/95 p-4 shadow-sm transition-all active:scale-[0.99] hover:border-primary/30 hover:shadow-md md:rounded-xl md:p-5 md:active:scale-100 ${statusAccentClass(quote.status)}`}
                   onClick={() => router.push(`${basePath}/${quote.id}`)}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -522,13 +533,13 @@ export default function QuotesPage() {
                         {quote.updated_at && ` · Updated ${formatDate(quote.updated_at)}`}
                       </p>
                     </div>
-                    <div className="flex sm:flex-col items-center sm:items-end gap-3 shrink-0">
+                    <div className="flex items-center justify-between rounded-xl bg-muted/45 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
                       <span className="text-xl font-bold text-primary tabular-nums">{formatCurrency(quote.total_amount)}</span>
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 opacity-70 sm:opacity-0 sm:group-hover:opacity-100"
+                          className="h-11 w-11 rounded-xl p-0 opacity-100 sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation()
                             router.push(`${basePath}/${quote.id}`)
@@ -540,7 +551,7 @@ export default function QuotesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-11 w-11 rounded-xl p-0 text-destructive opacity-100 hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={(e) => handleDeleteClick(e, quote)}
                           title="Delete"
                         >
@@ -558,15 +569,17 @@ export default function QuotesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 min-w-24 rounded-xl md:h-8 md:min-w-0 md:rounded-md"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground px-4 tabular-nums">Page {currentPage}</span>
+                <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">Page {currentPage}</span>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 min-w-24 rounded-xl md:h-8 md:min-w-0 md:rounded-md"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >

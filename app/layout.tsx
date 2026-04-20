@@ -3,10 +3,12 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
+import { MobileThemeSync } from "@/components/mobile-theme-sync"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const mobileThemeScript = `try{if(localStorage.getItem("contractorops-mobile-dark-mode")==="true"){document.documentElement.classList.add("mobile-dark")}}catch(e){}`
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -43,8 +45,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html>
+    <html suppressHydrationWarning>
       <body className={`font-sans antialiased`}>
+        <script dangerouslySetInnerHTML={{ __html: mobileThemeScript }} />
+        <MobileThemeSync />
         {children}
         <Toaster />
         <Analytics />
