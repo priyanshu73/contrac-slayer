@@ -1708,8 +1708,8 @@ class ApiClient {
     })
   }
 
-  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
-    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+  async launchCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/launch`, {
       method: 'POST',
     })
   }
@@ -1763,6 +1763,12 @@ class ApiClient {
   async pauseCampaign(campaignUuid: string): Promise<Campaign> {
     return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
       method: 'POST',
+    })
+  }
+
+  async deleteCampaign(campaignUuid: string): Promise<void> {
+    await this.request<void>(`/campaigns/${campaignUuid}`, {
+      method: 'DELETE',
     })
   }
 }
@@ -1988,8 +1994,8 @@ class ContractorAIClient {
     })
   }
 
-  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
-    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+  async launchCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/launch`, {
       method: 'POST',
     })
   }
@@ -2043,6 +2049,12 @@ class ContractorAIClient {
   async pauseCampaign(campaignUuid: string): Promise<Campaign> {
     return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
       method: 'POST',
+    })
+  }
+
+  async deleteCampaign(campaignUuid: string): Promise<void> {
+    await this.request<void>(`/campaigns/${campaignUuid}`, {
+      method: 'DELETE',
     })
   }
 

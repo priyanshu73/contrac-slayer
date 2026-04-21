@@ -1251,6 +1251,7 @@ export interface Campaign {
   discovery_forecast?: DiscoveryForecast | null
   brief_approved: boolean
   last_error?: string | null
+  job_progress?: Record<string, any> | null
   created_at: string
   updated_at: string
 }
