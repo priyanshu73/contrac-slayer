@@ -20,12 +20,18 @@ import {
   Sparkles,
   Trash2,
   XCircle,
+  Edit2,
+  Wand2,
+  Save,
+  Undo,
 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { CampaignDetail, DiscoveredCampaignLead } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCampaignStream, TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
@@ -583,15 +589,15 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                 {pendingAction === "approve-messaging" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 Approve All & Start Sending
               </Button>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {(campaign.email_drafts ?? []).slice(0, 5).map((draft) => (
-                  <div key={draft.uuid} className="rounded-xl border border-white bg-white p-3 shadow-sm">
-                    <div className="font-medium text-slate-900 text-sm">{draft.subject}</div>
-                    <p className="mt-1.5 whitespace-pre-wrap text-xs text-slate-500 line-clamp-2">{draft.body}</p>
-                  </div>
-                ))}
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                {(campaign.email_drafts ?? []).slice(0, 5).map((draft) => {
+                  const lead = campaign.leads?.find(l => l.id === draft.campaign_lead_id)
+                  return (
+                    <EmailDraftCard key={draft.uuid} draft={draft} lead={lead} onUpdate={() => loadCampaign(false)} />
+                  )
+                })}
                 {(campaign.email_drafts?.length ?? 0) > 5 && (
-                  <div className="text-center text-xs text-slate-400">+{(campaign.email_drafts?.length ?? 0) - 5} more drafts</div>
+                  <div className="text-center text-xs text-slate-400 font-medium py-2">+{(campaign.email_drafts?.length ?? 0) - 5} more drafts</div>
                 )}
               </div>
             </CardContent>
@@ -748,3 +754,87 @@ function ActionButton({
     </Button>
   )
 }
+
+function EmailDraftCard({ draft, lead, onUpdate }: { draft: any, lead: any | undefined, onUpdate: () => void }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [isPolishing, setIsPolishing] = useState(false)
+  const [subject, setSubject] = useState(draft.subject)
+  const [body, setBody] = useState(draft.body)
+  const [notes, setNotes] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const handleSave = async () => {
+    setLoading(true)
+    try {
+      await api.updateCampaignDraft(draft.uuid, { subject, body })
+      setIsEditing(false)
+      onUpdate()
+    } catch(err) {
+      alert("Failed to save draft")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePolish = async () => {
+    if (!notes.trim()) return
+    setLoading(true)
+    try {
+      await api.polishCampaignDraft(draft.uuid, notes)
+      setNotes("")
+      setIsPolishing(false)
+      onUpdate()
+    } catch(err) {
+      alert("Failed to polish draft")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+      <div className="flex items-start justify-between">
+        <div className="text-xs text-slate-500 space-y-1">
+          <div><span className="font-medium">To:</span> {lead?.email || lead?.meta_context?.contact_data?.primary_email || lead?.meta_context?.emails?.[0]?.email || "Unknown"} ({lead?.business_name})</div>
+          {draft.rationale && <div className="text-slate-400 italic">"{draft.rationale}"</div>}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-sky-600" onClick={() => { setIsPolishing(!isPolishing); setIsEditing(false) }}>
+            <Wand2 className="h-3.5 w-3.5 mr-1" /> AI Polish
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-indigo-600" onClick={() => { setIsEditing(!isEditing); setIsPolishing(false) }}>
+            {isEditing ? <Undo className="h-3.5 w-3.5 mr-1" /> : <Edit2 className="h-3.5 w-3.5 mr-1" />} {isEditing ? "Cancel" : "Edit"}
+          </Button>
+        </div>
+      </div>
+      
+      {isPolishing && (
+        <div className="rounded-lg bg-sky-50 p-3 space-y-2 border border-sky-100">
+          <div className="text-xs font-medium text-sky-800 flex items-center">
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Magic Polish
+          </div>
+          <Textarea className="min-h-[60px] text-sm bg-white" placeholder="e.g. Make it more casual, add a joke about landscaping..." value={notes} onChange={e => setNotes(e.target.value)} disabled={loading} />
+          <Button size="sm" className="w-full bg-sky-600 hover:bg-sky-700 h-8 text-white" disabled={loading || !notes} onClick={handlePolish}>
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply Polish"}
+          </Button>
+        </div>
+      )}
+
+      {isEditing ? (
+        <div className="space-y-2">
+          <Input className="text-sm font-medium" value={subject} onChange={e => setSubject(e.target.value)} disabled={loading} />
+          <Textarea className="min-h-[120px] text-sm" value={body} onChange={e => setBody(e.target.value)} disabled={loading} />
+          <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 h-8 text-white" disabled={loading} onClick={handleSave}>
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} {loading ? "" : "Save"}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-100">
+          <div className="font-medium text-slate-900 text-sm whitespace-pre-wrap">Subject: {draft.subject}</div>
+          <p className="whitespace-pre-wrap text-sm text-slate-700">{draft.body}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+

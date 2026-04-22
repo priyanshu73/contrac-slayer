@@ -1765,6 +1765,19 @@ class ApiClient {
       method: 'POST',
     })
   }
+  async updateCampaignDraft(draftUuid: string, data: { subject?: string; body?: string }): Promise<any> {
+    return this.request(`/campaigns/drafts/${draftUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async polishCampaignDraft(draftUuid: string, notes: string): Promise<any> {
+    return this.request(`/campaigns/drafts/${draftUuid}/polish`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    })
+  }
 
   async deleteCampaign(campaignUuid: string): Promise<void> {
     await this.request<void>(`/campaigns/${campaignUuid}`, {
