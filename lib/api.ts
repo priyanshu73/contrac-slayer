@@ -12,6 +12,8 @@ import type {
   ContractorProfile,
   DiscoveryForecast,
   DiscoveryForecastRequest,
+  GenerateCampaignStrategiesRequest,
+  GenerateCampaignStrategiesResponse,
   QBOInvoiceDetail,
   QBOProjectInvoiceDetailResponse,
   StagedLeadActionResponse,
@@ -1696,6 +1698,13 @@ class ApiClient {
     })
   }
 
+  async generateCampaignStrategies(data: GenerateCampaignStrategiesRequest): Promise<GenerateCampaignStrategiesResponse> {
+    return this.request<GenerateCampaignStrategiesResponse>('/campaigns/generate-strategies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async generateCampaignBrief(campaignUuid: string): Promise<CampaignGenerateBriefResponse> {
     return this.request<CampaignGenerateBriefResponse>(`/campaigns/${campaignUuid}/generate-brief`, {
       method: 'POST',
@@ -1990,6 +1999,13 @@ class ContractorAIClient {
 
   async getCampaignForecast(data: DiscoveryForecastRequest): Promise<DiscoveryForecast> {
     return this.request<DiscoveryForecast>('/campaigns/discovery-forecast', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async generateCampaignStrategies(data: GenerateCampaignStrategiesRequest): Promise<GenerateCampaignStrategiesResponse> {
+    return this.request<GenerateCampaignStrategiesResponse>('/campaigns/generate-strategies', {
       method: 'POST',
       body: JSON.stringify(data),
     })

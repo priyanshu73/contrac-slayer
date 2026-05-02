@@ -4,16 +4,16 @@ import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
-import { ArrowLeft, Bot, CheckCircle2, LoaderCircle, MapPin, MessageSquare, Rocket, User } from "lucide-react"
+import { ArrowLeft, Bot, CheckCircle2, LoaderCircle, MapPin, MessageSquare, Rocket, Sparkles, User } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { LocationSection } from "@/components/lead-generator-agent/new-campaign/location-section"
 import { RadiusMap } from "@/components/lead-generator-agent/new-campaign/radius-map"
 import { INITIAL_FORM, buildPayload, type CampaignFormState } from "@/components/lead-generator-agent/new-campaign/types"
+import type { CampaignEmailStrategyOption, MessageGuidanceStructured } from "@/lib/types"
 
 // ─── Segment options ─────────────────────────────────────────────────────────
 const SEGMENT_OPTIONS = [
@@ -43,6 +43,12 @@ export function NewCampaignPage() {
   const [selectedSegments, setSelectedSegments] = useState<string[]>([])
   const [messageGuidance, setMessageGuidance] = useState("")
   const [executionMode, setExecutionMode] = useState<"REVIEW" | "AUTOPILOT">("REVIEW")
+  const [structuredGuidance, setStructuredGuidance] = useState<MessageGuidanceStructured | null>(null)
+  const [strategyOptions, setStrategyOptions] = useState<CampaignEmailStrategyOption[]>([])
+  const [selectedStrategyKey, setSelectedStrategyKey] = useState<string | null>(null)
+  const [generatingStrategies, setGeneratingStrategies] = useState(false)
+  const [strategyError, setStrategyError] = useState<string | null>(null)
+  const [strategiesGeneratedFrom, setStrategiesGeneratedFrom] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +63,57 @@ export function NewCampaignPage() {
   }
 
   const step1Valid = form.lat !== null && form.lng !== null && selectedSegments.length > 0
-  const step2Valid = true // message guidance is optional
+  const guidanceTrimmed = messageGuidance.trim()
+  const strategySelectionRequired = guidanceTrimmed.length > 0
+  const strategiesAreStale = strategySelectionRequired && strategiesGeneratedFrom !== guidanceTrimmed
+  const selectedStrategy = strategyOptions.find((option) => option.key === selectedStrategyKey) ?? null
+  const step2Valid = !strategySelectionRequired || (!!selectedStrategy && !strategiesAreStale)
+
+  function handleMessageGuidanceChange(value: string) {
+    setMessageGuidance(value)
+    setStructuredGuidance(null)
+    setStrategyOptions([])
+    setSelectedStrategyKey(null)
+    setStrategiesGeneratedFrom("")
+    setStrategyError(null)
+  }
+
+  async function generateStrategies() {
+    try {
+      setGeneratingStrategies(true)
+      setStrategyError(null)
+      const guidance = messageGuidance.trim()
+      const response = await api.generateCampaignStrategies({
+        message_guidance: guidance,
+        location: {
+          formatted_address: form.formattedAddress.trim(),
+          city: form.city.trim(),
+          state: form.state.trim().toUpperCase(),
+          postal_code: form.postalCode.trim(),
+          lat: form.lat,
+          lng: form.lng,
+          radius_miles: form.radiusMiles,
+        },
+        segments: selectedSegments.map((id, index) => ({
+          type: id,
+          label: SEGMENT_OPTIONS.find((s) => s.id === id)?.label ?? id,
+          priority: Math.max(1, 10 - index),
+        })),
+      })
+      setStructuredGuidance(response.structured_guidance)
+      setStrategyOptions(response.strategies)
+      setSelectedStrategyKey((prev) => (
+        response.strategies.some((option) => option.key === prev)
+          ? prev
+          : response.strategies[0]?.key ?? null
+      ))
+      setStrategiesGeneratedFrom(guidance)
+    } catch (err) {
+      setStrategyError(err instanceof Error ? err.message : "Could not generate strategies.")
+    } finally {
+      setGeneratingStrategies(false)
+    }
+  }
 
   async function launch() {
     try {
@@ -74,6 +130,13 @@ export function NewCampaignPage() {
           customLabel: SEGMENT_OPTIONS.find((s) => s.id === id)?.label ?? id,
         })),
       })
+      if (structuredGuidance || strategyOptions.length > 0 || selectedStrategy) {
+        payload.settings.message_strategy = {
+          structured_guidance: structuredGuidance,
+          strategies: strategyOptions,
+          selected_strategy: selectedStrategy,
+        }
+      }
 
       const created = await api.createCampaign(payload)
 
@@ -247,9 +310,74 @@ export function NewCampaignPage() {
                     placeholder="e.g. Keep it short and professional. Mention we've worked with HOAs in the area and offer a free estimate. No pushy sales language."
                     className="min-h-28 resize-none rounded-xl border-slate-200 text-sm"
                     value={messageGuidance}
-                    onChange={(e) => setMessageGuidance(e.target.value)}
+                    onChange={(e) => handleMessageGuidanceChange(e.target.value)}
                   />
                   <p className="text-xs text-slate-400">This guides the AI when it writes outreach emails for your leads.</p>
+                  <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-slate-700">Choose an outreach angle</div>
+                        <div className="text-xs text-slate-500">Generate five compact strategy options from your guidance and contractor profile.</div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-xl border-slate-200"
+                        disabled={guidanceTrimmed.length === 0 || generatingStrategies}
+                        onClick={generateStrategies}
+                      >
+                        {generatingStrategies ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {strategyOptions.length > 0 ? "Regenerate strategies" : "Generate strategies"}
+                      </Button>
+                    </div>
+                    {guidanceTrimmed.length === 0 && (
+                      <p className="text-xs text-slate-400">Add message guidance first, then generate strategies.</p>
+                    )}
+                    {strategyError && (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                        {strategyError}
+                      </div>
+                    )}
+                    {strategyOptions.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="grid gap-2">
+                          {strategyOptions.map((strategy) => {
+                            const active = selectedStrategyKey === strategy.key
+                            return (
+                              <button
+                                key={strategy.key}
+                                type="button"
+                                onClick={() => setSelectedStrategyKey(strategy.key)}
+                                className={[
+                                  "rounded-2xl border bg-white p-4 text-left transition-all",
+                                  active ? "border-sky-400 bg-sky-50 shadow-sm" : "border-slate-200 hover:border-sky-200",
+                                ].join(" ")}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className={`text-sm font-semibold ${active ? "text-sky-700" : "text-slate-800"}`}>{strategy.label}</div>
+                                    <p className="mt-1 text-xs leading-relaxed text-slate-500">{strategy.description}</p>
+                                  </div>
+                                  {active && <span className="rounded-full bg-sky-600 px-2 py-0.5 text-[11px] text-white">Selected</span>}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {structuredGuidance && (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-500">
+                            <span className="font-medium text-slate-700">AI guidance:</span> {structuredGuidance.tone} tone, {structuredGuidance.offer.toLowerCase()} {structuredGuidance.cta.toLowerCase()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {strategySelectionRequired && strategiesAreStale && (
+                      <p className="text-xs text-amber-600">Your guidance changed. Regenerate strategies to continue.</p>
+                    )}
+                    {strategySelectionRequired && !selectedStrategy && !strategiesAreStale && !generatingStrategies && (
+                      <p className="text-xs text-amber-600">Generate and choose one strategy before reviewing.</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -257,7 +385,7 @@ export function NewCampaignPage() {
                 <Button variant="outline" className="h-11 flex-1 rounded-2xl border-slate-200" onClick={() => setStep(1)}>
                   Back
                 </Button>
-                <Button className="h-11 flex-1 rounded-2xl bg-sky-600 hover:bg-sky-700" onClick={() => setStep(3)}>
+                <Button className="h-11 flex-1 rounded-2xl bg-sky-600 hover:bg-sky-700" onClick={() => setStep(3)} disabled={!step2Valid}>
                   Review
                 </Button>
               </div>
@@ -311,6 +439,15 @@ export function NewCampaignPage() {
                       </div>
                     </>
                   )}
+                  {selectedStrategy && (
+                    <>
+                      <div className="h-px bg-slate-100" />
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500 shrink-0">Strategy</span>
+                        <span className="font-medium text-slate-900 text-right">{selectedStrategy.label}</span>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -331,7 +468,7 @@ export function NewCampaignPage() {
                 <Button variant="outline" className="h-11 flex-1 rounded-2xl border-slate-200" onClick={() => setStep(2)} disabled={saving}>
                   Back
                 </Button>
-                <Button className="h-11 flex-1 rounded-2xl bg-sky-600 hover:bg-sky-700" onClick={launch} disabled={saving}>
+                <Button className="h-11 flex-1 rounded-2xl bg-sky-600 hover:bg-sky-700" onClick={launch} disabled={saving || !step2Valid}>
                   {saving ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
                   {saving ? "Starting…" : "Start Campaign"}
                 </Button>

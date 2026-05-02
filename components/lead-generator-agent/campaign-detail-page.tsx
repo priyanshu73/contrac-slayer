@@ -6,32 +6,31 @@ import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
 import {
   ArrowLeft,
-  CheckCheck,
+  Building2,
   CheckCircle2,
+  ChevronDown,
   Clock,
   FileText,
+  Globe,
   Loader2,
+  Mail,
   MapPin,
   Pause,
+  Phone,
   Play,
   Rocket,
   Search,
   Send,
-  Sparkles,
+  Star,
   Trash2,
   XCircle,
-  Edit2,
-  Wand2,
-  Save,
-  Undo,
 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { CampaignDetail, DiscoveredCampaignLead } from "@/lib/types"
+import ReviewEmailUI from "@/review-email-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
@@ -111,10 +110,9 @@ function getActivePhase(status: string | null, checkpoint: string | null): Phase
   if (status === "SENDING" || status === "ACTIVE") return "sending"
   if (status === "COMPLETED") return "complete"
   if (status === "AWAITING_REVIEW") {
-    if (checkpoint === "brief") return "brief"
     if (checkpoint === "discovery") return "discovery"
     if (checkpoint === "messaging") return "emails"
-    return "brief"
+    return "discovery"
   }
   return "brief"
 }
@@ -157,10 +155,204 @@ function PhaseTimeline({ activePhase }: { activePhase: Phase }) {
   )
 }
 
+function formatSegmentLabel(value: string | null | undefined) {
+  return value ? sentenceCase(value.replaceAll("_", " ")) : "Unknown segment"
+}
+
+function getSourceContext(lead: CampaignDetail["leads"][number]) {
+  const source = lead.meta_context?.source_result
+  return {
+    title: typeof source?.title === "string" ? source.title : null,
+    snippet: typeof source?.snippet === "string" ? source.snippet : null,
+    position: typeof source?.position === "number" ? source.position : null,
+    rating: typeof source?.rating === "number" ? source.rating : null,
+    reviews: typeof source?.reviews === "number" ? source.reviews : null,
+  }
+}
+
+function OutreachReferenceSection({ campaign }: { campaign: CampaignDetail }) {
+  const draftsByLeadId = new Map((campaign.email_drafts ?? []).map((draft) => [draft.campaign_lead_id, draft]))
+  const rows = (campaign.leads ?? [])
+    .map((lead) => ({ lead, draft: draftsByLeadId.get(lead.id) }))
+    .filter(({ draft }) => !!draft)
+    .sort((a, b) => Date.parse((b.draft?.updated_at ?? b.lead.updated_at)) - Date.parse((a.draft?.updated_at ?? a.lead.updated_at)))
+
+  if (!rows.length) return null
+
+  return (
+    <details className="group rounded-2xl border border-slate-200 bg-white" open>
+      <summary className="flex cursor-pointer items-center justify-between px-5 py-4">
+        <div>
+          <div className="text-base font-semibold text-slate-950">Outreach Reference</div>
+          <div className="mt-1 text-sm text-slate-500">
+            Review the companies reached, the contact details we saved, and the generated email content.
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+            {rows.length} companies
+          </span>
+          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+        </div>
+      </summary>
+
+      <div className="border-t border-slate-200">
+        <OutreachReferencePanel rows={rows} />
+      </div>
+    </details>
+  )
+}
+
+function OutreachReferencePanel({
+  rows,
+}: {
+  rows: Array<{
+    lead: CampaignDetail["leads"][number]
+    draft: CampaignDetail["email_drafts"][number] | undefined
+  }>
+}) {
+  const [selectedLeadUuid, setSelectedLeadUuid] = useState(rows[0]?.lead.uuid ?? "")
+
+  useEffect(() => {
+    if (!rows.length) {
+      setSelectedLeadUuid("")
+      return
+    }
+    if (!rows.some((row) => row.lead.uuid === selectedLeadUuid)) {
+      setSelectedLeadUuid(rows[0].lead.uuid)
+    }
+  }, [rows, selectedLeadUuid])
+
+  const selectedRow = rows.find((row) => row.lead.uuid === selectedLeadUuid) ?? rows[0]
+  if (!selectedRow) return null
+
+  const { lead, draft } = selectedRow
+  const source = getSourceContext(lead)
+
+  return (
+    <div className="flex min-h-[520px] flex-col lg:flex-row">
+      <aside className="w-full shrink-0 border-b border-slate-200 bg-slate-50/60 lg:w-[300px] lg:border-b-0 lg:border-r">
+        <div className="border-b border-slate-200 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            Company List
+          </div>
+        </div>
+        <div className="max-h-[520px] overflow-y-auto">
+          {rows.map(({ lead: itemLead, draft: itemDraft }) => {
+            const active = itemLead.uuid === selectedLeadUuid
+            return (
+              <button
+                key={itemLead.uuid}
+                type="button"
+                onClick={() => setSelectedLeadUuid(itemLead.uuid)}
+                className={[
+                  "w-full border-b border-slate-200 px-4 py-3 text-left transition-colors",
+                  active ? "bg-white" : "hover:bg-white/70",
+                ].join(" ")}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-slate-900">{itemLead.business_name}</div>
+                    <div className="mt-1 truncate text-xs text-slate-500">{itemLead.website || itemLead.domain || itemLead.email || "No website"}</div>
+                  </div>
+                  {itemDraft ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+                      {sentenceCase(itemDraft.status)}
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </aside>
+
+      <div className="flex-1 p-4 sm:p-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,520px)]">
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-base font-semibold text-slate-950">{lead.business_name}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span className="rounded-full bg-white px-2 py-1">{formatSegmentLabel(lead.segment_type)}</span>
+                    {draft ? <span className="rounded-full bg-white px-2 py-1">{sentenceCase(draft.status)}</span> : null}
+                    {lead.score != null ? <span className="rounded-full bg-white px-2 py-1">Score {lead.score}</span> : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                <div className="flex items-start gap-2">
+                  <Globe className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Website</div>
+                    <div className="break-all">{lead.website || lead.domain || "—"}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Mail className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Email</div>
+                    <div className="break-all">{lead.email || "—"}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Phone className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Phone</div>
+                    <div>{lead.phone || "—"}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Contact</div>
+                    <div>{[lead.contact_name, lead.contact_title].filter(Boolean).join(" · ") || "—"}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {(source.title || source.snippet || source.position || source.rating != null) && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">Search Context</div>
+                {source.title ? <div className="text-sm font-medium text-slate-800">{source.title}</div> : null}
+                {source.snippet ? <p className="mt-2 text-sm leading-relaxed text-slate-600">{source.snippet}</p> : null}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                  {source.position ? <span className="rounded-full bg-slate-50 px-2 py-1">SERP #{source.position}</span> : null}
+                  {source.rating != null ? <span className="rounded-full bg-slate-50 px-2 py-1"><Star className="mr-1 inline h-3 w-3" />{source.rating}</span> : null}
+                  {source.reviews != null ? <span className="rounded-full bg-slate-50 px-2 py-1">{source.reviews} reviews</span> : null}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {draft ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-400">Generated Email</div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">{draft.subject}</div>
+              <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{draft.body}</div>
+              {draft.rationale ? (
+                <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  {draft.rationale}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 type PendingAction =
-  | "brief" | "approve-brief" | "launch"
+  | "launch"
   | "approve-leads" | "reject-leads"
   | "approve-messaging" | "resume" | "pause" | "send"
   | null
@@ -235,8 +427,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     try {
       setPendingAction(action)
       setError(null)
-      if (action === "brief") await api.generateCampaignBrief(campaign.uuid)
-      if (action === "approve-brief") await api.approveCampaignBrief(campaign.uuid)
       if (action === "launch") await api.launchCampaign(campaign.uuid)
       if (action === "approve-leads") await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "reject-leads") await api.rejectCampaignStagedLeads(campaign.uuid, selectedLeadIds)
@@ -287,7 +477,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   if (!campaign) {
     return (
-      <div className="container mx-auto max-w-2xl px-4 py-10">
+      <div className="container mx-auto max-w-[1320px] px-4 py-10">
         <Card className="border-rose-200 bg-rose-50">
           <CardContent className="pt-6 text-sm text-rose-700">{error ?? "Campaign not found."}</CardContent>
         </Card>
@@ -304,7 +494,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,_#f8fbff_0%,_#ffffff_42%,_#f8fafc_100%)] pb-16">
-      <main className="container mx-auto max-w-2xl px-4 py-6 space-y-5">
+      <main className="container mx-auto max-w-[1320px] px-4 py-6 space-y-5">
 
         {/* Back link */}
         <Button asChild variant="ghost" className="h-auto px-0 text-slate-500 hover:bg-transparent hover:text-slate-900">
@@ -346,12 +536,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
-            {!campaign.campaign_brief && effectiveStatus === "DRAFT" && (
-              <ActionButton label="Generate Brief" icon={<Sparkles />} action="brief" pending={pendingAction} run={runAction} />
-            )}
-            {effectiveCheckpoint === "brief" && (
-              <ActionButton label="Approve Brief" icon={<CheckCheck />} action="approve-brief" pending={pendingAction} run={runAction} variant="amber" />
-            )}
             {effectiveStatus === "DRAFT" && (
               <ActionButton label="Launch Campaign" icon={<Rocket />} action="launch" pending={pendingAction} run={runAction} variant="primary" />
             )}
@@ -463,38 +647,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           </Card>
         )}
 
-        {/* ── Copilot: Brief review ────────────────────────────────────── */}
-        {effectiveCheckpoint === "brief" && campaign.campaign_brief && (
-          <Card className="border-amber-200 bg-amber-50/60">
-            <CardHeader>
-              <CardTitle className="text-base">Review the campaign brief</CardTitle>
-              <CardDescription>Approve this plan to start lead discovery.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {campaign.campaign_brief?.campaign_goal && (
-                <div className="rounded-xl border border-amber-100 bg-white p-3">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Goal</div>
-                  <p className="text-slate-700 leading-relaxed">{campaign.campaign_brief.campaign_goal}</p>
-                </div>
-              )}
-              {campaign.campaign_brief?.summary && (
-                <div className="rounded-xl border border-amber-100 bg-white p-3">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Summary</div>
-                  <p className="text-slate-700 leading-relaxed">{campaign.campaign_brief.summary}</p>
-                </div>
-              )}
-              <Button
-                className="w-full rounded-2xl bg-amber-600 hover:bg-amber-700"
-                disabled={!!pendingAction}
-                onClick={() => runAction("approve-brief")}
-              >
-                {pendingAction === "approve-brief" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCheck className="mr-2 h-4 w-4" />}
-                Approve Brief & Start Discovery
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {/* ── Copilot: Lead review ─────────────────────────────────────── */}
         {effectiveCheckpoint === "discovery" && (
           <Card className="border-amber-200 bg-amber-50/60">
@@ -577,37 +729,16 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
         {/* ── Copilot: Messaging review ────────────────────────────────── */}
         {effectiveCheckpoint === "messaging" && (
-          <Card className="border-amber-200 bg-amber-50/60">
-            <CardHeader>
-              <CardTitle className="text-base">Review email drafts</CardTitle>
-              <CardDescription>{campaign.email_drafts?.length ?? 0} drafts ready. Approve to start sending.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700"
-                disabled={!!pendingAction}
-                onClick={() => runAction("approve-messaging")}
-              >
-                {pendingAction === "approve-messaging" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Approve All & Start Sending
-              </Button>
-              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                {(campaign.email_drafts ?? []).slice(0, 5).map((draft) => {
-                  const lead = campaign.leads?.find(l => l.id === draft.campaign_lead_id)
-                  return (
-                    <EmailDraftCard key={draft.uuid} draft={draft} lead={lead} onUpdate={() => loadCampaign(false)} />
-                  )
-                })}
-                {(campaign.email_drafts?.length ?? 0) > 5 && (
-                  <div className="text-center text-xs text-slate-400 font-medium py-2">+{(campaign.email_drafts?.length ?? 0) - 5} more drafts</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <ReviewEmailUI
+            campaign={campaign}
+            pendingAction={pendingAction}
+            onApproveAll={() => runAction("approve-messaging")}
+            onReload={() => loadCampaign(false)}
+          />
         )}
 
-        {/* ── Campaign brief (collapsed when not at checkpoint) ─────────── */}
-        {campaign.campaign_brief && effectiveCheckpoint !== "brief" && (
+        {/* ── Campaign brief (internal artifact) ────────────────────────── */}
+        {campaign.campaign_brief && (
           <details className="group rounded-2xl border border-slate-200 bg-white">
             <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-sm font-medium text-slate-500 uppercase tracking-wide hover:text-slate-700">
               Campaign Brief
@@ -649,6 +780,14 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   </p>
                 </div>
               )}
+              {campaign.settings?.message_strategy?.selected_strategy?.label && (
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-1">Strategy</div>
+                  <p className="leading-relaxed">
+                    {campaign.settings.message_strategy.selected_strategy.label}
+                  </p>
+                </div>
+              )}
             </div>
           </details>
         )}
@@ -680,6 +819,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {["GENERATING", "SENDING", "ACTIVE", "COMPLETED"].includes(effectiveStatus ?? "") && (
+          <OutreachReferenceSection campaign={campaign} />
         )}
 
         {/* ── Activity timeline ────────────────────────────────────────── */}
@@ -756,87 +899,3 @@ function ActionButton({
     </Button>
   )
 }
-
-function EmailDraftCard({ draft, lead, onUpdate }: { draft: any, lead: any | undefined, onUpdate: () => void }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [isPolishing, setIsPolishing] = useState(false)
-  const [subject, setSubject] = useState(draft.subject)
-  const [body, setBody] = useState(draft.body)
-  const [notes, setNotes] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  const handleSave = async () => {
-    setLoading(true)
-    try {
-      await api.updateCampaignDraft(draft.uuid, { subject, body })
-      setIsEditing(false)
-      onUpdate()
-    } catch(err) {
-      alert("Failed to save draft")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handlePolish = async () => {
-    if (!notes.trim()) return
-    setLoading(true)
-    try {
-      await api.polishCampaignDraft(draft.uuid, notes)
-      setNotes("")
-      setIsPolishing(false)
-      onUpdate()
-    } catch(err) {
-      alert("Failed to polish draft")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="text-xs text-slate-500 space-y-1">
-          <div><span className="font-medium">To:</span> {lead?.email || lead?.meta_context?.contact_data?.primary_email || lead?.meta_context?.emails?.[0]?.email || "Unknown"} ({lead?.business_name})</div>
-          {draft.rationale && <div className="text-slate-400 italic">"{draft.rationale}"</div>}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-sky-600" onClick={() => { setIsPolishing(!isPolishing); setIsEditing(false) }}>
-            <Wand2 className="h-3.5 w-3.5 mr-1" /> AI Polish
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-indigo-600" onClick={() => { setIsEditing(!isEditing); setIsPolishing(false) }}>
-            {isEditing ? <Undo className="h-3.5 w-3.5 mr-1" /> : <Edit2 className="h-3.5 w-3.5 mr-1" />} {isEditing ? "Cancel" : "Edit"}
-          </Button>
-        </div>
-      </div>
-      
-      {isPolishing && (
-        <div className="rounded-lg bg-sky-50 p-3 space-y-2 border border-sky-100">
-          <div className="text-xs font-medium text-sky-800 flex items-center">
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Magic Polish
-          </div>
-          <Textarea className="min-h-[60px] text-sm bg-white" placeholder="e.g. Make it more casual, add a joke about landscaping..." value={notes} onChange={e => setNotes(e.target.value)} disabled={loading} />
-          <Button size="sm" className="w-full bg-sky-600 hover:bg-sky-700 h-8 text-white" disabled={loading || !notes} onClick={handlePolish}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply Polish"}
-          </Button>
-        </div>
-      )}
-
-      {isEditing ? (
-        <div className="space-y-2">
-          <Input className="text-sm font-medium" value={subject} onChange={e => setSubject(e.target.value)} disabled={loading} />
-          <Textarea className="min-h-[120px] text-sm" value={body} onChange={e => setBody(e.target.value)} disabled={loading} />
-          <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 h-8 text-white" disabled={loading} onClick={handleSave}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} {loading ? "" : "Save"}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-100">
-          <div className="font-medium text-slate-900 text-sm whitespace-pre-wrap">Subject: {draft.subject}</div>
-          <p className="whitespace-pre-wrap text-sm text-slate-700">{draft.body}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-

@@ -1282,6 +1282,36 @@ export interface CampaignPayload {
   execution_mode: CampaignExecutionMode
 }
 
+export interface MessageGuidanceStructured {
+  tone: string
+  offer: string
+  cta: string
+  forbidden_language: string[]
+  audience_framing: string
+  personalization_cues: string[]
+  value_props: string[]
+}
+
+export interface CampaignEmailStrategyOption {
+  key: string
+  label: string
+  description: string
+  offer: string
+  cta: string
+  fit_reason: string
+}
+
+export interface GenerateCampaignStrategiesRequest {
+  message_guidance: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+}
+
+export interface GenerateCampaignStrategiesResponse {
+  structured_guidance: MessageGuidanceStructured
+  strategies: CampaignEmailStrategyOption[]
+}
+
 export interface CampaignGenerateBriefResponse {
   campaign: Campaign
   event: CampaignEvent
