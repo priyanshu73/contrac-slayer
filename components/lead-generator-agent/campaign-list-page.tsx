@@ -113,15 +113,28 @@ export function CampaignListPage() {
     }
   }, [])
 
-  // Start/stop polling based on whether any campaign is active
+  // Start/stop polling based on campaign phase — not a blanket 8s hammer.
+  // BRIEFING/DISCOVERING/GENERATING: fast phase, poll every 15s (things change quickly)
+  // SENDING/ACTIVE: cron runs every 90s max — poll every 3 minutes is plenty
+  // AWAITING_REVIEW: waiting for user, no need to poll at all
+  // Terminal/DRAFT: no polling
   useEffect(() => {
-    const hasActive = campaigns.some((c) => ACTIVE_STATUSES.has(c.status))
-    if (hasActive && !pollRef.current) {
-      pollRef.current = setInterval(() => loadCampaigns(false), 8000)
-    } else if (!hasActive && pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
+    if (pollRef.current) clearInterval(pollRef.current)
+    pollRef.current = null
+
+    const fastPhases = new Set(["BRIEFING", "DISCOVERING", "GENERATING"])
+    const slowPhases = new Set(["SENDING", "ACTIVE"])
+    const hasFast = campaigns.some((c) => fastPhases.has(c.status))
+    const hasSlow = campaigns.some((c) => slowPhases.has(c.status))
+
+    if (hasFast) {
+      pollRef.current = setInterval(() => loadCampaigns(false), 15_000)
+    } else if (hasSlow) {
+      pollRef.current = setInterval(() => loadCampaigns(false), 3 * 60_000)
     }
+    // AWAITING_REVIEW, DRAFT, terminal: no polling needed
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [campaigns])
 
   async function handleAction(campaign: Campaign, action: "generate" | "launch" | "resume" | "pause") {

@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useCampaignStream, TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
+import { TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
 import { sentenceCase, getLocationSummary, getSegmentSummary, formatDateTime } from "@/components/lead-generator-agent/shared"
 
 // ─── Status → display mapping ──────────────────────────────────────────────────
@@ -177,14 +177,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // SSE stream — active while campaign is running (not in terminal state)
-  const streamActive = campaign ? !TERMINAL_STATUSES.has(campaign.status ?? "") : false
-  const stream = useCampaignStream(campaign?.uuid, streamActive)
-
-  // Effective state: prefer SSE (more real-time) over the loaded campaign
-  const effectiveStatus = stream.status ?? campaign?.status ?? null
-  const effectiveCheckpoint = stream.awaiting_checkpoint ?? campaign?.awaiting_checkpoint ?? null
-  const progress = stream.job_progress
+  // Derive display state directly from loaded campaign (no SSE)
+  const effectiveStatus = campaign?.status ?? null
+  const effectiveCheckpoint = campaign?.awaiting_checkpoint ?? null
+  const progress = campaign?.job_progress ?? {}
 
   // ── Load campaign ─────────────────────────────────────────────────────────────
   async function loadCampaign(showSpinner = true) {
@@ -211,22 +207,28 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   useEffect(() => { loadCampaign() }, [campaignId])
 
-  // When SSE transitions to a terminal state, reload
-  useEffect(() => {
-    if (stream.status && TERMINAL_STATUSES.has(stream.status)) {
-      loadCampaign(false)
-    }
-  }, [stream.status])
-
-  // Polling fallback: reload every 10s for active campaigns if SSE is down
+  // Smart polling based on campaign phase — no SSE, no persistent socket.
+  // BRIEFING/DISCOVERING/GENERATING: things move fast, poll every 15s
+  // SENDING/ACTIVE: cron fires every 90s, poll every 3 min is plenty
+  // AWAITING_REVIEW: waiting for user action, no polling needed
+  // DRAFT / terminal: no polling
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current)
-    const isActive = effectiveStatus && !TERMINAL_STATUSES.has(effectiveStatus) && effectiveStatus !== "DRAFT"
-    if (isActive && !stream.connected) {
-      pollRef.current = setInterval(() => loadCampaign(false), 10000)
+    pollRef.current = null
+
+    const fastPhases = new Set(["BRIEFING", "DISCOVERING", "GENERATING"])
+    const slowPhases = new Set(["SENDING", "ACTIVE"])
+    const s = campaign?.status ?? ""
+
+    if (fastPhases.has(s)) {
+      pollRef.current = setInterval(() => loadCampaign(false), 15_000)
+    } else if (slowPhases.has(s)) {
+      pollRef.current = setInterval(() => loadCampaign(false), 3 * 60_000)
     }
+    // AWAITING_REVIEW, DRAFT, terminal states: no polling
+
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [effectiveStatus, stream.connected])
+  }, [campaign?.status])
 
   async function runAction(action: PendingAction) {
     if (!campaign || !action) return
@@ -387,10 +389,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           </div>
 
           {/* Error display */}
-          {(campaign.last_error || stream.last_error) && (
+          {campaign.last_error && (
             <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              {stream.last_error ?? campaign.last_error}
+              {campaign.last_error}
             </div>
           )}
         </div>
