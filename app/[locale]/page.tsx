@@ -9,7 +9,6 @@ import { Pricing } from '@/components/pricing'
 import { CTA } from '@/components/cta'
 import { Header } from '@/components/header'
 import { LandingFooter } from '@/components/landing-footer'
-import { HowItWorks } from '@/components/how-it-works'
 import { useLocale } from 'next-intl'
 
 export default function Home() {
@@ -36,14 +35,13 @@ export default function Home() {
   // Show landing page if not logged in
   if (!user) {
     return (
-      <div className="h-full min-h-screen bg-black md:bg-transparent">
+      <div className="h-full min-h-screen bg-[#fbf6f1]">
         <Header />
         <HeroSection
           backgroundImage="/hero2.webp"
           mobileBackgroundImage="/hero2.webp"
           contactInfo={{ website: "www.contractorops.ai", phone: "+1 (555) 123-4567", address: "20 Fieldstone Dr, Roswell, GA" }}
         />
-        <HowItWorks />
         <Features />
         <Pricing />
         <CTA />
@@ -55,5 +53,3 @@ export default function Home() {
   // Return null while redirecting (shouldn't be visible)
   return null
 }
-
-
