@@ -28,11 +28,12 @@ import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 interface PersonalizedQuoteViewProps {
   job: Job
   showActions?: boolean
+  proposalHref?: string
   onEdit?: () => void
   onDelete?: () => void
   onSendToClient?: () => void
@@ -80,6 +81,7 @@ const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 export function PersonalizedQuoteView({
   job,
   showActions = true,
+  proposalHref,
   onEdit,
   onDelete,
   onSendToClient,
@@ -108,6 +110,7 @@ export function PersonalizedQuoteView({
   const isMobile = useIsMobile()
   const { toast } = useToast()
   const t = useTranslations("quotes")
+  const locale = useLocale()
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -428,7 +431,7 @@ export function PersonalizedQuoteView({
     }
 
     const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const fullUrl = `${frontendUrl}/quotes/${publicLink}`
+    const fullUrl = `${frontendUrl}/${locale}/quotes/${publicLink}`
 
     try {
       await navigator.clipboard.writeText(fullUrl)
@@ -451,8 +454,10 @@ export function PersonalizedQuoteView({
     const publicLink = currentJob.quote_public_link
     if (!publicLink) return null
     const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${frontendUrl}/quotes/${publicLink}`
+    return `${frontendUrl}/${locale}/quotes/${publicLink}`
   }
+
+  const proposalPublicHref = currentJob.proposal_public_link ? `/${locale}/proposals/${currentJob.proposal_public_link}` : null
 
   const activityItems = [
     { label: "Quote created", value: formatDate(currentJob.created_at) },
@@ -589,6 +594,15 @@ export function PersonalizedQuoteView({
                   Before & After
                 </Button>
               )}
+
+              {proposalHref ? (
+                <Button asChild className={featuredActionButtonClass} variant="outline">
+                  <Link href={proposalHref}>
+                    <PencilLine className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
+                    Proposal
+                  </Link>
+                </Button>
+              ) : null}
 
               {onSendFollowupSubmit && (
                 <DropdownMenu>
@@ -878,6 +892,25 @@ export function PersonalizedQuoteView({
                     </div>
                   </div>
                 </div>
+
+                {isPublicView && proposalPublicHref && currentJob.proposal_document ? (
+                  <div className="mb-4 rounded-2xl border border-sky-100 bg-[linear-gradient(135deg,rgba(240,249,255,1),rgba(255,255,255,1))] p-4 print:hidden">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-600">Related Document</p>
+                        <p className="mt-1 text-sm text-slate-700">
+                          A companion proposal with photos, markups, and scope notes is available for this quote.
+                        </p>
+                      </div>
+                      <Button asChild className="rounded-full bg-slate-900 text-white hover:bg-slate-800">
+                        <Link href={proposalPublicHref}>
+                          <PencilLine className="mr-2 h-4 w-4" />
+                          View Proposal
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
                 {!hideProjectDescription && currentJob.job_description && (

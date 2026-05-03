@@ -330,11 +330,83 @@ export interface JobItem {
   updated_at?: string
 }
 
+export interface ProposalTextBlock {
+  id: string
+  type: 'text'
+  html: string
+}
+
+export interface ProposalAnnotationPoint {
+  x: number
+  y: number
+}
+
+export interface ProposalImageAnnotationStroke {
+  id: string
+  color: string
+  width: number
+  points: ProposalAnnotationPoint[]
+}
+
+export interface ProposalImageTextOverlay {
+  id: string
+  text: string
+  x: number
+  y: number
+  fontSize: number
+  color: string
+  bold?: boolean
+}
+
+export interface ProposalImageBlock {
+  id: string
+  type: 'image'
+  media_id?: number
+  url: string
+  file_name?: string
+  width: number
+  height: number
+  annotations: ProposalImageAnnotationStroke[]
+  textOverlays: ProposalImageTextOverlay[]
+}
+
+export type ProposalPageBlock = ProposalTextBlock | ProposalImageBlock
+
+export interface ProposalPage {
+  id: string
+  title: string
+  description: ProposalPageBlock[]
+}
+
+export interface ProposalProjectOverview {
+  title: string
+  description: string
+}
+
+export interface ProposalDocument {
+  title: string
+  companyName: string
+  companyAddress: string
+  quoteId?: number | null
+  date: string
+  contractorName: string
+  scopeSummary: string
+  projectOverview: ProposalProjectOverview
+  pages: ProposalPage[]
+}
+
+export interface ProposalOverviewResponse {
+  title: string
+  description: string
+  source: 'ai' | 'fallback'
+}
+
 export interface Job {
   id: number
   uuid: string
   contractor_id: number
   client_id?: number
+  project_id?: number
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
   title: string
@@ -364,6 +436,8 @@ export interface Job {
   quote_pdf_url?: string
   /** Public link for customer quote view; set when generated via generateQuotePublicLink */
   quote_public_link?: string
+  /** Public link for customer proposal view; generated once a proposal is saved */
+  proposal_public_link?: string
   // Additional fields from API (JobResponse)
   quote_expiration_date?: string
   project_type?: string
@@ -371,6 +445,7 @@ export interface Job {
   job_description?: string
   payment_terms?: string
   customer_notes?: string
+  proposal_document?: ProposalDocument
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
@@ -469,6 +544,7 @@ export interface JobUpdate {
   address?: string
   notes?: string
   selected_tier?: PricingTier
+  proposal_document?: ProposalDocument | null
 }
 
 // ============================================

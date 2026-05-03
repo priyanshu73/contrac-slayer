@@ -778,6 +778,7 @@ export default function QuoteDetailPage() {
       <PersonalizedQuoteView
         job={job}
         showActions={true}
+        proposalHref={`/${locale}/quotes/${job.id}/proposal`}
         onSendToClient={handleSendToClient}
         onSendViaSms={handleSendViaSms}
         sendToClientDisabled={

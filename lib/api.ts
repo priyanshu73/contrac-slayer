@@ -20,7 +20,8 @@ import type {
   User,
 } from './types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
+const DEFAULT_API_URL = 'http://localhost:4000/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
 
 console.log('🔧 API Configuration:')
@@ -28,10 +29,43 @@ console.log(`  Main API URL: ${API_URL}`)
 console.log(`  Contractor AI URL: ${CONTRACTOR_AI_API_URL}`)
 
 class ApiClient {
-  private baseURL: string
+  private configuredBaseURL: string
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL
+    this.configuredBaseURL = baseURL.replace(/\/+$/, '')
+  }
+
+  private get baseURL(): string {
+    return this.getBaseURL()
+  }
+
+  private getBaseURL(): string {
+    if (typeof window === 'undefined') {
+      return this.configuredBaseURL
+    }
+
+    try {
+      const parsed = new URL(this.configuredBaseURL)
+      const configuredHost = parsed.hostname
+      const browserHost = window.location.hostname
+
+      // If the frontend is opened from another device/hostname, localhost points at
+      // the viewer's machine rather than the backend host. Reuse the current hostname
+      // with the configured backend port so LAN/device previews keep working.
+      if (
+        browserHost &&
+        browserHost !== 'localhost' &&
+        browserHost !== '127.0.0.1' &&
+        (configuredHost === 'localhost' || configuredHost === '127.0.0.1')
+      ) {
+        parsed.hostname = browserHost
+        return parsed.toString().replace(/\/+$/, '')
+      }
+    } catch {
+      // Fall back to the configured URL below.
+    }
+
+    return this.configuredBaseURL
   }
 
   private formatApiErrorDetail(detail: unknown): string {
@@ -70,7 +104,8 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
+    const baseURL = this.getBaseURL()
+    const url = `${baseURL}${endpoint}`
 
     // Create AbortController for timeout handling
     const controller = new AbortController()
@@ -113,6 +148,21 @@ class ApiClient {
       if (error instanceof Error) {
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
           throw new Error('Request timed out. The server took too long to respond. Please try again.')
+        }
+        if (error.message.includes('Failed to fetch')) {
+          const configuredLocally = this.configuredBaseURL.includes('localhost:4000') || this.configuredBaseURL.includes('127.0.0.1:4000')
+          const browserHost = typeof window !== 'undefined' ? window.location.hostname : ''
+          const openedRemotely = Boolean(browserHost && browserHost !== 'localhost' && browserHost !== '127.0.0.1')
+
+          if (configuredLocally && openedRemotely) {
+            throw new Error(
+              `Could not reach the backend API at ${baseURL}. This browser is not running on the same machine as the app's localhost backend. Set NEXT_PUBLIC_API_URL to a reachable backend URL or run the frontend on the backend host.`
+            )
+          }
+
+          throw new Error(
+            `Could not reach the backend API at ${baseURL}. Make sure the ContractorBackend server is running on port 4000 and that NEXT_PUBLIC_API_URL is correct.`
+          )
         }
         throw error
       }
@@ -533,6 +583,10 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/revised-contract-amount`)
   }
 
+  async getProposalOverview(jobId: number) {
+    return this.request(`/jobs/${jobId}/proposal-overview`)
+  }
+
   async getJobByPublicLink(publicLink: string) {
     // Public endpoint - don't require authentication
     const url = `${this.baseURL}/jobs/public/${publicLink}`
@@ -543,6 +597,33 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
       // Don't include credentials for public endpoint
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(this.formatApiErrorDetail(error?.detail))
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Network error')
+    }
+  }
+
+  async getProposalByPublicLink(publicLink: string) {
+    const url = `${this.baseURL}/jobs/public/proposal/${publicLink}`
+
+    const config: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     }
 
     try {
@@ -574,6 +655,26 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async uploadQuoteMedia(jobId: number, files: File[]) {
+    if (!files || files.length === 0) return []
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    const response = await fetch(`${this.baseURL}/jobs/${jobId}/upload-media`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to upload quote media')
+    }
+
+    return response.json()
   }
 
   async deleteJob(jobId: number) {
