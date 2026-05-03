@@ -745,7 +745,7 @@ function BeforeAfterBlockEditor({
             className="aspect-[4/3] w-full object-cover"
             draggable={false}
           />
-          <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+          <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-slate-900 print:[backdrop-filter:none]">
             {block.beforeLabel ?? "Before"}
           </span>
         </div>
@@ -758,7 +758,7 @@ function BeforeAfterBlockEditor({
             className="aspect-[4/3] w-full object-cover"
             draggable={false}
           />
-          <span className="absolute left-2 top-2 rounded-full bg-emerald-600/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+          <span className="absolute left-2 top-2 rounded-full bg-emerald-600/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-emerald-600 print:[backdrop-filter:none]">
             {block.afterLabel ?? "After"}
           </span>
         </div>

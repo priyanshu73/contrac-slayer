@@ -130,39 +130,23 @@
    appears in the browser preview mode.
    ============================================ */
 @media print {
-  /* Force ALL background colors, gradients, images,
-     and box-shadows to be rendered by the printer. */
-  * {
+  /* Force ALL background colors, gradients, images to render.
+     This is the single most important rule. */
+  *,
+  *::before,
+  *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+    forced-color-adjust: none !important;
   }
 
   @page {
     size: A4 portrait;
-    margin: 12mm 10mm;
+    margin: 10mm 8mm;
   }
 
-  html,
-  body {
-    background: white !important;
-  }
-
-  /* Remove the decorative page gradient wrapper */
-  [class*="radial-gradient"] {
-    background: white !important;
-  }
-
-  /* Expand content to full page width */
-  [class*="max-w-6xl"] {
-    max-width: 100% !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    margin: 0 !important;
-    gap: 6px !important;
-  }
-
-  /* Main proposal card — remove overflow clip so content isn't cut */
+  /* Remove overflow clipping so nothing is cut off across pages */
   [class*="rounded-\[34px\]"],
   [class*="rounded-\[32px\]"],
   [class*="rounded-2xl"],
@@ -170,25 +154,23 @@
     overflow: visible !important;
   }
 
-  /* Allow page-level cards to break across print pages naturally */
+  /* Allow page-level sections to break naturally across PDF pages */
   [class*="rounded-\[32px\]"] {
     break-inside: auto !important;
     page-break-inside: auto !important;
   }
 
-  /* Keep before/after pairs and images together on one page */
+  /* Keep before/after pairs and images together */
   .grid,
-  img {
+  img,
+  figure {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-  }
-
-  img {
     max-width: 100% !important;
   }
 
-  /* Suppress box-shadows (they print as muddy grey rectangles) */
-  * {
+  /* Remove box-shadows — they print as muddy grey rectangles */
+  [class*="shadow"] {
     box-shadow: none !important;
   }
 }
