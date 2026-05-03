@@ -65,10 +65,10 @@ function FeatureSection({
 
 function EstimateShowcase() {
   return (
-    <div className="w-full max-w-[600px] rounded-[22px] border border-emerald-100 bg-[#eafbf6] p-4 shadow-[0_30px_90px_rgba(32,116,96,0.10)]">
+    <div className="w-full max-w-[600px] rounded-[22px] border border-sky-100 bg-[linear-gradient(180deg,#f2f8ff_0%,#eaf4ff_100%)] p-4 shadow-[0_30px_90px_rgba(38,49,61,0.10)]">
       <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_18px_44px_rgba(38,49,61,0.12)] sm:p-6">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
-          <Activity className="h-5 w-5 text-[#5b50ff]" />
+          <Activity className="h-5 w-5 text-sky-600" />
           <p className="text-lg font-black text-slate-950">AI Project Estimator</p>
         </div>
 
@@ -87,7 +87,7 @@ function EstimateShowcase() {
 
         <div className="flex items-center justify-between gap-6 py-9">
           <span className="text-lg font-black text-slate-950">Instant Quote Total</span>
-          <span className="text-lg font-black text-[#5b50ff]">$3,212.50</span>
+          <span className="text-lg font-black text-sky-700">$3,212.50</span>
         </div>
 
         <button type="button" className="h-10 w-full rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
@@ -100,14 +100,14 @@ function EstimateShowcase() {
 
 function DispatchShowcase() {
   return (
-    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(71,44,164,0.14)]">
-      <div className="flex h-10 items-center justify-between bg-[#6d2df6] px-4 text-white">
+    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(38,49,61,0.14)]">
+      <div className="flex h-10 items-center justify-between bg-[linear-gradient(90deg,#1f4f8f_0%,#1b75d0_55%,#3aa3ff_100%)] px-4 text-white">
         <div className="flex min-w-0 items-center gap-2">
-          <Sparkles className="h-4 w-4 shrink-0 text-violet-100" />
+          <Sparkles className="h-4 w-4 shrink-0 text-sky-200" />
           <p className="truncate text-sm font-black">Agentic Subcontractor Dispatch</p>
         </div>
         <div className="flex items-center gap-2 text-xs font-medium">
-          <span className="h-3 w-3 rounded-full bg-emerald-400" />
+          <span className="h-3 w-3 rounded-full bg-cyan-300" />
           Autonomous Mode
         </div>
       </div>
@@ -128,10 +128,10 @@ function DispatchShowcase() {
           AI Scanning Radius
         </div>
 
-        <div className="mt-3 rounded-[18px] border-2 border-[#6258ff] bg-[#f5f7ff] p-4">
+        <div className="mt-3 rounded-[18px] border-2 border-sky-400 bg-[linear-gradient(180deg,#f5faff_0%,#edf6ff_100%)] p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#6258ff] shadow-sm">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sky-600 shadow-sm">
                 <User className="h-5 w-5" />
               </span>
               <div>
@@ -142,14 +142,14 @@ function DispatchShowcase() {
                 </p>
               </div>
             </div>
-            <span className="hidden items-center gap-1 rounded-full bg-[#ebeaff] px-3 py-2 text-xs font-black text-[#4f46e5] sm:flex">
+            <span className="hidden items-center gap-1 rounded-full bg-[linear-gradient(90deg,#e0f2ff_0%,#d7ebff_100%)] px-3 py-2 text-xs font-black text-sky-700 sm:flex">
               <PhoneCall className="h-3.5 w-3.5" />
               Voice AI Calling
             </span>
           </div>
 
           <div className="mt-3 rounded-xl border border-slate-100 bg-white px-4 py-3">
-            <p className="flex items-center gap-1 text-xs font-black text-[#6258ff]">
+            <p className="flex items-center gap-1 text-xs font-black text-sky-700">
               <Sparkles className="h-3.5 w-3.5" />
               Voice Agent Note
             </p>
@@ -177,7 +177,7 @@ function DispatchShowcase() {
       </div>
 
       <div className="flex items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <CheckCircle2 className="h-4 w-4 text-sky-600" />
         AI automatically routes to the next available crew.
       </div>
     </div>
@@ -186,13 +186,13 @@ function DispatchShowcase() {
 
 function CostShowcase() {
   return (
-    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(0,126,91,0.12)]">
-      <div className="flex items-center justify-between bg-[#079b67] px-5 py-3 text-white">
+    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(38,49,61,0.12)]">
+      <div className="flex items-center justify-between bg-[linear-gradient(90deg,#163a63_0%,#1e5fa8_52%,#2f86df_100%)] px-5 py-3 text-white">
         <div className="flex items-center gap-3">
           <DollarSign className="h-5 w-5" />
           <p className="text-sm font-black">Smart Job Costing</p>
         </div>
-        <span className="flex items-center gap-2 rounded bg-[#058659] px-3 py-1 text-xs font-black">
+        <span className="flex items-center gap-2 rounded bg-[rgba(255,255,255,0.12)] px-3 py-1 text-xs font-black text-sky-100">
           <RefreshCw className="h-3.5 w-3.5" />
           QB Synced
         </span>
@@ -206,7 +206,7 @@ function CostShowcase() {
           </div>
           <div className="text-right">
             <p className="text-xs font-black uppercase text-slate-500">GC Profit Margin</p>
-            <p className="mt-1 text-xl font-black text-[#079b67]">32% ($7,840)</p>
+            <p className="mt-1 text-xl font-black text-sky-700">32% ($7,840)</p>
           </div>
         </div>
 
@@ -226,7 +226,7 @@ function CostShowcase() {
               <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-900">{item}</p>
                 <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
-                  {needsSub ? null : <CheckCircle2 className="h-3 w-3 text-teal-500" />}
+                  {needsSub ? null : <CheckCircle2 className="h-3 w-3 text-sky-600" />}
                   <span>{sub}</span>
                   {needsSub ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Needs Sub</span> : null}
                 </div>
@@ -244,7 +244,7 @@ function CostShowcase() {
           Auto-generates Client PDF
         </span>
         <span className="h-4 w-px bg-slate-200" />
-        <span className="text-[#079b67]">Syncs to QuickBooks</span>
+        <span className="text-sky-700">Syncs to QuickBooks</span>
       </div>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   BriefcaseBusiness,
   Calculator,
@@ -38,6 +39,8 @@ type FeatureMenuItem = {
 
 export function Header() {
   const locale = useLocale()
+  const pathname = usePathname()
+  const router = useRouter()
   const t = useTranslations('landing')
   const { referralId } = useReferral()
   const { changeLanguage, isChanging } = useLanguageContext()
@@ -45,7 +48,11 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [featuresOpen, setFeaturesOpen] = useState(false)
+  const [activeLandingSection, setActiveLandingSection] = useState('hero')
   const featuresCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLandingPage = pathname === `/${locale}` || pathname === '/'
+  const isAwayFromHome = isLandingPage && activeLandingSection !== 'hero'
+  const isHeaderSolid = scrolled || isAwayFromHome
 
   useEffect(() => {
     const updateScrolled = () => setScrolled(window.scrollY > 60)
@@ -61,6 +68,27 @@ export function Header() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!isLandingPage) {
+      setActiveLandingSection('hero')
+      return
+    }
+
+    const handleSectionChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ sectionId?: string }>
+      const sectionId = customEvent.detail?.sectionId
+      if (sectionId) {
+        setActiveLandingSection(sectionId)
+      }
+    }
+
+    window.addEventListener('landing:section-change', handleSectionChange as EventListener)
+
+    return () => {
+      window.removeEventListener('landing:section-change', handleSectionChange as EventListener)
+    }
+  }, [isLandingPage])
 
   const openFeaturesMenu = () => {
     if (featuresCloseTimer.current) {
@@ -78,7 +106,8 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: `/${locale}#pricing`, label: t('pricing') },
+    { id: 'home', label: t('sectionHero') },
+    { id: 'pricing', label: t('pricing') },
   ]
 
   const featureMenuItems: FeatureMenuItem[] = [
@@ -121,7 +150,7 @@ export function Header() {
   ]
 
   const LanguageToggle = ({ solid = false }: { solid?: boolean }) => {
-    const isSolid = solid || scrolled
+    const isSolid = solid || isHeaderSolid
     const isSpanish = locale === 'es'
 
     return (
@@ -165,12 +194,29 @@ export function Header() {
     )
   }
 
+  const navigateToLandingSection = (sectionId: string) => {
+    setActiveLandingSection(sectionId)
+
+    if (isLandingPage) {
+      window.dispatchEvent(
+        new CustomEvent('landing:navigate', {
+          detail: { sectionId },
+        }),
+      )
+      return
+    }
+
+    router.push(`/${locale}?section=${sectionId}`)
+  }
+
+  const startTrialHref = isLandingPage ? undefined : signupUrl
+
   return (
     <header className="fixed inset-x-0 top-4 z-50 px-3 sm:px-6">
       <div
         className={`mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full px-3 backdrop-blur-2xl transition-all duration-300 sm:px-4 ${
-          scrolled
-            ? 'border border-white/70 bg-[#fffaf7]/78 shadow-[0_18px_60px_rgba(96,75,64,0.10)]'
+          isHeaderSolid
+            ? 'border border-white/85 bg-[#fffaf7]/92 shadow-[0_20px_80px_rgba(57,45,37,0.18)]'
             : 'border border-white/18 bg-white/[0.08] shadow-none'
         }`}
       >
@@ -178,88 +224,183 @@ export function Header() {
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm">
             <img src="/logo.png" alt="" className="h-7 w-7 rounded-full object-contain" />
           </span>
-          <span className={`text-sm font-black tracking-tight transition-colors sm:text-base ${scrolled ? 'text-slate-950' : 'text-white drop-shadow-sm'}`}>
+          <span className={`text-sm font-black tracking-tight transition-colors sm:text-base ${isHeaderSolid ? 'text-slate-950' : 'text-white drop-shadow-sm'}`}>
             ContractorOps AI
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-5 md:flex" aria-label="Main navigation">
-          <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                onPointerEnter={openFeaturesMenu}
-                onPointerLeave={closeFeaturesMenuSoon}
-                onFocus={openFeaturesMenu}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold outline-none transition-all duration-200 ${
-                  scrolled
-                    ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950 focus-visible:bg-[#f4ede6]/55'
-                    : 'text-white/78 hover:bg-white/10 hover:text-white focus-visible:bg-white/10'
-                }`}
-              >
-                {t('features')}
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="center"
-              sideOffset={14}
-              onPointerEnter={openFeaturesMenu}
-              onPointerLeave={closeFeaturesMenuSoon}
-              onOpenAutoFocus={(event) => event.preventDefault()}
-              onCloseAutoFocus={(event) => event.preventDefault()}
-              className="w-[560px] overflow-hidden rounded-2xl border border-white/20 bg-slate-950/55 p-2 text-white shadow-[0_24px_80px_rgba(8,14,22,0.28)] backdrop-blur-2xl"
-            >
-              <div className="border-b border-white/10 px-3 pb-3 pt-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">Core workflows</p>
-                <p className="mt-1 text-sm font-semibold text-white/82">The operating pieces contractors use every day.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 p-1.5">
-                {featureMenuItems.map((feature) => {
-                  const Icon = feature.icon
+        <nav className="hidden items-center gap-3 md:flex" aria-label="Main navigation">
+          {isLandingPage ? (
+            <>
+              {navLinks.map(({ id, label }) => {
+                const targetId = id === 'home' ? 'hero' : id
+                const isActive = activeLandingSection === targetId
 
-                  return (
-                    <DropdownMenuItem key={feature.href} asChild className="rounded-xl p-0 focus:bg-transparent">
-                      <Link
-                        href={feature.href}
-                        onClick={() => setFeaturesOpen(false)}
-                        className="group flex min-h-[86px] items-start gap-3 rounded-xl px-3 py-3 outline-none transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.08]"
-                      >
-                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.10] text-white/78 ring-1 ring-white/10 transition-colors group-hover:bg-white/[0.14] group-hover:text-white">
-                          <Icon className="h-[18px] w-[18px]" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-black leading-5 text-white">{feature.title}</span>
-                          <span className="mt-1 block text-xs leading-5 text-white/58">{feature.description}</span>
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )
-                })}
-              </div>
-              <div className="border-t border-white/10 px-2 py-2">
-                <Link
-                  href={`/${locale}/features`}
-                  onClick={() => setFeaturesOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-black text-white/78 transition-colors hover:bg-white/[0.07] hover:text-white"
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => navigateToLandingSection(targetId)}
+                    className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                      isActive
+                        ? isHeaderSolid
+                          ? 'bg-[#f1e7df] text-slate-950'
+                          : 'bg-white/14 text-white'
+                        : isHeaderSolid
+                          ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950'
+                          : 'text-white/78 hover:bg-white/10 hover:text-white'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Link
+                    href={`/${locale}/features`}
+                    onPointerEnter={openFeaturesMenu}
+                    onPointerLeave={closeFeaturesMenuSoon}
+                    onFocus={openFeaturesMenu}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold outline-none transition-all duration-200 ${
+                      isHeaderSolid
+                        ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950 focus-visible:bg-[#f4ede6]/55'
+                        : 'text-white/78 hover:bg-white/10 hover:text-white focus-visible:bg-white/10'
+                    }`}
+                  >
+                    {t('features')}
+                    <ChevronDown className="h-4 w-4" />
+                  </Link>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="center"
+                  sideOffset={14}
+                  onPointerEnter={openFeaturesMenu}
+                  onPointerLeave={closeFeaturesMenuSoon}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                  className="w-[560px] overflow-hidden rounded-2xl border border-white/20 bg-slate-950/55 p-2 text-white shadow-[0_24px_80px_rgba(8,14,22,0.28)] backdrop-blur-2xl"
                 >
-                  Explore the feature overview
-                  <span className="text-xs font-semibold text-white/38">Less noise, more context</span>
-                </Link>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {navLinks.map(({ href, label }) => (
-            <a
-              key={href}
-              href={href}
-              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
-                scrolled ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {label}
-            </a>
-          ))}
+                  <div className="border-b border-white/10 px-3 pb-3 pt-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">Core workflows</p>
+                    <p className="mt-1 text-sm font-semibold text-white/82">The operating pieces contractors use every day.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 p-1.5">
+                    {featureMenuItems.map((feature) => {
+                      const Icon = feature.icon
+
+                      return (
+                        <DropdownMenuItem key={feature.href} asChild className="rounded-xl p-0 focus:bg-transparent">
+                          <Link
+                            href={feature.href}
+                            onClick={() => setFeaturesOpen(false)}
+                            className="group flex min-h-[86px] items-start gap-3 rounded-xl px-3 py-3 outline-none transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.08]"
+                          >
+                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.10] text-white/78 ring-1 ring-white/10 transition-colors group-hover:bg-white/[0.14] group-hover:text-white">
+                              <Icon className="h-[18px] w-[18px]" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-black leading-5 text-white">{feature.title}</span>
+                              <span className="mt-1 block text-xs leading-5 text-white/58">{feature.description}</span>
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      )
+                    })}
+                  </div>
+                  <div className="border-t border-white/10 px-2 py-2">
+                    <Link
+                      href={`/${locale}/features`}
+                      onClick={() => setFeaturesOpen(false)}
+                      className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-black text-white/78 transition-colors hover:bg-white/[0.07] hover:text-white"
+                    >
+                      Explore the feature overview
+                      <span className="text-xs font-semibold text-white/38">Less noise, more context</span>
+                    </Link>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <>
+              <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    onPointerEnter={openFeaturesMenu}
+                    onPointerLeave={closeFeaturesMenuSoon}
+                    onFocus={openFeaturesMenu}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold outline-none transition-all duration-200 ${
+                      isHeaderSolid
+                        ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950 focus-visible:bg-[#f4ede6]/55'
+                        : 'text-white/78 hover:bg-white/10 hover:text-white focus-visible:bg-white/10'
+                    }`}
+                  >
+                    {t('features')}
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="center"
+                  sideOffset={14}
+                  onPointerEnter={openFeaturesMenu}
+                  onPointerLeave={closeFeaturesMenuSoon}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                  className="w-[560px] overflow-hidden rounded-2xl border border-white/20 bg-slate-950/55 p-2 text-white shadow-[0_24px_80px_rgba(8,14,22,0.28)] backdrop-blur-2xl"
+                >
+                  <div className="border-b border-white/10 px-3 pb-3 pt-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">Core workflows</p>
+                    <p className="mt-1 text-sm font-semibold text-white/82">The operating pieces contractors use every day.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 p-1.5">
+                    {featureMenuItems.map((feature) => {
+                      const Icon = feature.icon
+
+                      return (
+                        <DropdownMenuItem key={feature.href} asChild className="rounded-xl p-0 focus:bg-transparent">
+                          <Link
+                            href={feature.href}
+                            onClick={() => setFeaturesOpen(false)}
+                            className="group flex min-h-[86px] items-start gap-3 rounded-xl px-3 py-3 outline-none transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.08]"
+                          >
+                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.10] text-white/78 ring-1 ring-white/10 transition-colors group-hover:bg-white/[0.14] group-hover:text-white">
+                              <Icon className="h-[18px] w-[18px]" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-black leading-5 text-white">{feature.title}</span>
+                              <span className="mt-1 block text-xs leading-5 text-white/58">{feature.description}</span>
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      )
+                    })}
+                  </div>
+                  <div className="border-t border-white/10 px-2 py-2">
+                    <Link
+                      href={`/${locale}/features`}
+                      onClick={() => setFeaturesOpen(false)}
+                      className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-black text-white/78 transition-colors hover:bg-white/[0.07] hover:text-white"
+                    >
+                      Explore the feature overview
+                      <span className="text-xs font-semibold text-white/38">Less noise, more context</span>
+                    </Link>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {navLinks.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="hidden w-[388px] grid-cols-[92px_112px_160px] items-center gap-3 md:grid">
@@ -267,14 +408,25 @@ export function Header() {
           <Link
             href={`/${locale}/auth/login`}
             className={`flex h-9 items-center justify-center rounded-full px-3 text-center text-sm font-semibold transition-all duration-200 ${
-              scrolled ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+              isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
             }`}
           >
             {t('signIn')}
           </Link>
-          <Button size="sm" className="w-full rounded-full bg-[#26313d]/84 px-3 text-xs text-white shadow-none hover:bg-[#26313d]/72" asChild>
-            <Link href={signupUrl}>{t('startFreeTrial')}</Link>
-          </Button>
+          {startTrialHref ? (
+            <Button size="sm" className="w-full rounded-full bg-[#26313d]/84 px-3 text-xs text-white shadow-none hover:bg-[#26313d]/72" asChild>
+              <Link href={startTrialHref}>{t('startFreeTrial')}</Link>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full rounded-full bg-[#26313d]/84 px-3 text-xs text-white shadow-none hover:bg-[#26313d]/72"
+              type="button"
+              onClick={() => navigateToLandingSection('cta')}
+            >
+              {t('startFreeTrial')}
+            </Button>
+          )}
         </div>
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -288,31 +440,83 @@ export function Header() {
               <SheetTitle>ContractorOps AI</SheetTitle>
             </SheetHeader>
             <nav className="mt-8 grid gap-2">
-              <div className="rounded-xl bg-slate-950/[0.03] p-2">
-                <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
-                <div className="grid gap-1">
-                  {featureMenuItems.map((feature) => (
-                    <Link
-                      key={feature.href}
-                      href={feature.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-lg px-2 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/45"
+              {isLandingPage ? (
+                <>
+                  {navLinks.map(({ id, label }) => {
+                    const targetId = id === 'home' ? 'hero' : id
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          navigateToLandingSection(targetId)
+                          setMobileOpen(false)
+                        }}
+                        className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
+                          activeLandingSection === targetId
+                            ? 'bg-slate-950/[0.06] text-slate-950'
+                            : 'text-slate-800 hover:bg-slate-950/[0.04]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                  <Link
+                    href={`/${locale}/features`}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-2 py-3 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
+                  >
+                    {t('features')}
+                  </Link>
+                  <div className="rounded-xl bg-slate-950/[0.03] p-2">
+                    <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
+                    <div className="grid gap-1">
+                      {featureMenuItems.map((feature) => (
+                        <Link
+                          key={feature.href}
+                          href={feature.href}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-lg px-2 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/45"
+                        >
+                          {feature.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl bg-slate-950/[0.03] p-2">
+                    <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
+                    <div className="grid gap-1">
+                      {featureMenuItems.map((feature) => (
+                        <Link
+                          key={feature.href}
+                          href={feature.href}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-lg px-2 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/45"
+                        >
+                          {feature.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                  {navLinks.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        navigateToLandingSection(id)
+                        setMobileOpen(false)
+                      }}
+                      className="rounded-lg px-2 py-3 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
                     >
-                      {feature.title}
-                    </Link>
+                      {label}
+                    </button>
                   ))}
-                </div>
-              </div>
-              {navLinks.map(({ href, label }) => (
-                <a
-                  key={href}
-                  href={href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-2 py-3 text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
-                >
-                  {label}
-                </a>
-              ))}
+                </>
+              )}
             </nav>
             <div className="mt-6 flex">
               <LanguageToggle solid />
@@ -323,11 +527,24 @@ export function Header() {
                   {t('signIn')}
                 </Link>
               </Button>
-              <Button className="rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74" asChild>
-                <Link href={signupUrl} onClick={() => setMobileOpen(false)}>
+              {startTrialHref ? (
+                <Button className="rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74" asChild>
+                  <Link href={startTrialHref} onClick={() => setMobileOpen(false)}>
+                    {t('startFreeTrial')}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  className="rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74"
+                  type="button"
+                  onClick={() => {
+                    navigateToLandingSection('cta')
+                    setMobileOpen(false)
+                  }}
+                >
                   {t('startFreeTrial')}
-                </Link>
-              </Button>
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>

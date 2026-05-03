@@ -49,7 +49,7 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
             className="h-full w-full object-cover object-center"
           />
         </picture>
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,22,0.62),rgba(8,14,22,0.42)_46%,rgba(8,14,22,0.34)),radial-gradient(circle_at_center,rgba(38,49,61,0.08),rgba(8,14,22,0.44)_82%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,22,0.72),rgba(8,14,22,0.52)_46%,rgba(8,14,22,0.40)),radial-gradient(circle_at_center,rgba(38,49,61,0.08),rgba(8,14,22,0.48)_82%)]" />
 
         <div className="mx-auto flex min-h-[calc(100svh-1rem)] max-w-6xl items-center justify-center pb-20 pt-10 text-center sm:min-h-[100svh] lg:pb-24">
           <div className="max-w-5xl">

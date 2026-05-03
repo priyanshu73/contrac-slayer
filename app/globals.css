@@ -149,6 +149,55 @@
   }
 }
 
+.landing-scroll-container {
+  height: 100vh;
+  overflow-y: auto;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.landing-section {
+  scroll-snap-align: start;
+  min-height: 100vh;
+}
+
+.landing-section:first-child {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-section:first-child > * {
+  flex: 1;
+}
+
+.landing-section-pricing {
+  min-height: auto;
+  padding-bottom: 1.5rem;
+}
+
+.landing-section-cta {
+  min-height: auto;
+  margin-top: -6rem;
+  position: relative;
+  z-index: 1;
+}
+
+.landing-scroll-container > footer {
+  scroll-snap-align: none;
+}
+
+@media (max-width: 767px) {
+  .landing-section-pricing {
+    padding-bottom: 1rem;
+  }
+
+  .landing-section-cta {
+    margin-top: -3rem;
+  }
+}
+
 .nav-typography {
   font-family: var(--font-sora), var(--font-geist), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-feature-settings: "kern", "liga", "calt";
