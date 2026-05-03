@@ -11,6 +11,7 @@ interface LandingSectionProps {
 export function LandingSection({ id, children, className }: LandingSectionProps) {
   return (
     <div
+      id={id}
       data-section-id={id}
       className={`landing-section ${className ?? ""}`}
     >

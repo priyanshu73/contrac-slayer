@@ -198,11 +198,10 @@ export function Header() {
     setActiveLandingSection(sectionId)
 
     if (isLandingPage) {
-      window.dispatchEvent(
-        new CustomEvent('landing:navigate', {
-          detail: { sectionId },
-        }),
-      )
+      const element = document.getElementById(sectionId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
       return
     }
 
