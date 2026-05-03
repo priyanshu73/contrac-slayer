@@ -29,7 +29,7 @@ export function CTA() {
     <section className="bg-[#fbf6f1] px-5 pb-[80px] pt-10 sm:px-8">
       <div className="mx-auto max-w-[800px]">
         <motion.div 
-          className="relative overflow-hidden rounded-[24px] border border-[#E8E3D6] bg-white px-6 pb-[56px] pt-[72px] shadow-[0_0_0_6px_rgba(10,10,10,0.02),0_1px_2px_rgba(0,0,0,0.02)] sm:px-10"
+          className="relative overflow-hidden rounded-[24px] border border-[#E8E3D6] bg-white px-5 pb-10 pt-12 shadow-[0_0_0_6px_rgba(10,10,10,0.02),0_1px_2px_rgba(0,0,0,0.02)] sm:px-10 sm:pb-[56px] sm:pt-[72px]"
           variants={containerVariants}
           initial="hidden"
           whileInView="show"
@@ -86,31 +86,31 @@ export function CTA() {
             {/* Stats Row */}
             <motion.div 
               variants={itemVariants}
-              className="mt-[48px] flex w-full max-w-[540px] flex-col justify-center gap-8 divide-y divide-[#F0EDE3] border-t border-[#F0EDE3] pt-[36px] sm:flex-row sm:divide-x sm:divide-y-0 sm:gap-0"
+              className="mt-10 grid w-full max-w-[540px] grid-cols-3 divide-x divide-[#F0EDE3] border-t border-[#F0EDE3] pt-8"
             >
               {/* Column 1: Avatars + Text */}
-              <div className="flex flex-1 flex-col items-center justify-center">
+              <div className="flex flex-1 flex-col items-center justify-center px-2">
                 <div className="mb-[6px] flex items-center -space-x-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#FFF5F0] text-[10px] font-bold text-[#D85A30]">JM</div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#E6F1FB] text-[10px] font-bold text-[#1E78D4]">DP</div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#F1FAF5] text-[10px] font-bold text-[#047857]">AW</div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#F1EFE8] text-[11px] font-bold text-[#5F5E5A]">30+</div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#FFF5F0] text-[10px] font-bold text-[#D85A30]">JM</div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E6F1FB] text-[10px] font-bold text-[#1E78D4]">DP</div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#F1FAF5] text-[10px] font-bold text-[#047857]">AW</div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#F1EFE8] text-[11px] font-bold text-[#5F5E5A]">30+</div>
                 </div>
                 <span className="text-[11px] font-medium text-[#888780]">Contractors</span>
               </div>
 
               {/* Column 2 */}
-              <div className="flex flex-1 flex-col items-center justify-center pt-8 sm:pt-0">
+              <div className="flex flex-1 flex-col items-center justify-center">
                 <div className="leading-none text-[#0A0A0A]">
-                  <span className="text-[26px] font-bold">14</span>
-                  <span className="text-[16px] font-semibold text-[#888780]">-day</span>
+                  <span className="text-[22px] font-bold sm:text-[26px]">14</span>
+                  <span className="text-[14px] font-semibold text-[#888780] sm:text-[16px]">-day</span>
                 </div>
                 <span className="mt-[6px] text-[11px] font-medium text-[#888780]">Free trial</span>
               </div>
 
               {/* Column 3 */}
-              <div className="flex flex-1 flex-col items-center justify-center pt-8 sm:pt-0">
-                <div className="text-[26px] font-bold leading-none text-[#0A0A0A]">Cancel</div>
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <div className="text-[22px] font-bold leading-none text-[#0A0A0A] sm:text-[26px]">Cancel</div>
                 <span className="mt-[6px] text-[11px] font-medium text-[#888780]">anytime</span>
               </div>
             </motion.div>

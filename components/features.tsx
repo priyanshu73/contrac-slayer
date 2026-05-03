@@ -51,14 +51,16 @@ function FeatureSection({
 }) {
   return (
     <section className="scroll-mt-20 bg-[#fbf6f1] px-5 py-12 sm:px-8 lg:py-16">
-      <div className={`mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
-        <Reveal className="flex justify-center">{visual}</Reveal>
-        <Reveal className="mx-auto max-w-xl lg:mx-0">
+      <div className={`mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
+        {/* Visual — always on top on mobile (order-first), respects reverse only at lg */}
+        <Reveal className={`flex justify-center ${reverse ? "lg:order-2" : ""}`}>{visual}</Reveal>
+        {/* Text — always below visual on mobile */}
+        <Reveal className={`mx-auto max-w-xl text-center lg:mx-0 lg:text-left ${reverse ? "lg:order-1" : ""}`}>
           <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">{eyebrow}</p>
-          <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl xl:text-6xl">
             {title}
           </h2>
-          <p className="mt-6 text-xl leading-8 text-slate-600">{body}</p>
+          <p className="mt-6 text-lg leading-8 text-slate-600 sm:text-xl">{body}</p>
         </Reveal>
       </div>
     </section>

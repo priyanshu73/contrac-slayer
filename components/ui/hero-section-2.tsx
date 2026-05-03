@@ -104,17 +104,21 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
             </motion.p>
 
             <motion.div variants={itemVariants} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button size="lg" className="h-12 rounded-full bg-white px-7 text-base text-[#26313d] hover:bg-white/90" asChild>
-                <Link href={signupUrl}>
-                  {t("heroPrimaryCta")}
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="ghost" className="h-12 rounded-full px-7 text-base text-white/88 hover:bg-white/12 hover:text-white" asChild>
-                <a href={callToAction?.href ?? "https://cal.com/johnson-subedi/30min"} target="_blank" rel="noopener noreferrer">
-                  {callToAction?.text ?? t("scheduleDemo")}
-                </a>
-              </Button>
+              <Link
+                href={signupUrl}
+                className="flex h-12 items-center gap-2 rounded-full bg-white px-7 text-base font-medium text-[#26313d] transition hover:bg-white/90"
+              >
+                {t("heroPrimaryCta")}
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <a
+                href={callToAction?.href ?? "https://cal.com/johnson-subedi/30min"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-12 items-center rounded-full px-7 text-base font-medium text-white transition hover:bg-white/10"
+              >
+                {callToAction?.text ?? t("scheduleDemo")}
+              </a>
             </motion.div>
           </div>
         </motion.div>
