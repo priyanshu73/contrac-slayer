@@ -2,19 +2,23 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Bold, Copy, Eye, ExternalLink, FileImage, GripVertical, ImagePlus, Italic, Link2, List, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, Printer, Save, Trash2, Type, Undo2 } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Copy, Eye, ExternalLink, FileImage, GripVertical, ImagePlus, Italic, List, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, Printer, Save, Sparkles, Trash2, Type, Undo2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type {
   Job,
+  JobItem,
   ProjectMedia,
   ProposalAnnotationPoint,
+  ProposalBeforeAfterBlock,
   ProposalDocument,
   ProposalImageAnnotationStroke,
   ProposalImageBlock,
@@ -90,6 +94,20 @@ async function createImageBlock(media: ProjectMedia): Promise<ProposalImageBlock
     media_id: media.id,
     url: media.file_url,
     file_name: media.file_name,
+    width: dimensions.width,
+    height: dimensions.height,
+    annotations: [],
+    textOverlays: [],
+  }
+}
+
+async function createImageBlockFromUrl(url: string, fileName?: string | null): Promise<ProposalImageBlock> {
+  const dimensions = await getImageDimensions(url)
+  return {
+    id: createId("image"),
+    type: "image",
+    url,
+    file_name: fileName ?? undefined,
     width: dimensions.width,
     height: dimensions.height,
     annotations: [],
@@ -385,6 +403,51 @@ function ImageBlockEditor({
             <MoveDown className="mr-1 h-4 w-4" />
             Down
           </Button>
+          <div className="flex items-center rounded-md border border-slate-200 bg-white">
+            {([{ label: "S", width: 320 }, { label: "M", width: 520 }, { label: "L", width: 720 }] as const).map(({ label, width }, i) => {
+              const isActive = block.width >= width - 100 && block.width < width + 100
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition",
+                    i > 0 && "border-l border-slate-200",
+                    isActive ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                  )}
+                  onClick={() => {
+                    const ratio = block.height / block.width
+                    onChange({ ...block, width, height: Math.max(180, Math.round(width * ratio)) })
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center rounded-md border border-slate-200 bg-white">
+            {([
+              { icon: AlignLeft,   value: "left"   },
+              { icon: AlignCenter, value: "center" },
+              { icon: AlignRight,  value: "right"  },
+            ] as const).map(({ icon: Icon, value }, i) => {
+              const isActive = (block.alignment ?? "left") === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    "p-1.5 transition",
+                    i > 0 && "border-l border-slate-200",
+                    isActive ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                  )}
+                  onClick={() => onChange({ ...block, alignment: value })}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              )
+            })}
+          </div>
           <Button type="button" variant={drawMode ? "default" : "outline"} size="sm" onClick={() => setDrawMode((value) => !value)}>
             <PencilLine className="mr-1 h-4 w-4" />
             {drawMode ? "Drawing" : "Draw"}
@@ -536,6 +599,10 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
+      <div className={cn(
+        "flex w-full",
+        block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
+      )}>
       <div
         ref={wrapperRef}
         className={cn(
@@ -628,8 +695,134 @@ function ImageBlockEditor({
           />
         ) : null}
       </div>
+      </div>
     </div>
   )
+}
+
+function BeforeAfterBlockEditor({
+  block,
+  readOnly,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+}: {
+  block: ProposalBeforeAfterBlock
+  readOnly: boolean
+  onDelete: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
+}) {
+  return (
+    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+      {!readOnly ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onMoveUp} disabled={!canMoveUp}>
+            <MoveUp className="mr-1 h-4 w-4" />
+            Up
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onMoveDown} disabled={!canMoveDown}>
+            <MoveDown className="mr-1 h-4 w-4" />
+            Down
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={onDelete}>
+            <Trash2 className="mr-1 h-4 w-4" />
+            Remove
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Before */}
+        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <img
+            src={block.beforeUrl}
+            alt={block.beforeLabel ?? "Before"}
+            className="aspect-[4/3] w-full object-cover"
+            draggable={false}
+          />
+          <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+            {block.beforeLabel ?? "Before"}
+          </span>
+        </div>
+
+        {/* After */}
+        <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
+          <img
+            src={block.afterUrl}
+            alt={block.afterLabel ?? "After"}
+            className="aspect-[4/3] w-full object-cover"
+            draggable={false}
+          />
+          <span className="absolute left-2 top-2 rounded-full bg-emerald-600/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+            {block.afterLabel ?? "After"}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function isBeforePhotoFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+}
+
+function isAfterRenderFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
+}
+
+function extractBeforeAfterIndex(fileName?: string | null): number | null {
+  if (!fileName) return null
+  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+  if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
+  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+  if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+  return null
+}
+
+function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []): BeforeAfterImagePair[] {
+  const pairMap = new Map<number, BeforeAfterImagePair>()
+
+  for (const media of mediaItems) {
+    const index = extractBeforeAfterIndex(media.file_name)
+    if (!index) continue
+
+    const existing = pairMap.get(index) ?? {
+      id: `saved-before-after-${index}`,
+      beforePreview: "",
+      beforeFile: null,
+      beforeFileName: null,
+      afterUrl: null,
+      afterFileName: null,
+      status: "saved" as const,
+      error: null,
+    }
+
+    if (isBeforePhotoFilename(media.file_name)) {
+      existing.beforePreview = media.file_url
+      existing.beforeFileName = media.file_name
+    }
+    if (isAfterRenderFilename(media.file_name)) {
+      existing.afterUrl = media.file_url
+      existing.afterFileName = media.file_name
+    }
+
+    pairMap.set(index, existing)
+  }
+
+  return Array.from(pairMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, pair]) => ({
+      ...pair,
+      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+    }))
+    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
 export function ProposalBuilder({
@@ -653,6 +846,12 @@ export function ProposalBuilder({
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [overviewLoaded, setOverviewLoaded] = useState(false)
+  const [showAIModal, setShowAIModal] = useState(false)
+  const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
+    buildBeforeAfterPairsFromMedia(job.project_media ?? [])
+  )
+  const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
+  const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     setDocument(buildInitialProposalDocument(job, contractorName))
@@ -663,6 +862,10 @@ export function ProposalBuilder({
   useEffect(() => {
     setViewMode(publicMode)
   }, [job.id, publicMode])
+
+  useEffect(() => {
+    setImagePairs(buildBeforeAfterPairsFromMedia(job.project_media ?? []))
+  }, [job.id, job.project_media])
 
   useEffect(() => {
     const shouldHydrateOverview =
@@ -713,7 +916,10 @@ export function ProposalBuilder({
 
   const isReadOnly = publicMode || viewMode
   const proposalPublicHref = job.proposal_public_link ? `/${locale}/proposals/${job.proposal_public_link}` : null
-  const quoteHref = job.quote_public_link ? `/${locale}/quotes/${job.quote_public_link}` : `/${locale}/quotes/${job.id}`
+  // Contractor view always uses the numeric ID route; public/client view uses the UUID share link
+  const quoteHref = publicMode && job.quote_public_link
+    ? `/${locale}/quotes/${job.quote_public_link}`
+    : `/${locale}/quotes/${job.id}`
 
   const copyDocumentLink = async (href: string, label: string) => {
     if (typeof window === "undefined") return
@@ -812,87 +1018,83 @@ export function ProposalBuilder({
   const subtitle = [document.companyName, document.companyAddress].filter(Boolean).join(" · ")
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#f8fafc_0%,#eef4f7_100%)]">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
-        <div className="flex flex-col gap-4 rounded-[30px] border border-white/80 bg-white/90 px-5 py-4 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur print:hidden">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button asChild variant="outline" size="sm">
-                <Link href={quoteHref}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  {publicMode ? "View Quote" : "Back to Quote"}
-                </Link>
-              </Button>
-              <Badge variant="secondary" className="rounded-full bg-slate-900 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white">
-                {publicMode ? "Shared Proposal" : "Proposal Builder"}
-              </Badge>
-              {!publicMode ? (
-                dirty ? <span className="text-sm font-medium text-amber-600">Unsaved changes</span> : <span className="text-sm text-slate-500">All changes saved</span>
-              ) : (
-                <span className="text-sm text-slate-500">Read-only presentation view</span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {proposalPublicHref && !publicMode ? (
-                <>
-                  <Button type="button" variant="outline" onClick={() => copyDocumentLink(proposalPublicHref, "Proposal")}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy Proposal Link
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href={proposalPublicHref} target="_blank">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open Shared View
-                    </Link>
-                  </Button>
-                </>
-              ) : null}
-              {!publicMode ? (
-                <Button type="button" variant="outline" onClick={() => setViewMode((value) => !value)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  {viewMode ? "Back to Edit" : "View Mode"}
-                </Button>
-              ) : null}
-              <Button type="button" variant="outline" onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-              {!publicMode ? (
-                <Button type="button" onClick={saveProposal} disabled={saving}>
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save Proposal
-                </Button>
-              ) : null}
-            </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#f8fafc_0%,#eef4f7_100%)] print:bg-none print:bg-white">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 print:px-0 print:py-0 print:max-w-none print:gap-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[30px] border border-slate-100 bg-white px-5 py-3 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.12)] print:hidden">
+          <div className="flex items-center gap-2.5">
+            <Button asChild variant="outline" size="sm">
+              <Link href={quoteHref}>
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                {publicMode ? "View Quote" : "Back to Quote"}
+              </Link>
+            </Button>
+            <Badge variant="secondary" className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.22em] text-white">
+              {publicMode ? "Shared Proposal" : "Proposal Builder"}
+            </Badge>
+            {!publicMode ? (
+              dirty
+                ? <span className="text-xs font-medium text-amber-600">Unsaved changes</span>
+                : <span className="text-xs text-slate-400">All changes saved</span>
+            ) : (
+              <span className="text-xs text-slate-400">Read-only</span>
+            )}
           </div>
 
-          {(proposalPublicHref || job.quote_public_link) && !publicMode ? (
-            <div className="grid gap-3 rounded-[26px] border border-slate-200 bg-slate-50/90 p-4 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Link2 className="h-4 w-4 text-sky-600" />
-                  Proposal share link
-                </div>
-                <p className="text-sm text-slate-600">
-                  Save the proposal once and it gets its own public document URL for clients.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <ExternalLink className="h-4 w-4 text-amber-600" />
-                  Connected quote
-                </div>
-                <p className="text-sm text-slate-600">
-                  The shared proposal links back to the quote, and the shared quote links here when a proposal exists.
-                </p>
-              </div>
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {proposalPublicHref && !publicMode ? (
+              <>
+                <Button type="button" variant="outline" size="sm" onClick={() => copyDocumentLink(proposalPublicHref, "Proposal")} title="Copy proposal link">
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy link
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={proposalPublicHref} target="_blank" title="Open shared view">
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                    Shared view
+                  </Link>
+                </Button>
+              </>
+            ) : null}
+            {!publicMode ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setViewMode((value) => !value)}>
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                {viewMode ? "Edit" : "Preview"}
+              </Button>
+            ) : null}
+            {!publicMode ? (
+              <Button type="button" size="sm" className="bg-slate-900 text-white hover:bg-slate-800" onClick={() => setShowAIModal(true)}>
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                AI Before &amp; After
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const wasInEditMode = !viewMode
+                if (wasInEditMode) setViewMode(true)
+                // Give React a tick to re-render in read-only mode before printing
+                setTimeout(() => {
+                  window.print()
+                  // Restore edit mode after the print dialog closes
+                  if (wasInEditMode) setViewMode(false)
+                }, 80)
+              }}
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </Button>
+            {!publicMode ? (
+              <Button type="button" size="sm" onClick={saveProposal} disabled={saving}>
+                {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+                Save
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        <Card className="overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_24px_70px_-34px_rgba(15,23,42,0.45)]">
-          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(255,255,255,0.92)_38%,rgba(251,191,36,0.12))] px-6 py-6 sm:px-8">
+        <Card className="rounded-[34px] border border-slate-200 bg-white shadow-[0_24px_70px_-34px_rgba(15,23,42,0.45)] print:shadow-none print:border-none print:rounded-none">
+          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(255,255,255,0.92)_38%,rgba(251,191,36,0.12))] px-6 py-6 sm:px-8 print:border-b-0 print:px-0">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge className="rounded-full bg-slate-950 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-white">
@@ -909,7 +1111,7 @@ export function ProposalBuilder({
                 <Input
                   value={document.title}
                   onChange={(event) => updateDocument((current) => ({ ...current, title: event.target.value }))}
-                  className="h-auto border-none bg-transparent px-0 text-3xl font-semibold tracking-tight text-slate-950 shadow-none focus-visible:ring-0 sm:text-5xl"
+                  className="h-auto border-none bg-transparent px-0 text-3xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl"
                   placeholder="Proposal title"
                 />
               )}
@@ -988,7 +1190,7 @@ export function ProposalBuilder({
                     projectOverview: { ...current.projectOverview, title: event.target.value },
                   }))
                 }
-                className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none focus-visible:ring-0"
+                className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0"
                 placeholder="Project overview title"
               />
             )}
@@ -1008,9 +1210,9 @@ export function ProposalBuilder({
         </Card>
 
         {document.pages.map((page, pageIndex) => (
-          <Card key={page.id} className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm sm:p-0">
+          <Card key={page.id} className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm sm:p-0 print:overflow-visible print:border-none print:shadow-none print:rounded-none">
             <div className="space-y-5">
-              <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(240,249,255,1))] px-6 py-5 sm:px-8">
+              <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(240,249,255,1))] px-6 py-5 sm:px-8 print:border-b-0 print:bg-none print:px-0 print:py-2">
                 <div className="mb-3 flex items-center gap-2">
                   <Badge variant="outline" className="rounded-full border-slate-300 bg-white px-3 py-1 text-[11px] tracking-[0.22em] text-slate-500">
                     PAGE {pageIndex + 1}
@@ -1030,7 +1232,7 @@ export function ProposalBuilder({
                               updatePage(current, page.id, (currentPage) => ({ ...currentPage, title: event.target.value })),
                             )
                           }
-                          className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none focus-visible:ring-0"
+                          className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0"
                           placeholder="Page title"
                         />
                       )}
@@ -1074,105 +1276,90 @@ export function ProposalBuilder({
               </div>
 
               <div className="space-y-4 px-6 py-6 sm:px-8 sm:py-8">
-                {page.description.map((block, blockIndex) =>
-                  block.type === "text" ? (
-                    <div key={block.id} className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
-                      {!isReadOnly ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateDocument((current) =>
-                                updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, -1)),
-                              )
-                            }
-                            disabled={blockIndex === 0}
-                          >
-                            <MoveUp className="mr-1 h-4 w-4" />
-                            Up
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateDocument((current) =>
-                                updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
-                              )
-                            }
-                            disabled={blockIndex === page.description.length - 1}
-                          >
-                            <MoveDown className="mr-1 h-4 w-4" />
-                            Down
-                          </Button>
-                        </div>
-                      ) : null}
-                      <RichTextEditor
-                        value={block.html}
-                        onChange={(value) =>
-                          updateDocument((current) =>
-                            updateBlock(current, page.id, block.id, () => ({
-                              ...block,
-                              html: value,
-                            })),
-                          )
-                        }
+                {page.description.map((block, blockIndex) => {
+                  const deleteBlock = () =>
+                    updateDocument((current) =>
+                      updatePage(current, page.id, (currentPage) => ({
+                        ...currentPage,
+                        description: currentPage.description.filter((b) => b.id !== block.id),
+                      })),
+                    )
+                  const moveUp = () =>
+                    updateDocument((current) =>
+                      updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, -1)),
+                    )
+                  const moveDown = () =>
+                    updateDocument((current) =>
+                      updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
+                    )
+
+                  if (block.type === "before_after") {
+                    return (
+                      <BeforeAfterBlockEditor
+                        key={block.id}
+                        block={block}
                         readOnly={isReadOnly}
-                        placeholder={PAGE_TEXT_PLACEHOLDER}
+                        canMoveUp={blockIndex > 0}
+                        canMoveDown={blockIndex < page.description.length - 1}
+                        onMoveUp={moveUp}
+                        onMoveDown={moveDown}
+                        onDelete={deleteBlock}
                       />
-                      {!isReadOnly ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() =>
+                    )
+                  }
+
+                  if (block.type === "text") {
+                    return (
+                      <div key={block.id} className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+                        {!isReadOnly ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={moveUp} disabled={blockIndex === 0}>
+                              <MoveUp className="mr-1 h-4 w-4" />
+                              Up
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1}>
+                              <MoveDown className="mr-1 h-4 w-4" />
+                              Down
+                            </Button>
+                          </div>
+                        ) : null}
+                        <RichTextEditor
+                          value={block.html}
+                          onChange={(value) =>
                             updateDocument((current) =>
-                              updatePage(current, page.id, (currentPage) => ({
-                                ...currentPage,
-                                description: currentPage.description.filter((currentBlock) => currentBlock.id !== block.id),
-                              })),
+                              updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
                             )
                           }
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Remove text block
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : (
+                          readOnly={isReadOnly}
+                          placeholder={PAGE_TEXT_PLACEHOLDER}
+                        />
+                        {!isReadOnly ? (
+                          <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={deleteBlock}>
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Remove text block
+                          </Button>
+                        ) : null}
+                      </div>
+                    )
+                  }
+
+                  // image block
+                  return (
                     <ImageBlockEditor
                       key={block.id}
                       block={block}
                       readOnly={isReadOnly}
                       canMoveUp={blockIndex > 0}
                       canMoveDown={blockIndex < page.description.length - 1}
-                      onMoveUp={() =>
-                        updateDocument((current) =>
-                          updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, -1)),
-                        )
-                      }
-                      onMoveDown={() =>
-                        updateDocument((current) =>
-                          updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
-                        )
-                      }
+                      onMoveUp={moveUp}
+                      onMoveDown={moveDown}
                       onChange={(nextBlock) =>
                         updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
                       }
-                      onDelete={() =>
-                        updateDocument((current) =>
-                          updatePage(current, page.id, (currentPage) => ({
-                            ...currentPage,
-                            description: currentPage.description.filter((currentBlock) => currentBlock.id !== block.id),
-                          })),
-                        )
-                      }
+                      onDelete={deleteBlock}
                     />
-                  ),
-                )}
+                  )
+                })}
               </div>
 
               {!isReadOnly ? (
@@ -1194,17 +1381,32 @@ export function ProposalBuilder({
                     Add text
                   </Button>
 
-                  <label htmlFor={`${fileInputId}-${page.id}`}>
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <span>
-                        {uploadingPageId === page.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-1 h-4 w-4" />}
-                        Add images
-                      </span>
-                    </Button>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadingPageId === page.id}
+                    onClick={() => {
+                      const hasPickable = imagePairs.some(
+                        (p) => p.afterUrl || (!p.beforeFile && p.beforePreview)
+                      )
+                      if (hasPickable) {
+                        setImagePickerPageId(page.id)
+                      } else {
+                        pageUploadRefs.current[page.id]?.click()
+                      }
+                    }}
+                  >
+                    {uploadingPageId === page.id ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="mr-1 h-4 w-4" />
+                    )}
+                    Add images
+                  </Button>
 
                   <input
-                    id={`${fileInputId}-${page.id}`}
+                    ref={(el) => { pageUploadRefs.current[page.id] = el }}
                     type="file"
                     accept="image/*"
                     multiple
@@ -1232,6 +1434,182 @@ export function ProposalBuilder({
           </Button>
         ) : null}
       </div>
+
+      <Dialog open={imagePickerPageId !== null} onOpenChange={(open) => { if (!open) setImagePickerPageId(null) }}>
+        <DialogContent className="flex max-h-[80vh] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
+          <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
+            <DialogTitle className="text-base font-semibold text-slate-900">Add Image</DialogTitle>
+            <DialogDescription className="mt-0.5 text-sm text-slate-500">
+              Select from your AI before &amp; after photos or upload a new image.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto">
+            {imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ? (
+              <div className="border-b border-slate-100 px-6 py-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    AI Before &amp; After
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {imagePairs
+                    .filter((p) => p.afterUrl || (!p.beforeFile && p.beforePreview))
+                    .map((pair, pairIndex) => {
+                      const hasBefore = !pair.beforeFile && Boolean(pair.beforePreview)
+                      const hasAfter = Boolean(pair.afterUrl)
+                      const hasBoth = hasBefore && hasAfter
+
+                      const addImage = async (url: string, label: string) => {
+                        const pageId = imagePickerPageId
+                        if (!pageId) return
+                        const block = await createImageBlockFromUrl(url, label)
+                        updateDocument((current) =>
+                          updatePage(current, pageId, (p) => ({
+                            ...p,
+                            description: [...p.description, block],
+                          }))
+                        )
+                        setImagePickerPageId(null)
+                      }
+
+                      const addBoth = () => {
+                        const pageId = imagePickerPageId
+                        if (!pageId || !pair.beforePreview || !pair.afterUrl) return
+                        const block: ProposalBeforeAfterBlock = {
+                          id: createId("before-after"),
+                          type: "before_after",
+                          beforeUrl: pair.beforePreview,
+                          afterUrl: pair.afterUrl,
+                          beforeLabel: "Before",
+                          afterLabel: "After",
+                        }
+                        updateDocument((current) =>
+                          updatePage(current, pageId, (p) => ({
+                            ...p,
+                            description: [...p.description, block],
+                          }))
+                        )
+                        setImagePickerPageId(null)
+                      }
+
+                      return (
+                        <div key={pair.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-3 py-2">
+                            <span className="text-xs font-medium text-slate-500">Pair {pairIndex + 1}</span>
+                            {hasBoth ? (
+                              <button
+                                type="button"
+                                onClick={addBoth}
+                                className="flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-slate-800"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add both
+                              </button>
+                            ) : null}
+                          </div>
+                          <div className={cn("grid divide-x divide-slate-100", hasBoth ? "grid-cols-2" : "grid-cols-1")}>
+                            {hasBefore ? (
+                              <button
+                                type="button"
+                                className="group text-left transition hover:bg-slate-50"
+                                onClick={() => addImage(pair.beforePreview, `Before ${pairIndex + 1}`)}
+                              >
+                                <div className="aspect-[4/3] overflow-hidden">
+                                  <img src={pair.beforePreview} alt={`Before ${pairIndex + 1}`} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                                </div>
+                                <div className="px-3 py-2">
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">Before</span>
+                                </div>
+                              </button>
+                            ) : null}
+                            {hasAfter ? (
+                              <button
+                                type="button"
+                                className="group text-left transition hover:bg-slate-50"
+                                onClick={() => addImage(pair.afterUrl!, `After ${pairIndex + 1}`)}
+                              >
+                                <div className="aspect-[4/3] overflow-hidden">
+                                  <img src={pair.afterUrl!} alt={`After ${pairIndex + 1}`} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                                </div>
+                                <div className="px-3 py-2">
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">After (AI)</span>
+                                </div>
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="px-6 py-5">
+              <div className="mb-3 flex items-center gap-2">
+                <ImagePlus className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Upload from device
+                </span>
+              </div>
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 text-left transition hover:border-slate-400 hover:bg-slate-50"
+                onClick={() => {
+                  const pageId = imagePickerPageId
+                  if (!pageId) return
+                  setImagePickerPageId(null)
+                  setTimeout(() => { pageUploadRefs.current[pageId]?.click() }, 80)
+                }}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                  <ImagePlus className="h-4 w-4 text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Upload images</p>
+                  <p className="text-xs text-slate-400">JPG, PNG, WEBP and more</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
+        <DialogContent className="flex max-h-[92vh] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
+          <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 ring-1 ring-violet-100">
+                <Sparkles className="h-4 w-4 text-violet-500" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-semibold text-slate-900">
+                  AI Before and After
+                </DialogTitle>
+                <DialogDescription className="mt-0.5 text-sm text-slate-500">
+                  Upload a before photo, choose the saved quote items to include, and generate a before/after preview for this quote.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <BeforeAfterPanel
+              jobId={job.id}
+              lineItems={(job.items ?? []).map((item: JobItem) => ({
+                title: item.title,
+                description: item.custom_description,
+                quantity: item.quantity,
+                unitOfMeasure: item.unit_of_measure,
+              }))}
+              jobDescription={job.job_description || job.description || ""}
+              jobTitle={job.title || ""}
+              imagePairs={imagePairs}
+              onImagePairsChange={setImagePairs}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

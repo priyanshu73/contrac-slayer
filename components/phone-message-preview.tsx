@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
+import { useInView } from "framer-motion"
 import { useTranslations } from "next-intl"
 import { ArrowUp, BatteryFull, Camera, ChevronLeft, Mic, Plus, Signal, Wifi } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -26,7 +27,7 @@ function TypingDots() {
   )
 }
 
-const STEP_DELAYS = [3000, 2600, 3000, 16000]
+const STEP_DELAYS = [1800, 1500, 1800, 3500]
 
 export function PhoneMessagePreview({ className }: { className?: string }) {
   const t = useTranslations("landing")
@@ -59,21 +60,29 @@ export function PhoneMessagePreview({ className }: { className?: string }) {
   )
 
   const [visibleCount, setVisibleCount] = useState(1)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInView = useInView(containerRef, { once: false, amount: 0.4 })
 
   useEffect(() => {
+    if (!isInView) {
+      // Reset animation when user scrolls away so it starts fresh when they scroll back
+      setVisibleCount(1)
+      return
+    }
+
     const delay = STEP_DELAYS[Math.min(visibleCount - 1, STEP_DELAYS.length - 1)]
     const timeout = window.setTimeout(() => {
       setVisibleCount((count) => (count >= messages.length ? 1 : count + 1))
     }, delay)
 
     return () => window.clearTimeout(timeout)
-  }, [messages.length, visibleCount])
+  }, [messages.length, visibleCount, isInView])
 
   const nextMessage = messages[visibleCount]
-  const showTyping = nextMessage?.role === "ai"
+  const showTyping = nextMessage?.role === "ai" && isInView
 
   return (
-    <div className={cn("relative mx-auto w-[272px] sm:w-[296px] md:w-[324px]", className)}>
+    <div ref={containerRef} className={cn("relative mx-auto w-[272px] sm:w-[296px] md:w-[324px]", className)}>
       <div className="absolute -right-1 top-28 h-16 w-1 rounded-r-full bg-[#2d3946]" />
       <div className="absolute -left-1 top-24 h-10 w-1 rounded-l-full bg-[#2d3946]" />
       <div className="absolute -left-1 top-40 h-14 w-1 rounded-l-full bg-[#2d3946]" />

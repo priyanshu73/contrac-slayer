@@ -77,14 +77,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen bg-[#f6f8fb] lg:grid-cols-[0.95fr_1.05fr]">
+    <div className="grid min-h-screen bg-white lg:grid-cols-[0.95fr_1.05fr]">
       <aside className="relative hidden overflow-hidden lg:flex">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(/hero2.webp)' }}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(6,13,24,0.82),rgba(6,13,24,0.62)_48%,rgba(6,13,24,0.28))]" />
-        <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#f6f8fb] to-transparent" />
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(6,13,24,0.85),rgba(6,13,24,0.65)_50%,rgba(6,13,24,0.45))]" />
 
         <div className="relative z-10 flex w-full flex-col justify-between px-12 py-10 text-white xl:px-16">
           <motion.div
@@ -142,7 +141,7 @@ export default function LoginPage() {
         </div>
       </aside>
 
-      <section className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8">
+      <section className="flex min-h-screen items-center justify-center bg-[#f7f8fa] px-5 py-8 sm:px-8">
         <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0, x: 16 }}

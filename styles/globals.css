@@ -123,3 +123,72 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ============================================
+   PRINT / PDF STYLES
+   Forces the proposal to print exactly as it
+   appears in the browser preview mode.
+   ============================================ */
+@media print {
+  /* Force ALL background colors, gradients, images,
+     and box-shadows to be rendered by the printer. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+  }
+
+  /* Remove the decorative page gradient wrapper */
+  [class*="radial-gradient"] {
+    background: white !important;
+  }
+
+  /* Expand content to full page width */
+  [class*="max-w-6xl"] {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 !important;
+    gap: 6px !important;
+  }
+
+  /* Main proposal card — remove overflow clip so content isn't cut */
+  [class*="rounded-\[34px\]"],
+  [class*="rounded-\[32px\]"],
+  [class*="rounded-2xl"],
+  [class*="rounded-xl"] {
+    overflow: visible !important;
+  }
+
+  /* Allow page-level cards to break across print pages naturally */
+  [class*="rounded-\[32px\]"] {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  /* Keep before/after pairs and images together on one page */
+  .grid,
+  img {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  img {
+    max-width: 100% !important;
+  }
+
+  /* Suppress box-shadows (they print as muddy grey rectangles) */
+  * {
+    box-shadow: none !important;
+  }
+}

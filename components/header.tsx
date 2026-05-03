@@ -209,7 +209,7 @@ export function Header() {
     router.push(`/${locale}?section=${sectionId}`)
   }
 
-  const startTrialHref = isLandingPage ? undefined : signupUrl
+  const startTrialHref = signupUrl
 
   return (
     <header className="fixed inset-x-0 top-4 z-50 px-3 sm:px-6">

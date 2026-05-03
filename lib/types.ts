@@ -366,11 +366,21 @@ export interface ProposalImageBlock {
   file_name?: string
   width: number
   height: number
+  alignment?: 'left' | 'center' | 'right'
   annotations: ProposalImageAnnotationStroke[]
   textOverlays: ProposalImageTextOverlay[]
 }
 
-export type ProposalPageBlock = ProposalTextBlock | ProposalImageBlock
+export interface ProposalBeforeAfterBlock {
+  id: string
+  type: 'before_after'
+  beforeUrl: string
+  afterUrl: string
+  beforeLabel?: string
+  afterLabel?: string
+}
+
+export type ProposalPageBlock = ProposalTextBlock | ProposalImageBlock | ProposalBeforeAfterBlock
 
 export interface ProposalPage {
   id: string
