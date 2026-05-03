@@ -1,229 +1,180 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { api } from "@/lib/api"
-import { useAuth } from "@/contexts/AuthContext"
-import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Copy, ChevronDown } from "lucide-react"
+import { useLocale, useTranslations } from "next-intl"
+import { ChevronRight, FileText, Plus } from "lucide-react"
+import { api } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 
 interface ClientInfo {
   id: number
   name: string
-  email: string
-  phone?: string
-  address?: string
 }
 
 interface Quote {
   id: number
-  client_id?: number
-  client?: ClientInfo
+  client?: ClientInfo | null
   status: string
   total_amount: number
+  title?: string | null
+  project_type?: string | null
   created_at: string
-  updated_at?: string
+}
+
+function getStatusColor(status: string) {
+  switch (status?.toUpperCase()) {
+    case "DRAFT":
+      return "border-amber-200 bg-amber-50 text-amber-700"
+    case "SENT":
+      return "border-blue-200 bg-blue-50 text-blue-700"
+    case "VIEWED":
+      return "border-violet-200 bg-violet-50 text-violet-700"
+    case "ACCEPTED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700"
+    case "REJECTED":
+      return "border-rose-200 bg-rose-50 text-rose-700"
+    case "PAID":
+      return "border-green-200 bg-green-50 text-green-700"
+    case "IN_PROGRESS":
+      return "border-sky-200 bg-sky-50 text-sky-700"
+    case "COMPLETED":
+      return "border-teal-200 bg-teal-50 text-teal-700"
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700"
+  }
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount || 0)
+}
+
+function formatStatusLabel(status: string) {
+  return String(status || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 export function RecentQuotesReal() {
-  const { user } = useAuth()
-  const t = useTranslations('dashboard')
+  const t = useTranslations("dashboard")
   const locale = useLocale()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (user?.contractor_profile) {
-      fetchQuotes()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
+    let cancelled = false
 
-  const fetchQuotes = async () => {
-    try {
-      const data = await api.getMyJobs(undefined, 0, 5)
-      setQuotes((data as Quote[]).slice(0, 3))
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to fetch quotes:", error)
+    const loadQuotes = async () => {
+      try {
+        const data = await api.getMyJobs(undefined, 0, 4)
+        if (!cancelled) {
+          setQuotes(Array.isArray(data) ? (data as Quote[]).slice(0, 4) : [])
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to fetch recent quotes:", error)
+        }
+        if (!cancelled) setQuotes([])
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-    } finally {
-      setLoading(false)
     }
-  }
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "DRAFT":
-        return "bg-amber-500/15 text-amber-600"
-      case "SENT":
-        return "bg-blue-500/15 text-blue-600"
-      case "VIEWED":
-        return "bg-purple-500/15 text-purple-600"
-      case "ACCEPTED":
-        return "bg-emerald-500/15 text-emerald-600"
-      case "REJECTED":
-        return "bg-red-500/15 text-red-600"
-      case "PAID":
-        return "bg-green-500/15 text-green-600"
-      case "IN_PROGRESS":
-        return "bg-sky-500/15 text-sky-600"
-      case "COMPLETED":
-        return "bg-teal-500/15 text-teal-600"
-      default:
-        return "bg-muted text-muted-foreground"
+    loadQuotes()
+
+    return () => {
+      cancelled = true
     }
-  }
+  }, [])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-
-  if (loading) {
-    return (
-      <Card className="p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">{t('recentQuotes')}</h2>
+  return (
+    <Card className="border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">{t("recentQuotes") || "Recent Quotes"}</h2>
         </div>
-        <div className="space-y-1.5">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded border border-border p-2.5">
-              <div className="flex justify-between">
-                <div className="h-4 bg-muted rounded w-1/4" />
-                <div className="h-4 bg-muted rounded w-14" />
+        <Link
+          href={`/${locale}/quotes`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:border-sky-700 hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+        >
+          {t("viewAll") || "View All"}
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="rounded-xl border border-slate-200 p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-5 w-14 rounded-full" />
               </div>
-              <div className="h-3 bg-muted rounded w-1/2 mt-1" />
+              <div className="grid grid-cols-[1.2fr_1fr_auto_auto] gap-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-16 justify-self-end" />
+              </div>
             </div>
           ))}
         </div>
-      </Card>
-    )
-  }
-
-  return (
-    <Card className="p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{t('recentQuotes')}</h2>
-        <div className="flex items-center gap-1.5">
-          <Link 
-            href={`/${locale}/quotes`}
-            className="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded transition-colors"
-          >
-            View All
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-7 px-2 text-xs">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {t('createQuote')}
-                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/new`} className="flex items-center cursor-pointer">
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span>New Blank Quote</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/copy`} className="flex items-center cursor-pointer">
-                  <Copy className="mr-2 h-4 w-4" />
-                  <span>Copy Existing Quote</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-      {quotes.length === 0 ? (
-        <div className="text-center py-4">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+      ) : quotes.length === 0 ? (
+        <div className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
+            <FileText className="h-5 w-5 text-slate-400" />
           </div>
-          <p className="text-xs text-muted-foreground mb-2">{t('noQuotesYet')}</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {t('createQuote')}
-                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/new`} className="flex items-center cursor-pointer">
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span>New Blank Quote</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/quotes/copy`} className="flex items-center cursor-pointer">
-                  <Copy className="mr-2 h-4 w-4" />
-                  <span>Copy Existing Quote</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <p className="text-sm font-medium text-slate-900">{t("noQuotesYet") || "No quotes yet."}</p>
+          <p className="mt-1 text-sm text-slate-500">Your newest quotes will show up here once you create them.</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {quotes.map((quote) => (
-            <Link 
-              key={quote.id} 
-              href={`/${locale}/quotes/${quote.id}`}
-              className="block rounded border border-border p-2.5 hover:bg-muted/50 hover:border-primary/50 transition-all cursor-pointer group"
-            >
-              <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-sm font-medium group-hover:text-primary transition-colors truncate">
-                      {quote.client?.name || 'Unknown Client'}
-                    </span>
-                    <Badge className={`shrink-0 text-[10px] px-1.5 py-0 ${getStatusColor(quote.status)}`}>
-                      {quote.status}
+        <div className="space-y-2">
+          {quotes.map((quote) => {
+            return (
+              <Link
+                key={quote.id}
+                href={`/${locale}/quotes/${quote.id}`}
+                className="block rounded-xl border border-slate-200 bg-white px-2.5 py-2 transition-all hover:border-sky-200 hover:bg-sky-50/20"
+              >
+                <div className="grid grid-cols-[64px_1fr_auto] items-center gap-3">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.12em] text-slate-400">Quote No</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-700">#{quote.id}</p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-slate-900">
+                      {quote.client?.name || "Unknown Client"}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <Badge variant="outline" className={`mb-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusColor(quote.status)}`}>
+                      {formatStatusLabel(quote.status)}
                     </Badge>
+                    <p className="text-sm font-semibold text-slate-900">{formatCurrency(quote.total_amount)}</p>
                   </div>
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 mt-0.5">
-                    {quote.client?.address && (
-                      <span className="text-xs text-muted-foreground truncate block max-w-full">
-                        {quote.client.address}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                    Created {formatDate(quote.created_at)}
-                    {quote.updated_at && ` • Updated ${formatDate(quote.updated_at)}`}
-                  </p>
                 </div>
-                <p className="text-sm font-semibold text-primary tabular-nums text-right shrink-0">
-                  {formatCurrency(quote.total_amount)}
-                </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       )}
+
+      <Button asChild size="sm" className="mt-3 h-9 w-full bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700">
+        <Link href={`/${locale}/quotes/new`}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          {t("createQuote") || "Create Quote"}
+        </Link>
+      </Button>
     </Card>
   )
 }

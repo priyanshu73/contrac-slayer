@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { StatsCardsReal } from "@/components/stats-cards-real";
 import { DashboardProjects } from "@/components/dashboard-projects";
-import { UpcomingJobs } from "@/components/upcoming-jobs";
+import { DashboardWeekStrip } from "@/components/dashboard-week-strip";
+import { RecentQuotesReal } from "@/components/recent-quotes-real";
 import {
   CreateAppointmentDialog,
   type CreateAppointmentClient,
@@ -69,7 +70,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-background to-sky-50/40 pb-24 md:pb-6">
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 pt-3 pb-6">
         <div className="space-y-6">
           {/* Stats Overview */}
           <StatsCardsReal />
@@ -144,13 +145,15 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          {/* Recent Activity - Quotes and Upcoming Meetings equal width */}
+          <DashboardWeekStrip />
+
+          {/* Projects and recent quotes */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 min-w-0">
             <div className="min-w-0">
               <DashboardProjects />
             </div>
             <div className="min-w-0">
-              <UpcomingJobs />
+              <RecentQuotesReal />
             </div>
           </div>
         </div>

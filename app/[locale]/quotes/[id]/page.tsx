@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink } from "lucide-react"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
+import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
 import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
@@ -26,6 +27,68 @@ import { Job } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { useLocale } from "next-intl"
+
+function isBeforePhotoFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+}
+
+function isAfterRenderFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
+}
+
+function extractBeforeAfterIndex(fileName?: string | null): number | null {
+  if (!fileName) return null
+
+  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+  if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
+
+  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+  if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+
+  return null
+}
+
+function buildBeforeAfterPairsFromMedia(mediaItems: Job["project_media"] = []): BeforeAfterImagePair[] {
+  const pairMap = new Map<number, BeforeAfterImagePair>()
+
+  for (const media of mediaItems || []) {
+    const index = extractBeforeAfterIndex(media.file_name)
+    if (!index) continue
+
+    const existing = pairMap.get(index) || {
+      id: `saved-before-after-${index}`,
+      beforePreview: "",
+      beforeFile: null,
+      beforeFileName: null,
+      afterUrl: null,
+      afterFileName: null,
+      status: "saved" as const,
+      error: null,
+    }
+
+    if (isBeforePhotoFilename(media.file_name)) {
+      existing.beforePreview = media.file_url
+      existing.beforeFileName = media.file_name
+    }
+
+    if (isAfterRenderFilename(media.file_name)) {
+      existing.afterUrl = media.file_url
+      existing.afterFileName = media.file_name
+    }
+
+    pairMap.set(index, existing)
+  }
+
+  return Array.from(pairMap.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([, pair]) => ({
+      ...pair,
+      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+    }))
+    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
+}
 
 export default function QuoteDetailPage() {
   const params = useParams()
@@ -61,6 +124,10 @@ export default function QuoteDetailPage() {
   const [qboConnected, setQboConnected] = useState(false)
   const [qboInvoiceLoading, setQboInvoiceLoading] = useState(false)
   const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false)
+  const [beforeAfterOpen, setBeforeAfterOpen] = useState(false)
+  const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
+  const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false)
+  const [deletingQuote, setDeletingQuote] = useState(false)
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -123,6 +190,10 @@ export default function QuoteDetailPage() {
       cancelled = true
     }
   }, [job?.id, job?.status, job?.qbo_invoice_id, qboConnected, isPublicView, user?.is_contractor])
+
+  useEffect(() => {
+    setBeforeAfterImagePairs(buildBeforeAfterPairsFromMedia(job?.project_media))
+  }, [job?.id, job?.project_media])
 
   const fetchJob = async () => {
     try {
@@ -357,6 +428,29 @@ export default function QuoteDetailPage() {
     router.push(`/quotes/${identifier}/edit`)
   }
 
+  const handleDeleteQuote = async () => {
+    if (!job) return
+
+    setDeletingQuote(true)
+    try {
+      await api.deleteJob(job.id)
+      toast({
+        title: "Quote deleted",
+        description: `Quote #${job.id} has been removed.`,
+      })
+      router.push(`/${locale}/quotes`)
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Failed to delete quote.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingQuote(false)
+      setDeleteQuoteOpen(false)
+    }
+  }
+
   const handleCreateInvoice = async (alsoCreateQBO?: boolean) => {
     if (!job) return
 
@@ -588,6 +682,18 @@ export default function QuoteDetailPage() {
     }
   }
 
+  const handleBeforeAfterOpenChange = async (open: boolean) => {
+    setBeforeAfterOpen(open)
+    if (!open && job) {
+      try {
+        const refreshedJob = await api.getJob(job.id)
+        setJob(refreshedJob as Job)
+      } catch {
+        // If the quiet refresh fails, keep the current view and let the next manual refresh recover.
+      }
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -688,6 +794,7 @@ export default function QuoteDetailPage() {
         }
         smsSentSuccessTo={smsSentSuccessTo}
         onEdit={handleEdit}
+        onDelete={() => setDeleteQuoteOpen(true)}
         onSendFollowupSubmit={handleSendFollowupSubmit}
         followupSending={followupSending}
         gmailConnected={gmailConnected}
@@ -697,6 +804,7 @@ export default function QuoteDetailPage() {
         onSendInvoiceEmail={handleSendInvoiceEmail}
         sendingInvoiceEmail={sendingInvoiceEmail}
         onCreateChangeOrder={handleCreateChangeOrder}
+        onOpenBeforeAfter={() => setBeforeAfterOpen(true)}
         onSignatureUpdate={handleSignatureUpdate}
         onStatusUpdate={() => { fetchJob(); fetchChangeOrderData(job.id) }}
         changeOrders={changeOrders}
@@ -705,6 +813,49 @@ export default function QuoteDetailPage() {
         isPublicView={false}
         hideProjectDescription={true}
       />
+      <Dialog open={deleteQuoteOpen} onOpenChange={setDeleteQuoteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete quote?</DialogTitle>
+            <DialogDescription>
+              This permanently removes quote #{job.id}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteQuoteOpen(false)} disabled={deletingQuote}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteQuote} disabled={deletingQuote}>
+              {deletingQuote ? "Deleting..." : "Delete quote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={beforeAfterOpen} onOpenChange={handleBeforeAfterOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl">
+          <DialogHeader className="pr-8">
+            <DialogTitle>AI Before and After</DialogTitle>
+            <DialogDescription>
+              Upload a before photo, choose the saved quote items to include, and generate a before/after preview for this quote.
+            </DialogDescription>
+          </DialogHeader>
+          {job && (
+            <BeforeAfterPanel
+              jobId={job.id}
+              lineItems={(job.items || []).map((item) => ({
+                title: item.title,
+                description: item.custom_description,
+                quantity: item.quantity,
+                unitOfMeasure: item.unit_of_measure,
+              }))}
+              jobDescription={job.job_description || job.description || ""}
+              jobTitle={job.title || ""}
+              imagePairs={beforeAfterImagePairs}
+              onImagePairsChange={setBeforeAfterImagePairs}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={sendEmailOpen}
         onOpenChange={(open) => {

@@ -22,9 +22,8 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
-import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import Image from "next/image"
-import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, Sparkles, X } from "lucide-react"
+import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
@@ -171,71 +170,6 @@ function getRateNumber(rate: LineItem["rate"]): number {
   if (typeof rate === "number") return rate
   const n = Number.parseFloat(rate)
   return Number.isFinite(n) ? n : 0
-}
-
-function isBeforePhotoFilename(fileName?: string | null): boolean {
-  if (!fileName) return false
-  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
-}
-
-function isAfterRenderFilename(fileName?: string | null): boolean {
-  if (!fileName) return false
-  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
-}
-
-function extractBeforeAfterIndex(fileName?: string | null): number | null {
-  if (!fileName) return null
-  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
-  if (beforeMatch) {
-    return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
-  }
-
-  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
-  if (afterMatch) {
-    return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
-  }
-
-  return null
-}
-
-function buildBeforeAfterPairsFromMedia(mediaItems: any[]): BeforeAfterImagePair[] {
-  const pairMap = new Map<number, BeforeAfterImagePair>()
-
-  for (const media of mediaItems) {
-    const index = extractBeforeAfterIndex(media.file_name)
-    if (!index) continue
-
-    const existing = pairMap.get(index) || {
-      id: `saved-before-after-${index}`,
-      beforePreview: "",
-      beforeFile: null,
-      beforeFileName: null,
-      afterUrl: null,
-      afterFileName: null,
-      status: "saved" as const,
-      error: null,
-    }
-
-    if (isBeforePhotoFilename(media.file_name)) {
-      existing.beforePreview = media.file_url
-      existing.beforeFileName = media.file_name
-    }
-
-    if (isAfterRenderFilename(media.file_name)) {
-      existing.afterUrl = media.file_url
-      existing.afterFileName = media.file_name
-    }
-
-    pairMap.set(index, existing)
-  }
-
-  return Array.from(pairMap.entries())
-    .sort((left, right) => left[0] - right[0])
-    .map(([, pair]) => ({
-      ...pair,
-      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
-    }))
-    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
 // Unit Selector Component
@@ -546,9 +480,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [createError, setCreateError] = useState<string | null>(null)
   const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
-  const [isBeforeAfterModalOpen, setIsBeforeAfterModalOpen] = useState(false)
-
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
@@ -569,27 +500,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const openCloudinaryWidget = () => {
     document.getElementById('quote-attachment-input')?.click()
   }
-
-  const beforeAfterTrigger = (
-    <button
-      type="button"
-      onClick={() => setIsBeforeAfterModalOpen(true)}
-      className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:text-emerald-700"
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900">AI Before and After</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Generate and save up to 5 before/after pairs
-          </p>
-        </div>
-      </div>
-      <span className="text-xs font-medium text-slate-500">Open</span>
-    </button>
-  )
 
   // Markup and labor rate control - fetch from contractor profile
   const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
@@ -946,11 +856,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           name: media.file_name || "attachment",
           size: media.file_size || 0,
         })))
-        setBeforeAfterImagePairs(buildBeforeAfterPairsFromMedia(initialData.project_media))
       } else {
         // Clear if no media
         setUploadedImages([])
-        setBeforeAfterImagePairs([])
       }
 
       // Mark as loaded and ensure loadingMarkup is false for editing
@@ -2075,9 +1983,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
             </Collapsible>
 
-            <div className="mt-3">
-              {beforeAfterTrigger}
-            </div>
           </div>
 
           {/* Line Items */}
@@ -3108,37 +3013,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </div>
               </div>
             </Card>
-
-            {beforeAfterTrigger}
           </div>
 
         </div>
       </div>
-
-      <Dialog open={isBeforeAfterModalOpen} onOpenChange={setIsBeforeAfterModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl" showCloseButton={false}>
-          <DialogHeader className="pr-8">
-            <DialogTitle>AI Before and After</DialogTitle>
-            <DialogDescription>
-              Upload up to 5 photos, choose the quote items to include, and generate saved before/after pairs for this quote.
-            </DialogDescription>
-          </DialogHeader>
-
-          <BeforeAfterPanel
-            jobId={quoteId ? parseInt(quoteId, 10) : null}
-            lineItems={items.map((item) => ({
-              title: item.title,
-              description: item.description,
-              quantity: item.quantity,
-              unitOfMeasure: item.unitOfMeasure,
-            }))}
-            jobDescription={serviceDescription}
-            jobTitle={projectTitle}
-            imagePairs={beforeAfterImagePairs}
-            onImagePairsChange={setBeforeAfterImagePairs}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Substitute Modal */}
       {showSubstitute && substituteItemIndex !== null && (

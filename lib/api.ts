@@ -12,6 +12,8 @@ import type {
   ContractorProfile,
   DiscoveryForecast,
   DiscoveryForecastRequest,
+  GenerateCampaignStrategiesRequest,
+  GenerateCampaignStrategiesResponse,
   QBOInvoiceDetail,
   QBOProjectInvoiceDetailResponse,
   StagedLeadActionResponse,
@@ -1696,6 +1698,13 @@ class ApiClient {
     })
   }
 
+  async generateCampaignStrategies(data: GenerateCampaignStrategiesRequest): Promise<GenerateCampaignStrategiesResponse> {
+    return this.request<GenerateCampaignStrategiesResponse>('/campaigns/generate-strategies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async generateCampaignBrief(campaignUuid: string): Promise<CampaignGenerateBriefResponse> {
     return this.request<CampaignGenerateBriefResponse>(`/campaigns/${campaignUuid}/generate-brief`, {
       method: 'POST',
@@ -1708,8 +1717,8 @@ class ApiClient {
     })
   }
 
-  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
-    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+  async launchCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/launch`, {
       method: 'POST',
     })
   }
@@ -1763,6 +1772,25 @@ class ApiClient {
   async pauseCampaign(campaignUuid: string): Promise<Campaign> {
     return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
       method: 'POST',
+    })
+  }
+  async updateCampaignDraft(draftUuid: string, data: { subject?: string; body?: string }): Promise<any> {
+    return this.request(`/campaigns/drafts/${draftUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async polishCampaignDraft(draftUuid: string, notes: string): Promise<any> {
+    return this.request(`/campaigns/drafts/${draftUuid}/polish`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    })
+  }
+
+  async deleteCampaign(campaignUuid: string): Promise<void> {
+    await this.request<void>(`/campaigns/${campaignUuid}`, {
+      method: 'DELETE',
     })
   }
 }
@@ -1976,6 +2004,13 @@ class ContractorAIClient {
     })
   }
 
+  async generateCampaignStrategies(data: GenerateCampaignStrategiesRequest): Promise<GenerateCampaignStrategiesResponse> {
+    return this.request<GenerateCampaignStrategiesResponse>('/campaigns/generate-strategies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async generateCampaignBrief(campaignUuid: string): Promise<CampaignGenerateBriefResponse> {
     return this.request<CampaignGenerateBriefResponse>(`/campaigns/${campaignUuid}/generate-brief`, {
       method: 'POST',
@@ -1988,8 +2023,8 @@ class ContractorAIClient {
     })
   }
 
-  async launchCampaign(campaignUuid: string): Promise<CampaignLaunchResponse> {
-    return this.request<CampaignLaunchResponse>(`/campaigns/${campaignUuid}/launch`, {
+  async launchCampaign(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/launch`, {
       method: 'POST',
     })
   }
@@ -2043,6 +2078,12 @@ class ContractorAIClient {
   async pauseCampaign(campaignUuid: string): Promise<Campaign> {
     return this.request<Campaign>(`/campaigns/${campaignUuid}/pause`, {
       method: 'POST',
+    })
+  }
+
+  async deleteCampaign(campaignUuid: string): Promise<void> {
+    await this.request<void>(`/campaigns/${campaignUuid}`, {
+      method: 'DELETE',
     })
   }
 

@@ -114,7 +114,7 @@ export function Navbar() {
   const actionLinks = [
     {
       href: `/${locale}/actions/scheduling`,
-      label: "Generate Lead",
+      label: t("scheduling"),
       icon: Bot,
     },
   ];
