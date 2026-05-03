@@ -17,6 +17,10 @@ import {
   ShieldAlert,
   Sparkles,
   User,
+  Target,
+  Zap,
+  Mail,
+  ArrowRight,
 } from "lucide-react"
 import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
@@ -254,6 +258,137 @@ function DispatchShowcase() {
   )
 }
 
+function LeadAgentShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInView = useInView(containerRef, { once: false, amount: 0.3 })
+  const [hasEntered, setHasEntered] = useState(false)
+
+  useEffect(() => {
+    if (isInView && !hasEntered) {
+      setHasEntered(true)
+    }
+  }, [isInView, hasEntered])
+
+  const show = hasEntered
+
+  return (
+    <m.div
+      ref={containerRef}
+      className="relative w-full max-w-[480px] rounded-[22px] border border-green-100 bg-[linear-gradient(180deg,#f4faf2_0%,#ebf5e6_100%)] p-4 hover:ring-4 hover:ring-green-500/15 hover:shadow-xl mx-auto sm:mx-0"
+      initial={false}
+      animate={show ? { x: 0, scale: 1, opacity: 1 } : { x: -120, scale: 0.87, opacity: 0 }}
+      whileHover={{ y: -4, transition: { duration: 0.25, ease: "easeOut" } }}
+      transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {/* Main Card */}
+      <div className="relative overflow-hidden rounded-[18px] bg-white border border-slate-200/80 shadow-2xl shadow-black/[0.04]">
+        
+        {/* Map Section - Abstract Radius Visualization */}
+        <div className="relative h-44 overflow-hidden bg-gradient-to-b from-[#00A86B]/5 to-white">
+          
+          {/* Radius Ring */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="relative w-28 h-28">
+              {/* Outer ring pulse */}
+              <div className="absolute inset-0 rounded-full border-2 border-[#00A86B]/40 animate-ping" style={{ animationDuration: "2.5s" }} />
+              {/* Main ring */}
+              <div className="absolute inset-0 rounded-full border-2 border-[#00A86B]/30 bg-[#00A86B]/5" />
+              {/* Inner ring */}
+              <div className="absolute inset-4 rounded-full border border-dashed border-[#00A86B]/40" />
+              {/* Center pin */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="w-8 h-8 bg-[#00A86B] rounded-full flex items-center justify-center shadow-lg shadow-[#00A86B]/40">
+                  <MapPin className="w-4 h-4 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Small floating pins */}
+          <div className="absolute top-6 right-8">
+            <div className="w-2 h-2 bg-[#00A86B] rounded-full shadow-sm" />
+          </div>
+          <div className="absolute top-12 left-10">
+            <div className="w-1.5 h-1.5 bg-[#00A86B]/70 rounded-full" />
+          </div>
+          <div className="absolute bottom-12 right-16">
+            <div className="w-1.5 h-1.5 bg-[#00A86B]/70 rounded-full" />
+          </div>
+
+          {/* Location Badge */}
+          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-[#E8E3D6] shadow-sm">
+            <MapPin className="w-3.5 h-3.5 text-[#00A86B]" />
+            <span className="text-xs font-semibold text-slate-900">Atlanta, GA</span>
+            <span className="text-xs text-slate-500">25 mi</span>
+          </div>
+        </div>
+
+        {/* Content Section */}
+        <div className="p-5 sm:p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#231F20] flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Prospect Radar</h3>
+                <p className="text-xs font-medium text-slate-500">Property Managers</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#00A86B]/10 border border-[#00A86B]/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse" />
+              <span className="text-xs font-bold text-[#00A86B]">Autopilot</span>
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#F0EDE3]">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#00A86B]" />
+                <span className="text-xs font-medium text-slate-500">Leads Found</span>
+              </div>
+              <p className="text-xl font-black text-slate-900">142</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#F0EDE3]">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Mail className="w-4 h-4 text-[#00A86B]" />
+                <span className="text-xs font-medium text-slate-500">Drafts Ready</span>
+              </div>
+              <p className="text-xl font-black text-slate-900">142</p>
+            </div>
+          </div>
+
+          {/* Status Bar */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#00A86B]/[0.03] border border-[#00A86B]/10 mb-5">
+            <span className="text-xs font-semibold text-slate-700">Campaign Status</span>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" />
+                <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+              </div>
+              <span className="text-xs font-bold text-[#00A86B]">Sending...</span>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button type="button" className="group flex h-10 w-full items-center justify-center rounded-lg bg-[#231F20] text-sm font-semibold text-white transition-colors hover:bg-black">
+            View Discovered Leads
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Badge */}
+      <div className="absolute top-1 right-1 sm:-top-3 sm:-right-3 px-3 py-1.5 rounded-full bg-[#00A86B] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/30">
+        +12 new
+      </div>
+    </m.div>
+  )
+}
+
 function CostShowcase() {
   const containerRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(containerRef, { once: false, amount: 0.3 })
@@ -326,24 +461,30 @@ export function Features() {
         visual={<PhoneMessagePreview className="w-[272px] sm:w-[296px] md:w-[320px]" />}
       />
       <FeatureSection
+        eyebrow="AI Outreach Engine"
+        title="Find and close jobs automatically."
+        body="Stop fighting over expensive shared leads. Our AI Outreach Engine autonomously discovers commercial prospects in your area, drafts highly personalized pitches, and delivers warm, ready-to-close deals straight to your inbox."
+        visual={<LeadAgentShowcase />}
+        reverse
+      />
+      <FeatureSection
         eyebrow={t("featureEstimateEyebrow")}
         title={t("featureEstimateTitle")}
         body={t("featureEstimateBody")}
         visual={<EstimateShowcase />}
-        reverse
       />
       <FeatureSection
         eyebrow={t("featureDispatchEyebrow")}
         title={t("featuresDispatchTitle")}
         body={t("featuresDispatchBody")}
         visual={<DispatchShowcase />}
+        reverse
       />
       <FeatureSection
         eyebrow={t("featureFinanceEyebrow")}
         title={t("featuresFinTitle")}
         body={t("featuresFinBody")}
         visual={<CostShowcase />}
-        reverse
       />
     </div>
   )
