@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { MaterialSearchWidget } from "@/components/material-search-widget"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -20,12 +21,13 @@ import { api, contractorAI } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
-import { QuoteItemAutocomplete } from "@/components/quote-item-autocomplete"
+import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
 import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
+  title?: string
   description: string
   quantity: number
   rate: number | string
@@ -71,6 +73,29 @@ interface MaterialSearchResponse {
   total_pages: number
   has_next: boolean
   has_prev: boolean
+}
+
+const deriveLineItemTitle = (title?: string, description?: string): string => {
+  const explicitTitle = (title || "").trim()
+  if (explicitTitle) return explicitTitle
+
+  const cleanedDescription = (description || "").replace(/\s+/g, " ").trim()
+  if (!cleanedDescription) return ""
+
+  let base = cleanedDescription
+    .split(/\b(?:for|with|including|includes|installed|installation|install|to|over|using|at|on|in)\b/i)[0]
+    ?.trim()
+    ?.replace(/[,\-.]+$/g, "") || ""
+
+  base = base.replace(/^(premium|professional|new|basic|standard|automated|custom)\s+/i, "").trim()
+
+  if (!base) return ""
+
+  return base
+    .split(/\s+/)
+    .slice(0, 5)
+    .map((word) => (/^[A-Z0-9]{2,4}$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(" ")
 }
 
 // Common units for construction and landscaping
@@ -190,17 +215,17 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
     <div className="space-y-1 w-full min-w-0">
       {!isCustom ? (
         <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-auto">
+          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-9 text-xs leading-tight">
             <SelectValue placeholder="Select unit..." />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="text-xs">
             {/* Suggested units based on description */}
             {suggestedUnits.length > 0 && (
               <>
                 {suggestedUnits.map(unit => {
                   const unitInfo = COMMON_UNITS.find(u => u.value === unit)
                   return (
-                    <SelectItem key={unit} value={unit}>
+                    <SelectItem key={unit} value={unit} className="text-xs">
                       {unitInfo?.label || unit}
                     </SelectItem>
                   )
@@ -211,14 +236,14 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
 
             {/* Remaining common units (excluding suggested ones) */}
             {remainingUnits.map(unit => (
-              <SelectItem key={unit.value} value={unit.value}>
+              <SelectItem key={unit.value} value={unit.value} className="text-xs">
                 {unit.label}
               </SelectItem>
             ))}
 
             {/* Custom option */}
             <div className="border-t my-1"></div>
-            <SelectItem value="custom">
+            <SelectItem value="custom" className="text-xs">
               + Add custom unit
             </SelectItem>
           </SelectContent>
@@ -403,6 +428,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [aiLoading, setAiLoading] = useState(false)
   const [aiLoadingStage, setAiLoadingStage] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
+  const [descriptionEditorsOpen, setDescriptionEditorsOpen] = useState<number[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
@@ -454,7 +480,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [createError, setCreateError] = useState<string | null>(null)
   const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
-
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
@@ -802,6 +827,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Convert job items to line items format
       if (initialData.items && initialData.items.length > 0) {
         const lineItems = initialData.items.map((item: any) => ({
+          title: item.title || "",
           description: item.custom_description || item.description || "",
           quantity: item.quantity || 1,
           rate: item.cost_per_unit || item.rate || 0,
@@ -811,7 +837,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           model: item.model,
           externalUrl: item.external_url || item.externalUrl,
           unitOfMeasure: item.unit_of_measure || item.unitOfMeasure || "each",
-          applyTax: item.is_taxable !== false, // Preserve tax status from backend, default to true if undefined
+          applyTax: item.is_taxable !== false,
         }))
         setItems(lineItems)
 
@@ -826,11 +852,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Load attached project media
       if (initialData.project_media && initialData.project_media.length > 0) {
         setUploadedImages(initialData.project_media.map((media: any) => ({
-          preview: media.file_url,
-          file: null, // It's an existing file from backend, no new File object
-          isExisting: true,
-          mediaId: media.id,
-          fileName: media.file_name
+          url: media.file_url,
+          name: media.file_name || "attachment",
+          size: media.file_size || 0,
         })))
       } else {
         // Clear if no media
@@ -1172,6 +1196,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Safely convert response line items to LineItem format
       const lineItems = Array.isArray(response.line_items) ? response.line_items : []
       const newItems: LineItem[] = lineItems.map((item: any, idx: number) => ({
+        title: deriveLineItemTitle(item.title, item.description),
         description: item.description,
         quantity: item.quantity || 1,
         rate: item.rate || 0,
@@ -1221,7 +1246,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const buildJobUpdatePayload = (notesOverride?: string, itemsOverride?: LineItem[]) => {
     const sourceItems = itemsOverride ?? items
     const validItems = sourceItems.filter(item =>
-      item.description.trim() &&
+      (item.description.trim() || (item.title && item.title.trim())) &&
       (item.quantity || 0) > 0 &&
       getRateNumber(item.rate) > 0
     )
@@ -1232,6 +1257,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       quote_expiration_date: dueDate || null,
       location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
       items: validItems.map(item => ({
+        title: item.title?.trim() || null,
         custom_description: item.description.trim(),
         quantity: item.quantity,
         cost_per_unit: getRateNumber(item.rate),
@@ -1270,12 +1296,24 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   }
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 0, rate: "", applyTax: true }])
+    setItems([...items, { title: "", description: "", quantity: 0, rate: "", applyTax: true }])
   }
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
+    setDescriptionEditorsOpen((prev) =>
+      prev
+        .filter((i) => i !== index)
+        .map((i) => (i > index ? i - 1 : i))
+    )
   }
+
+  const showDescriptionEditor = (index: number) => {
+    setDescriptionEditorsOpen((prev) => (prev.includes(index) ? prev : [...prev, index]))
+  }
+
+  const isDescriptionEditorVisible = (index: number, item: LineItem) =>
+    descriptionEditorsOpen.includes(index) || item.description.trim().length > 0
 
   const handleSubstitute = (index: number) => {
     setSubstituteItemIndex(index)
@@ -1312,15 +1350,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     if (!clientEmail.trim()) return "Client email is required"
     // Address is now optional - removed validation
 
-    // Check if at least one line item has description and rate
+    // Check if at least one line item has description or title and rate
     const validItems = items.filter(item =>
-      item.description.trim() &&
+      (item.description.trim() || (item.title && item.title.trim())) &&
       (item.quantity || 0) > 0 &&
       getRateNumber(item.rate) > 0
     )
 
     if (validItems.length === 0) {
-      return "At least one line item with description, quantity, and rate is required"
+      return "At least one line item with a title or description, quantity, and rate is required"
     }
 
     return null
@@ -1342,7 +1380,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     try {
       // Filter out empty items
       const validItems = items.filter(item =>
-        item.description.trim() &&
+        (item.description.trim() || (item.title && item.title.trim())) &&
         (item.quantity || 0) > 0 &&
         getRateNumber(item.rate) > 0
       )
@@ -1360,6 +1398,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         payment_terms: paymentTerms.trim() || null,
         quote_expiration_date: dueDate || null,
         items: validItems.map(item => ({
+          title: item.title?.trim() || null,
           custom_description: item.description.trim(),
           quantity: item.quantity,
           cost_per_unit: getRateNumber(item.rate),
@@ -1368,8 +1407,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           brand: item.brand || null,
           model: item.model || null,
           external_url: item.externalUrl || null,
-          unit_of_measure: item.unitOfMeasure || "each", // Use actual unit from material or default
-          is_taxable: item.applyTax !== false, // Use applyTax field, default to true if undefined
+          unit_of_measure: item.unitOfMeasure || "each",
+          is_taxable: item.applyTax !== false,
           markup_percentage: markupPercentage,
         }))
       }
@@ -1429,16 +1468,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       const finalJobId = (response as any)?.id || (quoteId ? parseInt(quoteId, 10) : null)
 
       // Attach any uploaded images
-      if (finalJobId && uploadedImages.length > 0) {
-        // Collect new files to upload
-        const newFiles = uploadedImages.filter(img => img.file).map(img => img.file as File);
+      if (finalJobId) {
+        const filesToUpload = uploadedImages
+          .filter(img => img.file)
+          .map(img => img.file as File)
 
-        // Upload new files
-        if (newFiles.length > 0) {
+        if (filesToUpload.length > 0) {
           try {
-            await api.uploadJobMedia(finalJobId, newFiles);
+            await api.uploadJobMedia(finalJobId, filesToUpload)
           } catch (imgError) {
-            console.error("Failed to upload new job media:", imgError);
+            console.error("Failed to upload new job media:", imgError)
           }
         }
       }
@@ -1492,9 +1531,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
   return (
     <div className="mx-auto max-w-[1800px] px-4 sm:px-6">
-      <div className="flex flex-col lg:flex-row gap-8 pt-6">
+      <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 pt-6">
         {/* Left Column - Main Content */}
-        <div className="flex-1 space-y-6 min-w-0">
+        <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
           {/* Client Information */}
           <Card className="p-6" id="material-search">
             <div className="flex items-center justify-between mb-4">
@@ -1608,31 +1647,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </div>
               </div>
             )}
-          </Card>
-
-          {/* Measurements Input */}
-          <Card className="overflow-hidden">
-            <div className="px-6 py-4 border-b bg-slate-50/80 dark:bg-slate-800/50">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/10">
-                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">Project Measurements</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Add measurements for more accurate estimates
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <MeasurementsInput
-                value={measurements}
-                onChange={setMeasurements}
-              />
-            </div>
           </Card>
 
           {/* Material Search */}
@@ -1891,15 +1905,15 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
                       {/* AI accuracy feedback - mobile */}
                       {showAccuracyQuestion && (
-                        <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                          <p className="text-sm font-medium">How accurate was this?</p>
-                          <div className="flex items-center justify-center gap-1">
+                        <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
+                          <p className="text-xs font-medium text-center">How accurate was this?</p>
+                          <div className="flex items-center justify-center gap-1.5">
                             {[1, 2, 3, 4, 5].map((n) => (
                               <button
                                 key={n}
                                 type="button"
                                 onClick={() => handleAccuracyRating(n)}
-                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
                                 aria-label={`Rate ${n} out of 5`}
                               >
                                 {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
@@ -1910,6 +1924,25 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       )}
                       {aiAccuracySubmitted && (
                         <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                      )}
+
+                      {assumptions.length > 0 && (
+                        <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Assumptions
+                          </h3>
+                          <ul className="space-y-1 text-sm text-muted-foreground">
+                            {assumptions.map((assumption, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-primary mt-1">•</span>
+                                <span>{assumption}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                       {/* Display Measurements if available */}
@@ -1949,6 +1982,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 </CollapsibleContent>
               </div>
             </Collapsible>
+
           </div>
 
           {/* Line Items */}
@@ -1964,15 +1998,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Table Header - Desktop */}
-            <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
-              <div aria-hidden />
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</div>
+            <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title & Description</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
-              <div></div>
             </div>
 
             <div className="space-y-1.5">
@@ -2005,33 +2037,56 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     variant="ghost"
                     size="icon"
                     onClick={() => removeItem(index)}
-                    className="absolute top-0 right-0 sm:hidden h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="absolute right-0 top-0 z-10 h-7 w-7 -translate-y-1/4 translate-x-1/4 rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:border-red-200 hover:bg-red-500 hover:text-white"
+                    aria-label="Remove item"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    <X className="h-4 w-4" />
                   </Button>
 
                   {/* Mobile Layout */}
                   <div className="block sm:hidden space-y-3">
-                    {/* Description */}
-                    <div>
-                      <QuoteItemAutocomplete
-                        value={item.description}
-                        onChange={(desc, price, unit) => {
+                    {/* Search button row */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Line Item</span>
+                      <LineItemSearchPopover
+                        onSelect={(result: LineItemSearchResult) => {
                           const updated = [...items]
-                          updated[index] = { ...updated[index], description: desc }
-                          if (price !== undefined) updated[index].rate = price
-                          if (unit !== undefined) updated[index].unitOfMeasure = unit
+                          updated[index] = {
+                            ...updated[index],
+                            description: result.description,
+                            rate: result.price,
+                            unitOfMeasure: result.unit,
+                          }
+                          if (result.title) updated[index].title = result.title
                           setItems(updated)
                         }}
+                      />
+                    </div>
+                    {/* Title */}
+                    <div>
+                      <Label htmlFor={`item-title-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                        Title
+                      </Label>
+                      <Input
+                        id={`item-title-mobile-${index}`}
+                        value={item.title || ""}
+                        onChange={(e) => updateItem(index, "title", e.target.value)}
+                        placeholder="Item title (optional)"
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    {/* Description */}
+                    <div>
+                      <Label htmlFor={`item-desc-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                        Description
+                      </Label>
+                      <Textarea
+                        id={`item-desc-mobile-${index}`}
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="h-auto min-h-[44px] py-2 px-3 whitespace-normal text-left items-start justify-start bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="min-h-[44px] py-2 px-3 text-sm resize-none"
+                        rows={2}
                       />
                       {item.brand && (
                         <p className="text-[10px] text-muted-foreground mt-1">
@@ -2133,34 +2188,91 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
 
                   {/* Desktop Layout - Table Style */}
-                  <div className="hidden sm:grid grid-cols-[36px_minmax(0,1fr)_110px_72px_88px_88px_64px_40px] gap-2 items-center">
-                    {/* Image */}
-                    <div className="flex justify-center shrink-0">
-                      <MaterialThumbnail
-                        src={item.thumbnailUrl || item.imageUrl}
-                        alt={item.description}
-                        className="w-8 h-8 flex-shrink-0 rounded"
-                        category={item.category}
-                        index={index}
-                      />
-                    </div>
+                  <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 items-start">
+                    {/* Title + Description stacked in one column */}
+                    <div className="min-w-0 flex flex-col gap-1.5">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <LineItemTitleAutocomplete
+                            value={item.title || ""}
+                            onChange={(val) => updateItem(index, "title", val)}
+                            onSelect={(result) => {
+                              const updated = [...items]
+                              updated[index] = {
+                                ...updated[index],
+                                description: result.description,
+                                rate: result.price,
+                                unitOfMeasure: result.unit,
+                              }
+                              if (result.title) updated[index].title = result.title
+                              setItems(updated)
+                              if (result.description?.trim()) {
+                                showDescriptionEditor(index)
+                              }
+                            }}
+                            placeholder="Item name"
+                          />
+                        </div>
+                        {!isDescriptionEditorVisible(index, item) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => showDescriptionEditor(index)}
+                                  className="h-9 w-9 shrink-0 border border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-700"
+                                  aria-label="Add description"
+                                >
+                                  <span className="text-lg leading-none">+</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Add description</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
 
-                    {/* Description - more space, expands on focus */}
-                    <div className="min-w-0 pr-1 flex flex-col justify-center">
-                      <QuoteItemAutocomplete
-                        value={item.description}
-                        onChange={(desc, price, unit) => {
-                          const updated = [...items]
-                          updated[index] = { ...updated[index], description: desc }
-                          if (price !== undefined) updated[index].rate = price
-                          if (unit !== undefined) updated[index].unitOfMeasure = unit
-                          setItems(updated)
-                        }}
-                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="h-auto min-h-[44px] py-1.5 px-2 whitespace-normal text-left items-start justify-start bg-white border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
-                      />
+                      {isDescriptionEditorVisible(index, item) && (
+                        <div className="flex items-start gap-1.5">
+                          {(item.thumbnailUrl || item.imageUrl) && (
+                            <MaterialThumbnail
+                              src={item.thumbnailUrl || item.imageUrl}
+                              alt={item.description}
+                              className="w-7 h-7 flex-shrink-0 rounded mt-1.5"
+                              category={item.category}
+                              index={index}
+                            />
+                          )}
+                          <Textarea
+                            value={item.description}
+                            onChange={(e) => {
+                              updateItem(index, "description", e.target.value)
+                              e.target.style.height = 'auto'
+                              e.target.style.height = e.target.scrollHeight + 'px'
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.height = 'auto'
+                              e.target.style.height = e.target.scrollHeight + 'px'
+                            }}
+                            placeholder="Enter item description"
+                            className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
+                            rows={1}
+                            ref={(el) => {
+                              if (el) {
+                                el.style.height = 'auto'
+                                el.style.height = el.scrollHeight + 'px'
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
                       {item.brand && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        <p className="text-[10px] text-muted-foreground truncate">
                           {item.brand} {item.model && `- ${item.model}`}
                         </p>
                       )}
@@ -2235,25 +2347,6 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           setItems(updatedItems)
                         }}
                       />
-                    </div>
-
-                    {/* Delete Button */}
-                    <div className="flex justify-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -2465,6 +2558,22 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
           </Card>
 
+          <div className="border-t border-border/70 pt-4">
+            <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-background/70 p-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold">Measurements</h2>
+                <p className="text-sm text-muted-foreground">
+                  Optional. Add dimensions only if they help the estimate.
+                </p>
+              </div>
+              <MeasurementsInput
+                value={measurements}
+                onChange={setMeasurements}
+                minimal
+              />
+            </div>
+          </div>
+
           {/* Error Display */}
           {createError && (
             <Card className="p-4 border-red-200 bg-red-50">
@@ -2529,102 +2638,103 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         </div>
 
         {/* Right Column - AI Assistant */}
-        <div className="hidden lg:block lg:w-[500px] xl:w-[500px] 2xl:w-[500px] space-y-6 pt-6 flex-shrink-0">
-          {/* AI Line Items Assistant */}
-          <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 sticky top-6 rounded-xl">
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-base font-semibold">AI Estimate Generator</h2>
-                  <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
-                    Beta
-                  </span>
-                </div>
-                <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
-                  <span>Still in development — feel free to try it out.</span>
-                </div>
-              </div>
+        <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
+          <div className="sticky top-6 space-y-6">
+            {/* AI Line Items Assistant */}
+            <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 rounded-xl">
               <div className="space-y-4">
-                {/* Template Selector - hidden while in development */}
-                {!HIDE_AI_TEMPLATES && templates.length > 0 && (
-                  <div>
-                    <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
-                      Project Template
-                    </Label>
-                    <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={templateComboOpen}
-                          className="w-full justify-between bg-background"
-                          disabled={loadingTemplates}
-                        >
-                          {loadingTemplates ? (
-                            "Loading templates..."
-                          ) : isCustomProject ? (
-                            "✏️ Custom Project"
-                          ) : selectedTemplateId ? (
-                            (() => {
-                              const template = templates.find((t) => t.id === selectedTemplateId)
-                              return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
-                            })()
-                          ) : (
-                            "Select a project type..."
-                          )}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search templates..." />
-                          <CommandList>
-                            <CommandEmpty>No template found.</CommandEmpty>
-                            <CommandGroup>
-                              <CommandItem
-                                value="custom"
-                                onSelect={() => {
-                                  handleTemplateChange('custom')
-                                  setTemplateComboOpen(false)
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    isCustomProject ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                ✏️ Custom Project
-                              </CommandItem>
-                              {sortedTemplates.map((t) => (
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-semibold">AI Estimate Generator</h2>
+                    <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
+                      Beta
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
+                    <span>Still in development — feel free to try it out.</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {/* Template Selector - hidden while in development */}
+                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
+                    <div>
+                      <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
+                        Project Template
+                      </Label>
+                      <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={templateComboOpen}
+                            className="w-full justify-between bg-background"
+                            disabled={loadingTemplates}
+                          >
+                            {loadingTemplates ? (
+                              "Loading templates..."
+                            ) : isCustomProject ? (
+                              "✏️ Custom Project"
+                            ) : selectedTemplateId ? (
+                              (() => {
+                                const template = templates.find((t) => t.id === selectedTemplateId)
+                                return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
+                              })()
+                            ) : (
+                              "Select a project type..."
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search templates..." />
+                            <CommandList>
+                              <CommandEmpty>No template found.</CommandEmpty>
+                              <CommandGroup>
                                 <CommandItem
-                                  key={t.id}
-                                  value={`${t.project_type} ${t.trade}`}
+                                  value="custom"
                                   onSelect={() => {
-                                    handleTemplateChange(String(t.id))
+                                    handleTemplateChange('custom')
                                     setTemplateComboOpen(false)
                                   }}
                                 >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                      isCustomProject ? "opacity-100" : "opacity-0"
                                     )}
                                   />
-                                  {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                  ✏️ Custom Project
                                 </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
+                                {sortedTemplates.map((t) => (
+                                  <CommandItem
+                                    key={t.id}
+                                    value={`${t.project_type} ${t.trade}`}
+                                    onSelect={() => {
+                                      handleTemplateChange(String(t.id))
+                                      setTemplateComboOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
 
-                {/* Dynamic Variable Form (when template selected) */}
-                {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
+                  {/* Dynamic Variable Form (when template selected) */}
+                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
                   <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
                     {loadingTemplateDetail ? (
@@ -2695,8 +2805,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                   </div>
                 )}
 
-                {/* Custom Project Description (when custom or no templates) */}
-                {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
+                  {/* Custom Project Description (when custom or no templates) */}
+                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
                   <>
                     <div>
                       <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
@@ -2783,60 +2893,60 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </Select>
                   </div>
                 </div>
-                {(() => {
-                  const desc = serviceDescription.trim()
-                  const wordCount = desc ? desc.split(/\s+/).length : 0
-                  const tooShort = desc.length < 30 || wordCount < 6
-                  return (
-                    <div className="flex flex-col gap-2 w-full">
-                      <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                        {aiLoading ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            {aiLoadingMessages[aiLoadingStage]}
-                          </span>
-                        ) : (
-                          <>
-                            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            Generate AI Estimate
-                          </>
-                        )}
-                      </Button>
-                      {aiLoading && (
-                        <div className="w-full space-y-2">
-                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all duration-1000 ease-out"
-                              style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
-                            />
+                  {(() => {
+                    const desc = serviceDescription.trim()
+                    const wordCount = desc ? desc.split(/\s+/).length : 0
+                    const tooShort = desc.length < 30 || wordCount < 6
+                    return (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
+                          {aiLoading ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              {aiLoadingMessages[aiLoadingStage]}
+                            </span>
+                          ) : (
+                            <>
+                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              Generate AI Estimate
+                            </>
+                          )}
+                        </Button>
+                        {aiLoading && (
+                          <div className="w-full space-y-2">
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary transition-all duration-1000 ease-out"
+                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                              This usually takes 15-30 seconds
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground text-center">
-                            This usually takes 15-30 seconds
+                        )}
+                        {!aiLoading && tooShort && (
+                          <p className="text-xs text-muted-foreground w-full">
+                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
                           </p>
-                        </div>
-                      )}
-                      {!aiLoading && tooShort && (
-                        <p className="text-xs text-muted-foreground w-full">
-                          Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
-                        </p>
-                      )}
-                    </div>
-                  )
-                })()}
+                        )}
+                      </div>
+                    )
+                  })()}
 
-                {/* AI accuracy feedback - desktop */}
-                {showAccuracyQuestion && (
-                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                    <p className="text-sm font-medium">How accurate was this?</p>
-                    <div className="flex items-center justify-center gap-1">
+                  {/* AI accuracy feedback - desktop */}
+                  {showAccuracyQuestion && (
+                  <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
+                    <p className="text-xs font-medium text-center">How accurate was this?</p>
+                    <div className="flex items-center justify-center gap-1.5">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
                           key={n}
                           type="button"
                           onClick={() => handleAccuracyRating(n)}
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
                           aria-label={`Rate ${n} out of 5`}
                         >
                           {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
@@ -2845,12 +2955,31 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
                   </div>
                 )}
-                {aiAccuracySubmitted && (
-                  <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
-                )}
+                  {aiAccuracySubmitted && (
+                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
+                  )}
 
-                {/* Display Measurements if available */}
-                {measurements.items && measurements.items.length > 0 && (
+                  {assumptions.length > 0 && (
+                  <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Assumptions
+                    </h3>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      {assumptions.map((assumption, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-primary mt-1">•</span>
+                          <span>{assumption}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  )}
+
+                  {/* Display Measurements if available */}
+                  {measurements.items && measurements.items.length > 0 && (
                   <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
                     <div className="flex items-center gap-2 mb-2">
                       <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2880,32 +3009,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Assumptions Display */}
-          {assumptions.length > 0 && (
-            <Card className="p-5 sm:p-6 sticky top-6 rounded-xl border border-border">
-              <div>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Assumptions
-                </h3>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {assumptions.map((assumption, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-primary mt-1">•</span>
-                      <span>{assumption}</span>
-                    </li>
-                  ))}
-                </ul>
+                  )}
+                </div>
               </div>
             </Card>
-          )}
+          </div>
+
         </div>
       </div>
 

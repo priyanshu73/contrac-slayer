@@ -51,17 +51,17 @@ const generateCacheKey = (text: string, targetLang: string): string => {
 // Get translation from cache
 const getCachedTranslation = (text: string, targetLang: string): string | null => {
   if (typeof window === 'undefined') return null
-  
+
   try {
     const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
     if (!cacheStr) return null
-    
+
     const cache: TranslationCache = JSON.parse(cacheStr)
     const key = generateCacheKey(text, targetLang)
     const entry = cache[key]
-    
+
     if (!entry) return null
-    
+
     // Check if cache entry is expired
     const expiryTime = CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     if (Date.now() - entry.timestamp > expiryTime) {
@@ -70,7 +70,7 @@ const getCachedTranslation = (text: string, targetLang: string): string | null =
       localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
       return null
     }
-    
+
     return entry.translation
   } catch (error) {
     console.error('Error reading translation cache:', error)
@@ -81,17 +81,17 @@ const getCachedTranslation = (text: string, targetLang: string): string | null =
 // Save translation to cache
 const setCachedTranslation = (text: string, targetLang: string, translation: string): void => {
   if (typeof window === 'undefined') return
-  
+
   try {
     const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
     const cache: TranslationCache = cacheStr ? JSON.parse(cacheStr) : {}
-    
+
     const key = generateCacheKey(text, targetLang)
     cache[key] = {
       translation,
       timestamp: Date.now()
     }
-    
+
     // Limit cache size (keep last 500 entries)
     const keys = Object.keys(cache)
     if (keys.length > 500) {
@@ -99,7 +99,7 @@ const setCachedTranslation = (text: string, targetLang: string, translation: str
       const sorted = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)
       sorted.slice(0, keys.length - 500).forEach(k => delete cache[k])
     }
-    
+
     localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
   } catch (error) {
     console.error('Error saving to translation cache:', error)
@@ -108,8 +108,8 @@ const setCachedTranslation = (text: string, targetLang: string, translation: str
 
 // Translate text with caching
 const translateWithCache = async (
-  text: string, 
-  targetLang: string, 
+  text: string,
+  targetLang: string,
   sourceLang?: string
 ): Promise<string> => {
   // Check cache first
@@ -118,13 +118,13 @@ const translateWithCache = async (
     console.log('🔄 Using cached translation')
     return cached
   }
-  
+
   // Call API
   const response = await api.translateText(text, targetLang, sourceLang)
-  
+
   // Cache the result
   setCachedTranslation(text, targetLang, response.translated_text)
-  
+
   return response.translated_text
 }
 
@@ -139,10 +139,10 @@ const formatTranscriptTranslation = (translatedText: string): string => {
 // Utility function to normalize phone numbers to E.164 format (+1XXXXXXXXXX)
 const normalizePhoneToE164 = (phone: string | undefined | null): string => {
   if (!phone) return ''
-  
+
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '')
-  
+
   // Handle US numbers - convert to +1XXXXXXXXXX format
   if (digits.length === 10) {
     // 10 digits: assume US number, add +1
@@ -154,7 +154,7 @@ const normalizePhoneToE164 = (phone: string | undefined | null): string => {
     // Already in E.164 format
     return phone
   }
-  
+
   // Return original if can't normalize (shouldn't happen for US numbers)
   return phone
 }
@@ -166,28 +166,28 @@ interface UnifiedLead {
   type: 'request' | 'call'  // Source type
   status: string
   priority?: 'low' | 'medium' | 'high' | 'urgent'
-  
+
   // Contact info
   email?: string
   phone?: string
   address?: string
   address_data?: { id: number } | null
-  
+
   // Project details
   project_type?: string
   service_type?: string
   description?: string
   estimated_value?: number
-  
+
   // Conversion tracking
   converted_to_job_id?: number
   converted_to_client_id?: number
-  
+
   // Timestamps
   created_at: string
   last_contact_date?: string
   last_message_at?: string // Most recent message timestamp from conversation
-  
+
   // Call-specific data
   conversation_count?: number
   last_message_preview?: string
@@ -198,15 +198,15 @@ interface UnifiedLead {
   appointment_link_sent?: boolean
   media_uploaded?: boolean
   _needsFullLoad?: boolean // Internal flag for lazy loading
-  
+
   // Request-specific data
   attachments?: Array<{ id: number }>
   measurements?: Measurements
-  
+
   // Consolidation tracking
   contractor_ai_call_lead_id?: number // Reference to consolidated call lead in contractor-ai
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
-  
+
   source?: string
 }
 
@@ -219,7 +219,7 @@ export function UnifiedLeads() {
   const tFilters = useTranslations('filters')
   const tLeads = useTranslations('leads')
   const tCommon = useTranslations('common')
-  
+
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
   const [loading, setLoading] = useState(true)
@@ -228,7 +228,7 @@ export function UnifiedLeads() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [hasUserClearedSelection, setHasUserClearedSelection] = useState(false)
   const [leadDetailsCache, setLeadDetailsCache] = useState<Map<string, UnifiedLead>>(new Map())
-  
+
   // Filters - Initialize from URL params
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'calls'>('all')
   const [statusFilter, setStatusFilter] = useState("all")
@@ -239,11 +239,11 @@ export function UnifiedLeads() {
   useEffect(() => {
     const tab = searchParams.get('tab')
     const leadId = searchParams.get('leadId')
-    
+
     if (tab && ['all', 'requests', 'calls'].includes(tab)) {
       setActiveTab(tab as 'all' | 'requests' | 'calls')
     }
-    
+
     if (leadId) {
       setSelectedLeadId(`call-${leadId}`) // Assume call lead from old dashboard
     }
@@ -284,71 +284,39 @@ export function UnifiedLeads() {
     try {
       setLoading(true)
       setError("")
-      
-      // Stage 1: Load request leads first (fast, from ContractorBackend)
-      const requestLeads = await fetchRequestLeads()
-      setLeads(requestLeads)
-      setLoading(false) // Show request leads immediately
-      
-      // Stage 2: Load call leads in lightweight mode (without transcripts)
-      setLoadingCallLeads(true)
-      const callLeads = await fetchCallLeads(true) // lightweight = true
-      
-      // Stage 3: Load conversations to get last_message_at timestamps
-      const enrichedLeads = await enrichLeadsWithConversationData([...requestLeads, ...callLeads])
-      
-      // Combine and deduplicate by phone number (normalize for comparison)
-      const normalizePhone = (phone: string | undefined) => {
-        if (!phone) return ''
-        // Remove all non-digits and handle +1 prefix
-        const digits = phone.replace(/\D/g, '')
-        // If it starts with 1 and has 11 digits, remove the leading 1
-        if (digits.length === 11 && digits.startsWith('1')) {
-          return digits.substring(1)
-        }
-        return digits
-      }
-      
-      // Get phone numbers from consolidated request leads (those with contractor_ai_call_lead_id)
-      // Normalize to E.164 format for consistent comparison
-      const consolidatedPhoneNumbers = new Set<string>()
-      enrichedLeads.forEach(lead => {
-        if ((lead as any).contractor_ai_call_lead_id && lead.phone) {
-          const normalized = normalizePhoneToE164(lead.phone)
-          if (normalized) {
-            consolidatedPhoneNumbers.add(normalized)
-          }
+
+      // Load all leads from the new unified endpoint
+      const response = await api.getUnifiedLeads('all')
+
+      // Map backend response to the frontend UnifiedLead interface
+      const mappedLeads: UnifiedLead[] = (response.leads || []).map((lead: any) => {
+        const isCallOnly = lead.consolidation_status === 'call_only'
+        const isBoth = lead.consolidation_status === 'both'
+
+        return {
+          id: isCallOnly ? `call-${lead.contractor_ai_customer_id}` : `request-${lead.id}`,
+          name: lead.name || (isCallOnly ? `Customer ${lead.phone?.slice(-4)}` : "Unknown"),
+          type: isCallOnly ? 'call' : 'request',
+          status: lead.status,
+          priority: lead.priority,
+          email: lead.email,
+          phone: lead.phone,
+          address: lead.address,
+          project_type: lead.project_type,
+          service_type: lead.call_data?.service_type || lead.project_type,
+          description: lead.description,
+          created_at: lead.created_at,
+          last_contact_date: lead.last_contact_date || lead.created_at,
+          contractor_ai_call_lead_id: lead.contractor_ai_customer_id,
+          source: lead.source,
+          // Enrichment flags
+          _needsCallDataLoad: isBoth || isCallOnly,
+          _needsFullLoad: isCallOnly // For call tasks/transcripts
         }
       })
-      
-      // Filter out call leads that match consolidated request leads by phone number
-      // Also deduplicate call leads by normalized phone number (E.164 format)
-      const seenCallPhones = new Set<string>()
-      const uniqueCallLeads = enrichedLeads.filter(lead => {
-        // Only filter call leads
-        if (lead.type !== 'call') return true
-        
-        const normalized = normalizePhoneToE164(lead.phone)
-        if (!normalized) return false
-        
-        // Skip if this phone number is already consolidated in a request lead
-        if (consolidatedPhoneNumbers.has(normalized)) {
-          return false
-        }
-        
-        // Skip if we've already seen this phone number in call leads
-        if (seenCallPhones.has(normalized)) {
-          return false
-        }
-        
-        seenCallPhones.add(normalized)
-        return true
-      })
-      
-      // Combine (sorting will be handled by filterLeads)
-      const combined = uniqueCallLeads
-      
-      setLeads(combined)
+
+      setLeads(mappedLeads)
+      setLoading(false)
       setLoadingCallLeads(false)
     } catch (err: any) {
       console.error('Failed to fetch leads:', err)
@@ -358,138 +326,7 @@ export function UnifiedLeads() {
     }
   }
 
-  // Enrich leads with conversation data (last_message_at timestamps)
-  const enrichLeadsWithConversationData = async (leads: UnifiedLead[]): Promise<UnifiedLead[]> => {
-    try {
-      const spId = getContractorAISpId()
-      if (!spId) return leads
 
-      // Fetch all conversations
-      const conversationsResponse = await contractorAI.getConversations({
-        sp_id: spId.toString(),
-        status: 'all' // Get all conversations
-      })
-
-      const conversations = (conversationsResponse as any).conversations || []
-      
-      // Create a map of phone number to last_message_at
-      const phoneToLastMessage = new Map<string, string>()
-      conversations.forEach((conv: any) => {
-        const customerPhone = conv.customer?.phone_number || ''
-        if (customerPhone && conv.last_message_at) {
-          const normalized = normalizePhoneToE164(customerPhone)
-          if (normalized) {
-            // Keep the most recent message timestamp if multiple conversations exist
-            const existing = phoneToLastMessage.get(normalized)
-            if (!existing || new Date(conv.last_message_at) > new Date(existing)) {
-              phoneToLastMessage.set(normalized, conv.last_message_at)
-            }
-          }
-        }
-      })
-
-      // Enrich leads with last_message_at
-      return leads.map(lead => {
-        if (lead.phone) {
-          const normalized = normalizePhoneToE164(lead.phone)
-          const lastMessageAt = phoneToLastMessage.get(normalized)
-          if (lastMessageAt) {
-            return { ...lead, last_message_at: lastMessageAt }
-          }
-        }
-        return lead
-      })
-    } catch (error) {
-      console.error('Failed to enrich leads with conversation data:', error)
-      // Return leads as-is if enrichment fails
-      return leads
-    }
-  }
-
-  const fetchRequestLeads = async (): Promise<UnifiedLead[]> => {
-    try {
-      // Only fetch if profile exists (should be checked before calling this)
-      if (!user?.contractor_profile) {
-        return []
-      }
-      const data = await api.getMyLeads()
-      return (data as any[]).map(lead => ({
-        id: `request-${lead.id}`,
-        name: lead.name,
-        type: 'request' as const,
-        status: lead.status || 'NEW',
-        email: lead.email,
-        phone: lead.phone,
-        address: lead.address,
-        address_data: lead.address_data ?? undefined,
-        project_type: lead.project_type,
-        description: lead.description,
-        estimated_value: lead.estimated_value,
-        converted_to_job_id: lead.converted_to_job_id,
-        converted_to_client_id: lead.converted_to_client_id,
-        created_at: lead.created_at,
-        attachments: lead.attachments,
-        measurements: lead.measurements,
-        source: lead.source,
-        priority: lead.priority >= 8 ? 'high' : lead.priority >= 5 ? 'medium' : 'low',
-        // Consolidation tracking - if this lead was consolidated with a call lead
-        contractor_ai_call_lead_id: lead.contractor_ai_call_lead_id,
-        _needsCallDataLoad: !!lead.contractor_ai_call_lead_id // Flag to load call data from contractor-ai
-      }))
-    } catch (error) {
-      // Silently handle errors - profile might not exist yet or other issues
-      // Don't log to console to avoid cluttering production logs
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to fetch request leads:', error)
-      }
-      return []
-    }
-  }
-
-  const fetchCallLeads = async (lightweight = false): Promise<UnifiedLead[]> => {
-    try {
-      const spId = getContractorAISpId()
-      if (!spId) return []
-
-      const response = await contractorAI.getLeads({
-        sp_id: spId.toString(),
-        per_page: 1000,
-        lightweight: lightweight
-      })
-
-      const transformedLeads = ((response as any).leads || [])
-        .filter((lead: any) => !lead.is_consolidated) // Hide consolidated call leads
-        .map((lead: any) => {
-          return {
-            id: `call-${lead.id}`,
-            name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
-            type: 'call' as const,
-            status: normalizeCallStatus(lead.status),
-            priority: lead.priority,
-            phone: lead.phone_number,
-            service_type: lead.service_type,
-            description: lead.summary_text, // May be null in lightweight mode
-            created_at: lead.last_contact_date,
-            last_contact_date: lead.last_contact_date,
-            conversation_count: lead.conversation_count || 0,
-            last_message_preview: lead.last_message_preview,
-            transcript_text: lead.transcript_text, // Will be null in lightweight mode
-            formatted_transcript_text: lead.formatted_transcript_text, // Will be null in lightweight mode
-            summary_text: lead.summary_text, // Will be null in lightweight mode
-            summary_confirmed: lead.summary_confirmed,
-            appointment_link_sent: lead.appointment_link_sent,
-            media_uploaded: lead.media_uploaded,
-            address: lead.location,
-            _needsFullLoad: lightweight && !lead.summary_text // Flag to indicate we need to load full details
-          }
-        })
-      
-      return transformedLeads
-    } catch (error) {
-      console.error('Failed to fetch call leads:', error)
-      return []
-    }
-  }
 
   // Load full lead details (with transcripts) when needed
   const loadFullLeadDetails = useCallback(async (leadId: string): Promise<UnifiedLead | null> => {
@@ -500,7 +337,7 @@ export function UnifiedLeads() {
 
     // Check if this is a consolidated lead (request lead with call data)
     const currentLead = leads.find(l => l.id === leadId)
-    
+
     // If it's a request lead
     if (currentLead?.type === 'request') {
       // Check if it's a consolidated lead (has contractor_ai_call_lead_id)
@@ -515,7 +352,7 @@ export function UnifiedLeads() {
         try {
           const response = await contractorAI.getLead(String(callLeadId))
           const callLead = response as any
-          
+
           // Merge request lead data with call lead data
           // Keep BOTH: description from quote request AND summary_text from call lead
           // IMPORTANT: description = quote request form data, summary_text = call lead AI summary
@@ -542,13 +379,13 @@ export function UnifiedLeads() {
             // Preserve name from quote request (more accurate) but fallback to call lead
             name: currentLead.name || callLead.name || currentLead.name
           }
-          
+
           // Cache the full lead details
           setLeadDetailsCache(prev => new Map(prev).set(leadId, fullLead))
-          
+
           // Update the lead in the leads array
           setLeads(prev => prev.map(l => l.id === leadId ? fullLead : l))
-          
+
           return fullLead
         } catch (error: any) {
           console.error('Failed to fetch call data for consolidated lead:', error)
@@ -573,17 +410,17 @@ export function UnifiedLeads() {
 
     // Extract the numeric ID from the lead ID (e.g., "call-123" -> "123")
     const numericId = leadId.replace('call-', '')
-    
+
     // Validate that we have a numeric ID
     if (!numericId || isNaN(Number(numericId))) {
       console.error('Invalid call lead ID:', leadId)
       return currentLead || null
     }
-    
+
     try {
       const response = await contractorAI.getLead(numericId)
       const lead = response as any
-      
+
       const fullLead: UnifiedLead = {
         id: `call-${lead.id}`,
         name: lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
@@ -605,13 +442,13 @@ export function UnifiedLeads() {
         media_uploaded: lead.media_uploaded,
         address: lead.location
       }
-      
+
       // Cache the full lead details
       setLeadDetailsCache(prev => new Map(prev).set(leadId, fullLead))
-      
+
       // Update the lead in the leads array
       setLeads(prev => prev.map(l => l.id === leadId ? fullLead : l))
-      
+
       return fullLead
     } catch (error) {
       console.error('Failed to load full lead details:', error)
@@ -623,7 +460,7 @@ export function UnifiedLeads() {
   const normalizeCallStatus = (callStatus: string): string => {
     const statusMap: Record<string, string> = {
       'new': 'NEW',
-      'active': 'CONTACTED', 
+      'active': 'CONTACTED',
       'completed': 'CONVERTED',
       'closed': 'CONVERTED',
       'lost': 'LOST'
@@ -639,11 +476,11 @@ export function UnifiedLeads() {
       lead.last_contact_date,
       lead.created_at
     ].filter(Boolean) as string[]
-    
+
     if (timestamps.length === 0) {
       return new Date(0) // Fallback to epoch if no timestamps
     }
-    
+
     // Return the most recent timestamp
     return new Date(Math.max(...timestamps.map(ts => new Date(ts).getTime())))
   }
@@ -664,7 +501,7 @@ export function UnifiedLeads() {
     // Filter by search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      filtered = filtered.filter(lead => 
+      filtered = filtered.filter(lead =>
         lead.name.toLowerCase().includes(searchLower) ||
         lead.phone?.includes(searchTerm) ||
         lead.email?.toLowerCase().includes(searchLower) ||
@@ -732,7 +569,7 @@ export function UnifiedLeads() {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    
+
     if (diffInHours < 1) return "Just now"
     if (diffInHours < 24) return `${diffInHours} hours ago`
     if (diffInHours < 48) return "1 day ago"
@@ -743,7 +580,7 @@ export function UnifiedLeads() {
     // Show warning if quote request hasn't been sent
     // A quote has been sent if status is QUOTED or if there's a converted_to_job_id
     const hasQuoteBeenSent = lead.status === 'QUOTED' || lead.converted_to_job_id
-    
+
     if (!hasQuoteBeenSent) {
       return (
         <div title="Quote request hasn't been sent">
@@ -751,7 +588,7 @@ export function UnifiedLeads() {
         </div>
       )
     }
-    
+
     return null
   }
 
@@ -775,7 +612,7 @@ export function UnifiedLeads() {
             }
             setLoadingFullLeadDetails(false)
           })
-        } 
+        }
         // If it's a consolidated lead (request lead with call data), always load call data
         // This ensures we show both quote request info AND call lead info (transcripts, summary, etc.)
         else if (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id) {
@@ -789,7 +626,7 @@ export function UnifiedLeads() {
             }
             setLoadingFullLeadDetails(false)
           })
-        } 
+        }
         else {
           setSelectedLead(lead)
         }
@@ -800,7 +637,7 @@ export function UnifiedLeads() {
       setSelectedLead(undefined)
     }
   }, [selectedLeadId, leads, loadFullLeadDetails])
-  
+
   // Debug selected lead transcript
   useEffect(() => {
     if (selectedLead?.type === 'call') {
@@ -815,7 +652,7 @@ export function UnifiedLeads() {
       })
     }
   }, [selectedLead])
-  
+
   const counts = getCounts()
 
   // Show full-screen loading only on initial load (when we have no leads yet)
@@ -841,29 +678,70 @@ export function UnifiedLeads() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden pb-16 md:pb-0">
-      <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-6 overflow-hidden min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-6 h-full">
+      <main className="flex-1 h-full md:container md:mx-auto md:px-4 md:py-6 overflow-hidden min-h-0 p-0">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 md:gap-6 h-full">
           {/* Left Panel - Leads List */}
           <div className={`lg:col-span-1 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
-            <Card className="h-full flex flex-col overflow-hidden">
+            <Card className="h-full flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 md:border md:rounded-lg shadow-none md:shadow-sm bg-background">
               {/* Search and Sort */}
-              <div className="px-2 py-1.5 md:px-3 md:py-2 border-b flex-shrink-0 space-y-1.5">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t('searchLeads')}
-                    className="pl-8 h-8 md:h-9 text-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+              <div className="px-3 py-3 md:px-3 md:py-2 border-b flex-shrink-0 space-y-3 md:space-y-1.5 bg-background shadow-sm md:shadow-none z-10 sticky top-0">
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-[10px] md:left-2 md:top-2 h-5 w-5 md:h-4 md:w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={t('searchLeads')}
+                      className="pl-10 h-10 md:h-9 text-[15px] md:text-sm bg-muted/60 border-transparent rounded-[14px] md:bg-transparent md:border-input md:rounded-md focus-visible:ring-1"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  {/* Mobile Sort Icon */}
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+                    <SelectTrigger className="md:hidden flex-shrink-0 w-10 h-10 rounded-[14px] bg-muted/60 border-transparent justify-center items-center p-0 [&>svg]:hidden shadow-none focus-visible:ring-1">
+                      <span className="text-lg">↕️</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-new">📅 {tFilters('newestFirst')}</SelectItem>
+                      <SelectItem value="date-old">📅 {tFilters('oldestFirst')}</SelectItem>
+                      <SelectItem value="name-az">🔤 {tFilters('nameAZ')}</SelectItem>
+                      <SelectItem value="name-za">🔤 {tFilters('nameZA')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex gap-1.5">
+
+                {/* Mobile Segmented Control styles */}
+                <div className="md:hidden flex bg-muted/40 p-1.5 rounded-xl w-full">
+                  <button
+                    className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setActiveTab('all')}
+                  >
+                    {tFilters('all')}
+                    <span className={`text-[10px] px-1.5 font-bold rounded-full ${activeTab === 'all' ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground'}`}>{counts.all}</span>
+                  </button>
+                  <button
+                    className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'requests' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setActiveTab('requests')}
+                  >
+                    {tFilters('requests')}
+                    <span className={`text-[10px] px-1.5 font-bold rounded-full ${activeTab === 'requests' ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground'}`}>{counts.requests}</span>
+                  </button>
+                  <button
+                    className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'calls' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setActiveTab('calls')}
+                  >
+                    {tFilters('calls')}
+                    <span className={`text-[10px] px-1.5 font-bold rounded-full ${activeTab === 'calls' ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground'}`}>{counts.calls}</span>
+                  </button>
+                </div>
+
+                {/* Desktop Selects */}
+                <div className="hidden md:flex gap-1.5">
                   <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
-                    <SelectTrigger className="h-8 text-xs md:text-sm flex-1 min-w-0">
+                    <SelectTrigger className="h-8 text-sm flex-1 min-w-0 bg-transparent rounded-md">
                       <SelectValue className="truncate">
                         {activeTab === 'all' ? `${tFilters('all')} ${counts.all}` :
-                         activeTab === 'requests' ? `${tFilters('requests')} ${counts.requests}` :
-                         `${tFilters('calls')} ${counts.calls}`}
+                          activeTab === 'requests' ? `${tFilters('requests')} ${counts.requests}` :
+                            `${tFilters('calls')} ${counts.calls}`}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -873,12 +751,12 @@ export function UnifiedLeads() {
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
-                    <SelectTrigger className="h-8 text-xs md:text-sm flex-1 min-w-0">
+                    <SelectTrigger className="h-8 text-sm flex-1 min-w-0 bg-transparent rounded-md">
                       <SelectValue className="truncate">
                         {sortBy === 'date-new' ? `📅 ${tFilters('newest')}` :
-                         sortBy === 'date-old' ? `📅 ${tFilters('oldest')}` :
-                         sortBy === 'name-az' ? '🔤 A-Z' :
-                         '🔤 Z-A'}
+                          sortBy === 'date-old' ? `📅 ${tFilters('oldest')}` :
+                            sortBy === 'name-az' ? '🔤 A-Z' :
+                              '🔤 Z-A'}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -913,43 +791,45 @@ export function UnifiedLeads() {
                           setSelectedLeadId(lead.id)
                           setHasUserClearedSelection(false)
                         }}
-                        className={`cursor-pointer border-b border-border p-2.5 md:p-4 transition-colors hover:bg-secondary ${
-                          selectedLeadId === lead.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
-                        }`}
+                        className={`cursor-pointer border-b border-border/60 px-4 py-3.5 md:p-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
+                          }`}
                       >
-                        <div className="flex items-start gap-2 md:gap-3">
-                          <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <span className="text-xs md:text-sm font-semibold">{lead.name.charAt(0)}</span>
+                        <div className="flex items-center gap-3 md:gap-4">
+                          <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
+                            {lead.name.charAt(0)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
-                              <h3 className="font-semibold text-xs md:text-sm truncate flex-1 min-w-0">{lead.name}</h3>
-                              {getQuoteRequestWarning(lead)}
-                              <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-[10px] md:text-xs px-1 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
-                                >
-                                  {lead.type === 'call' ? '📞' : '📝'}
-                                </Badge>
-                              </div>
-                            </div>
-                            
-                            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">
-                              {lead.project_type || lead.service_type || "General inquiry"}
-                            </p>
-                            
-                            {lead.phone && (
-                              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{formatPhoneForDisplay(lead.phone)}</p>
-                            )}
-                            
-                            <div className="flex items-center justify-between gap-1">
-                              <span className={`text-[10px] md:text-xs rounded-full px-1.5 md:px-2 py-0.5 font-medium ${getStatusColor(lead.status)}`}>
-                                {lead.status}
-                              </span>
-                              <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <h3 className="font-semibold text-[15px] leading-tight md:text-base text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
+                                {lead.name}
+                                {getQuoteRequestWarning(lead) && (
+                                  <span className="inline-block flex-shrink-0 ml-1.5 align-text-bottom">{getQuoteRequestWarning(lead)}</span>
+                                )}
+                              </h3>
+                              <span className="text-[11px] md:text-xs text-slate-500 shrink-0 font-medium whitespace-nowrap">
                                 {formatTime(lead.created_at)}
                               </span>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 mt-[2px]">
+                              <p className="text-[13px] md:text-sm text-slate-500 dark:text-slate-400 truncate flex-1 min-w-0">
+                                {lead.project_type || lead.service_type || "General inquiry"}
+                                {lead.phone ? ` • ${formatPhoneForDisplay(lead.phone)}` : ''}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 mt-2">
+                              <span className={`text-[10px] md:text-[11px] rounded-md px-1.5 py-0.5 font-semibold tracking-wide w-fit border ${getStatusColor(lead.status)} border-current/20`}>
+                                {lead.status}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] md:text-[10px] px-1.5 py-0 ${lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
+                                >
+                                  {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -997,43 +877,45 @@ export function UnifiedLeads() {
                         setSelectedLeadId(lead.id)
                         setHasUserClearedSelection(false)
                       }}
-                      className={`cursor-pointer border-b border-border p-2.5 md:p-4 transition-colors hover:bg-secondary ${
-                        selectedLeadId === lead.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
-                      }`}
+                      className={`cursor-pointer border-b border-border/60 px-4 py-3.5 md:p-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
+                        }`}
                     >
-                      <div className="flex items-start gap-2 md:gap-3">
-                        <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <span className="text-xs md:text-sm font-semibold">{lead.name.charAt(0)}</span>
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
+                          {lead.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
-                            <h3 className="font-semibold text-xs md:text-sm truncate flex-1 min-w-0">{lead.name}</h3>
-                            {getQuoteRequestWarning(lead)}
-                            <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
-                              <Badge 
-                                variant="outline" 
-                                className={`text-[10px] md:text-xs px-1 md:px-2 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}
-                              >
-                                {lead.type === 'call' ? '📞' : '📝'}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">
-                            {lead.project_type || lead.service_type || "General inquiry"}
-                          </p>
-                          
-                          {lead.phone && (
-                            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1 truncate">{formatPhoneForDisplay(lead.phone)}</p>
-                          )}
-                          
-                          <div className="flex items-center justify-between gap-1">
-                            <span className={`text-[10px] md:text-xs rounded-full px-1.5 md:px-2 py-0.5 font-medium ${getStatusColor(lead.status)}`}>
-                              {lead.status}
-                            </span>
-                            <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <h3 className="font-semibold text-[15px] leading-tight md:text-base text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
+                              {lead.name}
+                              {getQuoteRequestWarning(lead) && (
+                                <span className="inline-block flex-shrink-0 ml-1.5 align-text-bottom">{getQuoteRequestWarning(lead)}</span>
+                              )}
+                            </h3>
+                            <span className="text-[11px] md:text-xs text-slate-500 shrink-0 font-medium whitespace-nowrap">
                               {formatTime(lead.created_at)}
                             </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 mt-[2px]">
+                            <p className="text-[13px] md:text-sm text-slate-500 dark:text-slate-400 truncate flex-1 min-w-0">
+                              {lead.project_type || lead.service_type || "General inquiry"}
+                              {lead.phone ? ` • ${formatPhoneForDisplay(lead.phone)}` : ''}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 mt-2">
+                            <span className={`text-[10px] md:text-[11px] rounded-md px-1.5 py-0.5 font-semibold tracking-wide w-fit border ${getStatusColor(lead.status)} border-current/20`}>
+                              {lead.status}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] md:text-[10px] px-1.5 py-0 ${lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
+                              >
+                                {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1054,8 +936,8 @@ export function UnifiedLeads() {
                 </div>
               </Card>
             ) : selectedLead ? (
-              <LeadDetailsPanel 
-                lead={selectedLead} 
+              <LeadDetailsPanel
+                lead={selectedLead}
                 onClose={() => {
                   setSelectedLeadId(null)
                   setHasUserClearedSelection(true)
@@ -1092,20 +974,20 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const tTranslation = useTranslations('translation')
   const locale = useLocale()
   const isMobile = useIsMobile()
-  
+
   // Translation states for different sections
   const [translatedSummary, setTranslatedSummary] = useState<string | null>(null)
   const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
   const [isTranslatingSummary, setIsTranslatingSummary] = useState(false)
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false)
-  
+
   // Reset translations when lead changes
   useEffect(() => {
     setTranslatedSummary(null)
     setTranslatedDescription(null)
   }, [lead.id])
-  
+
   const handleTranslate = async (
     text: string,
     setTranslated: (text: string | null) => void,
@@ -1117,7 +999,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       setTranslated(null)
       return
     }
-    
+
     setLoading(true)
     try {
       // Use cached translation
@@ -1129,12 +1011,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       setLoading(false)
     }
   }
-  
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    
+
     if (diffInHours < 1) return "Just now"
     if (diffInHours < 24) return `${diffInHours} hours ago`
     if (diffInHours < 48) return "1 day ago"
@@ -1166,70 +1048,86 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-0 shadow-lg">
+    <Card className="h-full flex flex-col overflow-hidden border-0 md:border rounded-none md:rounded-lg shadow-none md:shadow-lg">
       {/* Header - aligned single row; tight bottom padding on mobile to sit close to conversation */}
-      <div className="flex items-center gap-2 md:gap-4 px-3 pt-3 pb-2 md:p-6 border-b border-border flex-shrink-0 min-h-12 md:min-h-14">
+      <div className="flex items-center gap-3 md:gap-4 p-3 md:p-6 border-b border-border flex-shrink-0 min-h-14 md:min-h-16 bg-background/95 backdrop-blur z-20 sticky top-0">
         {/* Left: back + hamburger (mobile) + avatar + name */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Left: back + name centered + more right */}
+        <div className="flex items-center justify-between min-w-0 flex-1 relative">
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="lg:hidden shrink-0 h-9 w-9"
+            className="lg:hidden shrink-0 h-[44px] w-[44px] -ml-3 text-blue-600 dark:text-blue-400 active:bg-blue-50/50"
             aria-label={tCommon('back')}
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          {isCallOrMessagesLead && isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 h-9 w-9"
-              aria-label={tLeads('moreLeadInfo')}
-              onClick={() => setDetailsSheetOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
-          {!isMobile && isCallOrMessagesLead && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" aria-label={tLeads('moreLeadInfo')}>
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="bottom" className="w-56">
-                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-contact')}>
-                  <UserRound className="mr-2 h-4 w-4" />
-                  {tLeads('contactInformation')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-ai-summary')}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  {tLeads('aiSummary')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => scrollToSection('lead-detail-call-history')}>
-                  <Phone className="mr-2 h-4 w-4" />
-                  {tLeads('callHistoryAndTranscripts')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="text-sm md:text-lg font-semibold truncate">{lead.name}</h2>
-              {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id ? (
-                <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0 shrink-0 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
-                  📞📝 {tLeads('consolidated')}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className={`text-[10px] md:text-xs px-1.5 py-0 shrink-0 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
-                  {lead.type === 'call' ? '📞 Call' : '📝 Request'}
-                </Badge>
-              )}
+            <div className="flex items-center font-medium">
+              <ArrowLeft className="h-6 w-6" />
             </div>
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
+          </Button>
+
+          <div className="lg:hidden absolute left-[50%] -translate-x-[50%] flex flex-col items-center justify-center pointer-events-none w-[60%]">
+            <h2 className="text-[17px] leading-tight font-semibold truncate w-full text-center tracking-tight text-foreground">{lead.name}</h2>
+            <p className="text-[12px] leading-tight text-muted-foreground truncate w-full text-center mt-0.5 tracking-tight font-medium">
               {lead.project_type || lead.service_type || "General inquiry"}
             </p>
+          </div>
+
+          <div className="hidden lg:flex min-w-0 flex-1 ml-2">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold truncate">{lead.name}</h2>
+                {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id ? (
+                  <Badge variant="outline" className="text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+                    📞📝 {tLeads('consolidated')}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className={`text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
+                    {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground truncate mt-1">
+                {lead.project_type || lead.service_type || "General inquiry"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0">
+            {isCallOrMessagesLead && isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-10 w-10 -mr-2 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/30 rounded-full"
+                aria-label={tLeads('moreLeadInfo')}
+                onClick={() => setDetailsSheetOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            {!isMobile && isCallOrMessagesLead && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 bg-secondary/50 rounded-full hover:bg-secondary" aria-label={tLeads('moreLeadInfo')}>
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="w-56">
+                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-contact')}>
+                    <UserRound className="mr-2 h-4 w-4 text-blue-600" />
+                    {tLeads('contactInformation')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-ai-summary')}>
+                    <MessageSquare className="mr-2 h-4 w-4 text-emerald-600" />
+                    {tLeads('aiSummary')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-call-history')}>
+                    <Phone className="mr-2 h-4 w-4 text-purple-600" />
+                    {tLeads('callHistoryAndTranscripts')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
@@ -1252,7 +1150,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   {lead.status}
                 </Badge>
               </div>
-              
+
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
                 <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
               </div>
@@ -1446,18 +1344,17 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     {lead.measurements.items.map((item, index) => (
                       <div key={index} className="relative p-3 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-900/50 border">
                         {/* Type Badge */}
-                        <span className={`absolute top-2 right-2 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
-                          item.type === 'dimensions' 
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
-                            : item.type === 'square_footage'
+                        <span className={`absolute top-2 right-2 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${item.type === 'dimensions'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                          : item.type === 'square_footage'
                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                             : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                        }`}>
+                          }`}>
                           {item.type === 'dimensions' ? 'L×W' : item.type === 'square_footage' ? 'Area' : 'Linear'}
                         </span>
-                        
+
                         <p className="text-xs md:text-sm font-medium mb-1 pr-12">{item.name || 'Measurement'}</p>
-                        
+
                         <div className="flex items-baseline gap-1">
                           {item.type === 'dimensions' ? (
                             <>
@@ -1475,7 +1372,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                             </>
                           )}
                         </div>
-                        
+
                         {item.type === 'dimensions' && item.length && item.width && (
                           <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                             = <span className="font-medium text-primary">{item.length * item.width} sq {item.unit || 'ft'}</span>
@@ -1666,11 +1563,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         !!translatedSummary
                       )}
                       disabled={isTranslatingSummary}
-                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${
-                        translatedSummary 
-                          ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                      }`}
+                      className={`ml-auto p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md shrink-0 ${translatedSummary
+                        ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                        }`}
                       title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                     >
                       {isTranslatingSummary ? (
@@ -1763,10 +1659,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
             {/* Call History with Transcripts (for consolidated leads - request-only layout; call/consolidated use main layout above) */}
             {(lead as any).contractor_ai_call_lead_id && lead.phone && (
-              <CallHistorySection 
-                key={`call-history-consolidated-${lead.phone}-${lead.id}`} 
-                phoneNumber={normalizePhoneToE164(lead.phone)} 
-                currentLeadId={lead.id} 
+              <CallHistorySection
+                key={`call-history-consolidated-${lead.phone}-${lead.id}`}
+                phoneNumber={normalizePhoneToE164(lead.phone)}
+                currentLeadId={lead.id}
               />
             )}
           </div>
@@ -1798,7 +1694,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           ) : (
             <Button variant="outline" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={
-                lead.type === 'request' 
+                lead.type === 'request'
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
                   : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
               }>
@@ -1810,7 +1706,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             </Button>
           )}
         </div>
-        
+
         {lead.type === 'request' && (
           <div className="mt-2 md:mt-3">
             <Button variant="ghost" asChild className="w-full h-8 md:h-10 text-xs md:text-sm">
@@ -1838,17 +1734,17 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  
+
   // Translation state - translate all at once
   const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({})
   const [isTranslatingAll, setIsTranslatingAll] = useState(false)
   const [allTranslated, setAllTranslated] = useState(false)
-  
+
   // Generate a cache key for the conversation
   const getConversationCacheKey = useCallback(() => {
     return `conv_translations_${phoneNumber}`
   }, [phoneNumber])
-  
+
   // Load cached translations on mount
   useEffect(() => {
     if (typeof window !== 'undefined' && phoneNumber) {
@@ -1864,7 +1760,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
       }
     }
   }, [phoneNumber, getConversationCacheKey])
-  
+
   // Translate all messages at once
   const handleTranslateAll = async () => {
     if (allTranslated) {
@@ -1877,19 +1773,19 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
       }
       return
     }
-    
+
     setIsTranslatingAll(true)
     try {
       // Get all message texts that need translation
       const textsToTranslate = messages
         .filter(msg => msg.message_text && msg.message_text.trim())
         .map(msg => msg.message_text)
-      
+
       if (textsToTranslate.length === 0) return
-      
+
       // Translate all at once using batch API
       const response = await api.translateBatch(textsToTranslate, 'es', 'en')
-      
+
       // Map translations back to message IDs
       const newTranslations: Record<string, string> = {}
       let translationIndex = 0
@@ -1899,10 +1795,10 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           translationIndex++
         }
       })
-      
+
       setTranslatedMessages(newTranslations)
       setAllTranslated(true)
-      
+
       // Save to localStorage cache
       if (typeof window !== 'undefined') {
         localStorage.setItem(getConversationCacheKey(), JSON.stringify({
@@ -1932,13 +1828,13 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
     try {
       setLoading(true)
       setError("")
-      
+
       if (!phoneNumber) {
         setMessages([])
         setLoading(false)
         return
       }
-      
+
       const spId = getContractorAISpId()
       if (!spId) {
         setError('Service provider ID not found')
@@ -1952,18 +1848,18 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
         sp_id: spId.toString(),
         status: 'all' // Get all conversations, not just active
       })
-      
+
       console.log('📞 Conversations response:', conversationsResponse)
-      
+
       // Normalize phone numbers to E.164 format for comparison
       const normalizedTargetPhone = normalizePhoneToE164(phoneNumber)
-      
+
       // Find conversation by matching customer phone number
       const conversation = (conversationsResponse as any).conversations?.find((conv: any) => {
         const customerPhone = conv.customer?.phone_number || ''
         const normalizedCustomerPhone = normalizePhoneToE164(customerPhone)
         const matches = normalizedCustomerPhone === normalizedTargetPhone
-        
+
         console.log('🔍 Comparing:', {
           target: phoneNumber,
           normalizedTarget: normalizedTargetPhone,
@@ -1971,21 +1867,21 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           normalizedCustomer: normalizedCustomerPhone,
           matches
         })
-        
+
         return matches
       })
-      
+
       console.log('✅ Found conversation:', conversation)
-      
+
       if (conversation) {
         // Load messages for this conversation
         console.log('📨 Loading messages for conversation:', conversation.id)
         const messagesResponse = await contractorAI.getConversationMessages(conversation.id.toString(), {
           per_page: 50 // Get more messages
         })
-        
+
         console.log('📨 Messages response:', messagesResponse)
-        
+
         const apiMessages = (messagesResponse as any).messages?.map((msg: any) => ({
           id: msg.id.toString(),
           sender_type: msg.sender_type,
@@ -1994,10 +1890,10 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           timestamp: msg.timestamp,
           status: msg.status
         })) || []
-        
+
         // Sort chronologically (oldest first)
         apiMessages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-        
+
         console.log('✅ Loaded', apiMessages.length, 'messages')
         setMessages(apiMessages)
       } else {
@@ -2075,11 +1971,10 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           <button
             onClick={handleTranslateAll}
             disabled={isTranslatingAll}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md ${
-              allTranslated 
-                ? 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-400' 
-                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/30'
-            }`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md ${allTranslated
+              ? 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-400'
+              : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/30'
+              }`}
           >
             {isTranslatingAll ? (
               <>
@@ -2100,63 +1995,58 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
           </button>
         </div>
       )}
-      
+
       {/* Messages List - minimal horizontal padding on mobile so bubbles extend to edges */}
       <div className="flex-1 space-y-3 px-2 py-3 md:px-4 md:py-4 overflow-y-auto min-h-0">
         {messages.map((msg) => {
           const isTranslated = !!translatedMessages[msg.id]
           const displayText = translatedMessages[msg.id] || msg.message_text
           const isServiceProvider = msg.sender_type === 'service_provider'
-          
+
           return (
             <div
               key={msg.id}
               className={`flex ${isServiceProvider ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] md:max-w-[80%] rounded-lg px-3 py-2 ${
-                  isServiceProvider
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
+                className={`max-w-[85%] md:max-w-[80%] rounded-lg px-3 py-2 ${isServiceProvider
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground'
+                  }`}
               >
                 {/* Sender Label */}
-                <div className={`text-[10px] mb-1 font-medium ${
-                  isServiceProvider 
-                    ? 'text-primary-foreground/70' 
-                    : 'text-muted-foreground'
-                }`}>
+                <div className={`text-[10px] mb-1 font-medium ${isServiceProvider
+                  ? 'text-primary-foreground/70'
+                  : 'text-muted-foreground'
+                  }`}>
                   {getSenderLabel(msg.sender_type)}
                 </div>
-                
+
                 {/* Message Text */}
                 <p className="text-sm whitespace-pre-wrap">{displayText}</p>
-                
+
                 {/* Timestamp and Status */}
                 <div className="flex items-center justify-between mt-1.5 gap-2">
-                  <p className={`text-[10px] ${
-                    isServiceProvider 
-                      ? 'text-primary-foreground/60' 
-                      : 'text-muted-foreground'
-                  }`}>
+                  <p className={`text-[10px] ${isServiceProvider
+                    ? 'text-primary-foreground/60'
+                    : 'text-muted-foreground'
+                    }`}>
                     {formatTime(msg.timestamp)}
                   </p>
                   <div className="flex items-center gap-1">
                     {isTranslated && (
-                      <span className={`text-[10px] italic ${
-                        isServiceProvider 
-                          ? 'text-primary-foreground/50' 
-                          : 'text-green-600 dark:text-green-400'
-                      }`}>
+                      <span className={`text-[10px] italic ${isServiceProvider
+                        ? 'text-primary-foreground/50'
+                        : 'text-green-600 dark:text-green-400'
+                        }`}>
                         ✓ {locale === 'es' ? 'traducido' : 'translated'}
                       </span>
                     )}
                     {msg.status && isServiceProvider && (
-                      <span className={`text-[10px] ${
-                        msg.status === 'delivered' ? 'text-primary-foreground/70' :
+                      <span className={`text-[10px] ${msg.status === 'delivered' ? 'text-primary-foreground/70' :
                         msg.status === 'failed' ? 'text-red-300' :
-                        'text-primary-foreground/50'
-                      }`}>
+                          'text-primary-foreground/50'
+                        }`}>
                         {msg.status === 'delivered' ? '✓✓' : msg.status === 'sent' ? '✓' : '✗'}
                       </span>
                     )}
@@ -2197,12 +2087,12 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
   const [translatedTranscript, setTranslatedTranscript] = useState<string | null>(null)
   const [isTranslatingTranscript, setIsTranslatingTranscript] = useState(false)
-  
+
   // Generate cache key for transcript
   const getTranscriptCacheKey = useCallback((callId: string) => {
     return `transcript_translation_${phoneNumber}_${callId}`
   }, [phoneNumber])
-  
+
   // Load cached translation when call selection changes
   useEffect(() => {
     if (typeof window !== 'undefined' && selectedCallId) {
@@ -2222,7 +2112,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       setTranslatedTranscript(null)
     }
   }, [selectedCallId, getTranscriptCacheKey])
-  
+
   const handleTranslateTranscript = async (text: string) => {
     if (translatedTranscript) {
       // Reset to original and clear cache
@@ -2232,7 +2122,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       }
       return
     }
-    
+
     setIsTranslatingTranscript(true)
     try {
       // Use cached translation helper
@@ -2240,7 +2130,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       // Format with Spanish speaker names
       const formatted = formatTranscriptTranslation(translated)
       setTranslatedTranscript(formatted)
-      
+
       // Cache the result
       if (typeof window !== 'undefined' && selectedCallId) {
         localStorage.setItem(getTranscriptCacheKey(selectedCallId), JSON.stringify({
@@ -2262,7 +2152,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   const loadCallHistory = useCallback(async () => {
     try {
       setLoading(true)
-      
+
       const spId = getContractorAISpId()
       if (!spId || !phoneNumber) {
         console.log('🔍 Missing spId or phoneNumber:', { spId, phoneNumber })
@@ -2286,14 +2176,14 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
 
       // Normalize requested phone number to E.164 format
       const normalizedRequestedPhone = normalizePhoneToE164(phoneNumber)
-      
+
       // Additional safety check: Ensure all returned leads match the requested phone number
       const historyItems: CallHistoryItem[] = ((response as any).leads || [])
         .filter((lead: any) => {
           // Normalize phone numbers to E.164 format for comparison
           const leadPhoneNormalized = normalizePhoneToE164(lead.phone_number || '')
           const matches = leadPhoneNormalized === normalizedRequestedPhone
-          
+
           if (!matches) {
             console.warn('⚠️ FILTERING OUT lead with mismatched phone:', {
               leadId: lead.id,
@@ -2315,7 +2205,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
             transcriptLength: (lead.transcript_text || '').length,
             formattedTranscriptLength: (lead.formatted_transcript_text || '').length
           })
-          
+
           return {
             id: lead.id.toString(),
             created_at: lead.last_contact_date || lead.created_at,
@@ -2339,26 +2229,26 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           }
           return hasTranscript
         })
-        .sort((a: CallHistoryItem, b: CallHistoryItem) => 
+        .sort((a: CallHistoryItem, b: CallHistoryItem) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
 
-      console.log('✅ Final call history items for phone', phoneNumber, ':', historyItems.map(item => ({ 
-        id: item.id, 
+      console.log('✅ Final call history items for phone', phoneNumber, ':', historyItems.map(item => ({
+        id: item.id,
         created_at: item.created_at,
         phone: (item as any).phone_number,
         hasTranscript: !!(item.transcript_text || item.formatted_transcript_text)
       })))
-      
+
       // Ensure we only have transcripts for the requested phone number
       if (historyItems.length > 0) {
         console.log('🎯 Successfully loaded', historyItems.length, 'transcript(s) for phone:', phoneNumber)
       } else {
         console.log('⚠️ No transcripts found for phone:', phoneNumber)
       }
-      
+
       setCallHistory(historyItems)
-      
+
       // Auto-select the current lead if it exists in history
       const currentNumericId = currentLeadId.replace('call-', '')
       if (historyItems.some(item => item.id === currentNumericId)) {
@@ -2382,16 +2272,16 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       console.log('📞 PHONE NUMBER CHANGED - Clearing transcript data to prevent mixing')
       console.log('  Previous phone:', lastPhoneNumber)
       console.log('  New phone:', phoneNumber)
-      
+
       // Clear ALL transcript-related state to ensure clean slate
       setCallHistory([])
       setSelectedCallId(null)
       setIsExpanded(false)
       setLastPhoneNumber(phoneNumber)
-      
+
       console.log('✅ Transcript state cleared for phone number change')
     }
-    
+
     if (phoneNumber) {
       console.log('🔄 Loading call history for phone:', phoneNumber)
       loadCallHistory()
@@ -2411,7 +2301,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
 
   const renderFormattedTranscript = (text: string, isTranslated: boolean = false) => {
     const lines = text.split('\n').filter(line => line.trim())
-    
+
     // Get Spanish speaker labels
     const getDisplaySpeaker = (speaker: string): string => {
       const speakerLower = speaker.trim().toLowerCase()
@@ -2423,29 +2313,27 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       }
       return speaker.trim()
     }
-    
+
     return lines.map((line, index) => {
       const [speaker, ...messageParts] = line.split(':')
       const message = messageParts.join(':').trim()
-      
+
       if (!message || !speaker) {
         return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
       }
-      
+
       const speakerLower = speaker.trim().toLowerCase()
       const isContractor = speakerLower.includes('contractor') || speakerLower.includes('contratista')
       const displaySpeaker = getDisplaySpeaker(speaker)
-      
+
       return (
         <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
-            isContractor 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted text-foreground'
-          }`}>
-            <div className={`text-[10px] mb-1 font-medium ${
-              isContractor ? 'text-primary-foreground/70' : 'text-muted-foreground'
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-foreground'
             }`}>
+            <div className={`text-[10px] mb-1 font-medium ${isContractor ? 'text-primary-foreground/70' : 'text-muted-foreground'
+              }`}>
               {displaySpeaker}
             </div>
             <div className="text-sm">
@@ -2500,7 +2388,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
-      
+
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
           {/* Call History Dropdown */}
@@ -2543,11 +2431,10 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                       selectedCall.formatted_transcript_text || selectedCall.transcript_text || ''
                     )}
                     disabled={isTranslatingTranscript}
-                    className={`p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
-                      translatedTranscript 
-                        ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40' 
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                    }`}
+                    className={`p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${translatedTranscript
+                      ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
+                      }`}
                     title={translatedTranscript ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
                   >
                     {isTranslatingTranscript ? (
@@ -2560,7 +2447,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                   </button>
                 )}
               </div>
-              
+
               <div className="bg-muted/30 p-3 rounded-lg max-h-96 overflow-y-auto">
                 {translatedTranscript ? (
                   <>
@@ -2583,7 +2470,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                   <p className="text-xs text-muted-foreground">No transcript available</p>
                 )}
               </div>
-              
+
               {/* <div className="mt-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   {showRawTranscript ? (
@@ -2618,24 +2505,23 @@ function TranscriptSection({ transcript, isFormatted = false }: TranscriptSectio
   // Function to render formatted transcript as conversation
   const renderFormattedTranscript = (text: string) => {
     const lines = text.split('\n').filter(line => line.trim())
-    
+
     return lines.map((line, index) => {
       const [speaker, ...messageParts] = line.split(':')
       const message = messageParts.join(':').trim()
-      
+
       if (!message || !speaker) {
         return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
       }
-      
+
       const isContractor = speaker.trim().toLowerCase().includes('contractor')
-      
+
       return (
         <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
-            isContractor 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted text-foreground'
-          }`}>
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-foreground'
+            }`}>
             <div className="text-xs opacity-70 mb-1 font-medium">
               {speaker.trim()}
             </div>
@@ -2670,7 +2556,7 @@ function TranscriptSection({ transcript, isFormatted = false }: TranscriptSectio
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
-      
+
       {isExpanded && (
         <div className="px-4 pb-4">
           <div className="bg-muted/30 p-3 rounded-lg max-h-60 overflow-y-auto">
@@ -2707,41 +2593,40 @@ interface TranscriptToggleSectionProps {
   onRefresh: () => void
 }
 
-function TranscriptToggleSection({ 
-  transcript, 
+function TranscriptToggleSection({
+  transcript,
   formattedTranscript,
-  leadId, 
-  hasSummary, 
-  messageCount, 
-  onRefresh 
+  leadId,
+  hasSummary,
+  messageCount,
+  onRefresh
 }: TranscriptToggleSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  
+
   // Use formatted transcript if available, fall back to raw transcript
   const displayTranscript = formattedTranscript || transcript
   const isFormatted = !!formattedTranscript
-  
+
   // Function to render formatted transcript as conversation
   const renderFormattedTranscript = (text: string) => {
     const lines = text.split('\n').filter(line => line.trim())
-    
+
     return lines.map((line, index) => {
       const [speaker, ...messageParts] = line.split(':')
       const message = messageParts.join(':').trim()
-      
+
       if (!message || !speaker) {
         return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
       }
-      
+
       const isContractor = speaker.trim().toLowerCase().includes('contractor')
-      
+
       return (
         <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
-            isContractor 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted text-foreground'
-          }`}>
+          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-foreground'
+            }`}>
             <div className="text-xs opacity-70 mb-1 font-medium">
               {speaker.trim()}
             </div>
@@ -2795,7 +2680,7 @@ function TranscriptToggleSection({
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
-      
+
       {isExpanded && (
         <div className="mt-2">
           <div className="bg-muted/20 p-4 rounded-lg max-h-80 overflow-y-auto">

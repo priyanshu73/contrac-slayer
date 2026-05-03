@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+
 import {
     Dialog,
     DialogContent,
@@ -29,6 +30,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
         email: "",
         phone_number: "",
         company_name: "",
+        specialty: "",
         address: "",
         notes: "",
     })
@@ -51,11 +53,12 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                 email: form.email.trim() || undefined,
                 phone_number: form.phone_number.trim() || undefined,
                 company_name: form.company_name.trim() || undefined,
+                specialty: form.specialty.trim() || undefined,
                 address: form.address.trim() || undefined,
                 notes: form.notes.trim() || undefined,
             })
-            toast({ title: "Team member added successfully" })
-            setForm({ name: "", email: "", phone_number: "", company_name: "", address: "", notes: "" })
+            toast({ title: "Crew member added successfully" })
+            setForm({ name: "", email: "", phone_number: "", company_name: "", specialty: "", address: "", notes: "" })
             onOpenChange(false)
             onSuccess?.()
         } catch (err: any) {
@@ -67,9 +70,9 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Team Member</DialogTitle>
+                    <DialogTitle>Add Crew Member</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
@@ -82,7 +85,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="sub-email">Email</Label>
                             <Input
@@ -103,14 +106,25 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="sub-company">Company Name</Label>
-                        <Input
-                            id="sub-company"
-                            placeholder="Company name"
-                            value={form.company_name}
-                            onChange={(e) => handleChange("company_name", e.target.value)}
-                        />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="sub-company">Company Name</Label>
+                            <Input
+                                id="sub-company"
+                                placeholder="Company name"
+                                value={form.company_name}
+                                onChange={(e) => handleChange("company_name", e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="sub-specialty">Specialty</Label>
+                            <Input
+                                id="sub-specialty"
+                                placeholder="e.g. Plumbing"
+                                value={form.specialty}
+                                onChange={(e) => handleChange("specialty", e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="sub-address">Address</Label>
@@ -131,12 +145,12 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                             onChange={(e) => handleChange("notes", e.target.value)}
                         />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={saving}>
-                            {saving ? "Saving..." : "Add Team Member"}
+                            {saving ? "Saving..." : "Add Crew Member"}
                         </Button>
                     </DialogFooter>
                 </form>

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { cleanAddressString } from "@/lib/format-address"
 
 interface Invoice {
   id: number
@@ -98,7 +99,7 @@ export function InvoiceView({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">From:</h3>
             <p className="font-semibold">{invoice.contractor.company_name}</p>
             {invoice.contractor.address && (
-              <p className="text-sm text-muted-foreground">{invoice.contractor.address}</p>
+              <p className="text-sm text-muted-foreground">{cleanAddressString(invoice.contractor.address)}</p>
             )}
             {invoice.contractor.email && (
               <p className="text-sm text-muted-foreground">{invoice.contractor.email}</p>
@@ -113,7 +114,7 @@ export function InvoiceView({
             <p className="font-semibold">{invoice.client.name}</p>
             {invoice.client.address && (
               <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground flex-1">{invoice.client.address}</p>
+                <p className="text-sm text-muted-foreground flex-1">{cleanAddressString(invoice.client.address)}</p>
                 {!isCustomerView && (
                   <Button variant="ghost" size="sm" asChild className="h-7 px-2">
                     <a

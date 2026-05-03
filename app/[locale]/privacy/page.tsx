@@ -20,9 +20,11 @@ export default function PrivacyPolicyPage() {
           </Button>
         </div>
       </div>
-      <article className="container mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Privacy Policy</h1>
-        <p className="text-muted-foreground text-sm mb-10">Last updated: February 2025</p>
+      <article className="container mx-auto max-w-3xl px-4 py-8 sm:py-10 md:py-14">
+        <h1 className="hidden text-3xl font-bold tracking-tight mb-2 md:block">Privacy Policy</h1>
+        <p className="rounded-2xl border border-border/70 bg-card/90 p-4 text-sm text-muted-foreground shadow-sm mb-8 md:mb-10 md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+          Last updated: February 2025
+        </p>
 
         <div className="prose prose-slate dark:prose-invert max-w-none space-y-8">
           <section>

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { User, Mail, Phone, MapPin, FileText, AlertCircle, Plus, Loader2 } from "lucide-react"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -26,6 +26,7 @@ export interface AddClientFormProps {
 export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProps = {}) {
   const { toast } = useToast()
   const router = useRouter()
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const tClients = useTranslations('clients')
@@ -116,7 +117,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
       if (embedded && onSuccess) {
         onSuccess(createdClient)
       } else {
-        router.push("/contacts")
+        router.push(`/${locale}/clients`)
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string }
@@ -282,7 +283,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/contacts")}
+              onClick={() => router.push(`/${locale}/clients`)}
               disabled={loading}
             >
               {tCommon('cancel')}

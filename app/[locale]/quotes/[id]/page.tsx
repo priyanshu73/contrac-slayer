@@ -16,23 +16,89 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle } from "lucide-react"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink } from "lucide-react"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
+import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
 import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { Job } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { useLocale } from "next-intl"
+
+function isBeforePhotoFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+}
+
+function isAfterRenderFilename(fileName?: string | null): boolean {
+  if (!fileName) return false
+  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
+}
+
+function extractBeforeAfterIndex(fileName?: string | null): number | null {
+  if (!fileName) return null
+
+  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+  if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
+
+  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+  if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+
+  return null
+}
+
+function buildBeforeAfterPairsFromMedia(mediaItems: Job["project_media"] = []): BeforeAfterImagePair[] {
+  const pairMap = new Map<number, BeforeAfterImagePair>()
+
+  for (const media of mediaItems || []) {
+    const index = extractBeforeAfterIndex(media.file_name)
+    if (!index) continue
+
+    const existing = pairMap.get(index) || {
+      id: `saved-before-after-${index}`,
+      beforePreview: "",
+      beforeFile: null,
+      beforeFileName: null,
+      afterUrl: null,
+      afterFileName: null,
+      status: "saved" as const,
+      error: null,
+    }
+
+    if (isBeforePhotoFilename(media.file_name)) {
+      existing.beforePreview = media.file_url
+      existing.beforeFileName = media.file_name
+    }
+
+    if (isAfterRenderFilename(media.file_name)) {
+      existing.afterUrl = media.file_url
+      existing.afterFileName = media.file_name
+    }
+
+    pairMap.set(index, existing)
+  }
+
+  return Array.from(pairMap.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([, pair]) => ({
+      ...pair,
+      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+    }))
+    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
+}
 
 export default function QuoteDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const locale = useLocale()
   const { user, loading: authLoading } = useAuth()
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
   const { toast } = useToast()
   const identifier = params.id as string
-  
+
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,12 +120,21 @@ export default function QuoteDetailPage() {
     revised_amount: number
   } | null>(null)
 
+  // QBO invoice state
+  const [qboConnected, setQboConnected] = useState(false)
+  const [qboInvoiceLoading, setQboInvoiceLoading] = useState(false)
+  const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false)
+  const [beforeAfterOpen, setBeforeAfterOpen] = useState(false)
+  const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
+  const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false)
+  const [deletingQuote, setDeletingQuote] = useState(false)
+
   useEffect(() => {
     // Wait for auth to finish loading before fetching
     // Note: We don't include `user` in deps to prevent double fetching
     // when user object changes from null to populated
     if (authLoading || !identifier) return
-    
+
     fetchJob()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier, authLoading])
@@ -76,15 +151,59 @@ export default function QuoteDetailPage() {
     return () => { cancelled = true }
   }, [job, isPublicView, user?.is_contractor])
 
+  // Fetch QBO status when contractor is viewing quote
+  useEffect(() => {
+    if (!job || isPublicView || !user?.is_contractor) return
+    let cancelled = false
+    api.getQBOStatus().then((res) => {
+      if (!cancelled) setQboConnected(res.connected)
+    }).catch(() => {
+      if (!cancelled) setQboConnected(false)
+    })
+    return () => { cancelled = true }
+  }, [job, isPublicView, user?.is_contractor])
+
+  // When quote is INVOICED with a QBO invoice, sync payment from QBO (marks job PAID when paid in full)
+  useEffect(() => {
+    if (!job || isPublicView || !user?.is_contractor || !qboConnected) return
+    const st = String(job.status ?? "").toUpperCase()
+    if (st !== "INVOICED" || !job.qbo_invoice_id) return
+    let cancelled = false
+    api
+      .syncQBOInvoicePaymentStatus(job.id)
+      .then(async (res) => {
+        if (cancelled || !res.updated) return
+        try {
+          const data = await api.getJob(job.id)
+          if (!cancelled) {
+            setJob(data as Job)
+            fetchChangeOrderData(job.id)
+          }
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {
+        /* QBO errors — keep showing INVOICED */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [job?.id, job?.status, job?.qbo_invoice_id, qboConnected, isPublicView, user?.is_contractor])
+
+  useEffect(() => {
+    setBeforeAfterImagePairs(buildBeforeAfterPairsFromMedia(job?.project_media))
+  }, [job?.id, job?.project_media])
+
   const fetchJob = async () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Check if identifier is numeric (job ID) or UUID (public link)
       const isNumeric = /^\d+$/.test(identifier)
       const isContractor = user?.is_contractor
-      
+
       // Always try public link first if not numeric (UUID format)
       // Or if user is not authenticated (customer view)
       if (!isNumeric || !isContractor) {
@@ -97,15 +216,15 @@ export default function QuoteDetailPage() {
         } catch (publicErr: any) {
           // If public link fails and it's numeric and user is contractor, try job ID
           if (isNumeric && isContractor) {
-        try {
-          const data = await api.getJob(parseInt(identifier))
-          setJob(data as Job)
-          setIsPublicView(false)
-          if (user?.is_contractor) {
-            fetchChangeOrderData((data as Job).id)
-          }
-          return
-        } catch (err: any) {
+            try {
+              const data = await api.getJob(parseInt(identifier))
+              setJob(data as Job)
+              setIsPublicView(false)
+              if (user?.is_contractor) {
+                fetchChangeOrderData((data as Job).id)
+              }
+              return
+            } catch (err: any) {
               setError(publicErr.message || "Failed to load quote")
             }
           } else {
@@ -184,7 +303,7 @@ export default function QuoteDetailPage() {
   const formatDate = (dateString: string) => {
     // Check if it's a date-only string (YYYY-MM-DD) to avoid timezone issues
     const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
-    
+
     if (isDateOnly) {
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
@@ -194,7 +313,7 @@ export default function QuoteDetailPage() {
         day: 'numeric'
       })
     }
-    
+
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -287,6 +406,7 @@ export default function QuoteDetailPage() {
       await api.sendQuoteEmail(job.id, to, quoteUrl)
       setSentToEmail(to)
       setSendEmailSuccess(true)
+      await fetchJob()
       toast({
         title: "Quote sent",
         description: `Sent to ${to}.`,
@@ -308,9 +428,107 @@ export default function QuoteDetailPage() {
     router.push(`/quotes/${identifier}/edit`)
   }
 
-  const handleCreateInvoice = () => {
-    // TODO: Implement create invoice functionality
-    router.push(`/invoices/new?jobId=${identifier}`)
+  const handleDeleteQuote = async () => {
+    if (!job) return
+
+    setDeletingQuote(true)
+    try {
+      await api.deleteJob(job.id)
+      toast({
+        title: "Quote deleted",
+        description: `Quote #${job.id} has been removed.`,
+      })
+      router.push(`/${locale}/quotes`)
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Failed to delete quote.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingQuote(false)
+      setDeleteQuoteOpen(false)
+    }
+  }
+
+  const handleCreateInvoice = async (alsoCreateQBO?: boolean) => {
+    if (!job) return
+
+    setQboInvoiceLoading(true)
+    try {
+      // 1. Always create native ContractorOps invoice
+      const nativeResult = await api.createInvoiceFromJob(job.id)
+      const invoiceId = nativeResult?.id
+
+      // 2. Optionally create QBO invoice
+      if (alsoCreateQBO && qboConnected && !job.qbo_invoice_id) {
+        try {
+          const qboResult = await api.createQBOInvoice(job.id, true)
+          toast({
+            title: "Invoice created",
+            description: (
+              <span>
+                Invoice created in ContractorOps and QuickBooks.{" "}
+                <a
+                  href={qboResult.invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  View in QuickBooks →
+                </a>
+              </span>
+            ),
+          })
+        } catch (qboErr: any) {
+          // Native invoice succeeded but QBO failed — still success
+          toast({
+            title: "Invoice created",
+            description: `Invoice created in ContractorOps, but QuickBooks sync failed: ${qboErr?.message || "Unknown error"}`,
+          })
+        }
+      } else {
+        toast({
+          title: "Invoice created",
+          description: `Invoice ${nativeResult?.invoice_number || ""} has been created. View it in your Invoices tab.`,
+        })
+      }
+
+      await fetchJob()
+
+      // Navigate to the invoice detail
+      if (invoiceId) {
+        router.push(`/${locale}/invoices/${invoiceId}`)
+      }
+    } catch (err: any) {
+      toast({
+        title: "Failed to create invoice",
+        description: err?.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setQboInvoiceLoading(false)
+    }
+  }
+
+  const handleSendInvoiceEmail = async () => {
+    if (!job) return
+    setSendingInvoiceEmail(true)
+    try {
+      const result = await api.sendQBOInvoiceEmail(job.id)
+      toast({
+        title: "Invoice sent",
+        description: result.message || "Invoice emailed to client.",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Failed to send invoice",
+        description: err?.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setSendingInvoiceEmail(false)
+    }
   }
 
   const handleSignatureUpdate = async () => {
@@ -363,12 +581,18 @@ export default function QuoteDetailPage() {
         reference_type: "job",
         reference_id: job.id,
       })
+
+      if (String(job.status || "").toUpperCase() === "DRAFT") {
+        const updatedJob = await api.updateJob(job.id, { status: "SENT" })
+        setJob(updatedJob as Job)
+      }
+
       setSmsSentSuccessTo(customerName)
       setTimeout(() => setSmsSentSuccessTo(null), 5000)
     } catch (err: any) {
       toast({
         title: "Send failed",
-        description: err?.message || "Failed to send SMS.",
+        description: "Failed to send SMS. Please try again.",
         variant: "destructive",
       })
     }
@@ -458,6 +682,18 @@ export default function QuoteDetailPage() {
     }
   }
 
+  const handleBeforeAfterOpenChange = async (open: boolean) => {
+    setBeforeAfterOpen(open)
+    if (!open && job) {
+      try {
+        const refreshedJob = await api.getJob(job.id)
+        setJob(refreshedJob as Job)
+      } catch {
+        // If the quiet refresh fails, keep the current view and let the next manual refresh recover.
+      }
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -528,9 +764,21 @@ export default function QuoteDetailPage() {
   // Authenticated contractor view
   return (
     <AuthGuard>
+      <AppBreadcrumb
+        className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 print:hidden"
+        items={[
+          { label: "Quotes", href: `/${locale}/quotes` },
+          {
+            label: job.created_from_job_id
+              ? `Change Order #${identifier}`
+              : `Quote #${identifier}`,
+          },
+        ]}
+      />
       <PersonalizedQuoteView
         job={job}
         showActions={true}
+        proposalHref={`/${locale}/quotes/${job.id}/proposal`}
         onSendToClient={handleSendToClient}
         onSendViaSms={handleSendViaSms}
         sendToClientDisabled={
@@ -547,11 +795,17 @@ export default function QuoteDetailPage() {
         }
         smsSentSuccessTo={smsSentSuccessTo}
         onEdit={handleEdit}
+        onDelete={() => setDeleteQuoteOpen(true)}
         onSendFollowupSubmit={handleSendFollowupSubmit}
         followupSending={followupSending}
         gmailConnected={gmailConnected}
+        qboConnected={qboConnected}
         onCreateInvoice={handleCreateInvoice}
+        creatingInvoice={qboInvoiceLoading}
+        onSendInvoiceEmail={handleSendInvoiceEmail}
+        sendingInvoiceEmail={sendingInvoiceEmail}
         onCreateChangeOrder={handleCreateChangeOrder}
+        onOpenBeforeAfter={() => setBeforeAfterOpen(true)}
         onSignatureUpdate={handleSignatureUpdate}
         onStatusUpdate={() => { fetchJob(); fetchChangeOrderData(job.id) }}
         changeOrders={changeOrders}
@@ -560,6 +814,49 @@ export default function QuoteDetailPage() {
         isPublicView={false}
         hideProjectDescription={true}
       />
+      <Dialog open={deleteQuoteOpen} onOpenChange={setDeleteQuoteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete quote?</DialogTitle>
+            <DialogDescription>
+              This permanently removes quote #{job.id}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteQuoteOpen(false)} disabled={deletingQuote}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteQuote} disabled={deletingQuote}>
+              {deletingQuote ? "Deleting..." : "Delete quote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={beforeAfterOpen} onOpenChange={handleBeforeAfterOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl">
+          <DialogHeader className="pr-8">
+            <DialogTitle>AI Before and After</DialogTitle>
+            <DialogDescription>
+              Upload a before photo, choose the saved quote items to include, and generate a before/after preview for this quote.
+            </DialogDescription>
+          </DialogHeader>
+          {job && (
+            <BeforeAfterPanel
+              jobId={job.id}
+              lineItems={(job.items || []).map((item) => ({
+                title: item.title,
+                description: item.custom_description,
+                quantity: item.quantity,
+                unitOfMeasure: item.unit_of_measure,
+              }))}
+              jobDescription={job.job_description || job.description || ""}
+              jobTitle={job.title || ""}
+              imagePairs={beforeAfterImagePairs}
+              onImagePairsChange={setBeforeAfterImagePairs}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={sendEmailOpen}
         onOpenChange={(open) => {

@@ -1,14 +1,23 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
+
+const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed"
 
 /** Routes that should NOT show the Navbar / shell UI */
 function isPublicShellRoute(pathname: string): boolean {
   return (
     !!pathname?.match(/^\/[a-z]{2}\/book\//) ||
-    pathname?.startsWith("/book/")
+    pathname?.startsWith("/book/") ||
+    !!pathname?.match(/^\/[a-z]{2}\/auth(\/|$)/) ||
+    pathname?.startsWith("/auth/") ||
+    !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
+    pathname?.startsWith("/features") ||
+    !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)
+    pathname === "/"
   )
 }
 
@@ -16,11 +25,47 @@ export function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const hideShell = isPublicShellRoute(pathname ?? "")
 
+  const [collapsed, setCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    const syncState = () => {
+      try {
+        const val = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+        setCollapsed(val === "true")
+      } catch {}
+    }
+    syncState()
+
+    // Listen for changes from the sidebar toggle
+    window.addEventListener("storage", syncState)
+
+    // Also poll for same-tab changes (storage event doesn't fire in the same tab)
+    const interval = setInterval(syncState, 200)
+
+    return () => {
+      window.removeEventListener("storage", syncState)
+      clearInterval(interval)
+    }
+  }, [])
+
+  if (hideShell) {
+    return <>{children}</>
+  }
+
+  // Margin class for the sidebar — only apply on md+ screens after mount
+  const marginClass = mounted
+    ? collapsed ? "md:ml-16" : "md:ml-60"
+    : "md:ml-60" // default to expanded to avoid flash
+
   return (
     <>
-      {!hideShell && <Navbar />}
-      {!hideShell && <EmailVerificationBanner />}
-      {children}
+      <Navbar />
+      <div className={`transition-[margin] duration-300 ease-in-out ${marginClass} pb-16 md:pb-0`}>
+        <EmailVerificationBanner />
+        {children}
+      </div>
     </>
   )
 }

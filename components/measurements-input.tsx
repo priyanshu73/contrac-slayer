@@ -7,13 +7,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { X, Plus, Calculator, Ruler, Square, Move } from "lucide-react"
 import { MeasurementItem, Measurements } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 interface MeasurementsInputProps {
   value: Measurements
   onChange: (measurements: Measurements) => void
+  minimal?: boolean
 }
 
-export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
+export function MeasurementsInput({ value, onChange, minimal = false }: MeasurementsInputProps) {
   const [measurements, setMeasurements] = useState<MeasurementItem[]>(value.items || [])
 
   // Sync with external value changes (e.g., when populated from lead)
@@ -93,8 +95,8 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {measurements.length === 0 ? (
+    <div className={cn("space-y-4", minimal && "space-y-3")}>
+      {measurements.length === 0 && !minimal ? (
         <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800/50">
           <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
             <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-blue-500/10 mb-4">
@@ -106,7 +108,7 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
             </p>
           </div>
         </div>
-      ) : (
+      ) : measurements.length > 0 ? (
         <div className="space-y-3">
           {measurements.map((measurement, index) => {
             const area = measurement.type === 'dimensions' 
@@ -116,12 +118,22 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
             return (
               <div 
                 key={index} 
-                className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 shadow-sm"
+                className={cn(
+                  "relative overflow-hidden rounded-xl border bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 shadow-sm",
+                  minimal && "rounded-lg bg-background shadow-none"
+                )}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/80 dark:bg-slate-800/50">
+                <div className={cn(
+                  "flex items-center justify-between px-4 py-3 border-b bg-slate-50/80 dark:bg-slate-800/50",
+                  minimal && "px-3 py-2.5 bg-transparent"
+                )}>
                   <div className="flex items-center gap-3">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${getTypeBadgeStyles(measurement.type)}`}>
+                    <div className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-lg",
+                      getTypeBadgeStyles(measurement.type),
+                      minimal && "w-7 h-7"
+                    )}>
                       {getTypeIcon(measurement.type)}
                     </div>
                     <div>
@@ -145,7 +157,7 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className={cn("p-4 space-y-4", minimal && "p-3 pt-0")}>
                   {/* Name/Description */}
                   <div>
                     <Label htmlFor={`measurement-name-${index}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -349,18 +361,23 @@ export function MeasurementsInput({ value, onChange }: MeasurementsInputProps) {
             )
           })}
         </div>
-      )}
+      ) : null}
 
       <Button
         type="button"
-        variant="outline"
+        variant={minimal && measurements.length === 0 ? "secondary" : "outline"}
         onClick={addMeasurement}
-        className="w-full h-11 border-dashed border-2 hover:border-primary hover:bg-primary/5 transition-colors"
+        className={cn(
+          "h-11 transition-colors",
+          minimal
+            ? "w-auto px-4"
+            : "w-full border-dashed border-2 hover:border-primary hover:bg-primary/5",
+          minimal && measurements.length > 0 && "h-10"
+        )}
       >
         <Plus className="mr-2 h-4 w-4" />
-        Add Measurement
+        {measurements.length > 0 ? "Add another measurement" : "Add measurement"}
       </Button>
     </div>
   )
 }
-

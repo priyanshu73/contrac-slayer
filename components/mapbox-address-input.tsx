@@ -14,6 +14,7 @@ interface MapboxAddressInputProps {
   error?: string;
   id?: string;
   className?: string;
+  inputClassName?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export function MapboxAddressInput({
   error,
   id = 'address-input',
   className = '',
+  inputClassName = '',
 }: MapboxAddressInputProps) {
   const [inputValue, setInputValue] = useState(defaultValue);
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
@@ -43,6 +45,10 @@ export function MapboxAddressInput({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+  useEffect(() => {
+    setInputValue(defaultValue);
+  }, [defaultValue]);
 
   // Close suggestions when clicking outside or on scroll
   useEffect(() => {
@@ -105,6 +111,7 @@ export function MapboxAddressInput({
     const value = e.target.value;
     setInputValue(value);
     setSelectedIndex(-1);
+    onAddressSelect(null);
 
     // Clear previous timer
     if (debounceTimer.current) {
@@ -127,7 +134,10 @@ export function MapboxAddressInput({
     const addressData = mapboxFeatureToAddressData(feature);
     
     if (addressData) {
-      setInputValue(addressData.formatted_address || '');
+      const shortDisplay = [addressData.street_line, addressData.city, addressData.state]
+        .filter(Boolean)
+        .join(', ');
+      setInputValue(shortDisplay || addressData.formatted_address || '');
       onAddressSelect(addressData);
       setSuggestions([]);
       setShowSuggestions(false);
@@ -198,7 +208,7 @@ export function MapboxAddressInput({
           placeholder={placeholder}
           required={required}
           autoComplete="off"
-          className={error ? 'border-red-500' : ''}
+          className={`${error ? 'border-red-500' : ''} ${inputClassName}`.trim()}
         />
         
         {isLoading && (

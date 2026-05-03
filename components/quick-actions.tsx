@@ -87,7 +87,7 @@ export function QuickActions() {
           />
         </svg>
       ),
-      href: `/${locale}/contacts/new`,
+      href: `/${locale}/clients/new`,
       type: 'link' as const,
     },
     {

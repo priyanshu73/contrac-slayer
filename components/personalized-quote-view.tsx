@@ -17,22 +17,25 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check } from "lucide-react"
+import { BadgeCheck, Check, Clock3, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
+import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
-import { ContractorProfile, ContractorInfo, Job, JobItem, JobSignature, JobStatus, LaborChargeType } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 interface PersonalizedQuoteViewProps {
   job: Job
   showActions?: boolean
+  proposalHref?: string
   onEdit?: () => void
+  onDelete?: () => void
   onSendToClient?: () => void
   /** When true, Send to client button is disabled (e.g. Gmail not connected) */
   sendToClientDisabled?: boolean
@@ -45,8 +48,14 @@ interface PersonalizedQuoteViewProps {
   onSendFollowupSubmit?: (sendSms: boolean, sendEmail: boolean) => void
   followupSending?: boolean
   gmailConnected?: boolean
-  onCreateInvoice?: () => void
+  /** QuickBooks OAuth connected (from GET /quickbooks/status). Used to gate "Open in QuickBooks". */
+  qboConnected?: boolean
+  onCreateInvoice?: (alsoCreateQBO?: boolean) => void
+  creatingInvoice?: boolean
+  onSendInvoiceEmail?: () => void
+  sendingInvoiceEmail?: boolean
   onCreateChangeOrder?: () => void
+  onOpenBeforeAfter?: () => void
   onSignatureUpdate?: () => void
   onStatusUpdate?: () => void
   /** Change orders for this quote (when viewing root job as contractor) */
@@ -72,7 +81,9 @@ const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 export function PersonalizedQuoteView({
   job,
   showActions = true,
+  proposalHref,
   onEdit,
+  onDelete,
   onSendToClient,
   sendToClientDisabled = false,
   onSendViaSms,
@@ -81,8 +92,13 @@ export function PersonalizedQuoteView({
   onSendFollowupSubmit,
   followupSending = false,
   gmailConnected = false,
+  qboConnected = false,
   onCreateInvoice,
+  creatingInvoice = false,
+  onSendInvoiceEmail,
+  sendingInvoiceEmail = false,
   onCreateChangeOrder,
+  onOpenBeforeAfter,
   onSignatureUpdate,
   onStatusUpdate,
   changeOrders = [],
@@ -94,6 +110,7 @@ export function PersonalizedQuoteView({
   const isMobile = useIsMobile()
   const { toast } = useToast()
   const t = useTranslations("quotes")
+  const locale = useLocale()
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [contractorProfile, setContractorProfile] = useState<ContractorProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -105,6 +122,9 @@ export function PersonalizedQuoteView({
   const [generatingLink, setGeneratingLink] = useState(false)
   const [followupSendSms, setFollowupSendSms] = useState(true)
   const [followupSendEmail, setFollowupSendEmail] = useState(true)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [alsoCreateQBO, setAlsoCreateQBO] = useState(false)
+  const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null)
   // Only force email off when Gmail disconnects; don't overwrite when user unchecks
   useEffect(() => {
     if (!gmailConnected) setFollowupSendEmail(false)
@@ -114,6 +134,17 @@ export function PersonalizedQuoteView({
   useEffect(() => {
     setCurrentJob(job)
   }, [job])
+
+  useEffect(() => {
+    // Check if an invoice exists for this job
+    if (job.id && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'INVOICED'].includes(job.status.toString().toUpperCase())) {
+      api.getInvoices(undefined, 0, 1, job.id).then(res => {
+        if (res.items && res.items.length > 0) {
+          setExistingInvoiceId(res.items[0].id)
+        }
+      }).catch(err => console.error("Failed to fetch existing invoices for job", err))
+    }
+  }, [job.id, job.status])
 
   useEffect(() => {
     // For public customer views, use contractor info from job if available
@@ -280,11 +311,61 @@ export function PersonalizedQuoteView({
       case 'rejected': return 'bg-red-500/15 text-red-600'
       case 'in_progress': return 'bg-sky-500/15 text-sky-600'
       case 'completed': return 'bg-teal-500/15 text-teal-600'
+      case 'invoiced': return 'bg-indigo-500/15 text-indigo-600'
+      case 'paid': return 'bg-emerald-500/15 text-emerald-600'
       default: return 'bg-muted text-muted-foreground'
     }
   }
 
   const total = currentJob.total_amount || 0
+
+  const isBeforePhotoMedia = (fileName?: string | null) => {
+    if (!fileName) return false
+    return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
+  }
+
+  const isAfterRenderMedia = (fileName?: string | null) => {
+    if (!fileName) return false
+    return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
+  }
+
+  const extractBeforeAfterIndex = (fileName?: string | null) => {
+    if (!fileName) return null
+    const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
+    if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
+
+    const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
+    if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
+
+    return null
+  }
+
+  const beforeAfterPairs = Array.from(
+    (currentJob.project_media || []).reduce((map, media) => {
+      const index = extractBeforeAfterIndex(media.file_name)
+      if (!index) return map
+
+      const existing = map.get(index) || { index, before: null as ProjectMedia | null, after: null as ProjectMedia | null }
+      if (isBeforePhotoMedia(media.file_name)) existing.before = media
+      if (isAfterRenderMedia(media.file_name)) existing.after = media
+      map.set(index, existing)
+      return map
+    }, new Map<number, { index: number; before: ProjectMedia | null; after: ProjectMedia | null }>())
+  )
+    .map(([, pair]) => pair)
+    .sort((left, right) => left.index - right.index)
+
+  const attachmentMedia = (currentJob.project_media || []).filter((media) => {
+    return !isBeforePhotoMedia(media.file_name) && !isAfterRenderMedia(media.file_name)
+  })
+  const inlineActionButtonClass =
+    "h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-md"
+  const featuredActionButtonClass =
+    "h-11 rounded-full border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-cyan-50 px-4 text-sm font-semibold text-sky-900 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:from-sky-100 hover:to-cyan-100 hover:text-sky-950 hover:shadow-md"
+  const inlineIconButtonClass =
+    "h-11 w-11 rounded-full border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-md"
+  const dangerIconButtonClass =
+    "h-11 w-11 rounded-full border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50 hover:text-red-600 hover:shadow-md"
 
   // Calculate breakdown - handle both interface and API response formats
   const baseSubtotal = (currentJob.items || []).reduce(
@@ -326,18 +407,7 @@ export function PersonalizedQuoteView({
   }
 
   const quoteSignedByCustomer = Boolean(currentJob.signature?.customer_signed_at)
-  const statusRequiresSignedQuote = (status: string) =>
-    status === "ACCEPTED" || status === "IN_PROGRESS" || status === "COMPLETED" || status === "PAID"
-
   const handleStatusChange = async (newStatus: string) => {
-    if (statusRequiresSignedQuote(newStatus) && !quoteSignedByCustomer) {
-      toast({
-        title: "Quote not signed",
-        description: "The customer must sign the quote before you can change the status to Accepted, Job In Progress, Job Completed, or Paid.",
-        variant: "destructive",
-      })
-      return
-    }
     try {
       setUpdatingStatus(true)
       await api.updateJob(currentJob.id, { status: newStatus })
@@ -361,7 +431,7 @@ export function PersonalizedQuoteView({
     }
 
     const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const fullUrl = `${frontendUrl}/quotes/${publicLink}`
+    const fullUrl = `${frontendUrl}/${locale}/quotes/${publicLink}`
 
     try {
       await navigator.clipboard.writeText(fullUrl)
@@ -384,12 +454,303 @@ export function PersonalizedQuoteView({
     const publicLink = currentJob.quote_public_link
     if (!publicLink) return null
     const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${frontendUrl}/quotes/${publicLink}`
+    return `${frontendUrl}/${locale}/quotes/${publicLink}`
+  }
+
+  const proposalPublicHref = currentJob.proposal_public_link ? `/${locale}/proposals/${currentJob.proposal_public_link}` : null
+
+  const activityItems = [
+    { label: "Quote created", value: formatDate(currentJob.created_at) },
+    currentJob.updated_at ? { label: "Last updated", value: formatDate(currentJob.updated_at) } : null,
+    currentJob.signature?.contractor_signed_at
+      ? { label: "Signed by contractor", value: formatDate(currentJob.signature.contractor_signed_at) }
+      : null,
+    currentJob.signature?.customer_signed_at
+      ? { label: "Signed by customer", value: formatDate(currentJob.signature.customer_signed_at) }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>
+
+  const statusDescription = (() => {
+    const status = currentJob.status?.toString().toUpperCase()
+    if (status === "DRAFT") return "Not yet sent to client"
+    if (status === "SENT") return "Shared with client"
+    if (status === "ACCEPTED") return "Approved by client"
+    if (status === "IN_PROGRESS") return "Work is underway"
+    if (status === "COMPLETED") return "Work has been completed"
+    if (status === "PAID") return "Payment collected"
+    if (status === "INVOICED") return "Invoice has been created"
+    if (status === "CANCELLED") return "Quote was cancelled"
+    return "Current quote status"
+  })()
+
+  const renderQuoteActionStrip = () => {
+    const showInvoiceSend = currentJob.status?.toString().toUpperCase() === "INVOICED" && currentJob.qbo_invoice_id
+
+    return (
+      <div className="mb-5 flex flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2.5">
+          {isContractor && (
+            <>
+              {showInvoiceSend ? (
+                <Button
+                  className={inlineActionButtonClass}
+                  onClick={() => onSendInvoiceEmail?.()}
+                  disabled={sendingInvoiceEmail}
+                >
+                  {sendingInvoiceEmail ? (
+                    <>
+                      <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Sending Invoice…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4 shrink-0" />
+                      Send Invoice
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            className={inlineActionButtonClass}
+                            disabled={!currentJob.signature?.contractor_signed_at}
+                          >
+                            <Send className="mr-2 h-4 w-4 shrink-0" />
+                            {t("sendToClient")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                          <DropdownMenuItem
+                            onClick={() => onSendToClient?.()}
+                            disabled={sendToClientDisabled}
+                            className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                          >
+                            <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            Send via Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => onSendViaSms?.()}
+                            disabled={sendViaSmsDisabled}
+                            className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                          >
+                            <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            Send via SMS
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-slate-100" />
+                          <DropdownMenuItem
+                            onClick={handleCopyQuoteLink}
+                            disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
+                            className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
+                          >
+                            {copiedLink ? (
+                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : generatingLink ? (
+                              <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                            )}
+                            {copiedLink ? "Copied!" : currentJob.quote_public_link ? "Copy link" : "Generate & copy link"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    className={
+                      !currentJob.signature?.contractor_signed_at
+                        ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
+                        : "max-w-xs"
+                    }
+                  >
+                    {!currentJob.signature?.contractor_signed_at
+                      ? t("sendToClientTooltipSignFirst")
+                      : "Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link."}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {onOpenBeforeAfter && (
+                <Button className={featuredActionButtonClass} variant="outline" onClick={onOpenBeforeAfter}>
+                  <Sparkles className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
+                  Before & After
+                </Button>
+              )}
+
+              {proposalHref ? (
+                <Button asChild className={featuredActionButtonClass} variant="outline">
+                  <Link href={proposalHref}>
+                    <PencilLine className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
+                    Proposal
+                  </Link>
+                </Button>
+              ) : null}
+
+              {onSendFollowupSubmit && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      className={inlineActionButtonClass}
+                      variant="outline"
+                      disabled={currentJob.status?.toString().toUpperCase() === "DRAFT" || followupSending}
+                    >
+                      {followupSending ? (
+                        <>
+                          <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Sending…
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquareMore className="mr-2 h-4 w-4 shrink-0" />
+                          Follow-up
+                        </>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      onClick={() => setFollowupSendSms((v) => !v)}
+                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
+                    >
+                      <span
+                        className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
+                        aria-hidden
+                      >
+                        {followupSendSms && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
+                      </span>
+                      Send via SMS
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      onClick={() => gmailConnected && setFollowupSendEmail((v) => !v)}
+                      disabled={!gmailConnected}
+                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
+                    >
+                      <span
+                        className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
+                        aria-hidden
+                      >
+                        {followupSendEmail && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
+                      </span>
+                      Send via email
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-slate-100" />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        onSendFollowupSubmit(followupSendSms, followupSendEmail && gmailConnected)
+                      }}
+                      className="rounded-md px-2 py-2 font-medium focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900"
+                    >
+                      <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Send follow-up
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className={inlineActionButtonClass} variant="outline" disabled={updatingStatus}>
+                    {updatingStatus ? (
+                      <>
+                        <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Clock3 className="mr-2 h-4 w-4 shrink-0" />
+                        Status
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {QUOTE_STATUS_OPTIONS.map((opt) => (
+                    <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(opt.value)}>
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-start gap-2.5 sm:justify-end">
+          {smsSentSuccessTo && (
+            <span
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-800 animate-in slide-in-from-right-4 fade-in duration-300"
+              role="status"
+            >
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+              SMS sent to {smsSentSuccessTo}
+            </span>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className={inlineIconButtonClass} variant="outline" onClick={onEdit}>
+                <PencilLine className="h-4 w-4 shrink-0" />
+                <span className="sr-only">Edit quote</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit quote</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className={inlineIconButtonClass} variant="outline" onClick={() => window.print()}>
+                <Printer className="h-4 w-4 shrink-0" />
+                <span className="sr-only">Print quote</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Print quote</TooltipContent>
+          </Tooltip>
+          {isContractor && onDelete && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button className={dangerIconButtonClass} variant="outline" onClick={onDelete}>
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span className="sr-only">Delete quote</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete quote</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:pl-6 lg:pr-8 xl:pl-8 xl:pr-12 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
+        {showActions && !isPublicView && renderQuoteActionStrip()}
         {/* Layout: Quote centered, Actions on far right */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
           {/* Quote Content - Centered */}
@@ -441,7 +802,7 @@ export function PersonalizedQuoteView({
                           {contractorProfile?.company_name || "Quote"}
                         </h1>
                         <p className="text-xs sm:text-sm print:text-xs text-gray-600 mt-0.5 sm:mt-1">
-                          {contractorProfile?.address || ""}
+                          {cleanAddressString(contractorProfile?.address) || ""}
                         </p>
                         {contractorProfile?.phone_number && (
                           <p className="text-xs sm:text-sm print:text-xs text-gray-600">
@@ -477,7 +838,7 @@ export function PersonalizedQuoteView({
                       </p>
                       {currentJob.client?.address && (
                         <div className="flex items-center gap-2 print:block">
-                          <p className="text-xs sm:text-sm print:text-xs text-gray-600 flex-1">{currentJob.client.address}</p>
+                          <p className="text-xs sm:text-sm print:text-xs text-gray-600 flex-1">{cleanAddressString(currentJob.client.address)}</p>
                           {!isPublicView && (
                             <Button variant="ghost" size="sm" asChild className="h-6 sm:h-7 px-1.5 sm:px-2 print:hidden text-xs">
                               <a
@@ -532,6 +893,25 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
+                {isPublicView && proposalPublicHref && currentJob.proposal_document ? (
+                  <div className="mb-4 rounded-2xl border border-sky-100 bg-[linear-gradient(135deg,rgba(240,249,255,1),rgba(255,255,255,1))] p-4 print:hidden">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-600">Related Document</p>
+                        <p className="mt-1 text-sm text-slate-700">
+                          A companion proposal with photos, markups, and scope notes is available for this quote.
+                        </p>
+                      </div>
+                      <Button asChild className="rounded-full bg-slate-900 text-white hover:bg-slate-800">
+                        <Link href={proposalPublicHref}>
+                          <PencilLine className="mr-2 h-4 w-4" />
+                          View Proposal
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
                 {!hideProjectDescription && currentJob.job_description && (
                   <div className="mb-4 sm:mb-6 print:mb-4 p-2.5 sm:p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
@@ -568,6 +948,7 @@ export function PersonalizedQuoteView({
                       <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
                         {(currentJob.items || []).map((item: any, index: number) => {
                           // Handle both JobItem interface and API response format
+                          const itemTitle = item.title || ""
                           const customDescription = item.custom_description || item.description || "Line Item"
                           const thumbnailUrl = item.thumbnail_url || item.thumbnailUrl
                           const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
@@ -597,6 +978,11 @@ export function PersonalizedQuoteView({
                                       </div>
                                     )}
                                     <div className="min-w-0 flex-1">
+                                      {itemTitle && (
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide print:text-[10px]">
+                                          {itemTitle}
+                                        </p>
+                                      )}
                                       <p className="text-sm sm:text-base font-medium text-gray-900 print:text-sm break-words">
                                         {customDescription}
                                       </p>
@@ -653,14 +1039,67 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
+                {beforeAfterPairs.length > 0 && (
+                  <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4">
+                      Project Preview
+                    </h3>
+                    <div className="space-y-4">
+                      {beforeAfterPairs.map((pair) => (
+                        <div key={pair.index} className="space-y-2">
+                          {beforeAfterPairs.length > 1 && (
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                              Pair {pair.index}
+                            </p>
+                          )}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pair.before && (
+                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <div className="aspect-[4/3] bg-gray-100">
+                                  <img
+                                    src={pair.before.file_url}
+                                    alt={`Before preview ${pair.index}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <div className="border-t border-gray-200 px-4 py-3">
+                                  <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                    Before
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            {pair.after && (
+                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <div className="aspect-[4/3] bg-gray-100">
+                                  <img
+                                    src={pair.after.file_url}
+                                    alt={`After rendering ${pair.index}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <div className="border-t border-gray-200 px-4 py-3">
+                                  <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                    After (Estimated)
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Attachments */}
-                {currentJob.project_media && currentJob.project_media.length > 0 && (
+                {attachmentMedia.length > 0 && (
                   <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
                       Attachments
                     </h3>
                     <div className="flex flex-wrap gap-4">
-                      {currentJob.project_media.map((media) => {
+                      {attachmentMedia.map((media) => {
                         const isImage = media.media_type === "PHOTO" || media.file_url.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i)
 
                         return (
@@ -910,277 +1349,44 @@ export function PersonalizedQuoteView({
             </Card>
           </div>
 
-          {/* Actions Sidebar - Far Right */}
+          {/* Context Sidebar - Far Right */}
           {showActions && !isPublicView && (
             <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
               <div className="lg:sticky lg:top-8 space-y-4">
-                {/* Action Buttons Card */}
                 <Card className="bg-white shadow-lg p-4 sm:p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-                  <div className="flex flex-col gap-3">
-                    {isContractor && (
-                      <>
-                        {/* Send: Email / SMS / Copy link (Email & SMS disabled until public link + contractor signed) */}
-                        <div className="flex items-center gap-2 w-full flex-wrap">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="flex-1 min-w-0">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      size="lg"
-                                      className="w-full justify-start h-12 text-base"
-                                      disabled={!currentJob.signature?.contractor_signed_at}
-                                    >
-                                      <svg className="mr-3 h-5 w-5 shrink-0 -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                      </svg>
-                                      {t("sendToClient")}
-                                      <svg className="ml-2 h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                      </svg>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
-                                    <DropdownMenuItem
-                                      onClick={() => onSendToClient?.()}
-                                      disabled={sendToClientDisabled}
-                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
-                                    >
-                                      <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                      </svg>
-                                      Send via Email
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => onSendViaSms?.()}
-                                      disabled={sendViaSmsDisabled}
-                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
-                                    >
-                                      <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                      </svg>
-                                      Send via SMS
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-slate-100" />
-                                    <DropdownMenuItem
-                                      onClick={handleCopyQuoteLink}
-                                      disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
-                                      className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
-                                    >
-                                      {copiedLink ? (
-                                        <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      ) : generatingLink ? (
-                                        <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                      ) : (
-                                        <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                        </svg>
-                                      )}
-                                      {copiedLink ? "Copied!" : currentJob.quote_public_link ? "Copy link" : "Generate & copy link"}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="left"
-                              className={
-                                !currentJob.signature?.contractor_signed_at
-                                  ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
-                                  : "max-w-xs"
-                              }
-                            >
-                              {!currentJob.signature?.contractor_signed_at
-                                ? t("sendToClientTooltipSignFirst")
-                                : "Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link."}
-                            </TooltipContent>
-                          </Tooltip>
-                          {smsSentSuccessTo && (
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 border border-emerald-200 animate-in slide-in-from-right-4 fade-in duration-300"
-                              role="status"
-                            >
-                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              SMS sent successfully to {smsSentSuccessTo}
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          size="lg"
-                          className="w-full justify-start h-12 text-base"
-                          variant="outline"
-                          onClick={onEdit}
-                        >
-                          <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Edit Quote
-                        </Button>
-                        {onCreateChangeOrder &&
-                          ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase()) && (
-                            <Button
-                              size="lg"
-                              className="w-full justify-start h-12 text-base"
-                              variant="outline"
-                              onClick={onCreateChangeOrder}
-                            >
-                              <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                              Create Change Order
-                            </Button>
-                          )}
-                        {onSendFollowupSubmit && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="lg"
-                                className="w-full justify-start h-12 text-base"
-                                variant="outline"
-                                disabled={currentJob.status?.toString().toUpperCase() === "DRAFT" || followupSending}
-                              >
-                                {followupSending ? (
-                                  <>
-                                    <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                    </svg>
-                                    Sending…
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                    </svg>
-                                    Send Follow-up
-                                    <svg className="ml-2 h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </>
-                                )}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
-                              <DropdownMenuItem
-                                onSelect={(e) => e.preventDefault()}
-                                onClick={() => setFollowupSendSms((v) => !v)}
-                                className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
-                              >
-                                <span
-                                  className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
-                                  aria-hidden
-                                >
-                                  {followupSendSms && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
-                                </span>
-                                Send via SMS
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={(e) => e.preventDefault()}
-                                onClick={() => gmailConnected && setFollowupSendEmail((v) => !v)}
-                                disabled={!gmailConnected}
-                                className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 cursor-pointer"
-                              >
-                                <span
-                                  className="mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 border-slate-300 bg-white transition-colors"
-                                  aria-hidden
-                                >
-                                  {followupSendEmail && <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />}
-                                </span>
-                                Send via email
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-slate-100" />
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  onSendFollowupSubmit(followupSendSms, followupSendEmail && gmailConnected)
-                                }}
-                                className="rounded-md px-2 py-2 font-medium focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900"
-                              >
-                                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                </svg>
-                                Send follow-up
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                        {/* Change status */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="lg"
-                              className="w-full justify-start h-12 text-base"
-                              variant="outline"
-                              disabled={updatingStatus}
-                            >
-                              {updatingStatus ? (
-                                <>
-                                  <svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                  </svg>
-                                  Updating...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                  </svg>
-                                  Change status
-                                  <svg className="ml-auto h-4 w-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </>
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {QUOTE_STATUS_OPTIONS.map((opt) => {
-                              const disabled = statusRequiresSignedQuote(opt.value) && !quoteSignedByCustomer
-                              return (
-                                <Tooltip key={opt.value}>
-                                  <TooltipTrigger asChild>
-                                    <div>
-                                      <DropdownMenuItem
-                                        onClick={() => handleStatusChange(opt.value)}
-                                        disabled={disabled}
-                                      >
-                                        {opt.label}
-                                      </DropdownMenuItem>
-                                    </div>
-                                  </TooltipTrigger>
-                                  {disabled && (
-                                    <TooltipContent side="right">
-                                      <p>Quote must be signed by customer first</p>
-                                    </TooltipContent>
-                                  )}
-                                </Tooltip>
-                              )
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BadgeCheck className="h-4 w-4 text-slate-500" />
+                    <h3 className="text-lg font-semibold text-gray-900">Status</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <Badge className={`${getStatusColor(currentJob.status)} text-xs`}>
+                      {currentJob.status}
+                    </Badge>
+                    <p className="text-sm text-gray-600">{statusDescription}</p>
+                    {getQuoteLinkUrl() && (
+                      <p className="text-xs text-gray-500 break-all">{getQuoteLinkUrl()}</p>
                     )}
-                    <Button
-                      size="lg"
-                      className="w-full justify-start h-12 text-base"
-                      variant="outline"
-                      onClick={() => window.print()}
-                    >
-                      <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
-                      Print / Save PDF
-                    </Button>
                   </div>
                 </Card>
+
+                <Card className="bg-white shadow-lg p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock3 className="h-4 w-4 text-slate-500" />
+                    <h3 className="text-lg font-semibold text-gray-900">Activity</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {activityItems.map((item) => (
+                      <div key={`${item.label}-${item.value}`} className="flex gap-3">
+                        <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-300" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                          <p className="text-sm text-gray-500">{item.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
                 {/* Change Orders Card */}
                 {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
                   <Card className="bg-white shadow-lg p-4 sm:p-6">
@@ -1245,6 +1451,7 @@ export function PersonalizedQuoteView({
             customerName={contractorProfile?.company_name || "Contractor"}
             onComplete={handleContractorSignatureComplete}
             onClose={() => setShowContractorSignature(false)}
+            isSubmitting={signingInProgress}
           />
         )}
 
@@ -1253,11 +1460,86 @@ export function PersonalizedQuoteView({
             customerName={currentJob.client?.name || "Customer"}
             onComplete={handleCustomerSignatureComplete}
             onClose={() => setShowCustomerSignature(false)}
+            isSubmitting={signingInProgress}
           />
         )}
+
+        {/* Create Invoice Sub-Modal */}
+        <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogTitle className="text-lg font-semibold">Create Invoice</DialogTitle>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-gray-600">
+                Create an invoice for <strong>{currentJob.client?.name || "this client"}</strong> based on the accepted quote.
+              </p>
+
+              {/* ContractorOps invoice - always on */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-50 border border-sky-200">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-sky-500 bg-sky-500">
+                  <Check className="h-3 w-3 text-white stroke-[3]" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Create ContractorOps Invoice</p>
+                  <p className="text-xs text-gray-500">Invoice will be saved and available in your Invoices tab</p>
+                </div>
+              </div>
+
+              {/* Optional QBO invoice */}
+              {qboConnected && !currentJob.qbo_invoice_id && (
+                <button
+                  type="button"
+                  className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${
+                    alsoCreateQBO
+                      ? "bg-green-50 border-green-300"
+                      : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => setAlsoCreateQBO(!alsoCreateQBO)}
+                >
+                  <div
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                      alsoCreateQBO ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"
+                    }`}
+                  >
+                    {alsoCreateQBO && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <svg className="h-4 w-4 shrink-0" viewBox="0 0 40 40" fill="none">
+                        <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                        <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                        <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                      </svg>
+                      <p className="text-sm font-medium text-gray-900">Also create QuickBooks invoice</p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">Sync this invoice to QuickBooks Online</p>
+                  </div>
+                </button>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowInvoiceModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setShowInvoiceModal(false)
+                    onCreateInvoice?.(alsoCreateQBO)
+                  }}
+                  disabled={creatingInvoice}
+                >
+                  {creatingInvoice ? "Creating…" : "Create Invoice"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>
   )
 }
-

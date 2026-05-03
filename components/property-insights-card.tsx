@@ -185,11 +185,11 @@ export function PropertyInsightsCard({
   return (
     <>
     <Card
-      className={`overflow-hidden border border-border shadow-xs border-l-2 border-l-emerald-400/70 dark:border-l-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/15 rounded-md animate-in fade-in duration-200 ${className ?? ""}`}
+      className={`overflow-hidden border border-border shadow-xs border-l-2 border-l-emerald-400/70 dark:border-l-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/15 rounded-lg sm:rounded-md animate-in fade-in duration-200 ${className ?? ""}`}
     >
-      <div className="px-3 py-1">
-        <div className="flex items-center gap-6 flex-wrap">
-          <h3 className="text-sm font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400 flex items-center gap-1.5 shrink-0" style={{ fontFamily: 'var(--font-sans)' }}>
+      <div className="px-3 py-3 sm:py-1">
+        <div className="flex items-center gap-3 flex-wrap sm:gap-6">
+          <h3 className="flex min-w-full items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400 sm:min-w-0 sm:shrink-0" style={{ fontFamily: 'var(--font-sans)' }}>
             <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 dark:bg-emerald-500/20" aria-hidden>
               <Home className="h-3.5 w-3.5 text-emerald-600/80 dark:text-emerald-400/80" />
             </span>
@@ -242,7 +242,7 @@ export function PropertyInsightsCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-2.5 text-sm border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded shrink-0"
+              className="h-10 min-w-full rounded-lg border-emerald-200 px-2.5 text-sm text-emerald-600 dark:border-emerald-800 dark:text-emerald-400 sm:h-7 sm:min-w-0 sm:rounded"
               onClick={fetchInsights}
               disabled={loading}
             >
@@ -253,7 +253,7 @@ export function PropertyInsightsCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-sm text-muted-foreground hover:text-foreground shrink-0"
+              className="h-10 min-w-full rounded-lg px-2 text-sm text-muted-foreground hover:text-foreground sm:h-7 sm:min-w-0"
               onClick={openDetails}
             >
               <FileText className="h-4 w-4 mr-1" />

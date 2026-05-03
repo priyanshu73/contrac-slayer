@@ -35,10 +35,31 @@ export function ClientsSearch({
   }
 
   return (
-    <div className="flex w-full sm:w-auto min-w-0 flex-1 items-center gap-2 sm:gap-3">
-      {/* Status dropdown - Active as default */}
+    <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
+      <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-white p-1 shadow-sm sm:hidden">
+        <button
+          type="button"
+          onClick={() => handleStatusChange("active")}
+          className={`h-10 rounded-md px-3 text-sm font-semibold transition-colors ${
+            !showArchived ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600"
+          }`}
+        >
+          {tFilters("active")}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatusChange("archived")}
+          className={`h-10 rounded-md px-3 text-sm font-semibold transition-colors ${
+            showArchived ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600"
+          }`}
+        >
+          {tFilters("archived")}
+        </button>
+      </div>
+
+      {/* Status dropdown remains on larger layouts where it saves horizontal space. */}
       <Select value={statusValue} onValueChange={handleStatusChange}>
-        <SelectTrigger className="w-[110px] sm:w-[130px] h-11 sm:h-10 min-h-[44px] sm:min-h-0 border-slate-200 bg-white shrink-0">
+        <SelectTrigger className="hidden h-11 min-h-[44px] w-full shrink-0 rounded-lg border-slate-200 bg-white shadow-sm sm:flex sm:h-10 sm:w-[130px] sm:min-h-0 sm:shadow-none">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -52,7 +73,7 @@ export function ClientsSearch({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-slate-400" />
         <Input
           placeholder={t("searchClients")}
-          className="w-full min-w-0 pl-10 h-11 sm:h-10 min-h-[44px] sm:min-h-0 border-slate-200 bg-white text-base sm:text-sm"
+          className="h-12 min-h-[44px] w-full min-w-0 rounded-lg border-slate-200 bg-white pl-10 text-base shadow-sm sm:h-10 sm:min-h-0 sm:text-sm sm:shadow-none"
           value={searchQuery || ""}
           onChange={(e) => onSearchChange?.(e.target.value)}
         />

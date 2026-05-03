@@ -147,15 +147,16 @@ export function ClientCommunicationsCard({
 
   return (
     <>
-      <Card className="p-4 sm:p-5 min-w-0 overflow-hidden">
+      <Card className="rounded-lg p-4 sm:rounded-xl sm:p-5 min-w-0 overflow-hidden">
         <div className="space-y-3 mb-4 min-w-0 overflow-hidden">
-          <div className="flex flex-wrap gap-2 [&>button]:shrink-0 [&>button]:touch-manipulation">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&>button]:shrink-0 [&>button]:touch-manipulation">
             {clientEmail && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" asChild>
-                    <a href={`mailto:${clientEmail}`}>
+                  <Button size="sm" variant="outline" className="h-11 rounded-lg sm:h-10 sm:w-10 sm:p-0" asChild>
+                    <a href={`mailto:${clientEmail}`} className="flex items-center justify-center gap-1.5">
                       <MailIcon className="h-4 w-4" />
+                      <span className="sm:hidden">{t("email")}</span>
                     </a>
                   </Button>
                 </TooltipTrigger>
@@ -165,15 +166,16 @@ export function ClientCommunicationsCard({
             {canSendMessage && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => setSendSmsOpen(true)}>
+                  <Button size="sm" className="h-11 rounded-lg sm:h-10 sm:w-10 sm:p-0" onClick={() => setSendSmsOpen(true)}>
                     <MessageSquare className="h-4 w-4" />
+                    <span className="sm:hidden">{t("message")}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t("message")}</TooltipContent>
               </Tooltip>
             )}
             {spId && (
-              <Button size="sm" variant="outline" className="shrink-0" onClick={() => setScheduleOpen(true)}>
+              <Button size="sm" variant="outline" className="col-span-2 h-11 rounded-lg sm:col-span-1 sm:h-9" onClick={() => setScheduleOpen(true)}>
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 {t("scheduleFollowup")}
               </Button>
@@ -199,7 +201,7 @@ export function ClientCommunicationsCard({
               {followups.slice(0, 5).map((f) => (
                 <li
                   key={f.id}
-                  className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs hover:bg-muted/60 min-w-0 overflow-hidden"
+                  className="flex items-start gap-2 rounded-lg bg-muted/40 px-3 py-2 text-xs hover:bg-muted/60 min-w-0 overflow-hidden"
                 >
                   <span className="text-muted-foreground shrink-0 mt-0.5">
                     {followupTypeIcons[f.followup_type]}
@@ -228,7 +230,7 @@ export function ClientCommunicationsCard({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        className="h-8 w-8 text-destructive hover:text-destructive sm:h-6 sm:w-6"
                         onClick={() => {
                           setFollowupToDelete(f.id)
                           setDeleteDialogOpen(true)

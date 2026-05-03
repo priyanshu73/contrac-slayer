@@ -1,175 +1,350 @@
 "use client"
 
-import React, { useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { InvoicePreview } from "@/components/invoice-preview";
-import { AIConversationPreview } from "@/components/ai-conversation-preview";
-import { ProductRecommendations } from "@/components/product-recommendations";
-import ProjectManagementCard from "@/components/project-management-card";
-import { FileText, MessageSquare, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { ReactNode, useRef, useState, useEffect } from "react"
+import { motion, useInView } from "framer-motion"
+import { useTranslations } from "next-intl"
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  DollarSign,
+  Download,
+  MapPin,
+  Navigation,
+  PhoneCall,
+  RefreshCw,
+  Shield,
+  ShieldAlert,
+  Sparkles,
+  User,
+} from "lucide-react"
+import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
-export function Features() {
-  const t = useTranslations('landing');
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+const m = motion as any
 
-  const scroll = (dir: number) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    // Scroll by exactly one slide width (including gap) so each view shows a full slide
-    const first = el.firstElementChild as HTMLElement | null;
-    if (!first) return;
-    const slideWidth = first.getBoundingClientRect().width;
-    // read the gap from computed styles if available (fallback to 24px)
-    const gap = parseFloat(getComputedStyle(el).gap || "") || 24;
-    const distance = Math.round(slideWidth + gap);
-    el.scrollBy({ left: dir * distance, behavior: "smooth" });
-  };
-
-  // Auto-slide: rotate slides every N ms but keep manual controls active.
-  const autoRef = useRef<number | null>(null);
-  const AUTO_INTERVAL = 6000; // 6s
-
-  useEffect(() => {
-    const start = () => {
-      stop();
-      autoRef.current = window.setInterval(() => scroll(1), AUTO_INTERVAL);
-    };
-
-    const stop = () => {
-      if (autoRef.current) {
-        clearInterval(autoRef.current);
-        autoRef.current = null;
-      }
-    };
-
-    // start auto sliding
-    start();
-
-    // pause on hover over scroller
-    const el = scrollerRef.current;
-    if (el) {
-      el.addEventListener("mouseenter", stop);
-      el.addEventListener("mouseleave", start);
-    }
-
-    return () => {
-      stop();
-      if (el) {
-        el.removeEventListener("mouseenter", stop);
-        el.removeEventListener("mouseleave", start);
-      }
-    };
-  }, [scrollerRef]);
-
-  const slides = [
-    {
-      id: "invoices",
-      title: t('featuresInvoiceTitle'),
-      body: t('featuresInvoiceBody'),
-      icon: <FileText className="h-6 w-6 text-primary" />,
-      preview: <InvoicePreview />,
-    },
-    {
-      id: "calls",
-      title: t('featuresCallsTitle'),
-      body: t('featuresCallsBody'),
-      icon: <MessageSquare className="h-6 w-6 text-accent" />,
-      preview: <AIConversationPreview />,
-    },
-    {
-      id: "products",
-      title: t('featuresProductsTitle'),
-      body: t('featuresProductsBody'),
-      icon: <ShoppingCart className="h-6 w-6 text-chart-3" />,
-      preview: <ProductRecommendations />,
-    },
-    {
-      id: "pm",
-      title: t('featuresPmTitle'),
-      body: t('featuresPmBody'),
-      icon: null,
-      preview: <ProjectManagementCard />,
-    },
-  ];
-
+function Reveal({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section id="features" className="py-14 px-3 sm:px-4 sm:py-20 md:py-20 bg-white relative overflow-hidden dark:bg-background">
-      <div className="container mx-auto max-w-8xl">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl font-bold mb-2 text-balance sm:text-3xl md:text-5xl md:mb-3">{t('featuresSectionTitle')}</h2>
-          <p className="text-sm text-muted-foreground max-w-3xl mx-auto sm:text-base md:text-xl">{t('featuresSectionSubtitle')}</p>
-        </div>
+    <m.div
+      className={className}
+      initial={{ opacity: 0, y: 64, scale: 0.93 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </m.div>
+  )
+}
 
-        <div className="relative">
-          {/* Nav buttons for large screens only */}
-          <button
-            aria-label="Prev"
-            onClick={() => scroll(-1)}
-            className="hidden lg:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full h-12 w-12 rounded-full bg-white shadow-md z-20 mr-3"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-
-          <button
-            aria-label="Next"
-            onClick={() => scroll(1)}
-            className="hidden lg:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 translate-x-full h-12 w-12 rounded-full bg-white shadow-md z-20 ml-3"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-
-          <div className="w-full overflow-hidden">
-            <div
-              ref={scrollerRef}
-              className="flex gap-4 md:gap-6 overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x pb-4 scroll-smooth px-2 sm:px-4 md:px-8 lg:px-16"
-            >
-              {slides.map((s) => (
-                <article key={s.id} className="snap-center flex-shrink-0 w-[88vw] sm:w-[min(92vw,84rem)] min-h-0 md:w-[min(92vw,84rem)] lg:h-[64vh]">
-                  <div className="rounded-xl md:rounded-2xl p-4 sm:p-6 bg-gradient-to-br from-white to-gray-50 dark:from-background dark:to-muted/10 shadow-lg h-full flex flex-col">
-                    {/* Mobile: title + body on top, then compact preview */}
-                    <div className="flex flex-col lg:grid lg:grid-cols-[1.6fr_1fr] lg:gap-8 lg:items-center lg:h-full">
-                      <div className="order-2 lg:order-1 flex justify-center mt-4 lg:mt-0">
-                        <div className={`w-full ${s.id === 'pm' ? 'max-w-[85rem]' : 'max-w-[52rem]'}`}>
-                          <div className="rounded-lg md:rounded-xl border border-gray-200 bg-gray-50 shadow-sm overflow-hidden">
-                            <div className="bg-white p-2 sm:p-4 border-b border-gray-100">
-                              <div className="rounded-md overflow-hidden bg-white max-h-[200px] sm:max-h-[280px] lg:max-h-none">
-                                {s.preview}
-                              </div>
-                            </div>
-                            {/* keyboard area - hide on small mobile to save space */}
-                            <div className="bg-gray-100 p-2 sm:p-4 hidden sm:block">
-                              <div className="mx-auto w-full max-w-[48rem]">
-                                <div className="grid grid-cols-12 gap-1 sm:gap-2">
-                                  {Array.from({ length: 12 }).map((_, i) => (
-                                    <div key={i} className="h-1.5 sm:h-2 bg-gray-200 rounded-sm" />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="order-1 lg:order-2 flex items-center lg:h-full">
-                        <div className="w-full">
-                          <div className="flex items-start gap-3 sm:gap-4">
-                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center bg-muted/20 shrink-0">{s.icon}</div>
-                            <div className="min-w-0">
-                              <h3 className="text-xl font-semibold sm:text-2xl md:text-4xl">{s.title}</h3>
-                              <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base md:text-xl max-w-lg">{s.body}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-          {/* Mobile: swipe hint */}
-          <p className="text-center text-xs text-muted-foreground mt-3 lg:hidden">Swipe for more</p>
-        </div>
+function FeatureSection({
+  eyebrow,
+  title,
+  body,
+  visual,
+  reverse = false,
+}: {
+  eyebrow: string
+  title: string
+  body: string
+  visual: ReactNode
+  reverse?: boolean
+}) {
+  return (
+    <section className="scroll-mt-20 bg-[#fbf6f1] px-5 py-12 sm:px-8 lg:py-16">
+      <div className={`mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
+        {/* Visual — always on top on mobile (order-first), respects reverse only at lg */}
+        <Reveal className={`flex justify-center ${reverse ? "lg:order-2" : ""}`}>{visual}</Reveal>
+        {/* Text — always below visual on mobile */}
+        <Reveal className={`mx-auto max-w-xl text-center lg:mx-0 lg:text-left ${reverse ? "lg:order-1" : ""}`}>
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">{eyebrow}</p>
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl xl:text-6xl">
+            {title}
+          </h2>
+          <p className="mt-6 text-lg leading-8 text-slate-600 sm:text-xl">{body}</p>
+        </Reveal>
       </div>
     </section>
-  );
+  )
+}
+
+function EstimateShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInView = useInView(containerRef, { once: false, amount: 0.3 })
+  const [hasEntered, setHasEntered] = useState(false)
+
+  useEffect(() => {
+    if (isInView && !hasEntered) {
+      setHasEntered(true)
+    }
+  }, [isInView, hasEntered])
+
+  const show = hasEntered
+
+  return (
+    <m.div
+      ref={containerRef}
+      className="w-full max-w-[600px] rounded-[22px] border border-sky-100 bg-[linear-gradient(180deg,#f2f8ff_0%,#eaf4ff_100%)] p-4 hover:ring-4 hover:ring-sky-500/15 hover:shadow-xl"
+      initial={false}
+      animate={show ? { x: 0, scale: 1, opacity: 1 } : { x: -120, scale: 0.87, opacity: 0 }}
+      whileHover={{ y: -4, transition: { duration: 0.25, ease: "easeOut" } }}
+      transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+          <Activity className="h-5 w-5 text-sky-600" />
+          <p className="text-lg font-black text-slate-950">AI Project Estimator</p>
+        </div>
+
+        <div className="space-y-6 border-b border-slate-100 py-8 text-[15px] sm:text-base">
+          {[
+            ["Materials Processing", "$1,250.00"],
+            ["Labor Target (24h)", "$1,320.00"],
+            ["Contractor Margin (25%)", "$642.50"],
+          ].map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-6">
+              <span className="text-slate-950">{label}</span>
+              <span className="font-black text-slate-950">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-6 py-9">
+          <span className="text-lg font-black text-slate-950">Instant Quote Total</span>
+          <span className="text-lg font-black text-sky-700">$3,212.50</span>
+        </div>
+
+        <button type="button" className="h-10 w-full rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
+          Send to Client
+        </button>
+      </div>
+    </m.div>
+  )
+}
+
+function DispatchShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInView = useInView(containerRef, { once: false, amount: 0.3 })
+  const [hasEntered, setHasEntered] = useState(false)
+
+  useEffect(() => {
+    if (isInView && !hasEntered) {
+      setHasEntered(true)
+    }
+  }, [isInView, hasEntered])
+
+  const show = hasEntered
+
+  return (
+    <m.div
+      ref={containerRef}
+      className="w-full max-w-[600px] rounded-[22px] border border-orange-100 bg-[linear-gradient(180deg,#fff5f0_0%,#ffeee5_100%)] p-4 hover:ring-4 hover:ring-orange-500/15 hover:shadow-xl"
+      initial={false}
+      animate={show ? { x: 0, scale: 1, opacity: 1 } : { x: -120, scale: 0.87, opacity: 0 }}
+      whileHover={{ y: -4, transition: { duration: 0.25, ease: "easeOut" } }}
+      transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="overflow-hidden rounded-[18px] border border-[#E8E3D6] bg-[#FFFFFF]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#F0EDE3] px-[20px] py-[16px]">
+          <div className="flex items-center gap-2">
+            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px] bg-[#FF7F50]/10">
+              <Shield className="h-[14px] w-[14px]" stroke="#FF7F50" strokeWidth={2.5} />
+            </div>
+            <p className="text-[13px] font-semibold text-[#0A0A0A]">Subcontractor Dispatch</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full bg-[#F1FAF5] px-2 py-1 text-[11px] font-semibold text-[#047857]">
+            <span className="motion-safe-animate h-[5px] w-[5px] rounded-full bg-[#10B981]" style={{ animation: "subtle-pulse 2s infinite ease-in-out" }} />
+            Autonomous
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-5">
+          {/* Emergency Banner */}
+          <div className="flex items-start gap-3 rounded-[10px] border-l-[3px] border-l-[#FF7F50] bg-[#FFF8F4] p-[14px]">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" stroke="#FF7F50" strokeWidth={2.5} />
+            <div>
+              <p className="text-[13px] font-semibold text-[#0A0A0A]">Emergency dispatch required</p>
+              <p className="mt-1 text-[12px] text-[#5F5E5A]">
+                Water heater burst &middot; 104 Main St &middot; within 10 mi
+              </p>
+            </div>
+          </div>
+
+          {/* Section Label */}
+          <div className="mb-[10px] mt-[24px] flex items-center justify-between">
+            <span className="text-[10px] font-semibold tracking-[1.2px] text-[#888780]">DISPATCH QUEUE</span>
+            <span className="text-[10px] font-medium text-[#888780]">2 candidates</span>
+          </div>
+
+          {/* Queue Items */}
+          <div className="flex flex-col gap-[6px]">
+            {/* Active Row */}
+            <div
+              className={`relative flex items-center justify-between overflow-hidden rounded-[10px] border border-[#FF7F50] bg-[#FFFFFF] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
+              style={{ transitionDelay: show ? "0ms" : "0ms" }}
+            >
+              {/* Shimmer sweep effect */}
+              <div
+                className="motion-safe-animate absolute inset-0 z-0"
+                style={{
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,127,80,0.03) 50%, transparent 100%)",
+                  width: "200%",
+                  animation: "shimmer-sweep 3s infinite linear"
+                }}
+              />
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="relative flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#FF7F50]/10">
+                  {/* Animated pulsing ring */}
+                  <div
+                    className="motion-safe-animate absolute inset-0 rounded-full border border-[#FF7F50]"
+                    style={{ animation: "avatar-ring-pulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1)" }}
+                  />
+                  <span className="text-[12px] font-bold text-[#FF7F50]">DP</span>
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold text-[#0A0A0A]">David&apos;s Plumbing Pro</p>
+                  <p className="text-[12px] text-[#5F5E5A]">2.4 mi &middot; Priority 1</p>
+                </div>
+              </div>
+
+              <div className="relative z-10 flex h-[26px] items-center gap-1.5 rounded-full bg-[#FF7F50] px-3">
+                <div className="flex h-2.5 items-center gap-[2px]">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="motion-safe-animate w-[2px] rounded-full bg-white"
+                      style={{
+                        height: i === 1 ? "100%" : "60%",
+                        animation: `soundwave-bounce 0.85s infinite ease-in-out ${i * 0.15}s`
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] font-semibold text-white">Calling</span>
+              </div>
+            </div>
+
+            {/* Standby Row */}
+            <div
+              className={`flex items-center justify-between rounded-[10px] border border-[#F0EDE3] bg-[#FAFAFA] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
+              style={{ transitionDelay: show ? "200ms" : "0ms" }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#F1EFE8]">
+                  <span className="text-[12px] font-bold text-[#888780]">AW</span>
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold text-[#5F5E5A]">Apex Water Systems</p>
+                  <p className="text-[12px] text-[#5F5E5A]">4.1 mi &middot; Priority 2</p>
+                </div>
+              </div>
+              <span className="text-[11px] font-semibold text-[#B4B2A9]">Standby</span>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-[16px] flex items-center gap-1.5 border-t border-[#F0EDE3] pt-[14px]">
+            <RefreshCw className="h-[12px] w-[12px] text-[#888780]" />
+            <span className="text-[11px] font-medium text-[#888780]">Auto-routes to next sub if no answer in 30s</span>
+          </div>
+        </div>
+      </div>
+    </m.div>
+  )
+}
+
+function CostShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInView = useInView(containerRef, { once: false, amount: 0.3 })
+  const [hasEntered, setHasEntered] = useState(false)
+
+  useEffect(() => {
+    if (isInView && !hasEntered) {
+      setHasEntered(true)
+    }
+  }, [isInView, hasEntered])
+
+  const show = hasEntered
+
+  return (
+    <m.div
+      ref={containerRef}
+      className="w-full max-w-[600px] rounded-[22px] border border-green-100 bg-[linear-gradient(180deg,#f4faf2_0%,#ebf5e6_100%)] p-4 hover:ring-4 hover:ring-green-500/15 hover:shadow-xl"
+      initial={false}
+      animate={show ? { x: 0, scale: 1, opacity: 1 } : { x: -120, scale: 0.87, opacity: 0 }}
+      whileHover={{ y: -4, transition: { duration: 0.25, ease: "easeOut" } }}
+      transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+          <DollarSign className="h-5 w-5 text-[#228B22]" />
+          <p className="text-lg font-black text-slate-950">Smart Job Costing</p>
+          <span className="ml-auto flex items-center gap-1.5 rounded-full bg-[#228B22]/10 px-2.5 py-1 text-xs font-bold text-[#228B22]">
+            <RefreshCw className="h-3 w-3" />
+            Live Sync
+          </span>
+        </div>
+
+        <div className="space-y-6 border-b border-slate-100 py-8 text-[15px] sm:text-base">
+          {[
+            ["Total Hard Costs", "$16,660.00"],
+            ["Subcontractor Payouts", "$12,400.00"],
+            ["Materials & Permits", "$4,260.00"],
+            ["Target Margin (32%)", "$7,840.00"],
+          ].map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-6">
+              <span className="text-slate-950">{label}</span>
+              <span className="font-black text-slate-950">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-6 py-9">
+          <span className="text-lg font-black text-slate-950">Total Contract Value</span>
+          <span className="text-lg font-black text-[#228B22]">$24,500.00</span>
+        </div>
+
+        <button type="button" className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
+          <RefreshCw className="h-4 w-4" />
+          Sync to QuickBooks
+        </button>
+      </div>
+    </m.div>
+  )
+}
+
+export function Features() {
+  const t = useTranslations("landing")
+
+  return (
+    <div id="features" className="bg-[#fbf6f1]">
+      <FeatureSection
+        eyebrow={t("featureLeadEyebrow")}
+        title={t("featuresCallsTitle")}
+        body={t("featuresCallsBody")}
+        visual={<PhoneMessagePreview className="w-[272px] sm:w-[296px] md:w-[320px]" />}
+      />
+      <FeatureSection
+        eyebrow={t("featureEstimateEyebrow")}
+        title={t("featureEstimateTitle")}
+        body={t("featureEstimateBody")}
+        visual={<EstimateShowcase />}
+        reverse
+      />
+      <FeatureSection
+        eyebrow={t("featureDispatchEyebrow")}
+        title={t("featuresDispatchTitle")}
+        body={t("featuresDispatchBody")}
+        visual={<DispatchShowcase />}
+      />
+      <FeatureSection
+        eyebrow={t("featureFinanceEyebrow")}
+        title={t("featuresFinTitle")}
+        body={t("featuresFinBody")}
+        visual={<CostShowcase />}
+        reverse
+      />
+    </div>
+  )
 }

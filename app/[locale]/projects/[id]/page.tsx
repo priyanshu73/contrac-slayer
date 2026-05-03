@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { api } from "@/lib/api"
@@ -13,12 +13,16 @@ import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
-import { ChevronLeft, ChevronDown, Loader2 } from "lucide-react"
+import { ProjectFinancials } from "@/components/projects/financials/project-financials"
+import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { ChevronDown, Loader2, User, Search, X } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ProjectDetailPage() {
   const params = useParams()
   const locale = useLocale()
   const t = useTranslations("projects.detail")
+  const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,12 +49,32 @@ export default function ProjectDetailPage() {
     }
   }, [projectId])
 
+  const refreshProject = async () => {
+    if (!projectId) return
+    const data = await api.getProject(projectId)
+    setProject(data as Project)
+  }
+
   const handleTasksUpdated = (tasks: ProjectTask[]) => {
     setProject((prev) => (prev ? { ...prev, tasks } : prev))
   }
 
   const handleTradesUpdated = (trades: ProjectTrade[]) => {
     setProject((prev) => (prev ? { ...prev, trades } : prev))
+  }
+
+  const handleClientChange = async (newClientId: number | null) => {
+    if (!project) return
+    const prevClientId = project.client_id
+    setProject({ ...project, client_id: newClientId ?? undefined })
+    try {
+      await api.updateProject(project.id, { client_id: newClientId })
+      toast({ title: "Client updated" })
+    } catch (err) {
+      console.error("Failed to update client", err)
+      setProject({ ...project, client_id: prevClientId })
+      toast({ title: "Failed to update client", variant: "destructive" })
+    }
   }
 
   const handleStatusChange = async (newStatus: string) => {
@@ -74,43 +98,73 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col">
+        <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full border border-slate-200 bg-white shrink-0 self-start mt-1"
-                onClick={() => {
-                  window.location.href = `/${locale}/projects`
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex flex-col gap-1.5">
-                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight">
-                  {project.title}
-                </h1>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-                  <div className="flex items-center gap-1 font-medium text-slate-700">
-                    <span className="text-slate-500">From:</span>
-                    <span>{project.scheduled_start_date || "–"}</span>
-                    <span className="text-slate-500 ml-1">To:</span>
-                    <span>{project.scheduled_end_date || "–"}</span>
-                  </div>
-
-                  {project.objective && (
-                    <span className="line-clamp-1 text-slate-500">
-                      • {project.objective}
-                    </span>
-                  )}
+          <div className="w-full max-w-none flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-0.5 lg:flex-1 min-w-0">
+              <AppBreadcrumb
+                items={[
+                  { label: "Projects", href: `/${locale}/projects` },
+                  { label: project.title },
+                ]}
+              />
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight truncate">
+                {project.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1 font-medium text-slate-700">
+                  <span className="text-slate-500">From:</span>
+                  <span>{project.scheduled_start_date || "–"}</span>
+                  <span className="text-slate-500 ml-1">To:</span>
+                  <span>{project.scheduled_end_date || "–"}</span>
                 </div>
+
+                <ClientPicker
+                  projectId={project.id}
+                  currentClientId={project.client_id}
+                  onChange={handleClientChange}
+                />
+
+                {project.objective && (
+                  <span className="line-clamp-1 text-slate-500">
+                    • {project.objective}
+                  </span>
+                )}
               </div>
             </div>
-            <div className="flex flex-col sm:items-end gap-2 mt-3 sm:mt-0">
+
+            <div className="flex justify-start lg:justify-center overflow-x-auto sm:my-2 lg:my-0 lg:mx-4 shrink-0">
+              <TabsList className="mb-1 flex w-max flex-nowrap rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm lg:mb-0">
+                <TabsTrigger
+                  value="tasks"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.tasks") || "Tasks"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="financials"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.financials") || "Financials"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="documents"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger
+                  value="trades"
+                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
+                >
+                  {t("tabs.trades") || "Team & scopes"}
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex flex-col lg:items-end gap-2 lg:flex-1 shrink-0 mt-1 lg:mt-0">
               <div className="flex items-center gap-3">
                 <StatusDropdown status={project.status} onChange={handleStatusChange} />
                 {project.contract_value != null && (
@@ -124,29 +178,28 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-        <div className="max-w-7xl mx-auto space-y-4">          <Tabs defaultValue="tasks" className="space-y-4">
-          <TabsList className="bg-slate-100 flex flex-nowrap overflow-x-auto">
-            <TabsTrigger value="tasks">{t("tabs.tasks") || "Tasks"}</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="trades">{t("tabs.trades") || "Team & scopes"}</TabsTrigger>
-          </TabsList>
+      <main className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
+        <div className="w-full max-w-none space-y-4">
 
-          <TabsContent value="tasks" className="mt-4">
+          <TabsContent value="tasks" className="mt-0">
             <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
           </TabsContent>
 
-          <TabsContent value="documents" className="mt-4 space-y-6">
+          <TabsContent value="financials" className="mt-0">
+            <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-0 space-y-6">
             <ProjectQuotes project={project} />
             <ProjectDocuments project={project} />
           </TabsContent>
 
-          <TabsContent value="trades" className="mt-4">
+          <TabsContent value="trades" className="mt-0">
             <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
           </TabsContent>
-        </Tabs>
         </div>
       </main>
+      </Tabs>
     </div>
   )
 }
@@ -180,3 +233,106 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
   )
 }
 
+interface SimpleClient { id: number; name: string; phone?: string }
+
+function ClientPicker({
+  projectId,
+  currentClientId,
+  onChange,
+}: {
+  projectId: number
+  currentClientId?: number
+  onChange: (clientId: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [clients, setClients] = useState<SimpleClient[]>([])
+  const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState("")
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    api.getClients(0, 200)
+      .then((data: any) => setClients(Array.isArray(data) ? data : data?.items ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return clients.filter(c => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
+  }, [clients, search])
+
+  const current = clients.find(c => c.id === currentClientId)
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+      >
+        <User className="w-3 h-3" />
+        {current ? current.name : <span className="text-slate-400">Assign Client</span>}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-50 w-56 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search clients..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+            ) : filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-slate-400">No clients found</p>
+            ) : (
+              <>
+                {currentClientId && (
+                  <button
+                    className="w-full px-3 py-2 text-left text-xs text-rose-500 hover:bg-rose-50 flex items-center gap-1.5 border-b border-slate-100"
+                    onClick={() => { onChange(null); setOpen(false) }}
+                  >
+                    <X className="w-3 h-3" /> Remove client
+                  </button>
+                )}
+                {filtered.map(c => (
+                  <button
+                    key={c.id}
+                    className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                      c.id === currentClientId ? "bg-slate-50 font-semibold" : ""
+                    }`}
+                    onClick={() => { onChange(c.id); setOpen(false); setSearch("") }}
+                  >
+                    <span className="text-slate-900">{c.name}</span>
+                    {c.phone && <span className="text-slate-400 ml-1.5">{c.phone}</span>}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

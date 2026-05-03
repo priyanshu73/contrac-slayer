@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useLocale, useTranslations } from "next-intl"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -12,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +31,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { api } from "@/lib/api"
-import { useTranslations } from "next-intl"
+import { FileText, Plus, Search, Trash2, ChevronRight, ChevronDown } from "lucide-react"
 
 interface ClientInfo {
   id: number
@@ -38,102 +45,252 @@ interface ClientInfo {
 interface Quote {
   id: number
   client_id?: number
-  client?: ClientInfo  // Client details populated from client_id
+  client?: ClientInfo
   status: string
   total_amount: number
   created_at: string
   updated_at?: string
+  title?: string | null
+  created_from_job_id?: number | null
 }
 
 const ITEMS_PER_PAGE = 10
 
+const STATUS_ORDER = [
+  "DRAFT",
+  "SENT",
+  "ACCEPTED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "INVOICED",
+  "PAID",
+  "CANCELLED",
+] as const
+
+function statusBadgeClass(status: string): string {
+  switch (status?.toUpperCase()) {
+    case "DRAFT":
+      return "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/25"
+    case "SENT":
+      return "bg-blue-500/15 text-blue-800 dark:text-blue-200 border-blue-500/25"
+    case "VIEWED":
+      return "bg-violet-500/15 text-violet-800 dark:text-violet-200 border-violet-500/25"
+    case "CUSTOMER_MODIFIED":
+      return "bg-fuchsia-500/15 text-fuchsia-800 dark:text-fuchsia-200 border-fuchsia-500/25"
+    case "ACCEPTED":
+      return "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/25"
+    case "REJECTED":
+      return "bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/25"
+    case "IN_PROGRESS":
+      return "bg-sky-500/15 text-sky-800 dark:text-sky-200 border-sky-500/25"
+    case "COMPLETED":
+      return "bg-teal-500/15 text-teal-800 dark:text-teal-200 border-teal-500/25"
+    case "INVOICED":
+      return "bg-indigo-500/15 text-indigo-800 dark:text-indigo-200 border-indigo-500/25"
+    case "PAID":
+      return "bg-green-600/15 text-green-800 dark:text-green-200 border-green-600/25"
+    case "CANCELLED":
+      return "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/25"
+    default:
+      return "bg-muted text-muted-foreground border-border"
+  }
+}
+
+function statusAccentClass(status: string): string {
+  switch (status?.toUpperCase()) {
+    case "DRAFT":
+      return "border-l-amber-500"
+    case "SENT":
+      return "border-l-blue-500"
+    case "VIEWED":
+      return "border-l-violet-500"
+    case "CUSTOMER_MODIFIED":
+      return "border-l-fuchsia-500"
+    case "ACCEPTED":
+      return "border-l-emerald-500"
+    case "REJECTED":
+      return "border-l-red-500"
+    case "IN_PROGRESS":
+      return "border-l-sky-500"
+    case "COMPLETED":
+      return "border-l-teal-500"
+    case "INVOICED":
+      return "border-l-indigo-500"
+    case "PAID":
+      return "border-l-green-600"
+    case "CANCELLED":
+      return "border-l-slate-400"
+    default:
+      return "border-l-muted-foreground/40"
+  }
+}
+
+function formatStatusLabel(status: string): string {
+  if (!status) return ""
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export default function QuotesPage() {
   const router = useRouter()
+  const locale = useLocale()
   const { toast } = useToast()
-  const isMobile = useIsMobile()
-  const t = useTranslations('filters')
+  const tFilters = useTranslations("filters")
+  const tQuotes = useTranslations("quotes")
+
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined)
+  const [activeStatuses, setActiveStatuses] = useState<string[]>([])
+  const [clientFilterId, setClientFilterId] = useState<number | undefined>(undefined)
+  const [searchInput, setSearchInput] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [clients, setClients] = useState<ClientInfo[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
-  useEffect(() => {
-    // Reset to page 1 when filter changes
-    setCurrentPage(1)
-    fetchQuotes(1)
-  }, [activeFilter])
+  const basePath = `/${locale}/quotes`
 
-  const fetchQuotes = async (page: number) => {
-    try {
-      setLoading(true)
-      const skip = (page - 1) * ITEMS_PER_PAGE
-      // Fetch one extra to check if there are more pages
-      const data = await api.getMyJobs(activeFilter, skip, ITEMS_PER_PAGE + 1) as Quote[]
-      
-      // Check if there are more pages
-      if (data.length > ITEMS_PER_PAGE) {
-        setHasMore(true)
-        setQuotes(data.slice(0, ITEMS_PER_PAGE))
-      } else {
-        setHasMore(false)
-        setQuotes(data)
-      }
-    } catch (error) {
-      console.error("Failed to fetch quotes:", error)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getClients(0, 500)
+      .then((raw) => {
+        if (cancelled) return
+        const arr = Array.isArray(raw) ? raw : []
+        const mapped: ClientInfo[] = arr.map((c: { id: number; name: string; email: string; phone?: string }) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+        }))
+        mapped.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+        setClients(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) setClients([])
+      })
+    return () => {
+      cancelled = true
     }
-  }
+  }, [])
+
+  const loadPage = useCallback(
+    async (page: number) => {
+      try {
+        setLoading(true)
+        const skip = (page - 1) * ITEMS_PER_PAGE
+        const selectedStatuses = STATUS_ORDER.filter((code) => activeStatuses.includes(code))
+
+        if (selectedStatuses.length <= 1) {
+          const statusFilter = selectedStatuses[0]
+          const data = (await api.getMyJobs(
+            statusFilter,
+            skip,
+            ITEMS_PER_PAGE + 1,
+            clientFilterId,
+            debouncedSearch || undefined
+          )) as Quote[]
+
+          if (data.length > ITEMS_PER_PAGE) {
+            setHasMore(true)
+            setQuotes(data.slice(0, ITEMS_PER_PAGE))
+          } else {
+            setHasMore(false)
+            setQuotes(data)
+          }
+          return
+        }
+
+        const batchSize = 100
+        const maxBatches = 10
+        let cursor = 0
+        let allJobs: Quote[] = []
+
+        for (let i = 0; i < maxBatches; i++) {
+          const chunk = (await api.getMyJobs(
+            undefined,
+            cursor,
+            batchSize,
+            clientFilterId,
+            debouncedSearch || undefined
+          )) as Quote[]
+          allJobs = allJobs.concat(chunk)
+          if (chunk.length < batchSize) break
+          cursor += batchSize
+        }
+
+        const filtered = allJobs.filter((quote) =>
+          selectedStatuses.some((statusCode) => statusCode === String(quote.status).toUpperCase())
+        )
+        setQuotes(filtered.slice(skip, skip + ITEMS_PER_PAGE))
+        setHasMore(skip + ITEMS_PER_PAGE < filtered.length)
+      } catch (error) {
+        console.error("Failed to fetch quotes:", error)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [activeStatuses, debouncedSearch, clientFilterId]
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+    loadPage(1)
+  }, [activeStatuses, debouncedSearch, clientFilterId, loadPage])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    fetchQuotes(page)
-    // Scroll to top of page
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    loadPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "DRAFT":
-        return "bg-amber-500/15 text-amber-600"
-      case "SENT":
-        return "bg-blue-500/15 text-blue-600"
-      case "VIEWED":
-        return "bg-purple-500/15 text-purple-600"
-      case "ACCEPTED":
-        return "bg-emerald-500/15 text-emerald-600"
-      case "REJECTED":
-        return "bg-red-500/15 text-red-600"
-      case "IN_PROGRESS":
-        return "bg-sky-500/15 text-sky-600"
-      case "COMPLETED":
-        return "bg-teal-500/15 text-teal-600"
-      default:
-        return "bg-muted text-muted-foreground"
+  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || debouncedSearch.length > 0
+
+  const clearFilters = () => {
+    setActiveStatuses([])
+    setClientFilterId(undefined)
+    setSearchInput("")
+    setDebouncedSearch("")
+  }
+
+  const toggleStatusFilter = (statusCode: string) => {
+    setActiveStatuses((prev) =>
+      prev.includes(statusCode) ? prev.filter((s) => s !== statusCode) : [...prev, statusCode]
+    )
+  }
+
+  const statusLabel = useMemo(() => {
+    const map: Record<string, string> = {
+      DRAFT: tFilters("draft"),
+      SENT: tFilters("sent"),
+      VIEWED: tFilters("viewed"),
+      ACCEPTED: tFilters("accepted"),
+      REJECTED: tFilters("rejected"),
+      IN_PROGRESS: tFilters("inProgress"),
+      COMPLETED: tFilters("completed"),
+      INVOICED: tFilters("invoiced"),
+      PAID: tFilters("paid"),
+      CANCELLED: tFilters("cancelled"),
+      CUSTOMER_MODIFIED: tFilters("customerModified"),
     }
-  }
+    return (code: string) => map[code] ?? formatStatusLabel(code)
+  }, [tFilters])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-
-  const handleRefresh = () => {
-    fetchQuotes(currentPage)
-  }
+  const statusFilterLabel = useMemo(() => {
+    if (activeStatuses.length === 0) return tFilters("all")
+    if (activeStatuses.length === 1) return statusLabel(activeStatuses[0])
+    return `${activeStatuses.length} statuses`
+  }, [activeStatuses, statusLabel, tFilters])
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
     e.preventDefault()
@@ -150,16 +307,16 @@ export default function QuotesPage() {
       await api.deleteJob(quoteToDelete.id)
       toast({
         title: "Quote deleted",
-        description: `Quote for ${quoteToDelete.client?.name || 'client'} has been deleted successfully.`,
+        description: `Quote for ${quoteToDelete.client?.name || "client"} has been deleted successfully.`,
       })
       setDeleteDialogOpen(false)
       setQuoteToDelete(null)
-      // Refresh the quotes list - go to page 1 if current page becomes empty
       if (quotes.length === 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1)
-        fetchQuotes(currentPage - 1)
+        const p = currentPage - 1
+        setCurrentPage(p)
+        loadPage(p)
       } else {
-        fetchQuotes(currentPage)
+        loadPage(currentPage)
       }
     } catch (error) {
       console.error("Failed to delete quote:", error)
@@ -173,212 +330,260 @@ export default function QuotesPage() {
     }
   }
 
-  const getFilterLabel = (filter: string | undefined) => {
-    if (filter === undefined) return t('all')
-    const filterKey = filter.toLowerCase() as keyof typeof t
-    return t(filterKey as any) || filter.charAt(0) + filter.slice(1).toLowerCase()
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-6">
-      <main className="container mx-auto px-4 py-6">
-        {/* Filters */}
-        <Card className="mb-4 p-3">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-            {/* Mobile: Dropdown, Desktop: Buttons */}
-            {isMobile ? (
-              <div className="flex items-center gap-2">
-                <Select
-                  value={activeFilter || "all"}
-                  onValueChange={(value) => setActiveFilter(value === "all" ? undefined : value)}
-                >
-                  <SelectTrigger className="flex-1 min-w-0">
-                    <SelectValue>
-                      {getFilterLabel(activeFilter)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('all')}</SelectItem>
-                    <SelectItem value="DRAFT">{t('draft')}</SelectItem>
-                    <SelectItem value="SENT">{t('sent')}</SelectItem>
-                    <SelectItem value="ACCEPTED">{t('accepted')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={activeFilter === undefined ? "default" : "outline"}
-                  onClick={() => setActiveFilter(undefined)}
-                  size="sm"
-                >
-                  {t('all')}
-                </Button>
-                <Button
-                  variant={activeFilter === "DRAFT" ? "default" : "outline"}
-                  onClick={() => setActiveFilter("DRAFT")}
-                  size="sm"
-                >
-                  {t('draft')}
-                </Button>
-                <Button
-                  variant={activeFilter === "SENT" ? "default" : "outline"}
-                  onClick={() => setActiveFilter("SENT")}
-                  size="sm"
-                >
-                  {t('sent')}
-                </Button>
-                <Button
-                  variant={activeFilter === "ACCEPTED" ? "default" : "outline"}
-                  onClick={() => setActiveFilter("ACCEPTED")}
-                  size="sm"
-                >
-                  {t('accepted')}
-                </Button>
-              </div>
-            )}
-            <Button asChild className="w-full sm:w-auto">
-              <a href="/quotes/new">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+    <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-24 md:pb-10">
+      <main className="container mx-auto max-w-5xl px-3 py-4 md:px-4 md:py-8">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between md:hidden">
+          <p className="text-sm text-muted-foreground">{tQuotes("listSubtitle")}</p>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" className="w-full gap-1.5 rounded-xl sm:w-auto">
+              <a href={`${basePath}/new`}>
+                <Plus className="h-4 w-4" />
                 New Quote
               </a>
             </Button>
           </div>
-        </Card>
+        </div>
+        <div className="mb-6 hidden flex-col gap-4 sm:flex-row sm:items-start sm:justify-between md:flex">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FileText className="h-5 w-5" />
+              </span>
+              {tQuotes("listTitle")}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1.5 pl-0 sm:pl-12">{tQuotes("listSubtitle")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" className="gap-1.5">
+              <a href={`${basePath}/new`}>
+                <Plus className="h-4 w-4" />
+                New Quote
+              </a>
+            </Button>
+          </div>
+        </div>
 
-        {/* Loading State */}
+        <div className="mb-5 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={tQuotes("searchPlaceholder")}
+                className="h-12 rounded-xl bg-background pl-9 text-base shadow-xs md:h-10 md:rounded-md md:bg-transparent md:text-sm md:shadow-none"
+                aria-label={tQuotes("searchPlaceholder")}
+              />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
+              <div className="min-w-[150px] flex-1 md:flex-none">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full min-w-[150px] justify-between rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-md md:bg-transparent"
+                    >
+                      <span className="truncate">{statusFilterLabel}</span>
+                      <ChevronDown className="h-4 w-4 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[240px]">
+                    {STATUS_ORDER.map((code) => (
+                      <DropdownMenuCheckboxItem
+                        key={code}
+                        checked={activeStatuses.includes(code)}
+                        onCheckedChange={() => toggleStatusFilter(code)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`inline-block h-2 w-2 rounded-full shrink-0 ${
+                              code === "PAID"
+                                ? "bg-green-600"
+                                : code === "INVOICED"
+                                  ? "bg-indigo-500"
+                                  : code === "ACCEPTED"
+                                    ? "bg-emerald-500"
+                                    : code === "DRAFT"
+                                      ? "bg-amber-500"
+                                      : "bg-muted-foreground/60"
+                            }`}
+                          />
+                          {statusLabel(code)}
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="min-w-[180px] flex-1 md:flex-none">
+                <Select
+                  value={clientFilterId != null ? String(clientFilterId) : "all"}
+                  onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
+                    <SelectValue placeholder="Client" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    <SelectItem value="all">{tQuotes("allClients")}</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)} textValue={`${c.name} ${c.email}`}>
+                        <span className="truncate block">{c.name}</span>
+                        <span className="text-muted-foreground text-xs truncate block">{c.email}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {hasActiveFilters && (
+                <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-md" onClick={clearFilters}>
+                  {tQuotes("clearFilters")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="p-3">
-                <div className="animate-pulse flex justify-between">
-                  <div className="h-4 bg-muted rounded w-1/4" />
-                  <div className="h-4 bg-muted rounded w-16" />
+              <Card key={i} className="rounded-2xl border-l-4 border-l-muted p-4 animate-pulse md:rounded-xl">
+                <div className="flex justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-2/3" />
+                  </div>
+                  <div className="h-6 bg-muted rounded w-20" />
                 </div>
-                <div className="h-3 bg-muted rounded w-1/2 mt-1.5" />
               </Card>
             ))}
           </div>
         ) : quotes.length === 0 ? (
-          /* Empty State */
-          <Card className="p-8 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+          <Card className="rounded-2xl border-dashed bg-muted/20 p-7 text-center md:p-10">
+            <div className="flex flex-col items-center gap-3 max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <FileText className="w-7 h-7 text-primary" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold mb-1">No quotes yet</h3>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {activeFilter
-                    ? `No ${activeFilter.toLowerCase()} quotes found`
-                    : "Create your first quote to get started"}
-                </p>
-                <Button size="sm" asChild>
-                  <a href="/quotes/new">Create Quote</a>
+              <h3 className="text-lg font-semibold">{hasActiveFilters ? tQuotes("noMatches") : "No quotes yet"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters ? tQuotes("tryAdjustFilters") : "Create your first quote to get started."}
+              </p>
+              {!hasActiveFilters && (
+                <Button size="sm" asChild className="mt-2 w-full md:w-auto">
+                  <a href={`${basePath}/new`}>Create Quote</a>
                 </Button>
-              </div>
+              )}
             </div>
           </Card>
         ) : (
-          /* Quotes List */
-          <div className="space-y-2">
+          <div className="space-y-3">
             {quotes.map((quote) => (
-              <div
-                key={quote.id}
-                className="group relative"
-              >
-                <Card 
-                  className="p-3 hover:shadow-md transition-all hover:border-primary/50 cursor-pointer"
-                  onClick={() => router.push(`/quotes/${quote.id}`)}
+              <div key={quote.id} className="group relative">
+                <Card
+                  className={`rounded-2xl border-l-4 border-border/80 bg-card/95 p-4 shadow-sm transition-all active:scale-[0.99] hover:border-primary/30 hover:shadow-md md:rounded-xl md:p-5 md:active:scale-100 ${statusAccentClass(quote.status)}`}
+                  onClick={() => router.push(`${basePath}/${quote.id}`)}
                 >
-                  <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">
-                          {quote.client?.name || 'Unknown Client'}
-                        </h3>
-                        <Badge className={`shrink-0 text-[10px] px-1.5 py-0 ${getStatusColor(quote.status)}`}>
-                          {quote.status}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                          {quote.created_from_job_id
+                            ? `Change order · #${quote.id}`
+                            : tQuotes("quoteNumber", { id: quote.id })}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] uppercase tracking-wide font-semibold border ${statusBadgeClass(quote.status)}`}
+                        >
+                          {statusLabel(String(quote.status))}
                         </Badge>
                       </div>
-                      <div className="flex flex-wrap items-baseline gap-x-2 mt-0.5">
-                        {quote.client?.address && (
-                          <span className="text-xs text-muted-foreground truncate block">
-                            {quote.client.address}
-                          </span>
-                        )}
+                      <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                        {quote.client?.name || "Unknown client"}
+                      </h3>
+                      {quote.title?.trim() && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">{quote.title}</p>
+                      )}
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        {quote.client?.email && <span className="truncate max-w-full">{quote.client.email}</span>}
+                        {quote.client?.phone && <span>{quote.client.phone}</span>}
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      {quote.client?.address && (
+                        <p className="text-xs text-muted-foreground line-clamp-1">{quote.client.address}</p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground pt-0.5">
                         Created {formatDate(quote.created_at)}
-                        {quote.updated_at && ` • Updated ${formatDate(quote.updated_at)}`}
+                        {quote.updated_at && ` · Updated ${formatDate(quote.updated_at)}`}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 justify-end text-right shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/quotes/${quote.id}`)
-                        }}
-                        title="View Details"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => handleDeleteClick(e, quote)}
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </Button>
-                      <span className="text-base font-semibold text-primary tabular-nums min-w-[4.5rem] text-right">
-                        {formatCurrency(quote.total_amount)}
-                      </span>
+                    <div className="flex items-center justify-between rounded-xl bg-muted/45 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
+                      <span className="text-xl font-bold text-primary tabular-nums">{formatCurrency(quote.total_amount)}</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-11 w-11 rounded-xl p-0 opacity-100 sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`${basePath}/${quote.id}`)
+                          }}
+                          title="Open"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-11 w-11 rounded-xl p-0 text-destructive opacity-100 hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
+                          onClick={(e) => handleDeleteClick(e, quote)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>
               </div>
             ))}
 
-            {/* Pagination Controls */}
             {(currentPage > 1 || hasMore) && (
-              <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t">
+              <div className="flex items-center justify-center gap-2 pt-6 border-t border-border/60">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 min-w-24 rounded-xl md:h-8 md:min-w-0 md:rounded-md"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground px-4">
-                  Page {currentPage}
-                </span>
+                <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">Page {currentPage}</span>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 min-w-24 rounded-xl md:h-8 md:min-w-0 md:rounded-md"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >
                   Next
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
                 </Button>
               </div>
             )}
@@ -386,14 +591,13 @@ export default function QuotesPage() {
         )}
       </main>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Quote</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the quote for <strong>{quoteToDelete?.client?.name || 'this client'}</strong>? 
-              This action cannot be undone.
+              Are you sure you want to delete the quote for{" "}
+              <strong>{quoteToDelete?.client?.name || "this client"}</strong>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -411,4 +615,3 @@ export default function QuotesPage() {
     </div>
   )
 }
-

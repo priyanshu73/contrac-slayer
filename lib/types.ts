@@ -313,6 +313,7 @@ export interface JobItem {
   id: number
   job_id: number
   material_service_id?: number
+  title?: string
   custom_description?: string
   quantity: number
   unit_of_measure?: string
@@ -329,11 +330,93 @@ export interface JobItem {
   updated_at?: string
 }
 
+export interface ProposalTextBlock {
+  id: string
+  type: 'text'
+  html: string
+}
+
+export interface ProposalAnnotationPoint {
+  x: number
+  y: number
+}
+
+export interface ProposalImageAnnotationStroke {
+  id: string
+  color: string
+  width: number
+  points: ProposalAnnotationPoint[]
+}
+
+export interface ProposalImageTextOverlay {
+  id: string
+  text: string
+  x: number
+  y: number
+  fontSize: number
+  color: string
+  bold?: boolean
+}
+
+export interface ProposalImageBlock {
+  id: string
+  type: 'image'
+  media_id?: number
+  url: string
+  file_name?: string
+  width: number
+  height: number
+  alignment?: 'left' | 'center' | 'right'
+  annotations: ProposalImageAnnotationStroke[]
+  textOverlays: ProposalImageTextOverlay[]
+}
+
+export interface ProposalBeforeAfterBlock {
+  id: string
+  type: 'before_after'
+  beforeUrl: string
+  afterUrl: string
+  beforeLabel?: string
+  afterLabel?: string
+}
+
+export type ProposalPageBlock = ProposalTextBlock | ProposalImageBlock | ProposalBeforeAfterBlock
+
+export interface ProposalPage {
+  id: string
+  title: string
+  description: ProposalPageBlock[]
+}
+
+export interface ProposalProjectOverview {
+  title: string
+  description: string
+}
+
+export interface ProposalDocument {
+  title: string
+  companyName: string
+  companyAddress: string
+  quoteId?: number | null
+  date: string
+  contractorName: string
+  scopeSummary: string
+  projectOverview: ProposalProjectOverview
+  pages: ProposalPage[]
+}
+
+export interface ProposalOverviewResponse {
+  title: string
+  description: string
+  source: 'ai' | 'fallback'
+}
+
 export interface Job {
   id: number
   uuid: string
   contractor_id: number
   client_id?: number
+  project_id?: number
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
   title: string
@@ -363,6 +446,8 @@ export interface Job {
   quote_pdf_url?: string
   /** Public link for customer quote view; set when generated via generateQuotePublicLink */
   quote_public_link?: string
+  /** Public link for customer proposal view; generated once a proposal is saved */
+  proposal_public_link?: string
   // Additional fields from API (JobResponse)
   quote_expiration_date?: string
   project_type?: string
@@ -370,15 +455,68 @@ export interface Job {
   job_description?: string
   payment_terms?: string
   customer_notes?: string
+  proposal_document?: ProposalDocument
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
+  // QuickBooks sync
+  qbo_invoice_id?: string
+  qbo_invoice_url?: string
+  qbo_synced_at?: string
+}
+
+export interface QBOInvoiceLineItem {
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+}
+
+export interface QBOInvoiceDetail {
+  /** Present when loaded via project invoice-detail (for QBO payment sync). */
+  job_id?: number
+  qbo_invoice_id: string
+  qbo_invoice_url: string
+  doc_number: string
+  txn_date: string
+  due_date: string
+  status: string
+  email_status: string
+  subtotal: number
+  tax_total: number
+  total: number
+  balance: number
+  amount_paid: number
+  line_items: QBOInvoiceLineItem[]
+  customer_memo: string
+  synced_at: string | null
+}
+
+/** Paid quote on project with no QuickBooks invoice id/url — shown under QuickBooks as “other payments”. */
+export interface ManualPaidQuoteSnapshot {
+  job_id: number
+  title: string
+  job_number?: string | null
+  total_amount: number
+  client_name?: string | null
+}
+
+/** Response from GET /quickbooks/project/{id}/invoice-detail */
+export interface QBOProjectInvoiceDetailResponse {
+  quickbooks_connected: boolean
+  has_invoice: boolean
+  multiple_invoices: boolean
+  invoice_count: number
+  invoices: Array<QBOInvoiceDetail & { job_id: number }>
+  /** PAID linked jobs without QBO invoice id/url */
+  manual_paid_quotes: ManualPaidQuoteSnapshot[]
 }
 
 export interface ChangeOrderCreate {
   change_order_reason?: string
   job_description?: string
   items?: Array<{
+    title?: string
     custom_description?: string
     quantity: number
     unit_of_measure?: string
@@ -416,6 +554,7 @@ export interface JobUpdate {
   address?: string
   notes?: string
   selected_tier?: PricingTier
+  proposal_document?: ProposalDocument | null
 }
 
 // ============================================
@@ -445,6 +584,7 @@ export interface Project {
   tasks?: ProjectTask[]
   trades?: ProjectTrade[]
   media?: ProjectMedia[]
+  attachments?: Attachment[]
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
@@ -486,12 +626,18 @@ export interface ProjectTask {
   documents?: ProjectMedia[]
 }
 
+export interface ContractorTask extends ProjectTask {
+  project_title?: string
+  project_status?: ProjectStatus
+}
+
 export interface ProjectTrade {
   id: number
   uuid: string
   project_id: number
   project_title?: string
   trade_type: string
+  subcontractor_id?: number
   subcontractor_name: string
   subcontractor_email?: string
   contact_info: string
@@ -915,4 +1061,360 @@ export const getRateLabelSuffix = (chargeType: LaborChargeType, unitType?: UnitT
     default:
       return ''
   }
+}
+
+// ============================================
+// PROJECT FINANCIALS
+// ============================================
+
+export type CostItemStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'GC_APPROVED' | 'COMPLETED'
+export type MaterialCategory = 'JOB_MATERIAL' | 'SITE_SERVICE'
+export type FinancialPaymentMethod = 'CHECK' | 'WIRE' | 'ACH' | 'CREDIT_CARD' | 'CASH' | 'OTHER'
+
+export interface ProjectCostItem {
+  id: number
+  project_id: number
+  subcontractor_id?: number | null
+  phase: string
+  phase_order: number
+  line_item: string
+  status: CostItemStatus
+  gc_cost: number
+  client_price: number
+  owed_to_sub: number
+  paid: number
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectCostItemCreate {
+  subcontractor_id?: number | null
+  phase: string
+  phase_order?: number
+  line_item: string
+  status?: CostItemStatus
+  gc_cost?: number
+  markup_pct?: number
+  owed_to_sub?: number
+  paid?: number
+  order?: number
+}
+
+export type ProjectCostItemUpdate = Partial<ProjectCostItemCreate>
+
+export interface ProjectMaterial {
+  id: number
+  project_id: number
+  category: MaterialCategory
+  item_name: string
+  vendor?: string | null
+  detailed_notes?: string | null
+  cost: number
+  client_price: number
+  po_url?: string | null
+  receipts?: { name: string; url: string }[]
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectMaterialCreate {
+  category?: MaterialCategory
+  item_name: string
+  vendor?: string | null
+  detailed_notes?: string | null
+  cost?: number
+  markup_pct?: number
+  po_url?: string | null
+  receipts?: { name: string; url: string }[]
+  order?: number
+}
+
+export type ProjectMaterialUpdate = Partial<ProjectMaterialCreate>
+
+export interface ProjectPayment {
+  id: number
+  project_id: number
+  payment_method: FinancialPaymentMethod
+  invoice_number?: string | null
+  amount: number
+  payment_date: string
+  notes?: string | null
+  created_at: string
+}
+
+export interface ProjectPaymentCreate {
+  payment_method: FinancialPaymentMethod
+  invoice_number?: string | null
+  amount: number
+  payment_date: string
+  notes?: string | null
+}
+
+export interface ProjectFinancialSummary {
+  total_project_value: number
+  total_cost_items: number
+  total_materials: number
+  total_invoiced: number
+  /** Sum of payments logged in the Payments Received sidebar */
+  payments_logged_total?: number
+  /** Sum of amount paid on linked QuickBooks invoices (0 if not connected or on error) */
+  quickbooks_collected_total?: number
+  /** Effective client cash received: max(logged, QuickBooks) */
+  total_paid: number
+  remaining_balance: number
+  profit_to_date: number
+  invoiced_pct: number
+  collected_pct: number
+  approved_co_total: number
+  adjusted_budget: number
+}
+
+// ============================================
+// LEAD GENERATOR AGENT / CAMPAIGNS
+// ============================================
+
+export type CampaignExecutionMode = 'AUTOPILOT' | 'REVIEW'
+
+export type CampaignStatus =
+  | 'DRAFT'
+  | 'BRIEFING'
+  | 'AWAITING_REVIEW'
+  | 'DISCOVERING'
+  | 'GENERATING'
+  | 'SENDING'
+  | 'ACTIVE'
+  | 'COMPLETED'
+  | 'PAUSED'
+  | 'FAILED'
+  | 'CANCELLED'
+
+export type CampaignEventType =
+  | 'BRIEF_READY'
+  | 'DISCOVERY_COMPLETE'
+  | 'REFILL_RECOMMENDED'
+  | 'MESSAGING_READY'
+  | 'AUTH_ERROR'
+  | 'CAMPAIGN_COMPLETE'
+
+export type CampaignEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+
+export type CampaignEmailDraftStatus = 'DRAFT' | 'APPROVED' | 'QUEUED' | 'SENT' | 'FAILED'
+
+export interface DiscoveryForecastScenario {
+  relevant_businesses: number
+  reachable_with_both: number
+  reachable_with_email: number
+  reachable_with_phone: number
+  email_only: number
+  phone_only: number
+  recommended_reachable: number
+}
+
+export interface DiscoveryForecastSegment {
+  segment_key: string
+  segment_label: string
+  priority: number
+  profile_note: string
+  geography_multiplier: number
+  scenarios: Record<string, DiscoveryForecastScenario>
+}
+
+export interface DiscoveryForecast {
+  preferred_channel: string
+  expanded_geography: Record<string, any>
+  segment_forecasts: DiscoveryForecastSegment[]
+  aggregate_forecast: Record<string, DiscoveryForecastScenario>
+  rationale: string[]
+}
+
+export interface CampaignEvent {
+  id: number
+  uuid: string
+  campaign_id: number
+  event_type: CampaignEventType
+  status: CampaignEventStatus
+  summary: string
+  details?: Record<string, any> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignLead {
+  id: number
+  uuid: string
+  campaign_id: number
+  discovered_lead_id?: number | null
+  business_name: string
+  website?: string | null
+  domain?: string | null
+  email?: string | null
+  phone?: string | null
+  contact_name?: string | null
+  contact_title?: string | null
+  segment_type?: string | null
+  score?: number | null
+  score_reason?: string | null
+  meta_context?: Record<string, any> | null
+  scheduled_date?: string | null
+  email_status: string
+  sms_status: string
+  do_not_contact: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignEmailDraft {
+  id: number
+  uuid: string
+  campaign_id: number
+  campaign_lead_id: number
+  subject: string
+  body: string
+  rationale?: string | null
+  status: CampaignEmailDraftStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface DiscoveredCampaignLead {
+  id: number
+  uuid: string
+  discovery_run_id: number
+  business_name: string
+  website?: string | null
+  domain?: string | null
+  email?: string | null
+  phone?: string | null
+  contact_name?: string | null
+  contact_title?: string | null
+  serp_position?: number | null
+  serp_rating?: number | null
+  serp_review_count?: number | null
+  meta_context?: Record<string, any> | null
+  score?: number | null
+  score_reason?: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DiscoveryRun {
+  id: number
+  uuid: string
+  contractor_id: number
+  campaign_id?: number | null
+  name?: string | null
+  segment: string
+  location: Record<string, any>
+  priority?: number | null
+  queries_generated?: string[] | null
+  status: string
+  error_message?: string | null
+  results_found: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Campaign {
+  id: number
+  uuid: string
+  contractor_id: number
+  name: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  settings: Record<string, any>
+  email_instructions?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  daily_limit: number
+  total_leads_target: number
+  execution_mode: CampaignExecutionMode
+  status: CampaignStatus
+  awaiting_checkpoint?: string | null
+  campaign_brief?: Record<string, any> | null
+  discovery_forecast?: DiscoveryForecast | null
+  brief_approved: boolean
+  last_error?: string | null
+  job_progress?: Record<string, any> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignDetail extends Campaign {
+  events: CampaignEvent[]
+  leads: CampaignLead[]
+  email_drafts: CampaignEmailDraft[]
+}
+
+export interface DiscoveryForecastRequest {
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  preferred_channel: string
+  max_zip_codes: number
+}
+
+export interface CampaignPayload {
+  name: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+  settings: Record<string, any>
+  email_instructions?: string
+  start_date?: string | null
+  end_date?: string | null
+  daily_limit: number
+  total_leads_target: number
+  execution_mode: CampaignExecutionMode
+}
+
+export interface MessageGuidanceStructured {
+  tone: string
+  offer: string
+  cta: string
+  forbidden_language: string[]
+  audience_framing: string
+  personalization_cues: string[]
+  value_props: string[]
+}
+
+export interface CampaignEmailStrategyOption {
+  key: string
+  label: string
+  description: string
+  offer: string
+  cta: string
+  fit_reason: string
+}
+
+export interface GenerateCampaignStrategiesRequest {
+  message_guidance: string
+  location: Record<string, any>
+  segments: Array<Record<string, any>>
+}
+
+export interface GenerateCampaignStrategiesResponse {
+  structured_guidance: MessageGuidanceStructured
+  strategies: CampaignEmailStrategyOption[]
+}
+
+export interface CampaignGenerateBriefResponse {
+  campaign: Campaign
+  event: CampaignEvent
+}
+
+export interface CampaignLaunchResponse {
+  campaign: Campaign
+  events: CampaignEvent[]
+}
+
+export interface CampaignStagedLeadsResponse {
+  leads: DiscoveredCampaignLead[]
+}
+
+export interface StagedLeadActionResponse {
+  campaign: Campaign
+  promoted_leads: CampaignLead[]
+  rejected_count: number
+  generated_drafts: CampaignEmailDraft[]
 }

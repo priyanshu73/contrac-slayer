@@ -133,17 +133,17 @@ export default function CopyQuotePage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-lg font-semibold leading-none flex items-center gap-2">
+              <h1 className="hidden text-lg font-semibold leading-none items-center gap-2 md:flex">
                 <Copy className="h-4 w-4 text-muted-foreground" />
                 Select Quote to Copy
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">Choose an existing quote to use as a starting point</p>
+              <p className="text-sm text-muted-foreground md:mt-1">Choose an existing quote to use as a starting point</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-4 md:py-6">
         <Card className="mb-4 p-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
             {isMobile ? (

@@ -33,14 +33,24 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink, Share2,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useLocale } from "next-intl"
 import { cn } from "@/lib/utils"
 import { ProjectTrade } from "@/lib/types"
+import { useAuth } from "@/contexts/AuthContext"
 import { EditTradeDialog } from "./projects/edit-trade-dialog"
+import { TradeSendEmailDialog, TradeSendSmsDialog } from "./projects/trade-share-dialog"
+import { AppBreadcrumb } from "./app-breadcrumb"
 
 const SUB_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
 
@@ -61,6 +71,7 @@ interface SubcontractorDetailData {
     email?: string
     phone_number?: string
     company_name?: string
+    specialty?: string | null
     address?: string
     address_id?: number
     status: string
@@ -74,12 +85,16 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
     const router = useRouter()
     const locale = useLocale()
     const { toast } = useToast()
+    const { user } = useAuth()
 
     const [subData, setSubData] = useState<SubcontractorDetailData | null>(null)
     const [loading, setLoading] = useState(true)
     const [editOpen, setEditOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [editTrade, setEditTrade] = useState<ProjectTrade | null>(null)
+    const [sendEmailTrade, setSendEmailTrade] = useState<ProjectTrade | null>(null)
+    const [sendSmsTrade, setSendSmsTrade] = useState<ProjectTrade | null>(null)
+    const spId = user?.contractor_ai_sp_id ?? null
 
     // Edit form state
     const [editForm, setEditForm] = useState({
@@ -87,6 +102,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         email: "",
         phone_number: "",
         company_name: "",
+        specialty: "",
         address: "",
         notes: "",
         status: "ACTIVE",
@@ -107,12 +123,13 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 email: data.email || "",
                 phone_number: data.phone_number || "",
                 company_name: data.company_name || "",
+                specialty: data.specialty || "",
                 address: data.address || "",
                 notes: data.notes || "",
                 status: data.status || "ACTIVE",
             })
         } catch (err: any) {
-            toast({ title: "Failed to load subcontractor", description: err.message, variant: "destructive" })
+            toast({ title: "Failed to load crew member", description: err.message, variant: "destructive" })
         } finally {
             setLoading(false)
         }
@@ -127,13 +144,14 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 email: editForm.email.trim() || undefined,
                 phone_number: editForm.phone_number.trim() || undefined,
                 company_name: editForm.company_name.trim() || undefined,
+                specialty: editForm.specialty.trim() || undefined,
                 address: editForm.address.trim() || undefined,
                 notes: editForm.notes.trim() || undefined,
                 status: editForm.status,
             })
             setSubData(updated)
             setEditOpen(false)
-            toast({ title: "Subcontractor updated" })
+            toast({ title: "Crew member updated" })
         } catch (err: any) {
             toast({ title: "Update failed", description: err.message, variant: "destructive" })
         }
@@ -143,8 +161,8 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         if (!subData) return
         try {
             await api.deleteSubcontractor(subData.id)
-            toast({ title: "Subcontractor archived" })
-            router.push(`/${locale}/contacts`)
+            toast({ title: "Crew member archived" })
+            router.push(`/${locale}/crew`)
         } catch (err: any) {
             toast({ title: "Archive failed", description: err.message, variant: "destructive" })
         } finally {
@@ -169,6 +187,18 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         })
     }
 
+    const handleCopyScopeLink = async (trade: ProjectTrade) => {
+        if (!trade?.uuid) return
+        const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
+        const fullUrl = `${frontendUrl}/${locale}/projects/trade/${trade.uuid}`
+        try {
+            await navigator.clipboard.writeText(fullUrl)
+            toast({ title: "Link copied", description: "Scope link copied to clipboard." })
+        } catch {
+            toast({ title: "Failed to copy", variant: "destructive" })
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-50 p-4 sm:p-8 md:p-12 lg:p-16">
@@ -185,8 +215,8 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-xl font-semibold text-slate-700 mb-2">Subcontractor not found</h2>
-                    <Button variant="outline" onClick={() => router.push(`/${locale}/contacts`)}>
+                    <h2 className="text-xl font-semibold text-slate-700 mb-2">Crew member not found</h2>
+                    <Button variant="outline" onClick={() => router.push(`/${locale}/crew`)}>
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Contacts
                     </Button>
                 </div>
@@ -199,11 +229,12 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
             <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-6">
                 <div className="max-w-4xl mx-auto space-y-6">
                     {/* Breadcrumb */}
-                    <nav className="text-sm text-slate-500 flex items-center gap-1.5">
-                        <a href={`/${locale}/contacts`} className="hover:text-slate-700 transition-colors">Contacts</a>
-                        <span>/</span>
-                        <span className="text-slate-700 font-medium">{subData.name}</span>
-                    </nav>
+                    <AppBreadcrumb
+                        items={[
+                            { label: "Crew", href: `/${locale}/crew` },
+                            { label: subData.name },
+                        ]}
+                    />
 
                     {/* Profile Card */}
                     <Card className="p-6 border border-slate-200">
@@ -221,11 +252,18 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                         {subData.status}
                                     </Badge>
                                 </div>
-                                {subData.company_name && (
-                                    <p className="text-sm text-slate-500 mb-3">
-                                        <Building2 className="h-3.5 w-3.5 inline mr-1" />
-                                        {subData.company_name}
-                                    </p>
+                                {(subData.company_name || subData.specialty) && (
+                                    <div className="text-sm text-slate-500 mb-3 space-y-0.5">
+                                        {subData.company_name && (
+                                            <p>
+                                                <Building2 className="h-3.5 w-3.5 inline mr-1" />
+                                                {subData.company_name}
+                                            </p>
+                                        )}
+                                        {subData.specialty && (
+                                            <p className="text-xs font-medium text-blue-600">{subData.specialty}</p>
+                                        )}
+                                    </div>
                                 )}
                                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
                                     {subData.email && (
@@ -289,7 +327,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
 
                         {!subData.trades || subData.trades.length === 0 ? (
                             <div className="p-8 text-center">
-                                <p className="text-sm text-slate-400">No work scopes found for this subcontractor.</p>
+                                <p className="text-sm text-slate-400">No work scopes found for this crew member.</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-100">
@@ -325,6 +363,29 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                                         </div>
                                                         <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Agreed Budget</div>
                                                     </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-3 text-slate-600"
+                                                            >
+                                                                <Share2 className="h-3.5 w-3.5 mr-1.5" /> Share Scope
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            <DropdownMenuItem onClick={() => setSendEmailTrade(trade)}>
+                                                                Send via Email
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => setSendSmsTrade(trade)}>
+                                                                Send via SMS
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => handleCopyScopeLink(trade)}>
+                                                                Copy link
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -389,11 +450,28 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 />
             )}
 
+            <TradeSendEmailDialog
+                open={!!sendEmailTrade}
+                onOpenChange={(open) => !open && setSendEmailTrade(null)}
+                trade={sendEmailTrade}
+                projectTitle={sendEmailTrade?.project_title || "Project Scope"}
+                locale={locale}
+            />
+
+            <TradeSendSmsDialog
+                open={!!sendSmsTrade}
+                onOpenChange={(open) => !open && setSendSmsTrade(null)}
+                trade={sendSmsTrade}
+                projectTitle={sendSmsTrade?.project_title || "Project Scope"}
+                spId={spId}
+                locale={locale}
+            />
+
             {/* Edit Dialog */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit Subcontractor</DialogTitle>
+                        <DialogTitle>Edit Crew Member</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleEditSubmit} className="space-y-4">
                         <div className="space-y-2">
@@ -410,9 +488,20 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                 <Input id="edit-phone" value={editForm.phone_number} onChange={(e) => setEditForm((p) => ({ ...p, phone_number: e.target.value }))} />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-company">Company</Label>
-                            <Input id="edit-company" value={editForm.company_name} onChange={(e) => setEditForm((p) => ({ ...p, company_name: e.target.value }))} />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-company">Company</Label>
+                                <Input id="edit-company" value={editForm.company_name} onChange={(e) => setEditForm((p) => ({ ...p, company_name: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-specialty">Specialty</Label>
+                                <Input
+                                    id="edit-specialty"
+                                    placeholder="e.g. Plumbing"
+                                    value={editForm.specialty}
+                                    onChange={(e) => setEditForm((p) => ({ ...p, specialty: e.target.value }))}
+                                />
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-address">Address</Label>
@@ -448,7 +537,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Archive {subData.name}?</AlertDialogTitle>
-                        <AlertDialogDescription>This will archive the subcontractor. You can reactivate them later from their profile.</AlertDialogDescription>
+                        <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>

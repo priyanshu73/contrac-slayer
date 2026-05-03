@@ -206,13 +206,13 @@ export function EditTradeDialog({
                                 <UploadCloud className="w-4 h-4 mr-2" /> GC Prep Attachments <span className="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">{trade.reference_media?.length || 0}</span>
                             </TabsTrigger>
                             <TabsTrigger value="sub" className="rounded-none font-semibold text-slate-500 data-[state=active]:bg-slate-50 data-[state=active]:text-slate-900 h-full">
-                                Team Member Proof-of-Work <span className="ml-2 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">{trade.proof_of_work_media?.length || 0}</span>
+                                Crew Member Proof-of-Work <span className="ml-2 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">{trade.proof_of_work_media?.length || 0}</span>
                             </TabsTrigger>
                         </TabsList>
                         <div className="bg-white">
                             <TabsContent value="gc" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
-                                    Upload reference photos or attachments for the team member. You can add, view, or remove these files.
+                                    Upload reference photos or attachments for the crew member. You can add, view, or remove these files.
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     {trade.reference_media?.map(m => (
@@ -249,7 +249,7 @@ export function EditTradeDialog({
                             </TabsContent>
                             <TabsContent value="sub" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
-                                    Proof-of-work media uploaded by the team member. You cannot delete these.
+                                    Proof-of-work media uploaded by the crew member. You cannot delete these.
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     {trade.proof_of_work_media?.map(m => (

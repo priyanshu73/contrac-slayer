@@ -171,7 +171,7 @@ export function CostBookSettings() {
               <Table>
                 <TableHeader className="bg-slate-50 sticky top-0 z-10">
                   <TableRow>
-                    <TableHead className="w-1/3">Description</TableHead>
+                    <TableHead className="w-1/3">Item</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Cost ($)</TableHead>
                     <TableHead>Unit</TableHead>
@@ -223,7 +223,7 @@ export function CostBookSettings() {
               <Table>
                 <TableHeader className="bg-slate-50 sticky top-0 z-10">
                   <TableRow>
-                    <TableHead className="w-1/3">Description</TableHead>
+                    <TableHead className="w-1/3">Item</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Cost ($)</TableHead>
                     <TableHead>Unit</TableHead>
@@ -238,6 +238,7 @@ export function CostBookSettings() {
                         <Input 
                           value={item.description} 
                           onChange={(e) => updateItem(index, 'description', e.target.value)}
+                          placeholder="Item name"
                           className="h-8 shadow-none"
                         />
                       </TableCell>

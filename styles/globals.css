@@ -123,3 +123,54 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ============================================
+   PRINT / PDF STYLES
+   Forces the proposal to print exactly as it
+   appears in the browser preview mode.
+   ============================================ */
+@media print {
+  /* Force ALL background colors, gradients, images to render.
+     This is the single most important rule. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    forced-color-adjust: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm;
+  }
+
+  /* Remove overflow clipping so nothing is cut off across pages */
+  [class*="rounded-\[34px\]"],
+  [class*="rounded-\[32px\]"],
+  [class*="rounded-2xl"],
+  [class*="rounded-xl"] {
+    overflow: visible !important;
+  }
+
+  /* Allow page-level sections to break naturally across PDF pages */
+  [class*="rounded-\[32px\]"] {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  /* Keep before/after pairs and images together */
+  .grid,
+  img,
+  figure {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove box-shadows — they print as muddy grey rectangles */
+  [class*="shadow"] {
+    box-shadow: none !important;
+  }
+}

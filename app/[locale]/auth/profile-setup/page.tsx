@@ -25,6 +25,8 @@ import Image from "next/image"
 import { AREA_CODES_BY_STATE_MAP, getAllStates, getAreaCodesForState, type StateAbbrev } from "@/lib/area-codes"
 import { useTranslations, useLocale } from "next-intl"
 import { useLanguage } from "@/hooks/useLanguage"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { AddressData } from "@/lib/types/address"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
@@ -51,6 +53,8 @@ export default function ProfileSetupPage() {
     contractor_type: "",
   })
   const [otherContractorType, setOtherContractorType] = useState("")
+  const [addressData, setAddressData] = useState<AddressData | null>(null)
+  const [manualAddress, setManualAddress] = useState(false)
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
@@ -189,7 +193,7 @@ export default function ProfileSetupPage() {
 
       // Step 1: Create profile (required)
       setSubmitProgress("Creating profile...")
-      await api.createContractorProfile({
+      const profilePayload: Record<string, any> = {
         company_name: formData.company_name,
         email: formData.email,
         phone_number: formData.phone_number || null,
@@ -199,7 +203,11 @@ export default function ProfileSetupPage() {
         default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
         contractor_type: contractorType,
-      })
+      }
+      if (addressData) {
+        profilePayload.address_data = addressData
+      }
+      await api.createContractorProfile(profilePayload)
 
       // Step 2: Refresh user to get profile data
       setSubmitProgress("Loading profile data...")
@@ -462,15 +470,48 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}</Label>
-                      <Input
-                        id="address"
-                        placeholder={t('companyInfo.businessAddressPlaceholder')}
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        disabled={isLoading}
-                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}</Label>
+                        <button
+                          type="button"
+                          onClick={() => setManualAddress(!manualAddress)}
+                          className="text-xs text-sky-600 hover:text-sky-800 hover:underline"
+                        >
+                          {manualAddress ? "Use address search" : "Enter manually"}
+                        </button>
+                      </div>
+                      {manualAddress ? (
+                        <Input
+                          id="address"
+                          placeholder={t('companyInfo.businessAddressPlaceholder')}
+                          value={formData.address}
+                          onChange={(e) => {
+                            setFormData({ ...formData, address: e.target.value })
+                            setAddressData(null)
+                          }}
+                          disabled={isLoading}
+                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <MapboxAddressInput
+                          label=""
+                          placeholder={t('companyInfo.businessAddressPlaceholder')}
+                          defaultValue={formData.address}
+                          onAddressSelect={(data) => {
+                            setAddressData(data)
+                            if (data) {
+                              const short = [data.street_line, data.city, data.state].filter(Boolean).join(", ")
+                              setFormData((prev) => ({
+                                ...prev,
+                                address: short || data.formatted_address || "",
+                                default_zip_code: data.zip || prev.default_zip_code,
+                              }))
+                            }
+                          }}
+                          id="address"
+                          className="[&_input]:h-12 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:focus:ring-blue-500"
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-2">

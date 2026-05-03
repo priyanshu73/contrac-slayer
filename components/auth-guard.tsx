@@ -43,6 +43,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/auth") || // Legacy non-i18n auth routes
     pathname?.match(/^\/[a-z]{2}\/privacy$/) || // Privacy policy (no auth required)
     pathname === "/privacy" || // Legacy non-i18n
+    pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) || // Public marketing feature pages
+    pathname?.startsWith("/features") || // Legacy non-i18n feature routes
     pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
     pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
@@ -53,6 +55,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Public subcontractor portal view
     pathname?.match(/^\/[a-z]{2}\/projects\/trade\//) || // Matches /en/projects/trade/, /es/projects/trade/, etc.
     pathname?.startsWith("/projects/trade/") || // Legacy non-i18n routes
+    // Public proposal views (no auth required)
+    pathname?.match(/^\/[a-z]{2}\/proposals\//) || // Matches /en/proposals/, /es/proposals/, etc.
+    pathname?.startsWith("/proposals/") || // Legacy non-i18n routes
     // Public booking/calendar pages (no auth required)
     pathname?.match(/^\/[a-z]{2}\/book\//) || // Matches /en/book/{slug}, /es/book/{slug}
     pathname?.startsWith("/book/") // Legacy non-i18n routes
@@ -112,4 +117,3 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Otherwise show nothing (will redirect)
   return null
 }
-

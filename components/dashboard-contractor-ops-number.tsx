@@ -24,10 +24,6 @@ export function DashboardContractorOpsNumber() {
     try {
       await navigator.clipboard.writeText(twilioNumber)
       setCopied(true)
-      toast({
-        title: t("numberCopied"),
-        description: t("numberCopiedDesc"),
-      })
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast({
@@ -83,12 +79,9 @@ export function DashboardContractorOpsNumber() {
               className="gap-1.5"
             >
               {copied ? (
-                <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {tQuote("copied")}
-                </>
+                <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

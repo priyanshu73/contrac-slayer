@@ -55,7 +55,7 @@ export function NewTradeDialog({
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
-    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null }>>([])
+    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null, specialty?: string | null }>>([])
     const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
@@ -101,6 +101,7 @@ export function NewTradeDialog({
         if (existing) {
             if (existing.subcontractor_email) setSubcontractorEmail(existing.subcontractor_email);
             if (existing.phone_number) setContactInfo(existing.phone_number);
+            if (!tradeType && existing.specialty) setTradeType(existing.specialty);
         }
     }
 
@@ -126,7 +127,7 @@ export function NewTradeDialog({
     const handleSubmit = async () => {
         const missing: string[] = []
         if (!tradeType.trim()) missing.push("Trade Type")
-        if (!subcontractorName.trim()) missing.push("Team Member Name")
+        if (!subcontractorName.trim()) missing.push("Crew Member Name")
         if (!scopeOfWork.trim()) missing.push("Scope of Work")
         if (missing.length > 0) {
             toast({
@@ -207,7 +208,7 @@ export function NewTradeDialog({
                     </div>
 
                     <div className="space-y-1.5 flex flex-col">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Team Member Name</Label>
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Crew Member Name</Label>
                         <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                             <PopoverTrigger asChild>
                                 <Button
@@ -218,7 +219,7 @@ export function NewTradeDialog({
                                     className="w-full justify-between font-normal text-left text-slate-700 bg-white hover:bg-slate-50 border-slate-200 h-10 px-3"
                                 >
                                     <span className="truncate">
-                                        {subcontractorName ? subcontractorName : <span className="text-slate-400">Select or enter a team member...</span>}
+                                        {subcontractorName ? subcontractorName : <span className="text-slate-400">Select or enter a crew member...</span>}
                                     </span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -234,7 +235,7 @@ export function NewTradeDialog({
                                     <CommandList>
                                         <CommandEmpty>
                                             <div className="flex flex-col items-start px-2 py-1">
-                                                <span className="text-sm text-slate-500 mb-1">No team member found.</span>
+                                                <span className="text-sm text-slate-500 mb-1">No crew member found.</span>
                                                 <Button
                                                     variant="ghost"
                                                     className="h-auto p-1.5 px-3 text-sm flex justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full"
@@ -261,6 +262,9 @@ export function NewTradeDialog({
                                                         setSearchQuery(s.subcontractor_name)
                                                         setSubcontractorEmail(s.subcontractor_email ?? "")
                                                         setContactInfo(s.phone_number ?? "")
+                                                        if (!tradeType && s.specialty) {
+                                                            setTradeType(s.specialty)
+                                                        }
                                                         setOpenCombobox(false)
                                                     }}
                                                 >
@@ -303,7 +307,7 @@ export function NewTradeDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Team Member Email</Label>
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Crew Member Email</Label>
                         <Input placeholder="e.g. henry@example.com" type="email" value={subcontractorEmail} onChange={e => setSubcontractorEmail(e.target.value)} />
                     </div>
 
@@ -344,7 +348,7 @@ export function NewTradeDialog({
                             <UploadCloud className="h-5 w-5 text-blue-500" /> Upload Prep / Reference Attachments <span className="text-slate-400 font-normal text-sm">(optional)</span>
                         </div>
                         <p className="text-sm text-slate-500 mb-4">
-                            Upload reference photos or attachments for the team member before assigning this scope.
+                            Upload reference photos or attachments for the crew member before assigning this scope.
                         </p>
 
                         <label className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer">

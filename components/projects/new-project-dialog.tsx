@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import {
@@ -15,14 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import {
-    Search,
-    ChevronDown,
-    User,
-    Calendar,
-    Loader2,
-    X,
-} from "lucide-react"
+import { Calendar, Loader2 } from "lucide-react"
 
 interface Client {
     id: number
@@ -35,14 +28,12 @@ interface NewProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onProjectCreated: (projectId: number) => void
-    defaultClientId?: number
 }
 
 export function NewProjectDialog({
     open,
     onOpenChange,
     onProjectCreated,
-    defaultClientId,
 }: NewProjectDialogProps) {
     const t = useTranslations("projects.newProjectDialog")
     const { toast } = useToast()
@@ -50,74 +41,19 @@ export function NewProjectDialog({
     // Form state
     const [title, setTitle] = useState("")
     const [objective, setObjective] = useState("")
-    const [clientId, setClientId] = useState<number | null>(defaultClientId ?? null)
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
-
-    // Clients dropdown
-    const [clients, setClients] = useState<Client[]>([])
-    const [loadingClients, setLoadingClients] = useState(false)
-    const [clientSearch, setClientSearch] = useState("")
-    const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
-
-    const clientRef = useRef<HTMLDivElement>(null)
-
-    // Load clients when dialog opens
-    useEffect(() => {
-        if (!open) return
-        const loadData = async () => {
-            setLoadingClients(true)
-            try {
-                const clientsData = await api.getClients(0, 100)
-                const items = Array.isArray(clientsData)
-                    ? clientsData
-                    : (clientsData as any)?.items ?? []
-                setClients(items)
-            } catch (err) {
-                console.error("Failed to load clients", err)
-            } finally {
-                setLoadingClients(false)
-            }
-        }
-        loadData()
-    }, [open])
-
-    // Close dropdown on click outside
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (clientRef.current && !clientRef.current.contains(e.target as Node)) {
-                setClientDropdownOpen(false)
-            }
-        }
-        document.addEventListener("mousedown", handler)
-        return () => document.removeEventListener("mousedown", handler)
-    }, [])
 
     // Reset form when dialog closes
     useEffect(() => {
         if (!open) {
             setTitle("")
             setObjective("")
-            setClientId(defaultClientId ?? null)
             setStartDate("")
             setEndDate("")
-            setClientSearch("")
         }
     }, [open])
-
-    const filteredClients = useMemo(() => {
-        if (!clientSearch.trim()) return clients
-        const q = clientSearch.toLowerCase()
-        return clients.filter(
-            (c) =>
-                c.name?.toLowerCase().includes(q) ||
-                c.phone?.toLowerCase().includes(q) ||
-                c.email?.toLowerCase().includes(q)
-        )
-    }, [clients, clientSearch])
-
-    const selectedClient = clients.find((c) => c.id === clientId)
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -131,7 +67,6 @@ export function NewProjectDialog({
         try {
             const payload: Record<string, any> = { title: title.trim() }
             if (objective.trim()) payload.objective = objective.trim()
-            if (clientId) payload.client_id = clientId
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
 
@@ -154,7 +89,7 @@ export function NewProjectDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-lg font-semibold text-slate-900">
                         {t("title")}
@@ -192,99 +127,6 @@ export function NewProjectDialog({
                             onChange={(e) => setObjective(e.target.value)}
                             className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
                         />
-                    </div>
-
-                    {/* Client dropdown */}
-                    <div className="space-y-1.5" ref={clientRef}>
-                        <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                            <User className="h-3.5 w-3.5 text-slate-400" />
-                            {t("fields.client")}
-                        </Label>
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
-                                className="w-full flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:border-slate-300 transition-colors text-left"
-                            >
-                                {selectedClient ? (
-                                    <span className="truncate text-slate-900">
-                                        {selectedClient.name}
-                                        {selectedClient.phone && (
-                                            <span className="text-slate-400 ml-1.5">
-                                                · {selectedClient.phone}
-                                            </span>
-                                        )}
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-400">
-                                        {loadingClients
-                                            ? t("fields.loadingClients")
-                                            : t("fields.selectClient")}
-                                    </span>
-                                )}
-                                <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                            </button>
-
-                            {selectedClient && (
-                                <button
-                                    type="button"
-                                    className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setClientId(null)
-                                        setClientSearch("")
-                                    }}
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                </button>
-                            )}
-
-                            {clientDropdownOpen && (
-                                <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-hidden">
-                                    <div className="p-2 border-b border-slate-100">
-                                        <div className="relative">
-                                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                                            <input
-                                                type="text"
-                                                placeholder={t("fields.searchClients")}
-                                                value={clientSearch}
-                                                onChange={(e) => setClientSearch(e.target.value)}
-                                                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="max-h-36 overflow-y-auto">
-                                        {filteredClients.length === 0 ? (
-                                            <p className="px-3 py-2 text-sm text-slate-400">
-                                                {t("fields.noClients")}
-                                            </p>
-                                        ) : (
-                                            filteredClients.map((c) => (
-                                                <button
-                                                    key={c.id}
-                                                    type="button"
-                                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 transition-colors ${c.id === clientId ? "bg-slate-50 font-medium" : ""
-                                                        }`}
-                                                    onClick={() => {
-                                                        setClientId(c.id)
-                                                        setClientDropdownOpen(false)
-                                                        setClientSearch("")
-                                                    }}
-                                                >
-                                                    <span className="text-slate-900">{c.name}</span>
-                                                    {c.phone && (
-                                                        <span className="text-slate-400 ml-2 text-xs">
-                                                            {c.phone}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                     {/* Date pickers */}

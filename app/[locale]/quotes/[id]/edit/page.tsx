@@ -10,6 +10,7 @@ import { QuoteCreator } from "@/components/Quote-creator"
 
 interface JobItem {
   id: number
+  title?: string
   custom_description: string
   quantity: number
   cost_per_unit: number
@@ -145,7 +146,7 @@ export default function EditQuotePage() {
                 </a>
               </Button>
               <div>
-                <h1 className="text-lg font-semibold leading-none">Edit Quote #{job.id}</h1>
+                <h1 className="hidden text-lg font-semibold leading-none md:block">Edit Quote #{job.id}</h1>
                 <p className="text-sm text-muted-foreground">
                   Update quote details and line items
                 </p>
@@ -154,7 +155,7 @@ export default function EditQuotePage() {
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
+        <main className="container mx-auto px-4 py-4 pb-24 md:py-6 md:pb-6 max-w-[1600px]">
           <QuoteCreator 
             quoteId={jobId}
             initialData={job}
@@ -164,7 +165,5 @@ export default function EditQuotePage() {
     </AuthGuard>
   )
 }
-
-
 
 
