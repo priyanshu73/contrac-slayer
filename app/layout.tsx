@@ -1,12 +1,15 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Sora } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
+import { MobileThemeSync } from "@/components/mobile-theme-sync"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" })
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+const sora = Sora({ subsets: ["latin"], variable: "--font-sora" })
+const mobileThemeScript = `try{if(localStorage.getItem("contractorops-mobile-dark-mode")==="true"){document.documentElement.classList.add("mobile-dark")}}catch(e){}`
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -43,8 +46,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html>
-      <body className={`font-sans antialiased`}>
+    <html suppressHydrationWarning>
+      <body className={`${geist.variable} ${geistMono.variable} ${sora.variable} font-sans antialiased`}>
+        <script dangerouslySetInnerHTML={{ __html: mobileThemeScript }} />
+        <MobileThemeSync />
         {children}
         <Toaster />
         <Analytics />

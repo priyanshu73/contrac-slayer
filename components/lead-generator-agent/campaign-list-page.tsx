@@ -164,16 +164,19 @@ export function CampaignListPage() {
 
           {/* ── Page header ─────────────────────────────────────────────── */}
           <section className="rounded-3xl border border-sky-100 bg-white/90 p-6 shadow-sm backdrop-blur">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
-                <Badge className="border-sky-200 bg-sky-50 text-sky-700" variant="outline">
-                  Lead Generator Agent
-                </Badge>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-                  Outbound Campaigns
-                </h1>
-                <p className="text-sm text-slate-500">
-                  Plan, launch, and monitor your automated lead outreach.
+<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+  <div className="space-y-3 md:space-y-2">
+    <Badge className="border-sky-200 bg-sky-50 text-sky-700" variant="outline">
+      Lead Generator Agent
+    </Badge>
+
+    <h1 className="hidden text-3xl font-semibold tracking-tight text-slate-950 md:block">
+      Plan, launch, and review outbound campaigns
+    </h1>
+
+    <p className="max-w-3xl text-sm text-slate-600">
+      Estimate reachable leads, launch in Copilot or Autopilot mode, and keep the next required action visible at every checkpoint.
+    </p>
                 </p>
               </div>
               <Button asChild className="rounded-xl bg-sky-600 hover:bg-sky-700">

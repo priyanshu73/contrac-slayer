@@ -155,40 +155,44 @@ export function NewCampaignPage() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,_#f7fbff_0%,_#ffffff_36%,_#f8fafc_100%)] pb-16">
-      <main className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="space-y-6">
+<main className="container mx-auto px-4 py-6">
+  <div className="space-y-5">
+    <div className="space-y-4">
+      <Button
+        asChild
+        variant="ghost"
+        className="h-auto px-0 text-slate-500 hover:bg-transparent hover:text-sky-700"
+      >
+        <Link href={`/${locale}/lead-generator-agent`}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to campaigns
+        </Link>
+      </Button>
 
-          {/* Back */}
-          <Button asChild variant="ghost" className="h-auto px-0 text-slate-500 hover:bg-transparent hover:text-sky-700">
-            <Link href={`/${locale}/lead-generator-agent`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Campaigns
-            </Link>
-          </Button>
+      <div className="rounded-[2rem] border border-sky-100 bg-[linear-gradient(135deg,_#ffffff_0%,_#f2f8ff_55%,_#edf7ff_100%)] p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-sky-600">Configure</span>
+          <span>•</span>
+          <span>Preview</span>
+          <span>•</span>
+          <span>Launch</span>
+        </div>
 
-          {/* Step indicator */}
-          <div className="flex items-center gap-2">
-            {([1, 2, 3] as Step[]).map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => s < step && setStep(s)}
-                  className={[
-                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors",
-                    s === step ? "bg-sky-600 text-white" :
-                    s < step ? "cursor-pointer bg-emerald-100 text-emerald-700" :
-                    "bg-slate-100 text-slate-400",
-                  ].join(" ")}
-                >
-                  {s < step ? <CheckCircle2 className="h-4 w-4" /> : s}
-                </button>
-                <span className={[
-                  "text-sm",
-                  s === step ? "font-medium text-slate-900" : "text-slate-400",
-                ].join(" ")}>
-                  {STEP_LABELS[s]}
-                </span>
-                {s < 3 && <div className="mx-2 h-px w-8 bg-slate-200" />}
+        <div className="mt-5 max-w-3xl">
+          <Badge
+            variant="outline"
+            className="border-sky-200 bg-white text-sky-700"
+          >
+            Lead Generator Agent
+          </Badge>
+
+          <h1 className="hidden mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:block">
+            New campaign
+          </h1>
+
+          <p className="mt-4 max-w-2xl text-lg leading-7 text-slate-600 md:mt-3">
+            Pick a market, choose who to reach, and preview the lead volume.
+          </p>
               </div>
             ))}
           </div>

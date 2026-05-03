@@ -84,7 +84,7 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Sticky Header */}
       <div className="sticky top-14 z-40 border-b border-slate-200 bg-slate-50/95 shadow-sm backdrop-blur-sm supports-[backdrop-filter]:bg-slate-50/85 md:top-0 md:z-10">
-        <div className="px-4 pt-4 pb-3 sm:px-8 sm:py-4 md:px-12 lg:px-16">
+        <div className="px-4 py-3 sm:px-8 md:px-12 md:py-4 lg:px-16">
           <div className="max-w-7xl mx-auto space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -93,7 +93,7 @@ export default function ClientsPage() {
                     <Users className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
-                    <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">{tClients("title") || "Clients"}</h1>
+                    <h1 className="hidden truncate text-2xl font-bold tracking-tight text-slate-900 md:block">{tClients("title") || "Clients"}</h1>
                     <p className="mt-0.5 text-xs font-medium text-slate-500 md:hidden">
                       {loading ? tCommon("loading") : `${filteredClients.length} ${tClients("title") || "Clients"}`}
                     </p>

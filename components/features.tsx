@@ -1,195 +1,286 @@
 "use client"
 
-import React, { useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { AIConversationPreview } from "@/components/ai-conversation-preview";
-import { DispatchPreview } from "@/components/dispatch-preview";
-import { JobCostingPreview } from "@/components/job-costing-preview";
-import ProjectManagementCard from "@/components/project-management-card";
-import { MessageSquare, Phone, DollarSign, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
+import { ReactNode } from "react"
+import { motion } from "framer-motion"
+import { useTranslations } from "next-intl"
+import {
+  Activity,
+  CheckCircle2,
+  DollarSign,
+  Download,
+  MapPin,
+  Navigation,
+  PhoneCall,
+  RefreshCw,
+  ShieldAlert,
+  Sparkles,
+  User,
+} from "lucide-react"
+import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
-export function Features() {
-  const t = useTranslations('landing');
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+const m = motion as any
 
-  const scroll = (dir: number) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    
-    // Check if we reached the scroll boundaries (with a small buffer)
-    const isAtEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 10;
-    const isAtStart = el.scrollLeft <= 10;
-    
-    // Loop around behavior
-    if (dir === 1 && isAtEnd) {
-      el.scrollTo({ left: 0, behavior: "smooth" });
-      return;
-    }
-    if (dir === -1 && isAtStart) {
-      el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
-      return;
-    }
-
-    // Scroll by exactly one slide width (including gap) so each view shows a full slide
-    const first = el.firstElementChild as HTMLElement | null;
-    if (!first) return;
-    const slideWidth = first.getBoundingClientRect().width;
-    // read the gap from computed styles if available (fallback to 24px)
-    const gap = parseFloat(getComputedStyle(el).gap || "") || 24;
-    const distance = Math.round(slideWidth + gap);
-    el.scrollBy({ left: dir * distance, behavior: "smooth" });
-  };
-
-  // Auto-slide: rotate slides every N ms but keep manual controls active.
-  const autoRef = useRef<number | null>(null);
-  const AUTO_INTERVAL = 7000; // 7s
-
-  useEffect(() => {
-    // Ensure we always start at the first slide on refresh/mount
-    if (scrollerRef.current) {
-      scrollerRef.current.scrollTo({ left: 0, behavior: "instant" });
-    }
-
-    const start = () => {
-      stop();
-      autoRef.current = window.setInterval(() => scroll(1), AUTO_INTERVAL);
-    };
-
-    const stop = () => {
-      if (autoRef.current) {
-        clearInterval(autoRef.current);
-        autoRef.current = null;
-      }
-    };
-
-    // start auto sliding
-    start();
-
-    // pause on hover over scroller
-    const el = scrollerRef.current;
-    if (el) {
-      el.addEventListener("mouseenter", stop);
-      el.addEventListener("mouseleave", start);
-    }
-
-    return () => {
-      stop();
-      if (el) {
-        el.removeEventListener("mouseenter", stop);
-        el.removeEventListener("mouseleave", start);
-      }
-    };
-  }, [scrollerRef]);
-
-  const slides = [
-    {
-      id: "calls",
-      title: t('featuresCallsTitle'),
-      body: t('featuresCallsBody'),
-      icon: <MessageSquare className="h-6 w-6 text-indigo-600" />,
-      preview: <AIConversationPreview />,
-    },
-    {
-      id: "dispatch",
-      title: t('featuresDispatchTitle'),
-      body: t('featuresDispatchBody'),
-      icon: <Phone className="h-6 w-6 text-orange-500" />,
-      preview: <DispatchPreview />,
-    },
-    {
-      id: "fin",
-      title: t('featuresFinTitle'),
-      body: t('featuresFinBody'),
-      icon: <DollarSign className="h-6 w-6 text-emerald-600" />,
-      preview: <JobCostingPreview />,
-    },
-    {
-      id: "pm",
-      title: t('featuresPmTitle'),
-      body: t('featuresPmBody'),
-      icon: <LayoutDashboard className="h-6 w-6 text-blue-600" />,
-      preview: <ProjectManagementCard />,
-    },
-  ];
-
+function Reveal({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section id="features" className="py-14 px-3 sm:px-4 sm:py-20 md:py-20 bg-white relative overflow-hidden dark:bg-background">
-      <div className="container mx-auto max-w-8xl">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl font-bold mb-2 text-balance sm:text-3xl md:text-5xl md:mb-3">{t('featuresSectionTitle')}</h2>
-          <p className="text-sm text-muted-foreground max-w-3xl mx-auto sm:text-base md:text-xl">{t('featuresSectionSubtitle')}</p>
-        </div>
+    <m.div
+      className={className}
+      initial={{ opacity: 0, y: 36 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-120px" }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </m.div>
+  )
+}
 
-        <div className="relative">
-          {/* Nav buttons for large screens only */}
-          <button
-            aria-label="Prev"
-            onClick={() => scroll(-1)}
-            className="hidden lg:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full h-12 w-12 rounded-full bg-white shadow-md z-20 mr-3"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-
-          <button
-            aria-label="Next"
-            onClick={() => scroll(1)}
-            className="hidden lg:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 translate-x-full h-12 w-12 rounded-full bg-white shadow-md z-20 ml-3"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-
-          <div className="w-full overflow-hidden">
-            <div
-              ref={scrollerRef}
-              className="flex gap-4 md:gap-6 overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x pb-4 scroll-smooth px-2 sm:px-4 md:px-8 lg:px-16"
-            >
-              {slides.map((s) => (
-                <article key={s.id} className="snap-center flex-shrink-0 w-[88vw] sm:w-[min(92vw,84rem)] min-h-0 md:w-[min(92vw,84rem)] lg:h-[64vh]">
-                  <div className="rounded-xl md:rounded-2xl p-4 sm:p-6 bg-gradient-to-br from-white to-gray-50 dark:from-background dark:to-muted/10 shadow-lg h-full flex flex-col">
-                    {/* Mobile: title + body on top, then compact preview */}
-                    <div className="flex flex-col lg:grid lg:grid-cols-[1.6fr_1fr] lg:gap-8 lg:items-center lg:h-full">
-                      <div className="order-2 lg:order-1 flex justify-center mt-4 lg:mt-0">
-                        <div className={`w-full ${s.id === 'pm' ? 'max-w-[85rem]' : 'max-w-[52rem]'}`}>
-                          <div className="rounded-lg md:rounded-xl border border-gray-200 bg-gray-50 shadow-sm overflow-hidden">
-                            <div className="bg-white p-2 sm:p-4 border-b border-gray-100">
-                              <div className="rounded-md overflow-hidden bg-white max-h-[200px] sm:max-h-[280px] lg:max-h-none">
-                                {s.preview}
-                              </div>
-                            </div>
-                            {/* keyboard area - hide on small mobile to save space */}
-                            <div className="bg-gray-100 p-2 sm:p-4 hidden sm:block">
-                              <div className="mx-auto w-full max-w-[48rem]">
-                                <div className="grid grid-cols-12 gap-1 sm:gap-2">
-                                  {Array.from({ length: 12 }).map((_, i) => (
-                                    <div key={i} className="h-1.5 sm:h-2 bg-gray-200 rounded-sm" />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="order-1 lg:order-2 flex items-center lg:h-full">
-                        <div className="w-full">
-                          <div className="flex items-start gap-3 sm:gap-4">
-                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center bg-muted/20 shrink-0">{s.icon}</div>
-                            <div className="min-w-0">
-                              <h3 className="text-xl font-semibold sm:text-2xl md:text-4xl">{s.title}</h3>
-                              <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base md:text-xl max-w-lg">{s.body}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-          {/* Mobile: swipe hint */}
-          <p className="text-center text-xs text-muted-foreground mt-3 lg:hidden">Swipe for more</p>
-        </div>
+function FeatureSection({
+  eyebrow,
+  title,
+  body,
+  visual,
+  reverse = false,
+}: {
+  eyebrow: string
+  title: string
+  body: string
+  visual: ReactNode
+  reverse?: boolean
+}) {
+  return (
+    <section className="scroll-mt-20 bg-[#fbf6f1] px-5 py-20 sm:px-8 lg:py-28">
+      <div className={`mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-2 lg:gap-24 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
+        <Reveal className="flex justify-center">{visual}</Reveal>
+        <Reveal className="mx-auto max-w-xl lg:mx-0">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">{eyebrow}</p>
+          <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+            {title}
+          </h2>
+          <p className="mt-6 text-xl leading-8 text-slate-600">{body}</p>
+        </Reveal>
       </div>
     </section>
-  );
+  )
+}
+
+function EstimateShowcase() {
+  return (
+    <div className="w-full max-w-[600px] rounded-[22px] border border-emerald-100 bg-[#eafbf6] p-4 shadow-[0_30px_90px_rgba(32,116,96,0.10)]">
+      <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_18px_44px_rgba(38,49,61,0.12)] sm:p-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+          <Activity className="h-5 w-5 text-[#5b50ff]" />
+          <p className="text-lg font-black text-slate-950">AI Project Estimator</p>
+        </div>
+
+        <div className="space-y-6 border-b border-slate-100 py-8 text-[15px] sm:text-base">
+          {[
+            ["Materials Processing", "$1,250.00"],
+            ["Labor Target (24h)", "$1,320.00"],
+            ["Contractor Margin (25%)", "$642.50"],
+          ].map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-6">
+              <span className="text-slate-950">{label}</span>
+              <span className="font-black text-slate-950">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-6 py-9">
+          <span className="text-lg font-black text-slate-950">Instant Quote Total</span>
+          <span className="text-lg font-black text-[#5b50ff]">$3,212.50</span>
+        </div>
+
+        <button type="button" className="h-10 w-full rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
+          Send to Client
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DispatchShowcase() {
+  return (
+    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(71,44,164,0.14)]">
+      <div className="flex h-10 items-center justify-between bg-[#6d2df6] px-4 text-white">
+        <div className="flex min-w-0 items-center gap-2">
+          <Sparkles className="h-4 w-4 shrink-0 text-violet-100" />
+          <p className="truncate text-sm font-black">Agentic Subcontractor Dispatch</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-medium">
+          <span className="h-3 w-3 rounded-full bg-emerald-400" />
+          Autonomous Mode
+        </div>
+      </div>
+
+      <div className="bg-slate-50 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-6 w-6 text-orange-500" />
+            <div>
+              <p className="text-sm font-black text-slate-900">Emergency Dispatch Required</p>
+              <p className="mt-1 text-xs text-slate-500">Water heater burst at 104 Main St. Requires licensed plumber within 10 miles.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <Navigation className="h-4 w-4" />
+          AI Scanning Radius
+        </div>
+
+        <div className="mt-3 rounded-[18px] border-2 border-[#6258ff] bg-[#f5f7ff] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#6258ff] shadow-sm">
+                <User className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-black text-slate-900">David&apos;s Plumbing Pro</p>
+                <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                  <MapPin className="h-3 w-3" />
+                  2.4 miles away - Priority 1
+                </p>
+              </div>
+            </div>
+            <span className="hidden items-center gap-1 rounded-full bg-[#ebeaff] px-3 py-2 text-xs font-black text-[#4f46e5] sm:flex">
+              <PhoneCall className="h-3.5 w-3.5" />
+              Voice AI Calling
+            </span>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-slate-100 bg-white px-4 py-3">
+            <p className="flex items-center gap-1 text-xs font-black text-[#6258ff]">
+              <Sparkles className="h-3.5 w-3.5" />
+              Voice Agent Note
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              &quot;David, we have an emergency water heater leak 2 miles from you at 104 Main St. Can you dispatch immediately?&quot;
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-4 opacity-60">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-400">
+              <User className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-black text-slate-500">Apex Water Systems</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                <MapPin className="h-3 w-3" />
+                4.1 miles away - Priority 2
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-slate-400">Standby</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
+        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        AI automatically routes to the next available crew.
+      </div>
+    </div>
+  )
+}
+
+function CostShowcase() {
+  return (
+    <div className="w-full max-w-[540px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(0,126,91,0.12)]">
+      <div className="flex items-center justify-between bg-[#079b67] px-5 py-3 text-white">
+        <div className="flex items-center gap-3">
+          <DollarSign className="h-5 w-5" />
+          <p className="text-sm font-black">Smart Job Costing</p>
+        </div>
+        <span className="flex items-center gap-2 rounded bg-[#058659] px-3 py-1 text-xs font-black">
+          <RefreshCw className="h-3.5 w-3.5" />
+          QB Synced
+        </span>
+      </div>
+
+      <div className="bg-white p-4">
+        <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-500">Total Contract Value</p>
+            <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">$24,500.00</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-black uppercase text-slate-500">GC Profit Margin</p>
+            <p className="mt-1 text-xl font-black text-[#079b67]">32% ($7,840)</p>
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+          <div className="grid grid-cols-[1fr_92px_92px] bg-slate-50 px-3 py-3 text-xs font-black uppercase text-slate-500">
+            <span>Line Item</span>
+            <span className="text-right">GC Cost</span>
+            <span className="text-right">Client $</span>
+          </div>
+
+          {[
+            { item: "Rough Plumbing", sub: "David's Plumbing", cost: "$3,500", client: "$4,550", needsSub: false },
+            { item: "Electrical Wiring", sub: "Unassigned", cost: "$2,800", client: "$3,640", needsSub: true },
+            { item: "Drywall & Tape", sub: "JD Drywall", cost: "$1,500", client: "$2,100", needsSub: false },
+          ].map(({ item, sub, cost, client, needsSub }) => (
+            <div key={item} className="grid grid-cols-[1fr_92px_92px] border-t border-slate-100 px-3 py-3 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">{item}</p>
+                <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
+                  {needsSub ? null : <CheckCircle2 className="h-3 w-3 text-teal-500" />}
+                  <span>{sub}</span>
+                  {needsSub ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Needs Sub</span> : null}
+                </div>
+              </div>
+              <span className="self-center text-right font-medium text-slate-600">{cost}</span>
+              <span className="self-center text-right font-black text-slate-950">{client}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-4 border-t border-slate-100 bg-white px-4 py-3 text-xs font-semibold text-slate-500">
+        <span className="flex items-center gap-1">
+          <Download className="h-3.5 w-3.5" />
+          Auto-generates Client PDF
+        </span>
+        <span className="h-4 w-px bg-slate-200" />
+        <span className="text-[#079b67]">Syncs to QuickBooks</span>
+      </div>
+    </div>
+  )
+}
+
+export function Features() {
+  const t = useTranslations("landing")
+
+  return (
+    <div id="features" className="bg-[#fbf6f1]">
+      <FeatureSection
+        eyebrow={t("featureLeadEyebrow")}
+        title={t("featuresCallsTitle")}
+        body={t("featuresCallsBody")}
+        visual={<PhoneMessagePreview className="w-[272px] sm:w-[296px] md:w-[320px]" />}
+      />
+      <FeatureSection
+        eyebrow={t("featureEstimateEyebrow")}
+        title={t("featureEstimateTitle")}
+        body={t("featureEstimateBody")}
+        visual={<EstimateShowcase />}
+        reverse
+      />
+      <FeatureSection
+        eyebrow={t("featureDispatchEyebrow")}
+        title={t("featuresDispatchTitle")}
+        body={t("featuresDispatchBody")}
+        visual={<DispatchShowcase />}
+      />
+      <FeatureSection
+        eyebrow={t("featureFinanceEyebrow")}
+        title={t("featuresFinTitle")}
+        body={t("featuresFinBody")}
+        visual={<CostShowcase />}
+        reverse
+      />
+    </div>
+  )
 }

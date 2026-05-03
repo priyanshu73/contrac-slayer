@@ -77,14 +77,14 @@ export default function NewQuotePage() {
               </a>
             </Button>
             <div>
-              <h1 className="text-lg font-semibold leading-none">Create Quote</h1>
-              <p className="text-sm text-muted-foreground">{subtitle}</p>
+              <h1 className="hidden text-lg font-semibold leading-none md:block">Create Quote</h1>
+              <p className="text-sm text-muted-foreground md:mt-0">{subtitle}</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-[1600px]">
+      <main className="container mx-auto px-4 py-4 pb-24 md:py-6 md:pb-6 max-w-[1600px]">
         <QuoteCreator 
           leadId={leadId} 
           clientId={clientId} 
@@ -94,4 +94,3 @@ export default function NewQuotePage() {
     </div>
   )
 }
-

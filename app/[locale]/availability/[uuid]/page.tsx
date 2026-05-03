@@ -117,15 +117,14 @@ export default function AvailabilityPortalPage() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        {/* Header */}
-        <Card className="border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
+        <Card className="border-slate-200 shadow-sm p-5 sm:p-6 md:p-8 space-y-4">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0 text-xl font-bold shadow-sm">
               {(subcontractor.name || "?")[0].toUpperCase()}
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Update Your Availability</h1>
-              <p className="text-sm text-slate-500 mt-1 capitalize font-medium flex items-center gap-2">
+              <h1 className="hidden text-xl sm:text-2xl font-bold text-slate-900 md:block">Update Your Availability</h1>
+              <p className="text-sm text-slate-500 capitalize font-medium flex items-center gap-2 md:mt-1">
                  {subcontractor.name} 
                  {subcontractor.company_name && <span className="text-slate-400">&bull; {subcontractor.company_name}</span>}
               </p>

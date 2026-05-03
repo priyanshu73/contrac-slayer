@@ -31,6 +31,10 @@ import {
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
 
+function getLocalizedRoute(pathname: string | null | undefined): string {
+  return pathname?.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
+}
+
 export function Navbar() {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
@@ -121,6 +125,46 @@ export function Navbar() {
     icon: Settings,
   };
 
+  const currentRoute = getLocalizedRoute(pathname);
+  const getPageTitle = () => {
+    if (currentRoute === "/dashboard") return t("dashboard");
+    if (currentRoute === "/leads") return t("leads");
+    if (currentRoute.startsWith("/leads/")) return "Lead Details";
+    if (currentRoute === "/quotes/new") return "New Quote";
+    if (currentRoute === "/quotes/copy") return "Copy Quote";
+    if (currentRoute.match(/^\/quotes\/[^/]+\/edit$/)) return "Edit Quote";
+    if (currentRoute.startsWith("/quotes/")) return "Quote Details";
+    if (currentRoute === "/quotes") return t("quotes");
+    if (currentRoute.startsWith("/invoices/") && currentRoute.endsWith("/customer")) return "Customer Invoice";
+    if (currentRoute.startsWith("/invoices/")) return "Invoice Details";
+    if (currentRoute === "/invoices") return t("invoices");
+    if (currentRoute.startsWith("/calendar/")) return "Booking Details";
+    if (currentRoute === "/calendar") return t("calendar");
+    if (currentRoute === "/clients/new") return "New Client";
+    if (currentRoute.startsWith("/clients/")) return "Client Details";
+    if (currentRoute === "/clients") return t("clients");
+    if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
+    if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
+    if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
+    if (currentRoute.startsWith("/crew/")) return "Crew Details";
+    if (currentRoute === "/crew") return "Crew";
+    if (currentRoute.startsWith("/projects/trade/")) return "Trade Scope";
+    if (currentRoute.startsWith("/projects/")) return "Project Details";
+    if (currentRoute === "/projects") return t("projects");
+    if (currentRoute === "/tasks") return t("tasks");
+    if (currentRoute === "/actions/scheduling") return "Generate Lead";
+    if (currentRoute.startsWith("/settings")) return t("settings");
+    if (currentRoute.startsWith("/billing")) return "Billing";
+    if (currentRoute.startsWith("/admin")) return "Admin";
+    if (currentRoute.startsWith("/privacy")) return "Privacy";
+    if (currentRoute.startsWith("/request/settings")) return "Request Settings";
+    if (currentRoute.startsWith("/request")) return "Quote Request";
+    if (currentRoute.startsWith("/availability")) return "Availability";
+    return "Dashboard";
+  };
+
+  const pageTitle = getPageTitle();
+
   const uniqueLinksByHref = <T extends { href: string }>(
     links: Array<T | undefined>,
   ) => {
@@ -168,23 +212,18 @@ export function Navbar() {
     return null;
   }
 
-  // Show only logo on profile-setup page
+  // Show only the current page title on profile-setup.
   if (isProfileSetup) {
     return (
-      <nav className="border-b border-border bg-card sticky top-0 z-40 print:hidden md:hidden">
+      <nav className="nav-typography border-b border-border bg-card sticky top-0 z-40 print:hidden md:hidden">
         <div className="container mx-auto px-3">
           <div className="flex h-12 items-center">
             <Link
               href={`/${locale}/dashboard`}
-              className="flex items-center gap-2"
+              className="min-w-0"
             >
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="w-7 h-7 object-contain"
-              />
-              <span className="text-lg font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-                ContractorOps AI
+              <span className="mobile-app-page-title truncate text-[17px] font-[700] text-slate-950">
+                Profile Setup
               </span>
             </Link>
           </div>
@@ -200,7 +239,7 @@ export function Navbar() {
   return (
     <TooltipProvider delayDuration={0}>
       {/* ===== MOBILE TOP HEADER ===== */}
-      <header className="sticky top-0 z-[60] bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85 md:hidden print:hidden">
+      <header className="mobile-app-header nav-typography sticky top-0 z-[60] bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85 md:hidden print:hidden">
         <div className="relative flex h-14 items-center justify-between px-4">
           <button
             type="button"
@@ -227,9 +266,8 @@ export function Navbar() {
               />
               </span>
           </button>
-          <div className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[15px] font-semibold tracking-[0.08em] text-slate-900">
-            <span className="font-semibold">ContractorOps</span>
-            <span className="ml-1 font-light tracking-[0.14em] text-slate-500">AI</span>
+          <div className="mobile-app-page-title absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 truncate whitespace-nowrap text-[17px] font-[700] text-slate-950">
+            {pageTitle}
           </div>
           <Link
             href={settingsLink.href}
@@ -242,7 +280,7 @@ export function Navbar() {
       </header>
 
       <div
-        className={`fixed inset-x-0 top-14 bottom-0 z-[70] md:hidden print:hidden ${
+        className={`fixed inset-x-0 top-[calc(3.5rem+env(safe-area-inset-top))] bottom-0 z-[70] md:hidden print:hidden ${
           mobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"
         }`}
         aria-hidden={!mobileMenuOpen}
@@ -250,17 +288,17 @@ export function Navbar() {
         <button
           type="button"
           aria-label="Close menu"
-          className={`absolute inset-y-0 right-0 w-[70vw] bg-slate-950/15 backdrop-blur-[1px] transition-opacity duration-300 ${
+          className={`absolute inset-y-0 right-0 w-full bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
             mobileMenuOpen ? "opacity-100" : "opacity-0"
           }`}
           onClick={() => setMobileMenuOpen(false)}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-[44vw] min-w-[168px] flex-col overflow-hidden border-r border-sky-100 bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          className={`nav-typography absolute inset-y-0 left-0 flex w-[min(82vw,340px)] flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#111111_0%,#090909_48%,#171717_100%)] text-white shadow-[20px_0_50px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+          <div className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
             {mobileMenuLinks.map((link) => {
                 const isActive =
                   pathname === link.href ||
@@ -271,29 +309,39 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex min-h-[48px] items-center gap-3 px-3 py-3 text-left transition-colors ${
+                    className={`group flex min-h-[52px] items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all active:scale-[0.99] ${
                       isActive
-                        ? "text-sky-950"
-                        : "text-sky-800 hover:text-sky-950 active:text-sky-950"
+                        ? "bg-[rgba(255,255,255,0.96)] text-neutral-950 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+                        : "text-white/78 hover:bg-white/8 hover:text-white active:bg-white/12"
                     }`}
                     title={link.label}
                   >
-                    <Icon className="h-[18px] w-[18px] shrink-0" />
-                    <span className={`min-w-0 truncate text-[12px] leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                        isActive
+                          ? "bg-black text-white"
+                          : "bg-white/8 text-white/72 group-hover:bg-white/12 group-hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                    </span>
+                    <span className={`min-w-0 truncate text-[14px] leading-tight tracking-[0] ${isActive ? "font-bold" : "font-semibold"}`}>
                       {link.label}
                     </span>
                   </Link>
                 );
               })}
           </div>
-          <div className="mt-auto border-t border-slate-100 px-2 py-3">
+          <div className="mt-auto border-t border-white/10 bg-white/[0.03] px-3 py-3">
             <button
               type="button"
               onClick={logout}
-              className="flex min-h-[48px] w-full items-center gap-3 px-3 py-3 text-left text-rose-600 transition-colors hover:text-rose-700 active:text-rose-700"
+              className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-rose-200 transition-all hover:bg-rose-500/10 hover:text-rose-100 active:scale-[0.99] active:bg-rose-500/15"
             >
-              <LogOut className="h-[18px] w-[18px] shrink-0" />
-              <span className="min-w-0 truncate text-[11px] font-semibold leading-tight">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/12 text-rose-200">
+                <LogOut className="h-[18px] w-[18px] shrink-0" />
+              </span>
+              <span className="min-w-0 truncate text-[14px] font-bold leading-tight tracking-[0]">
                 {tAuth("logout")}
               </span>
             </button>
@@ -303,7 +351,7 @@ export function Navbar() {
 
       {/* ===== DESKTOP SIDEBAR ===== */}
       <aside
-        className={`hidden md:flex flex-col fixed left-0 top-0 bottom-0 z-40 border-r border-border bg-card print:hidden transition-all duration-300 ease-in-out ${sidebarWidth}`}
+        className={`nav-typography hidden md:flex flex-col fixed left-0 top-0 bottom-0 z-40 border-r border-border bg-card print:hidden transition-all duration-300 ease-in-out ${sidebarWidth}`}
       >
         {/* Logo / Brand */}
         <div
@@ -319,7 +367,7 @@ export function Navbar() {
               className="w-7 h-7 shrink-0 object-contain"
             />
             {!collapsed && (
-              <span className="text-[15px] font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent truncate leading-tight">
+              <span className="truncate bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-[15px] font-extrabold leading-tight tracking-[0] text-transparent">
                 ContractorOps AI
               </span>
             )}
@@ -341,7 +389,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
                   collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
                 } ${
                   isActive
@@ -371,7 +419,7 @@ export function Navbar() {
           {/* Actions section */}
           {!collapsed && (
             <div className="pt-3 mt-3 border-t border-border">
-              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/60">
                 {t("actions")}
               </p>
             </div>
@@ -386,7 +434,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
                   collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
                 } ${
                   isActive
@@ -419,11 +467,11 @@ export function Navbar() {
           {/* Company / user */}
           {!collapsed && (
             <div className="px-4 py-3 border-b border-border">
-              <p className="text-xs font-medium text-foreground truncate">
+              <p className="truncate text-xs font-bold text-foreground">
                 {companyName}
               </p>
               {user.contractor_profile?.company_name && user.email && (
-                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">
                   {user.email}
                 </p>
               )}
@@ -438,7 +486,7 @@ export function Navbar() {
             const settingsLink = (
               <Link
                 href={`/${locale}/settings`}
-                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors mx-2 my-1.5 ${
+                className={`mx-2 my-1.5 flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
                   collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
                 } ${
                   isSettingsActive
@@ -469,7 +517,7 @@ export function Navbar() {
           {/* Collapse toggle */}
           <button
             onClick={toggleCollapsed}
-            className={`flex items-center gap-3 w-full text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mx-0 px-2 py-3 border-t border-border ${
+            className={`mx-0 flex w-full items-center gap-3 border-t border-border px-2 py-3 text-[13.5px] font-semibold leading-none tracking-[0] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
               collapsed ? "justify-center" : "px-5"
             }`}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}

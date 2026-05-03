@@ -572,16 +572,16 @@ export function AgentChatPanel() {
             <button
                 id="agent-chat-trigger"
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50
-                   flex items-center gap-2 rounded-full
+                className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-50
+                   flex h-14 w-14 items-center justify-center gap-2 rounded-2xl md:h-auto md:w-auto md:rounded-full
                    bg-gradient-to-r from-sky-500 to-blue-600
-                   px-4 py-3 text-white shadow-lg shadow-sky-500/25
+                   text-white shadow-lg shadow-sky-500/25 md:px-4 md:py-3
                    transition-all duration-300
                    hover:shadow-xl hover:shadow-sky-500/30 hover:scale-105
                    active:scale-95"
                 title="Open AI Assistant"
             >
-                <Sparkles className="h-5 w-5" />
+                <Sparkles className="h-6 w-6 md:h-5 md:w-5" />
                 <span className="text-sm font-semibold hidden sm:inline">AI Assistant</span>
             </button>
         )
@@ -591,11 +591,11 @@ export function AgentChatPanel() {
     return (
         <div
             id="agent-chat-panel"
-            className={`fixed bottom-0 right-0 md:bottom-4 md:right-4 z-50
+            className={`fixed inset-x-0 top-0 bottom-0 z-[80] md:inset-auto md:bottom-4 md:right-4 md:z-50
                  flex flex-col
-                 w-full h-[85vh] md:max-h-[90vh]
-                 rounded-t-2xl md:rounded-2xl
-                 border border-border bg-card
+                 w-full h-[100dvh] md:max-h-[90vh]
+                 rounded-none md:rounded-2xl
+                 border-0 border-border bg-card md:border
                  shadow-2xl shadow-black/10
                  overflow-hidden transition-all duration-300
                  ${isExpanded 
@@ -604,26 +604,26 @@ export function AgentChatPanel() {
                  }`}
         >
             {/* ── Header ── */}
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5">
+            <div className="flex items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
                 <div className="flex items-center gap-2.5">
                     {panelView === "conversations" ? (
                         <button
                             onClick={() => setPanelView("chat")}
-                            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors"
+                            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted md:h-8 md:w-8"
                             title="Back to chat"
                         >
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
                     ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600">
-                            <Bot className="h-4 w-4 text-white" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
+                            <Bot className="h-5 w-5 text-white md:h-4 md:w-4" />
                         </div>
                     )}
                     <div>
-                        <h3 className="text-sm font-semibold text-foreground leading-tight">
+                        <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
                             {panelView === "conversations" ? "Conversations" : "AI Assistant"}
                         </h3>
-                        <p className="text-[11px] text-muted-foreground leading-tight">
+                        <p className="mt-0.5 max-w-[210px] truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:max-w-none md:text-[11px]">
                             {panelView === "conversations"
                                 ? `${conversations.length} chat${conversations.length !== 1 ? "s" : ""}`
                                 : activeConversationId
@@ -639,20 +639,20 @@ export function AgentChatPanel() {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                                 onClick={() => setPanelView("conversations")}
                                 title="View conversations"
                             >
-                                <MessageSquare className="h-3.5 w-3.5" />
+                                <MessageSquare className="h-4 w-4 md:h-3.5 md:w-3.5" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                                 onClick={handleNewChat}
                                 title="New chat"
                             >
-                                <Plus className="h-3.5 w-3.5" />
+                                <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
                             </Button>
                         </>
                     )}
@@ -660,11 +660,11 @@ export function AgentChatPanel() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                             onClick={handleNewChat}
                             title="New chat"
                         >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
                         </Button>
                     )}
                     <Button
@@ -679,7 +679,7 @@ export function AgentChatPanel() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                         onClick={() => setIsOpen(false)}
                     >
                         <X className="h-4 w-4" />
@@ -696,14 +696,14 @@ export function AgentChatPanel() {
                         </div>
                     ) : conversations.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted mb-3">
+                            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted md:h-12 md:w-12">
                                 <MessageSquare className="h-6 w-6 text-muted-foreground" />
                             </div>
-                            <p className="text-sm text-muted-foreground mb-3">No conversations yet</p>
+                            <p className="mb-3 text-[15px] font-medium text-muted-foreground md:text-sm">No conversations yet</p>
                             <button
                                 onClick={handleNewChat}
                                 className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600
-                                       px-4 py-2 text-xs font-medium text-white shadow-sm
+                                       min-h-11 px-4 py-2 text-sm font-semibold text-white shadow-sm md:min-h-0 md:text-xs md:font-medium
                                        hover:shadow-md transition-all"
                             >
                                 <Plus className="h-3.5 w-3.5" />
@@ -715,7 +715,7 @@ export function AgentChatPanel() {
                             {conversations.map((conv) => (
                                 <div
                                     key={conv.id}
-                                    className={`group flex items-center gap-3 px-4 py-3
+                                    className={`group flex min-h-[64px] items-center gap-3 px-4 py-3 md:min-h-0
                                         cursor-pointer transition-colors
                                         hover:bg-muted/60
                                         ${activeConversationId === conv.id
@@ -724,14 +724,14 @@ export function AgentChatPanel() {
                                         }`}
                                     onClick={() => loadConversation(conv.id)}
                                 >
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted md:h-8 md:w-8 md:rounded-lg">
+                                        <MessageSquare className="h-4 w-4 text-muted-foreground md:h-3.5 md:w-3.5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">
+                                        <p className="truncate text-[15px] font-semibold text-foreground md:text-sm md:font-medium">
                                             {conv.title}
                                         </p>
-                                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                        <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground md:mt-0 md:text-[11px]">
                                             <Clock className="h-3 w-3" />
                                             {formatTimeAgo(conv.updated_at)}
                                         </div>
@@ -757,32 +757,32 @@ export function AgentChatPanel() {
             {/* ── Messages (Chat View) ── */}
             {panelView === "chat" && (
                 <>
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                    <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-4 md:py-3">
                         {messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/15 to-blue-600/15 mb-4">
-                                    <Sparkles className="h-7 w-7 text-sky-600" />
+                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-sky-500/15 to-blue-600/15 md:h-14 md:w-14 md:rounded-2xl">
+                                    <Sparkles className="h-8 w-8 text-sky-600 md:h-7 md:w-7" />
                                 </div>
-                                <h4 className="text-sm font-semibold text-foreground mb-1.5">
+                                <h4 className="mb-1.5 text-[20px] font-[760] tracking-tight text-foreground md:text-sm md:font-semibold">
                                     How can I help?
                                 </h4>
-                                <p className="text-xs text-muted-foreground mb-3 max-w-[260px]">
+                                <p className="mb-4 max-w-[280px] text-[14px] leading-5 text-muted-foreground md:mb-3 md:max-w-[260px] md:text-xs">
                                     I can look up your leads, clients, quotes, projects, calendar, and more.
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
-                                <div className="flex gap-2 mb-4 w-full max-w-[300px]">
+                                <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
                                     <button
                                         onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
                                         disabled={isLoading}
                                         className="flex-1 flex items-center justify-center gap-1.5
                                             rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
-                                            px-3 py-2.5 text-xs font-medium text-amber-700 dark:text-amber-400
+                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
                                             transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
                                             hover:scale-[1.02] active:scale-[0.98]
                                             disabled:opacity-50 disabled:pointer-events-none"
                                     >
-                                        <Sun className="h-3.5 w-3.5" />
+                                        <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
                                         Morning Briefing
                                     </button>
                                     <button
@@ -790,17 +790,17 @@ export function AgentChatPanel() {
                                         disabled={isLoading}
                                         className="flex-1 flex items-center justify-center gap-1.5
                                             rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
-                                            px-3 py-2.5 text-xs font-medium text-sky-700 dark:text-sky-400
+                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
                                             transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
                                             hover:scale-[1.02] active:scale-[0.98]
                                             disabled:opacity-50 disabled:pointer-events-none"
                                     >
-                                        <BellRing className="h-3.5 w-3.5" />
+                                        <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
                                         Follow-Ups
                                     </button>
                                 </div>
 
-                                <div className="flex flex-wrap justify-center gap-1.5">
+                                <div className="flex max-w-[340px] flex-wrap justify-center gap-2 md:max-w-none md:gap-1.5">
                                     {suggestions.map((suggestion) => (
                                         <button
                                             key={suggestion}
@@ -808,8 +808,8 @@ export function AgentChatPanel() {
                                                 setInput(suggestion)
                                                 setTimeout(() => inputRef.current?.focus(), 50)
                                             }}
-                                            className="rounded-full border border-border px-3 py-1.5
-                                     text-xs text-muted-foreground
+                                            className="min-h-9 rounded-full border border-border px-3.5 py-1.5
+                                     text-[13px] font-medium text-muted-foreground md:min-h-0 md:px-3 md:text-xs md:font-normal
                                      transition-colors hover:bg-muted hover:text-foreground"
                                         >
                                             {suggestion}
@@ -825,7 +825,7 @@ export function AgentChatPanel() {
                                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                             >
                                 <div
-                                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${msg.role === "user"
+                                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed md:max-w-[85%] md:text-sm ${msg.role === "user"
                                         ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-md"
                                         : "bg-muted text-foreground rounded-bl-md"
                                         }`}
@@ -992,7 +992,7 @@ export function AgentChatPanel() {
                     </div>
 
                     {/* ── Input ── */}
-                    <div className="border-t border-border bg-card px-3 py-2.5">
+                    <div className="border-t border-border bg-card px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:py-2.5">
                         <div className="flex items-end gap-2">
                             <textarea
                                 ref={inputRef}
@@ -1001,8 +1001,8 @@ export function AgentChatPanel() {
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask me anything..."
                                 rows={1}
-                                className="flex-1 resize-none rounded-xl border border-border bg-muted/50
-                               px-3.5 py-2.5 text-sm placeholder:text-muted-foreground
+                                className="flex-1 resize-none rounded-2xl border border-border bg-muted/50
+                               px-4 py-3 text-[16px] leading-5 placeholder:text-muted-foreground md:rounded-xl md:px-3.5 md:py-2.5 md:text-sm
                                focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500
                                max-h-28 scrollbar-thin"
                                 style={{ minHeight: "40px" }}
@@ -1016,7 +1016,7 @@ export function AgentChatPanel() {
                                 size="icon"
                                 disabled={!input.trim() || isLoading}
                                 onClick={handleSend}
-                                className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600
+                                className="h-11 w-11 shrink-0 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 md:h-10 md:w-10 md:rounded-xl
                                text-white shadow-sm hover:shadow-md transition-all
                                disabled:opacity-40 disabled:shadow-none"
                             >

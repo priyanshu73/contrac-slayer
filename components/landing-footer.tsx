@@ -1,25 +1,31 @@
 "use client"
 
 import Link from "next/link"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 export function LandingFooter() {
   const locale = useLocale()
+  const t = useTranslations("landing")
 
   return (
-    <footer className="border-t border-border bg-muted/30 py-8 px-4">
-      <div className="container mx-auto max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          © {new Date().getFullYear()} ContractorOps AI. All rights reserved.
-        </p>
-        <nav className="flex items-center gap-6">
-          <Link
-            href={`/${locale}/privacy`}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
+    <footer className="border-t border-[#eadfd7] bg-[#fbf6f1] px-4 py-8 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <Link href={`/${locale}`} className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm">
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-md object-contain" />
+          </span>
+          <div>
+            <p className="text-sm font-black text-slate-950">ContractorOps AI</p>
+            <p className="text-sm text-slate-500">{t("footerTagline")}</p>
+          </div>
+        </Link>
+
+        <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:gap-6">
+          <p>© {new Date().getFullYear()} ContractorOps AI</p>
+          <Link href={`/${locale}/privacy`} className="transition-colors hover:text-slate-950">
             Privacy Policy
           </Link>
-        </nav>
+        </div>
       </div>
     </footer>
   )

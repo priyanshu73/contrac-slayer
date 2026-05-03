@@ -85,13 +85,13 @@ export default function ProjectsPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="border-b border-slate-200 bg-slate-50/90 backdrop-blur-md md:sticky md:top-0 md:z-10">
-        <div className="px-4 py-4 sm:px-8 sm:py-4 md:px-12 lg:px-16">
+        <div className="px-4 py-3 sm:px-8 md:px-12 md:py-4 lg:px-16">
           <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
+              <h1 className="hidden text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight md:block">
                 {t("title")}
               </h1>
-              <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
+              <p className="text-sm text-slate-500 md:mt-1">{t("subtitle")}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
@@ -108,7 +108,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <main className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-8">
+      <main className="px-3 py-4 pb-24 sm:px-8 sm:py-6 md:px-12 md:pb-8 lg:px-16">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Summary stats */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -118,8 +118,8 @@ export default function ProjectsPage() {
           </div>
 
           {/* Projects list */}
-          <Card className="overflow-hidden rounded-lg border-slate-200 shadow-sm sm:rounded-xl">
-            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm sm:rounded-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Filter className="h-4 w-4" />
                 <span>{t("filterLabel")}</span>
@@ -139,19 +139,19 @@ export default function ProjectsPage() {
                 projects.map((project) => (
                   <div
                     key={project.id}
-                    className="group w-full px-4 py-4 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                    className="group w-full px-4 py-4 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors active:bg-slate-50 hover:bg-slate-50"
                   >
                     {/* Clickable area navigates to project */}
                     <button
                       type="button"
-                      className="flex-1 flex w-full items-start sm:items-center gap-3 text-left min-w-0"
+                      className="min-h-[76px] flex-1 flex w-full items-start sm:items-center gap-3 text-left min-w-0 touch-manipulation sm:min-h-0"
                       onClick={() => {
                         window.location.href = `/${locale}/projects/${project.id}`
                       }}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium text-slate-900 truncate">
+                          <p className="font-semibold text-slate-900 truncate sm:font-medium">
                             {project.title || t("untitledProject")}
                           </p>
                           <ProjectStatusBadge status={project.status} />
@@ -161,7 +161,7 @@ export default function ProjectsPage() {
                         </p>
                       </div>
                       <div className="ml-auto flex items-center gap-3 shrink-0">
-                        <div className="rounded-lg bg-slate-50 px-3 py-2 text-right sm:bg-transparent sm:p-0">
+                        <div className="rounded-xl bg-slate-50 px-3 py-2 text-right sm:rounded-lg sm:bg-transparent sm:p-0">
                           <p className="text-[11px] text-slate-500">{t("tradesLabel")}</p>
                           <p className="text-sm font-semibold text-slate-900">{project.accepted_trades ?? 0}/{project.total_trades ?? 0}</p>
                         </div>
@@ -173,7 +173,7 @@ export default function ProjectsPage() {
                     <button
                       type="button"
                       aria-label="Delete project"
-                      className="flex h-10 w-full shrink-0 items-center justify-center rounded-lg border border-slate-200 text-rose-600 transition-colors hover:bg-rose-50 sm:ml-1 sm:h-auto sm:w-auto sm:border-0 sm:p-2 sm:text-slate-400 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:text-rose-600"
+                      className="flex h-11 w-full shrink-0 items-center justify-center rounded-xl border border-slate-200 text-rose-600 transition-colors active:bg-rose-50 hover:bg-rose-50 sm:ml-1 sm:h-auto sm:w-auto sm:rounded-lg sm:border-0 sm:p-2 sm:text-slate-400 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:text-rose-600"
                       onClick={(e) => {
                         e.stopPropagation()
                         setDeleteTarget(project)
@@ -236,7 +236,7 @@ export default function ProjectsPage() {
 
 function SummaryCard({ label, value, positive }: { label: string; value: number; positive?: boolean }) {
   return (
-    <Card className="border-slate-200 shadow-sm p-3 sm:p-4 flex flex-col gap-1">
+    <Card className="flex flex-col gap-1 rounded-2xl border-slate-200 p-3 shadow-sm sm:rounded-xl sm:p-4">
       <span className="line-clamp-2 text-[10px] uppercase tracking-wide text-slate-500 sm:text-xs">{label}</span>
       <span className={`text-lg font-semibold sm:text-xl ${positive ? "text-emerald-600" : "text-slate-900"}`}>{value}</span>
     </Card>

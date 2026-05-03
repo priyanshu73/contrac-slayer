@@ -1,145 +1,80 @@
 "use client"
 
-import { Card } from "@/components/ui/card"
-import { PhoneMessagePreview } from "@/components/phone-message-preview"
-import { DispatchPreview } from "@/components/dispatch-preview"
-import { JobCostingPreview } from "@/components/job-costing-preview"
 import { useTranslations } from "next-intl"
-import { Button } from "@/components/ui/button"
-import { Sparkles, X, Plus, Activity } from "lucide-react"
+import { ArrowRight, CalendarCheck, FileText, PhoneIncoming, Wrench } from "lucide-react"
 
 export function HowItWorks() {
-  const t = useTranslations('landing')
+  const t = useTranslations("landing")
+
+  const steps = [
+    {
+      icon: PhoneIncoming,
+      label: t("workflowStep1Label"),
+      title: t("workflowStep1Title"),
+      body: t("workflowStep1Body"),
+    },
+    {
+      icon: FileText,
+      label: t("workflowStep2Label"),
+      title: t("workflowStep2Title"),
+      body: t("workflowStep2Body"),
+    },
+    {
+      icon: Wrench,
+      label: t("workflowStep3Label"),
+      title: t("workflowStep3Title"),
+      body: t("workflowStep3Body"),
+    },
+  ]
 
   return (
-    <section id="how-it-works" className="py-14 px-4 sm:py-20 md:py-32 bg-white relative overflow-hidden dark:bg-background">
-      <div className="container mx-auto max-w-[95rem] relative z-10">
-        <div className="text-center mb-10 md:mb-20">
-          <h2 className="text-2xl font-bold mb-3 text-balance sm:text-3xl md:text-5xl md:mb-4">{t('howItWorksTitle')}</h2>
-          <p className="text-sm text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed sm:text-base md:text-lg">
-            {t('howItWorksSubtitle')}
-          </p>
+    <section id="how-it-works" className="scroll-mt-20 bg-slate-50 px-4 py-20 sm:px-6 md:py-28">
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-sky-600">{t("workflowKicker")}</p>
+          <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+            {t("howItWorksTitle")}
+          </h2>
+          <p className="mt-5 text-lg leading-8 text-slate-600">{t("howItWorksSubtitle")}</p>
         </div>
 
-        <div className="max-w-[95rem] mx-auto relative">
-          <div className="absolute left-1/2 -translate-x-1/2 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-200 via-indigo-200 via-orange-200 to-emerald-200 hidden lg:block" />
-          <div className="space-y-10 sm:space-y-14 lg:space-y-20">
-
-            {/* Step 1: AI Leads */}
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
-              <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-blue-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
-                <span className="text-2xl font-bold text-blue-600">1</span>
-              </div>
-              <div className="lg:pr-16 flex justify-center lg:justify-end order-last lg:order-none">
-                <div className="w-full max-w-[320px] lg:max-w-none">
-                  <PhoneMessagePreview />
+        <div className="mt-14 grid gap-5 lg:grid-cols-3">
+          {steps.map(({ icon: Icon, label, title, body }, index) => (
+            <article key={title} className="relative rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              {index < steps.length - 1 && (
+                <div className="absolute right-[-22px] top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 shadow-sm lg:flex">
+                  <ArrowRight className="h-5 w-5" />
                 </div>
+              )}
+              <div className="flex items-center justify-between gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950 text-white">
+                  <Icon className="h-6 w-6" />
+                </span>
+                <span className="text-sm font-black text-slate-300">0{index + 1}</span>
               </div>
+              <p className="mt-6 text-xs font-black uppercase tracking-[0.16em] text-sky-600">{label}</p>
+              <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{body}</p>
+            </article>
+          ))}
+        </div>
 
-              <div className="lg:pl-16 order-first lg:order-last">
-                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
-                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-blue-400 bg-white items-center justify-center text-sm font-bold text-blue-600 shrink-0">1</span>
-                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step1Title')}</h3>
-                </div>
-                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
-                  {t('step1Body')}
-                </p>
-              </div>
+        <div className="mt-10 grid gap-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <CalendarCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <h3 className="text-xl font-black text-slate-950">{t("workflowBottomTitle")}</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{t("workflowBottomBody")}</p>
             </div>
-
-            {/* Step 2: Auto Quoting */}
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
-              <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-indigo-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
-                <span className="text-2xl font-bold text-indigo-600">2</span>
-              </div>
-
-              <div className="lg:order-2 lg:pl-16">
-                <Card className="p-3 sm:p-5 bg-gradient-to-br from-[#E8F4F0] to-[#DDF0EC] dark:from-indigo-950/20 dark:to-blue-900/20 border-indigo-200/40 dark:border-indigo-800/30 shadow-xl hover:-translate-y-1 transition-all">
-                  <Card className="bg-background/95 backdrop-blur p-3 sm:p-5 shadow-lg">
-                    <div className="flex items-center justify-between mb-3 md:mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
-                      <span className="text-base font-semibold sm:text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-500" /> {t('step2NewProjectEstimate')}</span>
-                    </div>
-
-                    <div className="space-y-2 text-sm sm:text-base">
-                      <div className="flex justify-between p-2 hover:bg-gray-50 rounded dark:hover:bg-zinc-900">
-                        <span>{t('step2Materials')}</span>
-                        <span className="font-semibold">$1,250.00</span>
-                      </div>
-                      <div className="flex justify-between p-2 hover:bg-gray-50 rounded dark:hover:bg-zinc-900">
-                        <span>{t('step2Labor')}</span>
-                        <span className="font-semibold">$1,320.00</span>
-                      </div>
-                      <div className="flex justify-between p-2 hover:bg-gray-50 rounded border-b border-gray-100 dark:border-zinc-800 dark:hover:bg-zinc-900">
-                        <span>{t('step2Margin')}</span>
-                        <span className="font-semibold">$642.50</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex justify-between items-center text-lg font-bold">
-                      <span>{t('step2Total')}</span>
-                      <span className="text-indigo-600 dark:text-indigo-400">$3,212.50</span>
-                    </div>
-
-                    <Button size="lg" className="w-full bg-black hover:bg-gray-800 text-white text-base mt-4" variant="default">
-                      {t('step2Send')}
-                    </Button>
-                  </Card>
-                </Card>
-              </div>
-
-              <div className="lg:pr-16 lg:order-1">
-                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
-                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-indigo-400 bg-white items-center justify-center text-sm font-bold text-indigo-600 shrink-0">2</span>
-                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step2DescribeTitle')}</h3>
-                </div>
-                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
-                  {t('step2DescribeBody')}
-                </p>
-              </div>
-            </div>
-
-            {/* Step 3: Voice Dispatch */}
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
-              <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-orange-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
-                <span className="text-2xl font-bold text-orange-600">3</span>
-              </div>
-
-              <div className="lg:pr-16 order-last lg:order-none">
-                <DispatchPreview />
-              </div>
-
-              <div className="lg:pl-16 order-first lg:order-last">
-                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
-                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-orange-400 bg-white items-center justify-center text-sm font-bold text-orange-600 shrink-0">3</span>
-                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step3Title')}</h3>
-                </div>
-                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
-                  {t('step3Body')}
-                </p>
-              </div>
-            </div>
-
-            {/* Step 4: Job Costing / Financials */}
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center relative">
-              <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-16 w-16 rounded-full border-4 border-emerald-400 bg-white/80 backdrop-blur-sm items-center justify-center z-20">
-                <span className="text-2xl font-bold text-emerald-600">4</span>
-              </div>
-
-              <div className="lg:order-2 lg:pl-16">
-                <JobCostingPreview />
-              </div>
-
-              <div className="lg:pr-16 lg:order-1">
-                <div className="flex items-center gap-2 sm:gap-4 mb-3 md:mb-5">
-                  <span className="flex lg:hidden h-8 w-8 rounded-full border-2 border-emerald-400 bg-white items-center justify-center text-sm font-bold text-emerald-600 shrink-0">4</span>
-                  <h3 className="text-xl font-bold text-balance sm:text-2xl md:text-4xl">{t('step4Title')}</h3>
-                </div>
-                <p className="text-base text-muted-foreground leading-relaxed sm:text-lg md:text-xl">
-                  {t('step4Body')}
-                </p>
-              </div>
-            </div>
-
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[t("workflowBottomChip1"), t("workflowBottomChip2"), t("workflowBottomChip3")].map((chip) => (
+              <span key={chip} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">
+                {chip}
+              </span>
+            ))}
           </div>
         </div>
       </div>

@@ -21,6 +21,7 @@ import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 import { CostBookSettings } from "@/components/cost-book-settings"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
 type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book"
@@ -486,6 +487,8 @@ export function SettingsTabs() {
         {/* Main Content */}
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6 pb-24 sm:pb-6">
           <div className="max-w-6xl mx-auto">
+            <MobileDarkModeToggle />
+
             {/* Business Section */}
             {activeSection === "business" && (
               <div className="space-y-6">
