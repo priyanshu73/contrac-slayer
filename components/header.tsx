@@ -322,6 +322,18 @@ export function Header() {
             </>
           ) : (
             <>
+              {navLinks.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
               <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -386,18 +398,6 @@ export function Header() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {navLinks.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
-                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
-                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
             </>
           )}
         </nav>

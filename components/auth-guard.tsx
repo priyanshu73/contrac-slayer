@@ -101,7 +101,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, loading, router, pathname, locale, isBillingRoute, isSettingsRoute])
 
   // Always show same loading UI until after mount so server and client HTML match (avoids hydration error)
+  // EXCEPTION: on public/landing routes, let the page handle its own loader (e.g. LandingLoader)
   if (!hasMounted || loading) {
+    if (isPublicRoute) {
+      // Pass through — the landing page renders its own branded loader
+      return <>{children}</>
+    }
     return <AuthGuardLoadingUI />
   }
 
