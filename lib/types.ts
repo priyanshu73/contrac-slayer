@@ -393,6 +393,17 @@ export interface ProposalProjectOverview {
   description: string
 }
 
+export type ProposalThemeId =
+  | 'coastal'
+  | 'editorial'
+  | 'evergreen'
+  | 'renovation'
+  | 'landscape'
+  | 'electric'
+  | 'plumbing'
+  | 'roofing'
+  | 'painting'
+
 export interface ProposalDocument {
   title: string
   companyName: string
@@ -400,6 +411,10 @@ export interface ProposalDocument {
   quoteId?: number | null
   date: string
   contractorName: string
+  themeId?: ProposalThemeId
+  accentColor?: string
+  tintColor?: string
+  fontFamily?: string
   scopeSummary: string
   projectOverview: ProposalProjectOverview
   pages: ProposalPage[]

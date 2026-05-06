@@ -692,6 +692,7 @@
     "recentLeads": "Prospectos Recientes",
     "recentQuotes": "Cotizaciones",
     "createQuote": "Crear Cotización",
+    "createProposal": "Crear Propuesta",
     "noQuotesYet": "No hay cotizaciones aún. ¡Crea tu primera cotización!",
     "upcomingMeetings": "Próximas Reuniones",
     "viewAll": "Ver Todo",
@@ -710,7 +711,18 @@
       "newLead": "Nuevo Prospecto",
       "scheduleJob": "Programar Trabajo",
       "createQuote": "Crear Cotización",
+      "createProposal": "Crear Propuesta",
       "addClient": "Agregar Cliente"
+    },
+    "proposalSelector": {
+      "title": "Seleccionar cotización para propuesta",
+      "description": "Elige una cotización para abrirla en el editor de propuestas.",
+      "emptyTitle": "No hay cotizaciones disponibles",
+      "emptyDescription": "Primero crea una cotización y luego conviértela en una propuesta.",
+      "created": "Creada",
+      "saved": "Propuesta guardada",
+      "select": "Crear Propuesta",
+      "edit": "Editar Propuesta"
     },
     "contractorOpsNumber": {
       "title": "Tu número ContractorOps AI",

@@ -1,16 +1,19 @@
 "use client"
 
-import { useEffect, useId, useRef, useState } from "react"
+import { Fragment, useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Copy, Eye, ExternalLink, FileImage, GripVertical, ImagePlus, Italic, List, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, Printer, Save, Sparkles, Trash2, Type, Undo2 } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, Copy, Eye, ExternalLink, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { api } from "@/lib/api"
+import { DEFAULT_PROPOSAL_THEME_ID, PROPOSAL_THEMES, getProposalTheme, normalizeProposalThemeId } from "@/lib/proposal-themes"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type {
@@ -27,7 +30,42 @@ import type {
   ProposalPage,
   ProposalPageBlock,
   ProposalTextBlock,
+  ProposalThemeId,
 } from "@/lib/types"
+
+// ─── Typography ──────────────────────────────────────────────────────────────
+
+export const PROPOSAL_FONTS = [
+  { id: "inter",             name: "Inter",              stack: "Inter, system-ui, sans-serif",                    google: null },
+  { id: "playfair",          name: "Playfair Display",   stack: "'Playfair Display', Georgia, serif",              google: "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600" },
+  { id: "cormorant",         name: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif",            google: "Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "merriweather",      name: "Merriweather",       stack: "Merriweather, Georgia, serif",                    google: "Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "libre-baskerville", name: "Libre Baskerville",  stack: "'Libre Baskerville', Georgia, serif",             google: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
+  { id: "lato",              name: "Lato",               stack: "Lato, Arial, sans-serif",                         google: "Lato:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "raleway",           name: "Raleway",            stack: "Raleway, Arial, sans-serif",                      google: "Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "source-serif",      name: "Source Serif 4",     stack: "'Source Serif 4', Georgia, serif",                google: "Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400" },
+] as const
+
+export type ProposalFontId = (typeof PROPOSAL_FONTS)[number]["id"]
+export const DEFAULT_PROPOSAL_FONT_ID: ProposalFontId = "inter"
+
+const loadedGoogleFonts = new Set<string>()
+
+function ensureGoogleFont(googleSpec: string | null) {
+  if (!googleSpec || typeof document === "undefined") return
+  if (loadedGoogleFonts.has(googleSpec)) return
+  loadedGoogleFonts.add(googleSpec)
+  const link = document.createElement("link")
+  link.rel = "stylesheet"
+  link.href = `https://fonts.googleapis.com/css2?family=${googleSpec}&display=swap`
+  document.head.appendChild(link)
+}
+
+function getProposalFont(id?: string | null) {
+  return PROPOSAL_FONTS.find((f) => f.id === id) ?? PROPOSAL_FONTS[0]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
@@ -62,6 +100,47 @@ function createTextBlock(html = ""): ProposalTextBlock {
 const DEFAULT_SCOPE_SUMMARY_HTML = "<p>Describe the overall scope, intent, and project goals for this proposal.</p>"
 const DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML = "<p>Summarize the project approach, priorities, and expected outcomes.</p>"
 const PAGE_TEXT_PLACEHOLDER = "Add page notes, photos, and markups here."
+
+function normalizeHexColor(value: string | undefined, fallback: string) {
+  const normalized = value?.trim()
+  return /^#[0-9a-fA-F]{6}$/.test(normalized ?? "") ? normalized! : fallback
+}
+
+function hexToRgb(color: string) {
+  const normalized = color.replace("#", "")
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  }
+}
+
+function withAlpha(color: string, alpha: number) {
+  const { r, g, b } = hexToRgb(color)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function isLightColor(color: string) {
+  const { r, g, b } = hexToRgb(color)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.72
+}
+
+function normalizePageTitle(title: string | undefined, pageIndex: number) {
+  const value = title?.trim() ?? ""
+  return value === `Page ${pageIndex + 1}` ? "" : value
+}
+
+function updateProposalTheme(current: ProposalDocument, themeId: ProposalThemeId): ProposalDocument {
+  const theme = getProposalTheme(themeId)
+  if (current.themeId === themeId) return current
+  return {
+    ...current,
+    themeId,
+    accentColor: theme.swatches[1],
+    tintColor: theme.swatches[2],
+  }
+}
 
 async function getImageDimensions(url: string): Promise<{ width: number; height: number }> {
   if (typeof window === "undefined") {
@@ -119,12 +198,22 @@ function buildInitialProposalDocument(job: Job, contractorName: string): Proposa
   const today = new Date().toISOString().slice(0, 10)
 
   if (job.proposal_document) {
+    const themeId = normalizeProposalThemeId(job.proposal_document.themeId)
+    const theme = getProposalTheme(themeId)
     return {
       ...job.proposal_document,
       quoteId: job.proposal_document.quoteId ?? job.id,
       contractorName: job.proposal_document.contractorName || contractorName,
+      themeId,
+      accentColor: normalizeHexColor(job.proposal_document.accentColor, theme.swatches[1]),
+      tintColor: normalizeHexColor(job.proposal_document.tintColor, theme.swatches[2]),
       date: job.proposal_document.date || today,
-      pages: Array.isArray(job.proposal_document.pages) ? job.proposal_document.pages : [],
+      pages: Array.isArray(job.proposal_document.pages)
+        ? job.proposal_document.pages.map((page, pageIndex) => ({
+            ...page,
+            title: normalizePageTitle(page.title, pageIndex),
+          }))
+        : [],
     }
   }
 
@@ -135,6 +224,9 @@ function buildInitialProposalDocument(job: Job, contractorName: string): Proposa
     quoteId: job.id,
     date: today,
     contractorName,
+    themeId: DEFAULT_PROPOSAL_THEME_ID,
+    accentColor: getProposalTheme(DEFAULT_PROPOSAL_THEME_ID).swatches[1],
+    tintColor: getProposalTheme(DEFAULT_PROPOSAL_THEME_ID).swatches[2],
     scopeSummary: job.job_description
       ? `<p>${escapeHtml(job.job_description)}</p>`
       : DEFAULT_SCOPE_SUMMARY_HTML,
@@ -145,7 +237,7 @@ function buildInitialProposalDocument(job: Job, contractorName: string): Proposa
     pages: [
       {
         id: createId("page"),
-        title: "Page 1",
+        title: "",
         description: [createTextBlock("")],
       },
     ],
@@ -198,12 +290,18 @@ function RichTextEditor({
   placeholder,
   readOnly = false,
   className,
+  toolbarClassName,
+  editorClassName,
+  readOnlyClassName,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   readOnly?: boolean
   className?: string
+  toolbarClassName?: string
+  editorClassName?: string
+  readOnlyClassName?: string
 }) {
   const editorRef = useRef<HTMLDivElement | null>(null)
 
@@ -214,11 +312,17 @@ function RichTextEditor({
     }
   }, [readOnly, value])
 
-  const applyCommand = (command: string) => {
-    const doc = document as Document & { execCommand?: (commandId: string, showUI?: boolean, value?: string) => boolean }
+  const exec = (command: string, val?: string) => {
+    const doc = document as Document & { execCommand?: (c: string, ui?: boolean, v?: string) => boolean }
     editorRef.current?.focus()
-    doc.execCommand?.(command, false)
+    doc.execCommand?.(command, false, val)
     onChange(editorRef.current?.innerHTML || "")
+  }
+
+  const toggleHeading = () => {
+    const doc = document as Document & { queryCommandValue?: (c: string) => string }
+    const current = doc.queryCommandValue?.("formatBlock") ?? ""
+    exec("formatBlock", current.toLowerCase() === "h2" ? "p" : "h2")
   }
 
   if (readOnly) {
@@ -228,31 +332,51 @@ function RichTextEditor({
 
     return (
       <div
-        className={cn("prose prose-slate max-w-none text-[15px] leading-7", className)}
+        className={cn("prose max-w-none text-[15px] leading-7", readOnlyClassName, className)}
         dangerouslySetInnerHTML={{ __html: value }}
       />
     )
   }
 
+  const sep = <span className="mx-0.5 h-4 w-px self-center bg-slate-200" />
+
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 px-3 py-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => applyCommand("bold")}>
-          <Bold className="mr-1 h-4 w-4" />
-          Bold
+      <div className={cn("flex flex-wrap items-center gap-1 border-b border-slate-200 px-2 py-1.5", toolbarClassName)}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bold" onClick={() => exec("bold")}>
+          <Bold className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => applyCommand("italic")}>
-          <Italic className="mr-1 h-4 w-4" />
-          Italic
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Italic" onClick={() => exec("italic")}>
+          <Italic className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => applyCommand("insertUnorderedList")}>
-          <List className="mr-1 h-4 w-4" />
-          Bullets
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Underline" onClick={() => exec("underline")}>
+          <Underline className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Strikethrough" onClick={() => exec("strikeThrough")}>
+          <Strikethrough className="h-3.5 w-3.5" />
+        </Button>
+        {sep}
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Heading" onClick={toggleHeading}>
+          <Heading2 className="h-3.5 w-3.5" />
+        </Button>
+        {sep}
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bullet list" onClick={() => exec("insertUnorderedList")}>
+          <List className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Numbered list" onClick={() => exec("insertOrderedList")}>
+          <ListOrdered className="h-3.5 w-3.5" />
+        </Button>
+        {sep}
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Clear formatting" onClick={() => { exec("removeFormat"); exec("formatBlock", "p") }}>
+          <RemoveFormatting className="h-3.5 w-3.5" />
         </Button>
       </div>
       <div
         ref={editorRef}
-        className="min-h-[140px] px-4 py-3 text-[15px] leading-7 text-slate-700 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]"
+        className={cn(
+          "min-h-[140px] px-4 py-3 text-[15px] leading-7 text-slate-700 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]",
+          editorClassName,
+        )}
         contentEditable
         suppressContentEditableWarning
         data-placeholder={placeholder}
@@ -287,6 +411,7 @@ function ImageBlockEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  className,
 }: {
   block: ProposalImageBlock
   readOnly: boolean
@@ -296,6 +421,7 @@ function ImageBlockEditor({
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  className?: string
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
@@ -392,7 +518,7 @@ function ImageBlockEditor({
   const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
 
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onMoveUp} disabled={!canMoveUp}>
@@ -708,6 +834,7 @@ function BeforeAfterBlockEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  className,
 }: {
   block: ProposalBeforeAfterBlock
   readOnly: boolean
@@ -716,9 +843,10 @@ function BeforeAfterBlockEditor({
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  className?: string
 }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onMoveUp} disabled={!canMoveUp}>
@@ -847,6 +975,11 @@ export function ProposalBuilder({
   const [dirty, setDirty] = useState(false)
   const [overviewLoaded, setOverviewLoaded] = useState(false)
   const [showAIModal, setShowAIModal] = useState(false)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [generatingProposal, setGeneratingProposal] = useState(false)
+  const [customDescription, setCustomDescription] = useState(job.job_description ?? "")
+  const [lineItemsOpen, setLineItemsOpen] = useState(false)
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(() => new Set((job.items ?? []).map((item) => item.id)))
   const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
     buildBeforeAfterPairsFromMedia(job.project_media ?? [])
   )
@@ -915,11 +1048,28 @@ export function ProposalBuilder({
   }
 
   const isReadOnly = publicMode || viewMode
+  const proposalTheme = getProposalTheme(document.themeId)
+  const accentColor = normalizeHexColor(document.accentColor, proposalTheme.swatches[1])
+  const tintColor = normalizeHexColor(document.tintColor, proposalTheme.swatches[2])
+  const accentTextColor = isLightColor(accentColor) ? "#0f172a" : "#ffffff"
+  const proposalFont = getProposalFont(document.fontFamily)
+
+  useEffect(() => {
+    ensureGoogleFont(proposalFont.google ?? null)
+  }, [proposalFont])
+  const canvasStyle = {
+    backgroundImage: `radial-gradient(circle at top left, ${withAlpha(accentColor, 0.14)}, transparent 30%), radial-gradient(circle at bottom right, ${withAlpha(tintColor, 0.22)}, transparent 26%), linear-gradient(180deg, #f8fafc 0%, ${withAlpha(tintColor, 0.12)} 100%)`,
+  }
+  const previewStyle = {
+    backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.14)}, rgba(255,255,255,0.96) 48%, ${withAlpha(tintColor, 0.22)})`,
+  }
+  const coverHeaderStyle = {
+    backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.12)}, rgba(255,255,255,0.96) 46%, ${withAlpha(tintColor, 0.16)})`,
+  }
+  const pageHeaderStyle = {
+    backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.08)}, rgba(255,255,255,0.97) 56%, ${withAlpha(tintColor, 0.14)})`,
+  }
   const proposalPublicHref = job.proposal_public_link ? `/${locale}/proposals/${job.proposal_public_link}` : null
-  // Contractor view always uses the numeric ID route; public/client view uses the UUID share link
-  const quoteHref = publicMode && job.quote_public_link
-    ? `/${locale}/quotes/${job.quote_public_link}`
-    : `/${locale}/quotes/${job.id}`
 
   const copyDocumentLink = async (href: string, label: string) => {
     if (typeof window === "undefined") return
@@ -962,6 +1112,88 @@ export function ProposalBuilder({
     }
   }
 
+  const generateProposal = async () => {
+    setGeneratingProposal(true)
+    try {
+      const result = await api.generateAIProposal(
+        job.id,
+        customDescription.trim() || undefined,
+        Array.from(selectedItemIds),
+      )
+      setShowGenerateModal(false)
+
+      // Index before/after pairs by position for O(1) lookup
+      const pairsMap = new Map(
+        (result.before_after_pairs ?? []).map((p) => [p.index, p])
+      )
+
+      // Convert AI pages → ProposalPage[], expanding before_after_placeholder sentinels
+      const newPages: ProposalPage[] = result.pages.map((page) => {
+        const blocks: ProposalPageBlock[] = []
+
+        for (const block of page.blocks) {
+          if (block.type === "before_after_placeholder") {
+            for (const [, pair] of pairsMap) {
+              blocks.push({
+                id: createId("before-after"),
+                type: "before_after",
+                beforeUrl: pair.before_url,
+                afterUrl: pair.after_url,
+                beforeLabel: "Before",
+                afterLabel: "After Render",
+              } as ProposalBeforeAfterBlock)
+            }
+          } else if (block.type === "text" && block.content_html) {
+            blocks.push(createTextBlock(block.content_html))
+          }
+        }
+
+        if (blocks.length === 0) blocks.push(createTextBlock(""))
+
+        return {
+          id: createId("page"),
+          title: page.title,
+          description: blocks,
+        } as ProposalPage
+      })
+
+      updateDocument((current) => {
+        let next = current
+
+        // Apply suggested theme if the AI returned a valid one
+        if (result.suggested_theme) {
+          const themeId = normalizeProposalThemeId(result.suggested_theme)
+          if (themeId === result.suggested_theme) {
+            next = updateProposalTheme(next, themeId)
+          }
+        }
+
+        return {
+          ...next,
+          scopeSummary: result.scope_summary_html || next.scopeSummary,
+          projectOverview: {
+            title: result.project_overview_title || next.projectOverview.title,
+            description: result.project_overview_html || next.projectOverview.description,
+          },
+          pages: newPages.length > 0 ? newPages : next.pages,
+        }
+      })
+
+      toast({
+        title: "AI proposal generated",
+        description: "Review the content, make any edits, then save.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Generation failed",
+        description: error?.message || "Unable to generate proposal. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingProposal(false)
+    }
+  }
+
   const addPage = () => {
     updateDocument((current) => ({
       ...current,
@@ -969,7 +1201,7 @@ export function ProposalBuilder({
         ...current.pages,
         {
           id: createId("page"),
-          title: `Page ${current.pages.length + 1}`,
+          title: "",
           description: [createTextBlock("")],
         },
       ],
@@ -1018,113 +1250,270 @@ export function ProposalBuilder({
   const subtitle = [document.companyName, document.companyAddress].filter(Boolean).join(" · ")
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#f8fafc_0%,#eef4f7_100%)] print:bg-none print:bg-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 print:px-0 print:py-0 print:max-w-none print:gap-0">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[30px] border border-slate-100 bg-white px-5 py-3 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.12)] print:hidden">
-          <div className="flex items-center gap-2.5">
-            <Button asChild variant="outline" size="sm">
-              <Link href={quoteHref}>
-                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                {publicMode ? "View Quote" : "Back to Quote"}
-              </Link>
-            </Button>
-            <Badge variant="secondary" className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.22em] text-white">
-              {publicMode ? "Shared Proposal" : "Proposal Builder"}
-            </Badge>
-            {!publicMode ? (
-              dirty
-                ? <span className="text-xs font-medium text-amber-600">Unsaved changes</span>
-                : <span className="text-xs text-slate-400">All changes saved</span>
-            ) : (
-              <span className="text-xs text-slate-400">Read-only</span>
-            )}
-          </div>
+    <div className={cn("min-h-screen print:bg-none print:bg-white", proposalTheme.canvasClassName)} style={canvasStyle}>
+      <div className={cn(
+        "mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 print:max-w-none print:px-0 print:py-0 print:gap-0",
+        isReadOnly ? "gap-4" : "gap-6",
+      )}>
+        <div className="flex flex-col gap-4 rounded-[30px] border border-slate-100 bg-white px-5 py-4 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.12)] print:hidden">
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Badge variant="secondary" className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.22em] text-white">
+                  {publicMode ? "Shared Proposal" : "Proposal Builder"}
+                </Badge>
+                {!publicMode ? (
+                  dirty
+                    ? <span className="text-xs font-medium text-amber-600">Unsaved changes</span>
+                    : <span className="text-xs text-slate-400">All changes saved</span>
+                ) : (
+                  <span className="text-xs text-slate-400">Read-only</span>
+                )}
+              </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {proposalPublicHref && !publicMode ? (
-              <>
-                <Button type="button" variant="outline" size="sm" onClick={() => copyDocumentLink(proposalPublicHref, "Proposal")} title="Copy proposal link">
-                  <Copy className="mr-1.5 h-3.5 w-3.5" />
-                  Copy link
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={proposalPublicHref} target="_blank" title="Open shared view">
-                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                    Shared view
-                  </Link>
-                </Button>
-              </>
-            ) : null}
-            {!publicMode ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setViewMode((value) => !value)}>
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                {viewMode ? "Edit" : "Preview"}
-              </Button>
-            ) : null}
-            {!publicMode ? (
-              <Button type="button" size="sm" className="bg-slate-900 text-white hover:bg-slate-800" onClick={() => setShowAIModal(true)}>
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                AI Before &amp; After
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const wasInEditMode = !viewMode
-                if (wasInEditMode) setViewMode(true)
-                // Give React a tick to re-render in read-only mode before printing
-                setTimeout(() => {
-                  window.print()
-                  // Restore edit mode after the print dialog closes
-                  if (wasInEditMode) setViewMode(false)
-                }, 80)
-              }}
-            >
-              <Printer className="h-3.5 w-3.5" />
-            </Button>
-            {!publicMode ? (
-              <Button type="button" size="sm" onClick={saveProposal} disabled={saving}>
-                {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
-                Save
-              </Button>
-            ) : null}
+              {!isReadOnly ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Select
+                    value={proposalTheme.id}
+                    onValueChange={(value) => updateDocument((current) => updateProposalTheme(current, value as ProposalThemeId))}
+                  >
+                    <SelectTrigger size="sm" className="h-8 w-auto min-w-[150px] max-w-[220px] rounded-xl border-slate-200 bg-white text-xs">
+                      <SelectValue placeholder="Select a theme" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-200 bg-white">
+                      {PROPOSAL_THEMES.map((themeOption) => (
+                        <SelectItem key={themeOption.id} value={themeOption.id}>
+                          <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-1">
+                              {themeOption.swatches.map((swatch) => (
+                                <span key={swatch} className="h-2 w-2 rounded-full ring-1 ring-black/10" style={{ backgroundColor: swatch }} />
+                              ))}
+                            </span>
+                            <span>{themeOption.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="h-4 w-px bg-slate-200 shrink-0" />
+
+                  <Select
+                    value={proposalFont.id}
+                    onValueChange={(val) => {
+                      const font = PROPOSAL_FONTS.find((f) => f.id === val)
+                      if (font) ensureGoogleFont(font.google ?? null)
+                      updateDocument((current) => ({ ...current, fontFamily: val }))
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="h-8 w-[142px] rounded-xl border-slate-200 bg-white text-xs">
+                      <SelectValue placeholder="Font" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-200 bg-white">
+                      {PROPOSAL_FONTS.map((font) => (
+                        <SelectItem key={font.id} value={font.id}>
+                          <span style={{ fontFamily: font.stack }}>{font.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <label className="flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Accent</span>
+                    <input
+                      type="color"
+                      value={accentColor}
+                      className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                      onChange={(event) => updateDocument((current) => ({ ...current, accentColor: event.target.value }))}
+                    />
+                  </label>
+
+                  <label className="flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Tint</span>
+                    <input
+                      type="color"
+                      value={tintColor}
+                      className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                      onChange={(event) => updateDocument((current) => ({ ...current, tintColor: event.target.value }))}
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col items-end gap-1.5">
+              {!publicMode || proposalPublicHref ? (
+                <div className="flex items-center gap-1">
+                  {!publicMode ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                          onClick={() => setViewMode((value) => !value)}
+                        >
+                          <Eye className="h-[22px] w-[22px]" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                        {viewMode ? "Edit mode" : "Preview"}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  {proposalPublicHref && !publicMode ? (
+                    <Fragment>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                            onClick={() => copyDocumentLink(proposalPublicHref, "Proposal")}
+                          >
+                            <Copy className="h-[22px] w-[22px]" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                          Copy link
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+                            <Link href={proposalPublicHref} target="_blank">
+                              <ExternalLink className="h-[22px] w-[22px]" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                          Open view
+                        </TooltipContent>
+                      </Tooltip>
+                    </Fragment>
+                  ) : null}
+                  {!publicMode ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                          onClick={saveProposal}
+                          disabled={saving}
+                        >
+                          {saving ? <Loader2 className="h-[22px] w-[22px] animate-spin" /> : <Save className="h-[22px] w-[22px]" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                        Save
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!publicMode ? (
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 justify-start rounded-2xl border border-fuchsia-200/80 bg-[linear-gradient(135deg,#fff7ed_0%,#f5f3ff_45%,#eef2ff_100%)] px-3 text-slate-900 shadow-[0_10px_30px_-18px_rgba(168,85,247,0.55)] hover:border-fuchsia-300 hover:bg-[linear-gradient(135deg,#ffedd5_0%,#ede9fe_48%,#e0e7ff_100%)]"
+                    onClick={() => setShowGenerateModal(true)}
+                  >
+                    <Sparkles className="mr-1 h-3.5 w-3.5 text-fuchsia-500" />
+                    Generate AI Proposal
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 justify-start rounded-2xl border border-sky-200/80 bg-[linear-gradient(135deg,#fefce8_0%,#ecfeff_42%,#eff6ff_100%)] px-3 text-slate-900 shadow-[0_10px_30px_-18px_rgba(14,165,233,0.45)] hover:border-sky-300 hover:bg-[linear-gradient(135deg,#fef3c7_0%,#cffafe_46%,#dbeafe_100%)]"
+                    onClick={() => setShowAIModal(true)}
+                  >
+                    <Sparkles className="mr-1 h-3.5 w-3.5 text-sky-500" />
+                    AI Before &amp; After
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        <Card className="rounded-[34px] border border-slate-200 bg-white shadow-[0_24px_70px_-34px_rgba(15,23,42,0.45)] print:shadow-none print:border-none print:rounded-none">
-          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(255,255,255,0.92)_38%,rgba(251,191,36,0.12))] px-6 py-6 sm:px-8 print:border-b-0 print:px-0">
-            <div className="space-y-5">
+        <Card
+          className={cn(
+            "gap-0 overflow-hidden rounded-[34px] border py-0 print:rounded-none print:border-none print:shadow-none",
+            proposalTheme.coverCardClassName,
+          )}
+          style={{ fontFamily: proposalFont.stack }}
+        >
+          <div
+            className={cn(
+              "border-b px-5 sm:px-6 print:border-b-0 print:px-0",
+              isReadOnly ? "py-4 sm:py-4" : "py-5",
+              proposalTheme.coverHeaderClassName,
+            )}
+            style={coverHeaderStyle}
+          >
+            <div className={cn(isReadOnly ? "space-y-3" : "space-y-4")}>
               <div className="flex flex-wrap items-center gap-3">
-                <Badge className="rounded-full bg-slate-950 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-white">
+                <Badge
+                  className={cn("rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.24em]", proposalTheme.coverPrimaryBadgeClassName)}
+                  style={{ backgroundColor: accentColor, color: accentTextColor }}
+                >
                   Proposal
                 </Badge>
-                {document.quoteId ? <Badge className="rounded-full bg-slate-900 px-3 py-1 text-xs">QUOTE #{document.quoteId}</Badge> : null}
-                <Badge variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs shadow-sm">{formatProposalDate(document.date)}</Badge>
-                <Badge variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs shadow-sm">{document.contractorName}</Badge>
+                {document.quoteId ? <Badge className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>QUOTE #{document.quoteId}</Badge> : null}
+                {isReadOnly ? (
+                  <Badge variant="secondary" className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>
+                    {formatProposalDate(document.date)}
+                  </Badge>
+                ) : (
+                  <label
+                    className={cn(
+                      "relative inline-flex cursor-pointer items-center overflow-hidden rounded-full px-3 py-1 text-xs",
+                      proposalTheme.coverSecondaryBadgeClassName,
+                    )}
+                    title="Edit proposal date"
+                  >
+                    <span>{formatProposalDate(document.date)}</span>
+                    <input
+                      type="date"
+                      value={document.date}
+                      onChange={(event) => updateDocument((current) => ({ ...current, date: event.target.value }))}
+                      aria-label="Proposal date"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                  </label>
+                )}
+                <Badge variant="secondary" className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>{document.contractorName}</Badge>
               </div>
 
               {isReadOnly ? (
-                <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">{document.title}</h1>
+                <h1 className={cn("max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl", proposalTheme.id === "editorial" ? "text-white" : "text-slate-950")}>{document.title}</h1>
               ) : (
                 <Input
                   value={document.title}
                   onChange={(event) => updateDocument((current) => ({ ...current, title: event.target.value }))}
-                  className="h-auto border-none bg-transparent px-0 text-3xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl"
+                  className={cn(
+                    "h-auto border-none bg-transparent px-0 text-3xl font-semibold tracking-tight shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl",
+                    proposalTheme.id === "editorial" ? "text-white placeholder:text-stone-300" : "text-slate-950 placeholder:text-slate-400",
+                  )}
                   placeholder="Proposal title"
                 />
               )}
 
-              <p className="max-w-3xl text-sm font-medium text-slate-600 sm:text-base">
+              <p className={cn("max-w-3xl text-sm font-medium sm:text-base", proposalTheme.id === "editorial" ? "text-stone-200" : "text-slate-600")}>
                 {subtitle || "Link this proposal to a company / property"}
               </p>
             </div>
           </div>
 
-          <div className="space-y-5 px-6 py-6 sm:px-8 sm:py-8">
+          <div className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}>
             {!isReadOnly ? (
-              <div className="grid gap-4 rounded-[28px] border border-slate-200 bg-slate-50/90 p-4 sm:grid-cols-2">
+              <div className={cn("grid gap-4 rounded-[28px] border p-4 sm:grid-cols-2", proposalTheme.coverMetaPanelClassName)}>
                 <Input
                   value={document.companyName}
                   onChange={(event) => updateDocument((current) => ({ ...current, companyName: event.target.value }))}
@@ -1147,18 +1536,18 @@ export function ProposalBuilder({
                 />
               </div>
             ) : (
-              <div className="grid gap-3 rounded-[28px] border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 sm:grid-cols-3">
+              <div className={cn("grid rounded-[28px] border text-sm sm:grid-cols-3", "gap-2.5 p-3", proposalTheme.coverMetaPanelClassName)}>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Prepared For</p>
-                  <p className="mt-1 font-medium text-slate-900">{document.companyName || "Client / Property"}</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Prepared For</p>
+                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyName || "Client / Property"}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Address</p>
-                  <p className="mt-1 font-medium text-slate-900">{document.companyAddress || "Not specified"}</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Address</p>
+                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyAddress || "Not specified"}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Prepared By</p>
-                  <p className="mt-1 font-medium text-slate-900">{document.contractorName}</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Prepared By</p>
+                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.contractorName}</p>
                 </div>
               </div>
             )}
@@ -1167,15 +1556,18 @@ export function ProposalBuilder({
               value={document.scopeSummary}
               onChange={(value) => updateDocument((current) => ({ ...current, scopeSummary: value }))}
               readOnly={isReadOnly}
-              className={isReadOnly ? "prose-p:mb-0 prose-p:text-[16px] prose-p:leading-8" : undefined}
+              className={isReadOnly ? "prose-p:mb-0 prose-p:text-[16px] prose-p:leading-8" : proposalTheme.richTextSurfaceClassName}
+              toolbarClassName={proposalTheme.richTextToolbarClassName}
+              editorClassName={proposalTheme.richTextEditorClassName}
+              readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
               placeholder="Add the top-level scope summary for this proposal."
             />
           </div>
         </Card>
 
-        <Card className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="space-y-5">
-            <Badge variant="outline" className="rounded-full border-slate-200 px-3 py-1 text-[11px] tracking-[0.24em] text-slate-500">
+        <Card className={cn("rounded-[32px] border", isReadOnly ? "p-4 sm:p-5" : "p-5 sm:p-6", proposalTheme.overviewCardClassName)}>
+          <div className={cn(isReadOnly ? "space-y-3" : "space-y-4")}>
+            <Badge variant="outline" className={cn("rounded-full px-3 py-1 text-[11px] tracking-[0.24em]", proposalTheme.overviewBadgeClassName)}>
               PROJECT OVERVIEW
             </Badge>
 
@@ -1204,37 +1596,41 @@ export function ProposalBuilder({
                 }))
               }
               readOnly={isReadOnly}
+              className={!isReadOnly ? proposalTheme.richTextSurfaceClassName : undefined}
+              toolbarClassName={proposalTheme.richTextToolbarClassName}
+              editorClassName={proposalTheme.richTextEditorClassName}
+              readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
               placeholder="Describe the project context and why this work matters."
             />
           </div>
         </Card>
 
         {document.pages.map((page, pageIndex) => (
-          <Card key={page.id} className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm sm:p-0 print:overflow-visible print:border-none print:shadow-none print:rounded-none">
-            <div className="space-y-5">
-              <div className="border-b border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(240,249,255,1))] px-6 py-5 sm:px-8 print:border-b-0 print:bg-none print:px-0 print:py-2">
-                <div className="mb-3 flex items-center gap-2">
-                  <Badge variant="outline" className="rounded-full border-slate-300 bg-white px-3 py-1 text-[11px] tracking-[0.22em] text-slate-500">
-                    PAGE {pageIndex + 1}
-                  </Badge>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <Card key={page.id} className={cn("overflow-hidden rounded-[32px] border sm:p-0 print:overflow-visible print:border-none print:shadow-none print:rounded-none", proposalTheme.pageCardClassName)}>
+            <div className={cn(isReadOnly ? "space-y-4" : "space-y-5")}>
+              <div className={cn("border-b px-5 sm:px-6 print:border-b-0 print:bg-none print:px-0 print:py-2", isReadOnly ? "py-3" : "py-3.5", proposalTheme.pageHeaderClassName)} style={pageHeaderStyle}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 flex-1 items-start gap-3">
                     {!isReadOnly ? <GripVertical className="mt-1 h-5 w-5 shrink-0 text-slate-400" /> : null}
                     <div className="min-w-0 flex-1">
                       {isReadOnly ? (
-                        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{page.title}</h2>
+                        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{page.title || `Untitled page ${pageIndex + 1}`}</h2>
                       ) : (
-                        <Input
-                          value={page.title}
-                          onChange={(event) =>
-                            updateDocument((current) =>
-                              updatePage(current, page.id, (currentPage) => ({ ...currentPage, title: event.target.value })),
-                            )
-                          }
-                          className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0"
-                          placeholder="Page title"
-                        />
+                        <div className={cn("rounded-2xl border border-dashed px-4 py-3 shadow-sm transition", proposalTheme.pageTitlePromptClassName)}>
+                          <p className={cn("mb-1 text-[11px] font-semibold uppercase tracking-[0.18em]", proposalTheme.pageTitleLabelClassName)}>
+                            Page {pageIndex + 1} title
+                          </p>
+                          <Input
+                            value={page.title}
+                            onChange={(event) =>
+                              updateDocument((current) =>
+                                updatePage(current, page.id, (currentPage) => ({ ...currentPage, title: event.target.value })),
+                              )
+                            }
+                            className="h-auto border-none bg-transparent px-0 py-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none placeholder:text-slate-400 focus-visible:border-transparent focus-visible:ring-0"
+                            placeholder="Add a page title"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1275,7 +1671,7 @@ export function ProposalBuilder({
                 </div>
               </div>
 
-              <div className="space-y-4 px-6 py-6 sm:px-8 sm:py-8">
+              <div className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}>
                 {page.description.map((block, blockIndex) => {
                   const deleteBlock = () =>
                     updateDocument((current) =>
@@ -1304,13 +1700,14 @@ export function ProposalBuilder({
                         onMoveUp={moveUp}
                         onMoveDown={moveDown}
                         onDelete={deleteBlock}
+                        className={proposalTheme.blockSurfaceClassName}
                       />
                     )
                   }
 
                   if (block.type === "text") {
                     return (
-                      <div key={block.id} className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+                      <div key={block.id} className={cn("space-y-2 rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
                         {!isReadOnly ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <Button type="button" variant="outline" size="sm" onClick={moveUp} disabled={blockIndex === 0}>
@@ -1331,6 +1728,10 @@ export function ProposalBuilder({
                             )
                           }
                           readOnly={isReadOnly}
+                          className={!isReadOnly ? proposalTheme.richTextSurfaceClassName : undefined}
+                          toolbarClassName={proposalTheme.richTextToolbarClassName}
+                          editorClassName={proposalTheme.richTextEditorClassName}
+                          readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
                           placeholder={PAGE_TEXT_PLACEHOLDER}
                         />
                         {!isReadOnly ? (
@@ -1353,6 +1754,7 @@ export function ProposalBuilder({
                       canMoveDown={blockIndex < page.description.length - 1}
                       onMoveUp={moveUp}
                       onMoveDown={moveDown}
+                      className={proposalTheme.blockSurfaceClassName}
                       onChange={(nextBlock) =>
                         updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
                       }
@@ -1363,7 +1765,7 @@ export function ProposalBuilder({
               </div>
 
               {!isReadOnly ? (
-                <div className="mx-6 mb-6 flex flex-wrap gap-2 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:mx-8 sm:mb-8">
+                <div className={cn("mx-5 mb-5 flex flex-wrap gap-2 rounded-3xl border border-dashed p-3.5 sm:mx-6 sm:mb-6", proposalTheme.addActionsClassName)}>
                   <Button
                     type="button"
                     variant="outline"
@@ -1572,6 +1974,172 @@ export function ProposalBuilder({
                 </div>
               </button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGenerateModal} onOpenChange={(open) => { if (!generatingProposal) { setShowGenerateModal(open); if (open) { setCustomDescription(job.job_description ?? ""); setSelectedItemIds(new Set((job.items ?? []).map((item) => item.id))); setLineItemsOpen(false) } } }}>
+        <DialogContent className="flex max-h-[80vh] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
+          <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 ring-1 ring-violet-100">
+                <Sparkles className="h-4 w-4 text-violet-500" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-semibold text-slate-900">
+                  Generate AI Proposal
+                </DialogTitle>
+                <DialogDescription className="mt-0.5 text-sm text-slate-500">
+                  AI will write proposal copy using your quote description and line items. You can edit everything after.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Project Description</p>
+              <textarea
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
+                rows={5}
+                placeholder="Describe the project scope, goals, and any relevant details for the AI to use…"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                disabled={generatingProposal}
+              />
+            </div>
+            {(job.items ?? []).length > 0 ? (
+              <div className="rounded-xl border border-slate-200 overflow-hidden">
+                {/* Dropdown header */}
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  onClick={() => setLineItemsOpen((v) => !v)}
+                  disabled={generatingProposal}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Line Items</span>
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
+                      {selectedItemIds.size}/{(job.items ?? []).length} selected
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      role="button"
+                      tabIndex={generatingProposal ? -1 : 0}
+                      className={cn("text-[11px] font-medium text-violet-600 hover:text-violet-800", generatingProposal && "pointer-events-none opacity-50")}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const allIds = (job.items ?? []).map((item) => item.id)
+                        if (selectedItemIds.size === allIds.length) {
+                          setSelectedItemIds(new Set())
+                        } else {
+                          setSelectedItemIds(new Set(allIds))
+                        }
+                        setLineItemsOpen(false)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (generatingProposal) return
+                          const allIds = (job.items ?? []).map((item) => item.id)
+                          if (selectedItemIds.size === allIds.length) {
+                            setSelectedItemIds(new Set())
+                          } else {
+                            setSelectedItemIds(new Set(allIds))
+                          }
+                          setLineItemsOpen(false)
+                        }
+                      }}
+                    >
+                      {selectedItemIds.size === (job.items ?? []).length ? "Deselect all" : "Select all"}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", lineItemsOpen && "rotate-180")} />
+                  </div>
+                </button>
+
+                {/* Collapsible list */}
+                {lineItemsOpen ? (
+                  <ul className="divide-y divide-slate-100 bg-white">
+                    {(job.items ?? []).map((item: JobItem, i: number) => {
+                      const selected = selectedItemIds.has(item.id)
+                      return (
+                        <li
+                          key={item.id ?? i}
+                          className={cn(
+                            "flex items-start gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors",
+                            selected ? "bg-white hover:bg-violet-50/50" : "bg-slate-50/60 hover:bg-slate-100/60 opacity-60",
+                          )}
+                          onClick={() => {
+                            if (generatingProposal) return
+                            setSelectedItemIds((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(item.id)) { next.delete(item.id) } else { next.add(item.id) }
+                              return next
+                            })
+                            setLineItemsOpen(false)
+                          }}
+                        >
+                          <span className={cn(
+                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                            selected
+                              ? "border-violet-500 bg-violet-500"
+                              : "border-slate-300 bg-white",
+                          )}>
+                            {selected ? <Check className="h-3 w-3 text-white" strokeWidth={3} /> : null}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-800 truncate">{item.title}</p>
+                            {item.custom_description ? (
+                              <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.custom_description}</p>
+                            ) : null}
+                          </div>
+                          {item.quantity ? (
+                            <span className="ml-auto shrink-0 text-xs text-slate-400">
+                              {item.quantity}{item.unit_of_measure ? ` ${item.unit_of_measure}` : ""}
+                            </span>
+                          ) : null}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm text-amber-800">
+                  No line items on this quote yet. Add line items to the quote for better AI results.
+                </p>
+              </div>
+            )}
+            <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+              <p className="text-xs text-violet-700 leading-relaxed">
+                <strong>This will replace your current proposal content.</strong> The AI will generate a Scope of Work, project overview, and supporting pages. You can edit everything before saving.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 border-t border-slate-100 px-6 py-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowGenerateModal(false)}
+              disabled={generatingProposal}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-violet-600 text-white hover:bg-violet-700"
+              onClick={generateProposal}
+              disabled={generatingProposal}
+            >
+              {generatingProposal
+                ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Generating…</>
+                : <><Sparkles className="mr-1.5 h-3.5 w-3.5" />Generate Proposal</>
+              }
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

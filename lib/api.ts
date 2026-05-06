@@ -587,6 +587,26 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/proposal-overview`)
   }
 
+  async generateAIProposal(jobId: number, description?: string, selectedItemIds?: number[]): Promise<{
+    scope_summary_html: string
+    project_overview_title: string
+    project_overview_html: string
+    suggested_theme?: string | null
+    before_after_pairs: Array<{ index: number; before_url: string; after_url: string }>
+    pages: Array<{
+      title: string
+      blocks: Array<{ type: string; content_html?: string }>
+    }>
+  }> {
+    return this.request(`/jobs/${jobId}/generate-ai-proposal`, {
+      method: 'POST',
+      body: JSON.stringify({
+        description: description ?? null,
+        selected_item_ids: selectedItemIds ?? null,
+      }),
+    })
+  }
+
   async getJobByPublicLink(publicLink: string) {
     // Public endpoint - don't require authentication
     const url = `${this.baseURL}/jobs/public/${publicLink}`

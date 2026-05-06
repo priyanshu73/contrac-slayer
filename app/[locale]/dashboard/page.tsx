@@ -13,12 +13,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
-import { CalendarPlus2, Copy, FilePlus2, Files, UserPlus } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { CalendarPlus2, FilePlus2, FileText, UserPlus } from "lucide-react";
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
@@ -76,48 +71,27 @@ export default function DashboardPage() {
           <StatsCardsReal />
 
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-auto min-h-[82px] flex-col items-start gap-2 rounded-xl border-sky-200 bg-sky-50 px-2 sm:px-3 py-3 text-left hover:bg-sky-100 whitespace-normal"
-                >
-                  <FilePlus2 className="h-4 w-4 text-sky-700 shrink-0" />
-                  <span className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 leading-tight">
-                    {t("createQuote") || "Create Quote"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-56 p-1.5"
-                sideOffset={6}
-              >
-                <Link
-                  href={`/${locale}/quotes/new`}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-sky-800 transition-colors"
-                >
-                  <FilePlus2 className="h-4 w-4 text-sky-600" />
-                  New Blank Quote
-                </Link>
-                <Link
-                  href={`/${locale}/quotes/copy`}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-sky-800 transition-colors"
-                >
-                  <Copy className="h-4 w-4 text-sky-600" />
-                  Copy Existing Quote
-                </Link>
-              </PopoverContent>
-            </Popover>
+            <Button
+              asChild
+              variant="outline"
+              className="h-auto min-h-[82px] flex-col items-start gap-2 rounded-xl border-sky-200 bg-sky-50 px-2 sm:px-3 py-3 text-left hover:bg-sky-100 whitespace-normal"
+            >
+              <Link href={`/${locale}/quotes/new`} className="flex flex-col items-start gap-2">
+                <FilePlus2 className="h-4 w-4 text-sky-700 shrink-0" />
+                <span className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 leading-tight">
+                  {t("createQuote") || "Create Quote"}
+                </span>
+              </Link>
+            </Button>
             <Button
               asChild
               variant="outline"
               className="h-auto min-h-[82px] flex-col items-start gap-2 rounded-xl border-indigo-200 bg-indigo-50 px-2 sm:px-3 py-3 text-left hover:bg-indigo-100 whitespace-normal"
             >
-              <Link href={`/${locale}/quotes`} className="flex flex-col items-start gap-2">
-                <Files className="h-4 w-4 text-indigo-700 shrink-0" />
+              <Link href={`/${locale}/proposals/new`} className="flex flex-col items-start gap-2">
+                <FileText className="h-4 w-4 text-indigo-700 shrink-0" />
                 <span className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 leading-tight">
-                  View Quotes
+                  {t("createProposal") || "Create Proposal"}
                 </span>
               </Link>
             </Button>
