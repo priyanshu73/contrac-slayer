@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { HeroSection } from '@/components/ui/hero-section-2'
@@ -11,13 +11,25 @@ import { Header } from '@/components/header'
 import { LandingFooter } from '@/components/landing-footer'
 import { LandingScrollContainer } from '@/components/landing-scroll-container'
 import { LandingSection } from '@/components/landing-section'
+import { LandingLoader } from '@/components/landing-loader'
 import { useLocale, useTranslations } from 'next-intl'
+
+/** Flip to true to re-enable the hammer loader animation */
+const SHOW_LANDING_LOADER = false
+
+const LOADER_SEEN_KEY = 'landing-loader-seen'
 
 export default function Home() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const locale = useLocale()
   const t = useTranslations('landing')
+
+  const loaderEnabled = SHOW_LANDING_LOADER
+  const [animationDone, setAnimationDone] = useState(!loaderEnabled)
+  const [exiting, setExiting] = useState(false)
+  const [unmountLoader, setUnmountLoader] = useState(!loaderEnabled)
+  const [showLoader, setShowLoader] = useState(loaderEnabled)
 
   const sections = useMemo(
     () => [
@@ -29,25 +41,42 @@ export default function Home() {
     [t],
   )
 
+  // Loader lifecycle (only runs when SHOW_LANDING_LOADER is true)
   useEffect(() => {
-    // Redirect to dashboard if user is logged in
+    if (!loaderEnabled) return
+
+    const alreadySeen = sessionStorage.getItem(LOADER_SEEN_KEY)
+    if (alreadySeen) {
+      setShowLoader(false)
+      setAnimationDone(true)
+      setUnmountLoader(true)
+      return
+    }
+
+    sessionStorage.setItem(LOADER_SEEN_KEY, '1')
+    const timer = setTimeout(() => setAnimationDone(true), 2900)
+    return () => clearTimeout(timer)
+  }, [loaderEnabled])
+
+  useEffect(() => {
     if (!loading && user) {
       router.push(`/${locale}/dashboard`)
     }
-  }, [user, loading, router])
+  }, [user, loading, router, locale])
 
-  // Show loading state while checking auth
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (animationDone && !loading && showLoader) {
+      setExiting(true)
+    }
+  }, [animationDone, loading, showLoader])
 
-  // Show landing page if not logged in
-  if (!user) {
-    return (
+  const handleCurtainDone = useCallback(() => setUnmountLoader(true), [])
+
+  // Redirect in progress
+  if (!loading && user) return null
+
+  return (
+    <>
       <div className="h-full min-h-screen bg-[#fbf6f1]">
         <Header />
         <LandingScrollContainer sections={sections}>
@@ -70,9 +99,11 @@ export default function Home() {
           <LandingFooter />
         </LandingScrollContainer>
       </div>
-    )
-  }
 
-  // Return null while redirecting (shouldn't be visible)
-  return null
+      {/* Loader overlay — only active when SHOW_LANDING_LOADER = true */}
+      {showLoader && !unmountLoader && (
+        <LandingLoader exiting={exiting} onCurtainDone={handleCurtainDone} />
+      )}
+    </>
+  )
 }

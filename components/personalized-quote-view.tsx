@@ -457,8 +457,6 @@ export function PersonalizedQuoteView({
     return `${frontendUrl}/${locale}/quotes/${publicLink}`
   }
 
-  const proposalPublicHref = currentJob.proposal_public_link ? `/${locale}/proposals/${currentJob.proposal_public_link}` : null
-
   const activityItems = [
     { label: "Quote created", value: formatDate(currentJob.created_at) },
     currentJob.updated_at ? { label: "Last updated", value: formatDate(currentJob.updated_at) } : null,
@@ -893,24 +891,6 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
-                {isPublicView && proposalPublicHref && currentJob.proposal_document ? (
-                  <div className="mb-4 rounded-2xl border border-sky-100 bg-[linear-gradient(135deg,rgba(240,249,255,1),rgba(255,255,255,1))] p-4 print:hidden">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-600">Related Document</p>
-                        <p className="mt-1 text-sm text-slate-700">
-                          A companion proposal with photos, markups, and scope notes is available for this quote.
-                        </p>
-                      </div>
-                      <Button asChild className="rounded-full bg-slate-900 text-white hover:bg-slate-800">
-                        <Link href={proposalPublicHref}>
-                          <PencilLine className="mr-2 h-4 w-4" />
-                          View Proposal
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
 
                 {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
                 {!hideProjectDescription && currentJob.job_description && (

@@ -16,11 +16,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink } from "lucide-react"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
+import { ProposalBuilder } from "@/components/proposal-builder"
 import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { Job } from "@/lib/types"
@@ -128,6 +130,7 @@ export default function QuoteDetailPage() {
   const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
   const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false)
   const [deletingQuote, setDeletingQuote] = useState(false)
+  const [activeView, setActiveView] = useState<"quote" | "proposal">("quote")
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -745,15 +748,85 @@ export default function QuoteDetailPage() {
 
   // If public view, don't wrap in AuthGuard
   if (isPublicView) {
+    const hasProposal = Boolean(job.proposal_document)
+    const contractorName = job.contractor?.company_name || "Contractor"
+
+    const navItems = [
+      { id: "quote" as const, label: "Quote", icon: FileText, available: true },
+      { id: "proposal" as const, label: "Proposal", icon: BookOpen, available: hasProposal },
+    ]
+
     return (
-      <PersonalizedQuoteView
-        job={job}
-        showActions={true}
-        onSignatureUpdate={handleSignatureUpdate}
-        isContractor={false}
-        isPublicView={true}
-        hideProjectDescription={true}
-      />
+      <div className="flex min-h-screen">
+        {/* Left sidebar – desktop/tablet */}
+        <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-40 w-40 flex-col bg-white border-r border-gray-200 px-3 pt-10 pb-6 print:hidden">
+          <p className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Documents</p>
+          <nav className="flex flex-col gap-1">
+            {navItems.map(({ id, label, icon: Icon, available }) => (
+              <button
+                key={id}
+                onClick={() => available && setActiveView(id)}
+                disabled={!available}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left w-full",
+                  !available
+                    ? "cursor-not-allowed text-gray-300"
+                    : activeView === id
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-700 hover:bg-slate-100"
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{available ? label : `No ${label.toLowerCase()}`}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Mobile tab bar */}
+        <div className="flex md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 gap-1 pt-2 pb-0 print:hidden">
+          {navItems.map(({ id, label, icon: Icon, available }) => (
+            <button
+              key={id}
+              onClick={() => available && setActiveView(id)}
+              disabled={!available}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors",
+                !available
+                  ? "cursor-not-allowed text-gray-300 border-transparent"
+                  : activeView === id
+                  ? "border-slate-900 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {available ? label : `No ${label.toLowerCase()}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 md:ml-40 mt-12 md:mt-0">
+          {activeView === "quote" ? (
+            <PersonalizedQuoteView
+              job={job}
+              showActions={true}
+              onSignatureUpdate={handleSignatureUpdate}
+              isContractor={false}
+              isPublicView={true}
+              hideProjectDescription={true}
+            />
+          ) : (
+            <ProposalBuilder
+              job={job}
+              contractorName={contractorName}
+              locale={locale}
+              publicMode={true}
+              onJobUpdated={(updatedJob) => setJob(updatedJob as Job)}
+            />
+          )}
+        </div>
+      </div>
     )
   }
 

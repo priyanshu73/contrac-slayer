@@ -51,6 +51,7 @@ export function Header() {
   const [activeLandingSection, setActiveLandingSection] = useState('hero')
   const featuresCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLandingPage = pathname === `/${locale}` || pathname === '/'
+  const isFeaturesPage = pathname === `/${locale}/features` || pathname?.startsWith(`/${locale}/features/`)
   const isAwayFromHome = isLandingPage && activeLandingSection !== 'hero'
   const isHeaderSolid = scrolled || isAwayFromHome
 
@@ -322,6 +323,18 @@ export function Header() {
             </>
           ) : (
             <>
+              {navLinks.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
               <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -330,10 +343,15 @@ export function Header() {
                     onPointerLeave={closeFeaturesMenuSoon}
                     onFocus={openFeaturesMenu}
                     className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold outline-none transition-all duration-200 ${
-                      isHeaderSolid
-                        ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950 focus-visible:bg-[#f4ede6]/55'
-                        : 'text-white/78 hover:bg-white/10 hover:text-white focus-visible:bg-white/10'
+                      isFeaturesPage
+                        ? isHeaderSolid
+                          ? 'bg-[#f1e7df] text-slate-950'
+                          : 'bg-white/14 text-white'
+                        : isHeaderSolid
+                          ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950 focus-visible:bg-[#f4ede6]/55'
+                          : 'text-white/78 hover:bg-white/10 hover:text-white focus-visible:bg-white/10'
                     }`}
+                    aria-current={isFeaturesPage ? 'page' : undefined}
                   >
                     {t('features')}
                     <ChevronDown className="h-4 w-4" />
@@ -386,18 +404,6 @@ export function Header() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {navLinks.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
-                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
-                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
             </>
           )}
         </nav>
@@ -486,6 +492,30 @@ export function Header() {
                 </>
               ) : (
                 <>
+                  {navLinks.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        navigateToLandingSection(id === 'home' ? 'hero' : id)
+                        setMobileOpen(false)
+                      }}
+                      className="rounded-lg px-2 py-3 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <Link
+                    href={`/${locale}/features`}
+                    onClick={() => setMobileOpen(false)}
+                    className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
+                      isFeaturesPage
+                        ? 'bg-slate-950/[0.06] text-slate-950'
+                        : 'text-slate-800 hover:bg-slate-950/[0.04]'
+                    }`}
+                  >
+                    {t('features')}
+                  </Link>
                   <div className="rounded-xl bg-slate-950/[0.03] p-2">
                     <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
                     <div className="grid gap-1">
@@ -501,19 +531,6 @@ export function Header() {
                       ))}
                     </div>
                   </div>
-                  {navLinks.map(({ id, label }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        navigateToLandingSection(id)
-                        setMobileOpen(false)
-                      }}
-                      className="rounded-lg px-2 py-3 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
-                    >
-                      {label}
-                    </button>
-                  ))}
                 </>
               )}
             </nav>

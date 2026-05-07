@@ -130,8 +130,10 @@ export function Navbar() {
     if (currentRoute === "/dashboard") return t("dashboard");
     if (currentRoute === "/leads") return t("leads");
     if (currentRoute.startsWith("/leads/")) return "Lead Details";
+    if (currentRoute === "/proposals/new") return "Create Proposal";
     if (currentRoute === "/quotes/new") return "New Quote";
     if (currentRoute === "/quotes/copy") return "Copy Quote";
+    if (currentRoute.match(/^\/quotes\/[^/]+\/proposal$/)) return "Proposal Builder";
     if (currentRoute.match(/^\/quotes\/[^/]+\/edit$/)) return "Edit Quote";
     if (currentRoute.startsWith("/quotes/")) return "Quote Details";
     if (currentRoute === "/quotes") return t("quotes");

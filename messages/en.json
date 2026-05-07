@@ -709,6 +709,7 @@
     "recentLeads": "Recent Leads",
     "recentQuotes": "Quotes",
     "createQuote": "Create Quote",
+    "createProposal": "Create Proposal",
     "noQuotesYet": "No quotes yet. Create your first quote!",
     "upcomingMeetings": "Upcoming Meetings",
     "viewAll": "View All",
@@ -727,7 +728,18 @@
       "newLead": "New Lead",
       "scheduleJob": "Schedule Job",
       "createQuote": "Create Quote",
+      "createProposal": "Create Proposal",
       "addClient": "Add Client"
+    },
+    "proposalSelector": {
+      "title": "Select Quote for Proposal",
+      "description": "Choose a quote to open in the proposal builder.",
+      "emptyTitle": "No quotes available",
+      "emptyDescription": "Create a quote first, then turn it into a proposal.",
+      "created": "Created",
+      "saved": "Proposal saved",
+      "select": "Create Proposal",
+      "edit": "Edit Proposal"
     },
     "contractorOpsNumber": {
       "title": "Your ContractorOps AI number",
