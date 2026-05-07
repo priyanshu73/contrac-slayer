@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { BadgeCheck, Check, Clock3, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
+import { BadgeCheck, Check, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -584,6 +584,44 @@ export function PersonalizedQuoteView({
                       : "Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link."}
                   </TooltipContent>
                 </Tooltip>
+              )}
+
+              {/* Create Invoice — shown for accepted/in-progress/completed jobs with no invoice yet */}
+              {isContractor && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase() ?? '') && !existingInvoiceId && (
+                <Button
+                  className={inlineActionButtonClass}
+                  variant="outline"
+                  onClick={() => setShowInvoiceModal(true)}
+                  disabled={creatingInvoice}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0" />
+                  {creatingInvoice ? "Creating…" : "Create Invoice"}
+                </Button>
+              )}
+
+              {/* View Invoice — shown when a ContractorOps invoice exists for this quote */}
+              {isContractor && existingInvoiceId && (
+                <Button asChild className={inlineActionButtonClass} variant="outline">
+                  <Link href={`/${locale}/invoices/${existingInvoiceId}`}>
+                    <FileText className="mr-2 h-4 w-4 shrink-0" />
+                    View Invoice
+                  </Link>
+                </Button>
+              )}
+
+              {/* View in QuickBooks — shown when QBO is connected and a QBO invoice exists */}
+              {isContractor && qboConnected && currentJob.qbo_invoice_url && (
+                <Button asChild className={featuredActionButtonClass} variant="outline">
+                  <a href={currentJob.qbo_invoice_url} target="_blank" rel="noopener noreferrer">
+                    <svg className="mr-2 h-4 w-4 shrink-0" viewBox="0 0 40 40" fill="none" aria-hidden>
+                      <circle cx="20" cy="20" r="20" fill="#2CA01C" />
+                      <path d="M11 14c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3h2v-2h-2c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1h2v6.5c0 2.49 2.01 4.5 4.5 4.5s4.5-2.01 4.5-4.5V14h-2v9.5c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V14h-4z" fill="white" />
+                      <path d="M29 26c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3h-2v2h2c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1h-2v-6.5c0-2.49-2.01-4.5-4.5-4.5S18 15.01 18 17.5V26h2v-8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5V26h4z" fill="white" />
+                    </svg>
+                    View in QuickBooks
+                    <ExternalLink className="ml-1.5 h-3 w-3 shrink-0 opacity-60" />
+                  </a>
+                </Button>
               )}
 
               {onOpenBeforeAfter && (
