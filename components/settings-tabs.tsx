@@ -992,7 +992,7 @@ export function SettingsTabs() {
                   <div className="p-4 sm:p-6">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-base sm:text-lg font-semibold text-slate-900">QuickBooks Online</h3>
-                      {typeof window !== 'undefined' && window.location.hostname === 'contractorops.ai' && (
+                      {typeof window !== 'undefined' && ['contractorops.ai', 'www.contractorops.ai'].includes(window.location.hostname) && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-200">
                           Coming Soon
                         </span>
@@ -1002,7 +1002,7 @@ export function SettingsTabs() {
                       Connect QuickBooks to create and manage invoices. Clients can pay directly through QuickBooks.
                     </p>
 
-                    {typeof window !== 'undefined' && window.location.hostname === 'contractorops.ai' ? (
+                    {typeof window !== 'undefined' && ['contractorops.ai', 'www.contractorops.ai'].includes(window.location.hostname) ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 opacity-50">

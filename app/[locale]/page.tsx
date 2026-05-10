@@ -15,7 +15,7 @@ import { LandingLoader } from '@/components/landing-loader'
 import { useLocale, useTranslations } from 'next-intl'
 
 /** Flip to true to re-enable the hammer loader animation */
-const SHOW_LANDING_LOADER = false
+const SHOW_LANDING_LOADER = false;
 
 const LOADER_SEEN_KEY = 'landing-loader-seen'
 

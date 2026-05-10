@@ -343,38 +343,38 @@ function RichTextEditor({
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
       <div className={cn("flex flex-wrap items-center gap-1 border-b border-slate-200 px-2 py-1.5", toolbarClassName)}>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bold" onClick={() => exec("bold")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bold" onMouseDown={(e) => { e.preventDefault(); exec("bold") }}>
           <Bold className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Italic" onClick={() => exec("italic")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Italic" onMouseDown={(e) => { e.preventDefault(); exec("italic") }}>
           <Italic className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Underline" onClick={() => exec("underline")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Underline" onMouseDown={(e) => { e.preventDefault(); exec("underline") }}>
           <Underline className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Strikethrough" onClick={() => exec("strikeThrough")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Strikethrough" onMouseDown={(e) => { e.preventDefault(); exec("strikeThrough") }}>
           <Strikethrough className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Heading" onClick={toggleHeading}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Heading" onMouseDown={(e) => { e.preventDefault(); toggleHeading() }}>
           <Heading2 className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bullet list" onClick={() => exec("insertUnorderedList")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList") }}>
           <List className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Numbered list" onClick={() => exec("insertOrderedList")}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Numbered list" onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList") }}>
           <ListOrdered className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Clear formatting" onClick={() => { exec("removeFormat"); exec("formatBlock", "p") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Clear formatting" onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); exec("formatBlock", "p") }}>
           <RemoveFormatting className="h-3.5 w-3.5" />
         </Button>
       </div>
       <div
         ref={editorRef}
         className={cn(
-          "min-h-[140px] px-4 py-3 text-[15px] leading-7 text-slate-700 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]",
+          "min-h-[140px] px-4 py-3 text-[15px] leading-7 text-slate-700 outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]",
           editorClassName,
         )}
         contentEditable
@@ -521,13 +521,11 @@ function ImageBlockEditor({
     <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onMoveUp} disabled={!canMoveUp}>
-            <MoveUp className="mr-1 h-4 w-4" />
-            Up
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+            <MoveUp className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onMoveDown} disabled={!canMoveDown}>
-            <MoveDown className="mr-1 h-4 w-4" />
-            Down
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveDown} disabled={!canMoveDown} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+            <MoveDown className="h-4 w-4" />
           </Button>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
             {([{ label: "S", width: 320 }, { label: "M", width: 520 }, { label: "L", width: 720 }] as const).map(({ label, width }, i) => {
@@ -619,9 +617,8 @@ function ImageBlockEditor({
             <Paintbrush className="mr-1 h-4 w-4" />
             Clear
           </Button>
-          <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={onDelete}>
-            <Trash2 className="mr-1 h-4 w-4" />
-            Remove image
+          <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ) : null}
@@ -846,20 +843,17 @@ function BeforeAfterBlockEditor({
   className?: string
 }) {
   return (
-    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
+    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onMoveUp} disabled={!canMoveUp}>
-            <MoveUp className="mr-1 h-4 w-4" />
-            Up
+        <div className="mb-2 flex items-center justify-end gap-0.5">
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+            <MoveUp className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onMoveDown} disabled={!canMoveDown}>
-            <MoveDown className="mr-1 h-4 w-4" />
-            Down
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveDown} disabled={!canMoveDown} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+            <MoveDown className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={onDelete}>
-            <Trash2 className="mr-1 h-4 w-4" />
-            Remove
+          <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ) : null}
@@ -1608,7 +1602,7 @@ export function ProposalBuilder({
         {document.pages.map((page, pageIndex) => (
           <Card key={page.id} className={cn("overflow-hidden rounded-[32px] border sm:p-0 print:overflow-visible print:border-none print:shadow-none print:rounded-none", proposalTheme.pageCardClassName)}>
             <div className={cn(isReadOnly ? "space-y-4" : "space-y-5")}>
-              <div className={cn("border-b px-5 sm:px-6 print:border-b-0 print:bg-none print:px-0 print:py-2", isReadOnly ? "py-3" : "py-3.5", proposalTheme.pageHeaderClassName)} style={pageHeaderStyle}>
+              <div className={cn("border-b px-5 sm:px-6 print:border-b-0 print:bg-none print:px-0 print:py-2", isReadOnly ? "py-2.5" : "py-2.5", proposalTheme.pageHeaderClassName)} style={pageHeaderStyle}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 flex-1 items-start gap-3">
                     {!isReadOnly ? <GripVertical className="mt-1 h-5 w-5 shrink-0 text-slate-400" /> : null}
@@ -1616,46 +1610,33 @@ export function ProposalBuilder({
                       {isReadOnly ? (
                         <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{page.title || `Untitled page ${pageIndex + 1}`}</h2>
                       ) : (
-                        <div className={cn("rounded-2xl border border-dashed px-4 py-3 shadow-sm transition", proposalTheme.pageTitlePromptClassName)}>
-                          <p className={cn("mb-1 text-[11px] font-semibold uppercase tracking-[0.18em]", proposalTheme.pageTitleLabelClassName)}>
-                            Page {pageIndex + 1} title
-                          </p>
-                          <Input
-                            value={page.title}
-                            onChange={(event) =>
-                              updateDocument((current) =>
-                                updatePage(current, page.id, (currentPage) => ({ ...currentPage, title: event.target.value })),
-                              )
-                            }
-                            className="h-auto border-none bg-transparent px-0 py-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none placeholder:text-slate-400 focus-visible:border-transparent focus-visible:ring-0"
-                            placeholder="Add a page title"
-                          />
-                        </div>
+                        <Input
+                          value={page.title}
+                          onChange={(event) =>
+                            updateDocument((current) =>
+                              updatePage(current, page.id, (currentPage) => ({ ...currentPage, title: event.target.value })),
+                            )
+                          }
+                          className="h-auto border-none bg-transparent px-0 py-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none placeholder:text-slate-400 focus-visible:border-transparent focus-visible:ring-0"
+                          placeholder="Add a page title"
+                        />
                       )}
                     </div>
                   </div>
 
                   {!isReadOnly ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => movePage(page.id, -1)} disabled={pageIndex === 0}>
-                        <MoveUp className="mr-1 h-4 w-4" />
-                        Up
+                    <div className="flex items-center gap-0.5">
+                      <Button type="button" variant="ghost" size="icon-sm" onClick={() => movePage(page.id, -1)} disabled={pageIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                        <MoveUp className="h-4 w-4" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => movePage(page.id, 1)}
-                        disabled={pageIndex === document.pages.length - 1}
-                      >
-                        <MoveDown className="mr-1 h-4 w-4" />
-                        Down
+                      <Button type="button" variant="ghost" size="icon-sm" onClick={() => movePage(page.id, 1)} disabled={pageIndex === document.pages.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                        <MoveDown className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700"
+                        size="icon-sm"
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50"
                         onClick={() =>
                           updateDocument((current) => ({
                             ...current,
@@ -1663,8 +1644,7 @@ export function ProposalBuilder({
                           }))
                         }
                       >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : null}
@@ -1707,16 +1687,17 @@ export function ProposalBuilder({
 
                   if (block.type === "text") {
                     return (
-                      <div key={block.id} className={cn("space-y-2 rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
+                      <div key={block.id} className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
                         {!isReadOnly ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={moveUp} disabled={blockIndex === 0}>
-                              <MoveUp className="mr-1 h-4 w-4" />
-                              Up
+                          <div className="mb-2 flex items-center justify-end gap-0.5">
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                              <MoveUp className="h-4 w-4" />
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1}>
-                              <MoveDown className="mr-1 h-4 w-4" />
-                              Down
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                              <MoveDown className="h-4 w-4" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={deleteBlock} className="text-red-400 hover:text-red-600 hover:bg-red-50">
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         ) : null}
@@ -1734,12 +1715,6 @@ export function ProposalBuilder({
                           readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
                           placeholder={PAGE_TEXT_PLACEHOLDER}
                         />
-                        {!isReadOnly ? (
-                          <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={deleteBlock}>
-                            <Trash2 className="mr-1 h-4 w-4" />
-                            Remove text block
-                          </Button>
-                        ) : null}
                       </div>
                     )
                   }
