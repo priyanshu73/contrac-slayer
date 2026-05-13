@@ -368,6 +368,8 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Synchronous guard so double-clicks cannot fire two approve-leads requests before React re-renders. */
+  const approveLeadsInFlightRef = useRef(false)
 
   // Derive display state directly from loaded campaign (no SSE)
   const effectiveStatus = campaign?.status ?? null
@@ -424,6 +426,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   async function runAction(action: PendingAction) {
     if (!campaign || !action) return
+    if (action === "approve-leads") {
+      if (approveLeadsInFlightRef.current) return
+      approveLeadsInFlightRef.current = true
+    }
     try {
       setPendingAction(action)
       setError(null)
@@ -438,6 +444,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed.")
     } finally {
+      if (action === "approve-leads") approveLeadsInFlightRef.current = false
       setPendingAction(null)
     }
   }
