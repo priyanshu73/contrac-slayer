@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen } from "lucide-react"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen, FolderOpen, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
@@ -28,6 +28,7 @@ import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { Job } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { useLocale } from "next-intl"
 
 function isBeforePhotoFilename(fileName?: string | null): boolean {
@@ -131,6 +132,7 @@ export default function QuoteDetailPage() {
   const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false)
   const [deletingQuote, setDeletingQuote] = useState(false)
   const [activeView, setActiveView] = useState<"quote" | "proposal">("quote")
+  const [convertToProjectOpen, setConvertToProjectOpen] = useState(false)
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -848,6 +850,55 @@ export default function QuoteDetailPage() {
           },
         ]}
       />
+
+      {/* Project linkage banner — only shown to contractors, not in print */}
+      {(() => {
+        const status = String(job.status ?? "").toUpperCase()
+        const isAccepted = ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"].includes(status)
+        if (job.project_id) {
+          return (
+            <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 print:hidden">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FolderOpen className="h-4 w-4 shrink-0 text-sky-600" />
+                <span className="text-sm text-sky-800 font-medium truncate">
+                  Linked to project
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-sky-300 bg-white text-sky-700 hover:bg-sky-100 hover:text-sky-800 h-8 gap-1.5 text-xs"
+                onClick={() => router.push(`/${locale}/projects/${job.project_id}`)}
+              >
+                View Project
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+          )
+        }
+        if (isAccepted) {
+          return (
+            <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 print:hidden">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FolderOpen className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="text-sm text-emerald-800 font-medium">
+                  Quote accepted — ready to convert to a project
+                </span>
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white h-8 gap-1.5 text-xs"
+                onClick={() => setConvertToProjectOpen(true)}
+              >
+                Create Project
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+          )
+        }
+        return null
+      })()}
+
       <PersonalizedQuoteView
         job={job}
         showActions={true}
@@ -905,6 +956,23 @@ export default function QuoteDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NewProjectDialog
+        open={convertToProjectOpen}
+        onOpenChange={setConvertToProjectOpen}
+        fromQuote={job ? {
+          jobId: job.id,
+          title: job.title || job.job_description || "",
+          objective: job.job_description || "",
+          startDate: job.start_date || "",
+          endDate: job.end_date || "",
+          clientId: job.client_id,
+          contractValue: job.total_amount,
+        } : undefined}
+        onProjectCreated={(projectId) => {
+          router.push(`/${locale}/projects/${projectId}`)
+        }}
+      />
       <Dialog open={beforeAfterOpen} onOpenChange={handleBeforeAfterOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl">
           <DialogHeader className="pr-8">

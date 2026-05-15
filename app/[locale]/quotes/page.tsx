@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { FileText, Plus, Search, Trash2, ChevronRight, ChevronDown } from "lucide-react"
+import { FileText, Plus, Search, Trash2, ChevronRight, ChevronDown, FolderOpen, BookOpen } from "lucide-react"
 
 interface ClientInfo {
   id: number
@@ -52,6 +52,9 @@ interface Quote {
   updated_at?: string
   title?: string | null
   created_from_job_id?: number | null
+  project_id?: number | null
+  project_title?: string | null
+  has_proposal?: boolean
 }
 
 const ITEMS_PER_PAGE = 10
@@ -514,6 +517,25 @@ export default function QuotesPage() {
                         >
                           {statusLabel(String(quote.status))}
                         </Badge>
+                        {quote.has_proposal && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                            <BookOpen className="h-2.5 w-2.5" />
+                            Proposal
+                          </span>
+                        )}
+                        {quote.project_id && (
+                          <button
+                            className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 hover:bg-sky-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/${locale}/projects/${quote.project_id}`)
+                            }}
+                            title={`Go to project: ${quote.project_title || "Project"}`}
+                          >
+                            <FolderOpen className="h-2.5 w-2.5" />
+                            {quote.project_title || "Project"}
+                          </button>
+                        )}
                       </div>
                       <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                         {quote.client?.name || "Unknown client"}

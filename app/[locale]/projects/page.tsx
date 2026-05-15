@@ -161,6 +161,14 @@ export default function ProjectsPage() {
                         </p>
                       </div>
                       <div className="ml-auto flex items-center gap-3 shrink-0">
+                        {project.contract_value != null && (
+                          <div className="hidden sm:block rounded-lg px-3 py-1.5 text-right bg-emerald-50 border border-emerald-100">
+                            <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Contract</p>
+                            <p className="text-sm font-bold text-emerald-800 tabular-nums">
+                              {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(project.contract_value))}
+                            </p>
+                          </div>
+                        )}
                         <div className="rounded-xl bg-slate-50 px-3 py-2 text-right sm:rounded-lg sm:bg-transparent sm:p-0">
                           <p className="text-[11px] text-slate-500">{t("tradesLabel")}</p>
                           <p className="text-sm font-semibold text-slate-900">{project.accepted_trades ?? 0}/{project.total_trades ?? 0}</p>

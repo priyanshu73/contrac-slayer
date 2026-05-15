@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar, Loader2 } from "lucide-react"
+import { Calendar, Loader2, FileText } from "lucide-react"
 
 interface Client {
     id: number
@@ -24,36 +24,52 @@ interface Client {
     email?: string
 }
 
+export interface FromQuoteProps {
+    jobId: number
+    title?: string
+    objective?: string
+    startDate?: string
+    endDate?: string
+    clientId?: number
+    contractValue?: number
+}
+
 interface NewProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onProjectCreated: (projectId: number) => void
+    fromQuote?: FromQuoteProps
 }
 
 export function NewProjectDialog({
     open,
     onOpenChange,
     onProjectCreated,
+    fromQuote,
 }: NewProjectDialogProps) {
     const t = useTranslations("projects.newProjectDialog")
     const { toast } = useToast()
 
-    // Form state
     const [title, setTitle] = useState("")
     const [objective, setObjective] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
 
-    // Reset form when dialog closes
+    // Pre-populate from quote when dialog opens
     useEffect(() => {
-        if (!open) {
+        if (open && fromQuote) {
+            setTitle(fromQuote.title || "")
+            setObjective(fromQuote.objective || "")
+            setStartDate(fromQuote.startDate || "")
+            setEndDate(fromQuote.endDate || "")
+        } else if (!open) {
             setTitle("")
             setObjective("")
             setStartDate("")
             setEndDate("")
         }
-    }, [open])
+    }, [open, fromQuote])
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -69,6 +85,9 @@ export function NewProjectDialog({
             if (objective.trim()) payload.objective = objective.trim()
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
+            if (fromQuote?.clientId) payload.client_id = fromQuote.clientId
+            if (fromQuote?.contractValue != null) payload.contract_value = fromQuote.contractValue
+            if (fromQuote?.jobId) payload.job_id = fromQuote.jobId
 
             const created = (await api.createProject(payload)) as any
             if (created?.id) {
@@ -94,9 +113,16 @@ export function NewProjectDialog({
                     <DialogTitle className="text-lg font-semibold text-slate-900">
                         {t("title")}
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-slate-500">
-                        {t("description")}
-                    </DialogDescription>
+                    {fromQuote ? (
+                        <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            Pre-filled from accepted quote — review and adjust before creating.
+                        </DialogDescription>
+                    ) : (
+                        <DialogDescription className="text-sm text-slate-500">
+                            {t("description")}
+                        </DialogDescription>
+                    )}
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
