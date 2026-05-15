@@ -138,14 +138,32 @@ export function CampaignListPage() {
   }, [campaigns])
 
   async function handleAction(campaign: Campaign, action: "generate" | "launch" | "resume" | "pause") {
+    const campaignsBeforeAction = campaigns
+    let actionCompleted = false
     try {
       setActionState((s) => ({ ...s, [campaign.uuid]: action }))
+      setError(null)
       if (action === "generate") await api.generateCampaignBrief(campaign.uuid)
-      if (action === "launch") await api.launchCampaign(campaign.uuid)
+      if (action === "launch") {
+        setCampaigns((prev) => prev.map((item) => item.uuid === campaign.uuid ? {
+          ...item,
+          status: "DISCOVERING",
+          awaiting_checkpoint: null,
+          last_error: null,
+          job_progress: {
+            ...(item.job_progress ?? {}),
+            phase: "starting",
+            leads_found: item.job_progress?.leads_found ?? 0,
+          },
+        } : item))
+        await api.launchCampaign(campaign.uuid)
+        actionCompleted = true
+      }
       if (action === "resume") await api.resumeCampaign(campaign.uuid)
       if (action === "pause") await api.pauseCampaign(campaign.uuid)
       await loadCampaigns(false)
     } catch (err) {
+      if (action === "launch" && !actionCompleted) setCampaigns(campaignsBeforeAction)
       setError(err instanceof Error ? err.message : "Campaign action failed.")
     } finally {
       setActionState((s) => ({ ...s, [campaign.uuid]: undefined }))

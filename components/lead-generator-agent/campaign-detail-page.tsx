@@ -170,6 +170,19 @@ function getSourceContext(lead: CampaignDetail["leads"][number]) {
   }
 }
 
+function getLeadContactForms(lead: { meta_context?: Record<string, any> | null }) {
+  const forms = lead.meta_context?.contact_extraction?.contact_forms_found
+  return Array.isArray(forms)
+    ? forms.filter((form): form is Record<string, any> => !!form && typeof form === "object")
+    : []
+}
+
+function getPrimaryContactFormUrl(lead: { meta_context?: Record<string, any> | null }) {
+  const [form] = getLeadContactForms(lead)
+  const url = form?.page_url || form?.form_action
+  return typeof url === "string" && url ? url : null
+}
+
 function OutreachReferenceSection({ campaign }: { campaign: CampaignDetail }) {
   const draftsByLeadId = new Map((campaign.email_drafts ?? []).map((draft) => [draft.campaign_lead_id, draft]))
   const rows = (campaign.leads ?? [])
@@ -430,10 +443,26 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       if (approveLeadsInFlightRef.current) return
       approveLeadsInFlightRef.current = true
     }
+    const campaignBeforeAction = campaign
+    let actionCompleted = false
     try {
       setPendingAction(action)
       setError(null)
-      if (action === "launch") await api.launchCampaign(campaign.uuid)
+      if (action === "launch") {
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "DISCOVERING",
+          awaiting_checkpoint: null,
+          last_error: null,
+          job_progress: {
+            ...(prev.job_progress ?? {}),
+            phase: "starting",
+            leads_found: prev.job_progress?.leads_found ?? 0,
+          },
+        } : prev)
+        await api.launchCampaign(campaign.uuid)
+        actionCompleted = true
+      }
       if (action === "approve-leads") await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "reject-leads") await api.rejectCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "approve-messaging") await api.approveCampaignMessaging(campaign.uuid)
@@ -442,6 +471,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       if (action === "send") await api.sendCampaignBatch(campaign.uuid)
       await loadCampaign(false)
     } catch (err) {
+      if (action === "launch" && !actionCompleted) setCampaign(campaignBeforeAction)
       setError(err instanceof Error ? err.message : "Action failed.")
     } finally {
       if (action === "approve-leads") approveLeadsInFlightRef.current = false
@@ -659,7 +689,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           <Card className="border-amber-200 bg-amber-50/60">
             <CardHeader>
               <CardTitle className="text-base">Review staged leads</CardTitle>
-              <CardDescription>{stagedLeads.length} businesses found. Select the ones to reach out to.</CardDescription>
+              <CardDescription>{stagedLeads.length} businesses found. Select the ones to reach by email or contact form.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
@@ -704,29 +734,45 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                     <TableRow className="bg-slate-50/80">
                       <TableHead className="w-8" />
                       <TableHead>Business</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Contact</TableHead>
                       <TableHead>Score</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stagedLeads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-slate-50/50">
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="rounded"
-                            checked={selectedLeadIds.includes(lead.id)}
-                            onChange={(e) => toggleLead(lead.id, e.target.checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
-                          <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600">{lead.email || "—"}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{lead.score ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
+                    {stagedLeads.map((lead) => {
+                      const contactFormUrl = getPrimaryContactFormUrl(lead)
+                      const contactFormCount = getLeadContactForms(lead).length
+                      return (
+                        <TableRow key={lead.id} className="hover:bg-slate-50/50">
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              className="rounded"
+                              checked={selectedLeadIds.includes(lead.id)}
+                              onChange={(e) => toggleLead(lead.id, e.target.checked)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
+                            <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            <div>{lead.email || "No email found"}</div>
+                            {contactFormUrl && (
+                              <a
+                                href={contactFormUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:text-sky-900"
+                              >
+                                Contact form{contactFormCount > 1 ? `s (${contactFormCount})` : ""}
+                              </a>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">{lead.score ?? "—"}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
