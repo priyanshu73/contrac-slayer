@@ -35,6 +35,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
 import { sentenceCase, getLocationSummary, getSegmentSummary, formatDateTime } from "@/components/lead-generator-agent/shared"
+import { EmailStageLoader } from "@/components/lead-generator-agent/email-stage-loader"
 
 // ─── Status → display mapping ──────────────────────────────────────────────────
 
@@ -368,6 +369,7 @@ type PendingAction =
   | "launch"
   | "approve-leads" | "reject-leads"
   | "approve-messaging" | "resume" | "pause" | "send"
+  | "finish-discovery"
   | null
 
 export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
@@ -463,12 +465,40 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         await api.launchCampaign(campaign.uuid)
         actionCompleted = true
       }
-      if (action === "approve-leads") await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
+      if (action === "approve-leads") {
+        // Optimistically flip to GENERATING so the loader appears instantly.
+        // Backend now spawns the drafting in a background thread and returns fast,
+        // but the request may still take a second or two in flight — don't sit on it.
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "GENERATING",
+          awaiting_checkpoint: null,
+          last_error: null,
+          job_progress: {
+            ...(prev.job_progress ?? {}),
+            phase: "drafting",
+            emails_total: selectedLeadIds.length,
+            drafts_generated: 0,
+          },
+        } : prev)
+        await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
+      }
       if (action === "reject-leads") await api.rejectCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "approve-messaging") await api.approveCampaignMessaging(campaign.uuid)
       if (action === "resume") await api.resumeCampaign(campaign.uuid)
       if (action === "pause") await api.pauseCampaign(campaign.uuid)
       if (action === "send") await api.sendCampaignBatch(campaign.uuid)
+      if (action === "finish-discovery") {
+        // Optimistic flip to AWAITING_REVIEW(discovery) so the staged-leads card
+        // surfaces immediately while the backend acknowledges and the discovery
+        // loop honors the stop signal between iterations.
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "AWAITING_REVIEW",
+          awaiting_checkpoint: "discovery",
+        } : prev)
+        await api.finishDiscoveryEarly(campaign.uuid)
+      }
       await loadCampaign(false)
     } catch (err) {
       if (action === "launch" && !actionCompleted) setCampaign(campaignBeforeAction)
@@ -621,51 +651,87 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         {/* ── Phase progress cards ──────────────────────────────────────── */}
 
         {(effectiveStatus === "DISCOVERING" || effectiveStatus === "BRIEFING") && (
-          <Card className="border-sky-200 bg-sky-50/60">
-            <CardContent className="flex items-center gap-4 py-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100">
-                <Search className="h-6 w-6 text-sky-600 animate-pulse" />
-              </div>
-              <div>
-                <div className="font-semibold text-sky-800">
-                  {effectiveStatus === "BRIEFING" ? "Generating campaign brief…" : "Finding target businesses…"}
+          <Card className="border-sky-200 bg-sky-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="discovery"
+                title={effectiveStatus === "BRIEFING" ? "Generating campaign brief" : "Finding target businesses"}
+                steps={
+                  effectiveStatus === "BRIEFING"
+                    ? [
+                        "Reading your goal and segments",
+                        "Drafting target geography",
+                        "Picking outreach angles",
+                      ]
+                    : [
+                        "Querying local search",
+                        "Scanning company websites",
+                        "Extracting contacts",
+                        "Filtering low-fit results",
+                      ]
+                }
+                progress={
+                  effectiveStatus === "DISCOVERING"
+                    ? { current: leadsFound, total: Math.max(leadsFound, 1), label: "found" }
+                    : undefined
+                }
+              />
+              {effectiveStatus === "DISCOVERING" && leadsFound >= 10 && (
+                <div className="flex flex-col items-center gap-1 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl border-sky-300 bg-white text-sky-700 hover:bg-sky-100"
+                    disabled={!!pendingAction}
+                    onClick={() => runAction("finish-discovery")}
+                  >
+                    {pendingAction === "finish-discovery" ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    Proceed with these {leadsFound} lead{leadsFound !== 1 ? "s" : ""}
+                  </Button>
+                  <div className="text-xs text-slate-500">Stops the search and surfaces what we already have.</div>
                 </div>
-                <div className="text-sm text-sky-600">
-                  {effectiveStatus === "DISCOVERING"
-                    ? `${leadsFound} business${leadsFound !== 1 ? "es" : ""} found so far`
-                    : "Agent is preparing your campaign plan"}
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {effectiveStatus === "GENERATING" && (
-          <Card className="border-violet-200 bg-violet-50/60">
-            <CardContent className="py-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
-                <div>
-                  <div className="font-semibold text-violet-800">Drafting outreach emails…</div>
-                  <div className="text-sm text-violet-600">AI is writing personalised emails for each lead</div>
-                </div>
-              </div>
+          <Card className="border-violet-200 bg-violet-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="drafting"
+                title="Drafting outreach emails"
+                steps={[
+                  "Reading lead profile",
+                  "Matching tone and angle",
+                  "Writing the draft",
+                  "Polishing subject line",
+                ]}
+                progress={{ current: draftsGenerated, total: emailsTotal || 1, label: "drafts" }}
+              />
               <ProgressBar value={draftsGenerated} max={emailsTotal || 1} label="Drafts ready" />
             </CardContent>
           </Card>
         )}
 
         {(effectiveStatus === "SENDING" || effectiveStatus === "ACTIVE") && (
-          <Card className="border-emerald-200 bg-emerald-50/60">
-            <CardContent className="py-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <Send className="h-5 w-5 text-emerald-600" />
-                <div>
-                  <div className="font-semibold text-emerald-800">Sending outreach</div>
-                  <div className="text-sm text-emerald-600">Up to 10 emails per day, spread over a 7-day window</div>
-                </div>
-              </div>
+          <Card className="border-emerald-200 bg-emerald-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="sending"
+                title="Sending outreach"
+                steps={[
+                  "Picking next queued draft",
+                  "Authenticating with Gmail",
+                  "Delivering to inbox",
+                  "Logging the send",
+                ]}
+                progress={{ current: emailsSent, total: emailsTotal || 1, label: "sent" }}
+              />
               <ProgressBar value={emailsSent} max={emailsTotal || 1} label="Emails sent" />
+              <div className="text-center text-xs text-emerald-700">Up to 10 emails per day, spread over a 7-day window.</div>
             </CardContent>
           </Card>
         )}

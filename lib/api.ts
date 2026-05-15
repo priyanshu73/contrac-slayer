@@ -1895,6 +1895,13 @@ class ApiClient {
       method: 'POST',
     })
   }
+
+  async finishDiscoveryEarly(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/finish-discovery`, {
+      method: 'POST',
+    })
+  }
+
   async updateCampaignDraft(draftUuid: string, data: { subject?: string; body?: string }): Promise<any> {
     return this.request(`/campaigns/drafts/${draftUuid}`, {
       method: 'PATCH',
