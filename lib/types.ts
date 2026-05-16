@@ -1294,48 +1294,6 @@ export interface CampaignEmailDraft {
   updated_at: string
 }
 
-export type ContactFormSubmissionStatus =
-  | 'DRAFT'
-  | 'REGENERATED'
-  | 'APPROVED'
-  | 'QUEUED'
-  | 'SENT'
-  | 'FAILED'
-  | 'SKIPPED_UNSUPPORTED'
-
-export interface ContactFormFieldSchemaItem {
-  name: string
-  type: string
-  label?: string | null
-  required: boolean
-  options?: string[] | null
-}
-
-export interface ContactFormFieldMappingValue {
-  value: string
-  source: string
-}
-
-export interface ContactFormSubmission {
-  uuid: string
-  campaign_lead_id: number
-  form_url: string
-  form_provider?: string | null
-  field_schema: ContactFormFieldSchemaItem[]
-  field_mapping: Record<string, ContactFormFieldMappingValue>
-  unmapped_fields: Array<Record<string, any>>
-  drafted_subject?: string | null
-  drafted_message?: string | null
-  status: ContactFormSubmissionStatus
-  last_error?: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ContactFormSubmissionListResponse {
-  submissions: ContactFormSubmission[]
-}
-
 export interface DiscoveredCampaignLead {
   id: number
   uuid: string

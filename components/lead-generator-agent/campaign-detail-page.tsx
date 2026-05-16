@@ -36,8 +36,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
 import { sentenceCase, getLocationSummary, getSegmentSummary, formatDateTime } from "@/components/lead-generator-agent/shared"
 import { EmailStageLoader } from "@/components/lead-generator-agent/email-stage-loader"
-import { ContactFormPreviewCard } from "@/components/lead-generator-agent/contact-form-preview-card"
-import type { ContactFormSubmission } from "@/lib/types"
 
 // ─── Status → display mapping ──────────────────────────────────────────────────
 
@@ -384,7 +382,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [contactFormSubmissions, setContactFormSubmissions] = useState<ContactFormSubmission[]>([])
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   /** Synchronous guard so double-clicks cannot fire two approve-leads requests before React re-renders. */
   const approveLeadsInFlightRef = useRef(false)
@@ -409,19 +406,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       } else {
         setStagedLeads([])
         setSelectedLeadIds([])
-      }
-
-      // Contact-form previews are interesting once we're past the discovery
-      // checkpoint (i.e. leads are promoted and forms may have been staged).
-      if (detail.awaiting_checkpoint === "messaging" || detail.status === "GENERATING") {
-        try {
-          const forms = await api.listContactFormSubmissions(campaignId)
-          setContactFormSubmissions(forms.submissions)
-        } catch {
-          setContactFormSubmissions([])
-        }
-      } else {
-        setContactFormSubmissions([])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load campaign.")
@@ -864,19 +848,12 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
         {/* ── Copilot: Messaging review ────────────────────────────────── */}
         {effectiveCheckpoint === "messaging" && (
-          <>
-            <ReviewEmailUI
-              campaign={campaign}
-              pendingAction={pendingAction}
-              onApproveAll={() => runAction("approve-messaging")}
-              onReload={() => loadCampaign(false)}
-            />
-            <ContactFormPreviewCard
-              campaignUuid={campaign.uuid}
-              submissions={contactFormSubmissions}
-              onChange={setContactFormSubmissions}
-            />
-          </>
+          <ReviewEmailUI
+            campaign={campaign}
+            pendingAction={pendingAction}
+            onApproveAll={() => runAction("approve-messaging")}
+            onReload={() => loadCampaign(false)}
+          />
         )}
 
         {/* ── Campaign brief (internal artifact) ────────────────────────── */}

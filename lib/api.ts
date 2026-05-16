@@ -1902,28 +1902,6 @@ class ApiClient {
     })
   }
 
-  async listContactFormSubmissions(
-    campaignUuid: string,
-  ): Promise<import('@/lib/types').ContactFormSubmissionListResponse> {
-    return this.request(`/campaigns/${campaignUuid}/contact-form-submissions`)
-  }
-
-  async stageContactFormSubmissions(
-    campaignUuid: string,
-  ): Promise<import('@/lib/types').ContactFormSubmissionListResponse> {
-    return this.request(`/campaigns/${campaignUuid}/contact-form-submissions/stage`, {
-      method: 'POST',
-    })
-  }
-
-  async regenerateContactFormSubmission(
-    submissionUuid: string,
-  ): Promise<import('@/lib/types').ContactFormSubmission> {
-    return this.request(`/campaigns/contact-form-submissions/${submissionUuid}/regenerate`, {
-      method: 'POST',
-    })
-  }
-
   async updateCampaignDraft(draftUuid: string, data: { subject?: string; body?: string }): Promise<any> {
     return this.request(`/campaigns/drafts/${draftUuid}`, {
       method: 'PATCH',
