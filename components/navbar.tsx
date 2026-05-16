@@ -7,7 +7,6 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   FileText,
-  Receipt,
   MessageSquare,
   Calendar,
   Bot,
@@ -98,7 +97,6 @@ export function Navbar() {
     },
     { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
     { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
-    { href: `/${locale}/invoices`, label: t("invoices"), icon: Receipt },
     { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
     { href: `/${locale}/clients`, label: t("clients"), icon: Users },
     {
@@ -186,7 +184,6 @@ export function Navbar() {
     navLinks.find((link) => link.href === `/${locale}/leads`),
     navLinks.find((link) => link.href === `/${locale}/tasks`),
     navLinks.find((link) => link.href === `/${locale}/crew`),
-    navLinks.find((link) => link.href === `/${locale}/invoices`),
     navLinks.find((link) => link.href === `/${locale}/projects`),
   ]);
   const mobileMenuLinks = uniqueLinksByHref([...mobilePrimaryLinks, ...actionLinks]);

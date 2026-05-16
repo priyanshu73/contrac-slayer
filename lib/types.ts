@@ -596,6 +596,7 @@ export interface Project {
   scheduled_end_date?: string
   actual_start_date?: string
   actual_completion_date?: string
+  brief?: Record<string, any> | null
   tasks?: ProjectTask[]
   trades?: ProjectTrade[]
   media?: ProjectMedia[]

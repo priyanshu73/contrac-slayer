@@ -15,8 +15,9 @@ import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
-import { ChevronDown, Loader2, User, Search, X } from "lucide-react"
+import { ChevronDown, Loader2, User, Search, X, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { BriefPanel } from "@/components/projects/brief-panel"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -25,6 +26,7 @@ export default function ProjectDetailPage() {
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showBrief, setShowBrief] = useState(false)
 
   const projectId = Number(params.id)
 
@@ -98,8 +100,8 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col">
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
+      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col overflow-hidden">
         <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
           <div className="w-full max-w-none flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -172,33 +174,56 @@ export default function ProjectDetailPage() {
                     {t("contractValue", { amount: project.contract_value })}
                   </p>
                 )}
+                <button
+                  onClick={() => setShowBrief((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all shadow-sm ${
+                    showBrief
+                      ? "bg-[#1565C0] border-[#1565C0] text-white"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-900"
+                  }`}
+                >
+                  <FileText className="w-3 h-3" />
+                  Brief
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <main className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-        <div className="w-full max-w-none space-y-4">
+      <div className="flex flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
+          <div className="w-full max-w-none space-y-4">
 
-          <TabsContent value="tasks" className="mt-0">
-            <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
-          </TabsContent>
+            <TabsContent value="tasks" className="mt-0">
+              <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
+            </TabsContent>
 
-          <TabsContent value="financials" className="mt-0">
-            <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
-          </TabsContent>
+            <TabsContent value="financials" className="mt-0">
+              <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
+            </TabsContent>
 
-          <TabsContent value="documents" className="mt-0 space-y-6">
-            <ProjectQuotes project={project} />
-            <ProjectDocuments project={project} />
-          </TabsContent>
+            <TabsContent value="documents" className="mt-0 space-y-6">
+              <ProjectQuotes project={project} />
+              <ProjectDocuments project={project} />
+            </TabsContent>
 
-          <TabsContent value="trades" className="mt-0">
-            <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
-          </TabsContent>
-        </div>
-      </main>
+            <TabsContent value="trades" className="mt-0">
+              <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
+            </TabsContent>
+          </div>
+        </main>
+
+        {showBrief && (
+          <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white hidden lg:block">
+            <BriefPanel
+              projectId={project.id}
+              initialBrief={project.brief}
+              onClose={() => setShowBrief(false)}
+            />
+          </aside>
+        )}
+      </div>
       </Tabs>
     </div>
   )
