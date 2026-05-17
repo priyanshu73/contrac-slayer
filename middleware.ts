@@ -21,6 +21,12 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Engineering preview routes (e.g. /dev/preview) are gated server-side by
+  // host + env. They don't need next-intl chrome.
+  if (pathname.startsWith('/dev/')) {
+    return NextResponse.next();
+  }
+
   // Normalize localized booking links to the public route.
   const localizedMatch = pathname.match(/^\/(en|es)\/book\/(.+)$/);
   if (localizedMatch) {
