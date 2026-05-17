@@ -5,19 +5,18 @@ import { useParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { api } from "@/lib/api"
 import type { Project, ProjectTask, ProjectTrade } from "@/lib/types"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { motion } from "framer-motion"
+import { GooeyFilter } from "@/components/ui/gooey-filter"
 import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
+import { BriefPanel } from "@/components/projects/brief-panel"
 import { ChevronDown, Loader2, User, Search, X, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { BriefPanel } from "@/components/projects/brief-panel"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -27,6 +26,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [showBrief, setShowBrief] = useState(false)
+  const [activeTab, setActiveTab] = useState("overview")
 
   const projectId = Number(params.id)
 
@@ -46,9 +46,7 @@ export default function ProjectDetailPage() {
       }
     }
     run()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [projectId])
 
   const refreshProject = async () => {
@@ -87,7 +85,7 @@ export default function ProjectDetailPage() {
       await api.updateProject(project.id, { status: newStatus })
     } catch (err) {
       console.error("Failed to update status", err)
-      setProject({ ...project, status: prevStatus }) // Revert on failure
+      setProject({ ...project, status: prevStatus })
     }
   }
 
@@ -101,73 +99,48 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
-      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
+        {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="w-full max-w-none flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-0.5 lg:flex-1 min-w-0">
-              <AppBreadcrumb
-                items={[
-                  { label: "Projects", href: `/${locale}/projects` },
-                  { label: project.title },
-                ]}
-              />
-              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight truncate">
-                {project.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-                <div className="flex items-center gap-1 font-medium text-slate-700">
-                  <span className="text-slate-500">From:</span>
-                  <span>{project.scheduled_start_date || "–"}</span>
-                  <span className="text-slate-500 ml-1">To:</span>
-                  <span>{project.scheduled_end_date || "–"}</span>
-                </div>
+          <div className="px-4 sm:px-6 lg:px-10 pt-3 pb-0">
 
-                <ClientPicker
-                  projectId={project.id}
-                  currentClientId={project.client_id}
-                  onChange={handleClientChange}
+            {/* Top row: breadcrumb left, actions right */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-1 min-w-0">
+                <AppBreadcrumb
+                  items={[
+                    { label: "Projects", href: `/${locale}/projects` },
+                    { label: project.title },
+                  ]}
                 />
-
-                {project.objective && (
-                  <span className="line-clamp-1 text-slate-500">
-                    • {project.objective}
-                  </span>
-                )}
+                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight line-clamp-1">
+                  {project.title}
+                </h1>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2">
+                  {(project.scheduled_start_date || project.scheduled_end_date) && (
+                    <span className="text-xs text-slate-500">
+                      {project.scheduled_start_date
+                        ? new Date(project.scheduled_start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "–"}
+                      {" → "}
+                      {project.scheduled_end_date
+                        ? new Date(project.scheduled_end_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "–"}
+                    </span>
+                  )}
+                  <ClientPicker
+                    projectId={project.id}
+                    currentClientId={project.client_id}
+                    onChange={handleClientChange}
+                  />
+                  {project.objective && (
+                    <span className="text-xs text-slate-400 line-clamp-1">· {project.objective}</span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="flex justify-start lg:justify-center overflow-x-auto sm:my-2 lg:my-0 lg:mx-4 shrink-0">
-              <TabsList className="mb-1 flex w-max flex-nowrap rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm lg:mb-0">
-                <TabsTrigger
-                  value="tasks"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.tasks") || "Tasks"}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="financials"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.financials") || "Financials"}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="documents"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger
-                  value="trades"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.trades") || "Team & scopes"}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <div className="flex flex-col lg:items-end gap-2 lg:flex-1 shrink-0 mt-1 lg:mt-0">
-              <div className="flex items-center gap-3">
+              {/* Right: status + contract value + brief */}
+              <div className="flex items-center gap-2 shrink-0 pt-1">
                 <StatusDropdown status={project.status} onChange={handleStatusChange} />
                 {project.contract_value != null && (
                   <p className="text-sm font-semibold text-slate-900 border-l border-slate-200 pl-3">
@@ -187,49 +160,102 @@ export default function ProjectDetailPage() {
                 </button>
               </div>
             </div>
+
+            {/* Bottom row: gooey tabs */}
+            {(() => {
+              const TABS = [
+                { value: "overview",   label: "Overview" },
+                { value: "scope",      label: "Scope & Tasks" },
+                { value: "financials", label: t("tabs.financials") || "Financials" },
+                { value: "files",      label: "Files" },
+              ]
+              return (
+                <div className="relative flex overflow-x-auto">
+                  <GooeyFilter id="project-tab-goo" strength={6} />
+
+                  {/* Blob layer — filter applied here so text stays crisp */}
+                  <div className="absolute inset-0 flex pointer-events-none" style={{ filter: "url(#project-tab-goo)" }}>
+                    {TABS.map(({ value, label }) => (
+                      <div
+                        key={value}
+                        className="relative h-9 px-4 flex items-center text-sm font-medium invisible"
+                        aria-hidden
+                      >
+                        {label}
+                        {activeTab === value && (
+                          <motion.div
+                            layoutId="project-active-tab"
+                            className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-slate-800"
+                            transition={{ type: "spring", bounce: 0.25, duration: 0.4 }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Text layer — no filter, crisp text */}
+                  {TABS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveTab(value)}
+                      className={`relative h-9 px-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                        activeTab === value ? "text-slate-900" : "text-slate-400 hover:text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-          <div className="w-full max-w-none space-y-4">
+        {/* Body: tab content + brief sidebar */}
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
-            <TabsContent value="tasks" className="mt-0">
+            {/* Overview — Quotes */}
+            <TabsContent value="overview" className="mt-0">
+              <ProjectQuotes project={project} />
+            </TabsContent>
+
+            {/* Scope & Tasks */}
+            <TabsContent value="scope" className="mt-0 space-y-8">
+              <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
               <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
             </TabsContent>
 
+            {/* Financials */}
             <TabsContent value="financials" className="mt-0">
               <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
             </TabsContent>
 
-            <TabsContent value="documents" className="mt-0 space-y-6">
-              <ProjectQuotes project={project} />
+            {/* Files */}
+            <TabsContent value="files" className="mt-0">
               <ProjectDocuments project={project} />
             </TabsContent>
+          </main>
 
-            <TabsContent value="trades" className="mt-0">
-              <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
-            </TabsContent>
-          </div>
-        </main>
-
-        {showBrief && (
-          <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white hidden lg:block">
-            <BriefPanel
-              projectId={project.id}
-              initialBrief={project.brief}
-              onClose={() => setShowBrief(false)}
-            />
-          </aside>
-        )}
-      </div>
+          {showBrief && (
+            <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white hidden lg:block">
+              <BriefPanel
+                projectId={project.id}
+                initialBrief={project.brief}
+                onClose={() => setShowBrief(false)}
+              />
+            </aside>
+          )}
+        </div>
       </Tabs>
     </div>
   )
 }
 
-function StatusDropdown({ status, onChange }: { status: Project["status"], onChange: (newStatus: string) => void }) {
+// ─── StatusDropdown ───────────────────────────────────────────────────────────
+
+function StatusDropdown({ status, onChange }: { status: Project["status"]; onChange: (newStatus: string) => void }) {
   const t = useTranslations("projects.status")
   let color = "bg-slate-50 text-slate-700 border-slate-200"
   if (status === "COMPLETED") color = "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -244,9 +270,9 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
       <select
         value={status}
         onChange={(e) => onChange(e.target.value)}
-        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10`}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
       >
-        {STATUS_OPTIONS.map(opt => (
+        {STATUS_OPTIONS.map((opt) => (
           <option key={opt} value={opt}>{t(opt.toLowerCase() as any)}</option>
         ))}
       </select>
@@ -257,6 +283,8 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
     </div>
   )
 }
+
+// ─── ClientPicker ─────────────────────────────────────────────────────────────
 
 interface SimpleClient { id: number; name: string; phone?: string }
 
@@ -294,16 +322,16 @@ function ClientPicker({
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return clients.filter(c => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
+    return clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
   }, [clients, search])
 
-  const current = clients.find(c => c.id === currentClientId)
+  const current = clients.find((c) => c.id === currentClientId)
 
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
       >
         <User className="w-3 h-3" />
@@ -321,7 +349,7 @@ function ClientPicker({
                 type="text"
                 placeholder="Search clients..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
@@ -341,7 +369,7 @@ function ClientPicker({
                     <X className="w-3 h-3" /> Remove client
                   </button>
                 )}
-                {filtered.map(c => (
+                {filtered.map((c) => (
                   <button
                     key={c.id}
                     className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${

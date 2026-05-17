@@ -240,7 +240,7 @@ function sectionsToPayload(sections: Section[]): Record<string, any> {
 interface BriefPanelProps {
   projectId: number
   initialBrief?: Record<string, any> | null
-  onClose: () => void
+  onClose?: () => void
 }
 
 export function BriefPanel({ projectId, initialBrief, onClose }: BriefPanelProps) {
@@ -319,9 +319,9 @@ export function BriefPanel({ projectId, initialBrief, onClose }: BriefPanelProps
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border">
+    <div className={`flex flex-col bg-background ${onClose ? "h-full border-l border-border" : "rounded-xl border border-border shadow-sm"}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-background z-10">
+      <div className={`flex items-center justify-between px-5 py-4 border-b border-border bg-background z-10 ${onClose ? "sticky top-0" : "rounded-t-xl"}`}>
         <div>
           <span className="text-sm font-semibold text-foreground">Project Brief</span>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -344,12 +344,14 @@ export function BriefPanel({ projectId, initialBrief, onClose }: BriefPanelProps
             </div>
             <span className="text-xs font-medium text-muted-foreground tabular-nums">{progress}%</span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

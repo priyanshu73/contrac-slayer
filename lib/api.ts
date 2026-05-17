@@ -531,7 +531,8 @@ class ApiClient {
     skip = 0,
     limit = 20,
     clientId?: number,
-    search?: string
+    search?: string,
+    projectId?: number
   ) {
     const params = new URLSearchParams()
     if (Array.isArray(status)) {
@@ -542,6 +543,7 @@ class ApiClient {
       params.append('status', status)
     }
     if (clientId != null) params.append('client_id', String(clientId))
+    if (projectId != null) params.append('project_id', String(projectId))
     const q = search?.trim()
     if (q) params.append('search', q)
     params.append('skip', skip.toString())

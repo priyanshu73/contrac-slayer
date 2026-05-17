@@ -147,9 +147,11 @@ export default function QuotesPage() {
   const [loading, setLoading] = useState(true)
   const [activeStatuses, setActiveStatuses] = useState<string[]>([])
   const [clientFilterId, setClientFilterId] = useState<number | undefined>(undefined)
+  const [projectFilterId, setProjectFilterId] = useState<number | undefined>(undefined)
   const [searchInput, setSearchInput] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [clients, setClients] = useState<ClientInfo[]>([])
+  const [projects, setProjects] = useState<{ id: number; title: string }[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -187,6 +189,26 @@ export default function QuotesPage() {
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getProjects({ limit: 500 })
+      .then((raw) => {
+        if (cancelled) return
+        const arr = Array.isArray(raw) ? raw : []
+        const mapped = arr
+          .map((p: { id: number; title: string }) => ({ id: p.id, title: p.title }))
+          .sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }))
+        setProjects(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const loadPage = useCallback(
     async (page: number) => {
       try {
@@ -201,7 +223,8 @@ export default function QuotesPage() {
             skip,
             ITEMS_PER_PAGE + 1,
             clientFilterId,
-            debouncedSearch || undefined
+            debouncedSearch || undefined,
+            projectFilterId
           )) as Quote[]
 
           if (data.length > ITEMS_PER_PAGE) {
@@ -225,7 +248,8 @@ export default function QuotesPage() {
             cursor,
             batchSize,
             clientFilterId,
-            debouncedSearch || undefined
+            debouncedSearch || undefined,
+            projectFilterId
           )) as Quote[]
           allJobs = allJobs.concat(chunk)
           if (chunk.length < batchSize) break
@@ -243,13 +267,13 @@ export default function QuotesPage() {
         setLoading(false)
       }
     },
-    [activeStatuses, debouncedSearch, clientFilterId]
+    [activeStatuses, debouncedSearch, clientFilterId, projectFilterId]
   )
 
   useEffect(() => {
     setCurrentPage(1)
     loadPage(1)
-  }, [activeStatuses, debouncedSearch, clientFilterId, loadPage])
+  }, [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, loadPage])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -257,11 +281,12 @@ export default function QuotesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || debouncedSearch.length > 0
+  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || projectFilterId !== undefined || debouncedSearch.length > 0
 
   const clearFilters = () => {
     setActiveStatuses([])
     setClientFilterId(undefined)
+    setProjectFilterId(undefined)
     setSearchInput("")
     setDebouncedSearch("")
   }
@@ -455,6 +480,26 @@ export default function QuotesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {projects.length > 0 && (
+                <div className="min-w-[180px] flex-1 md:flex-none">
+                  <Select
+                    value={projectFilterId != null ? String(projectFilterId) : "all"}
+                    onValueChange={(v) => setProjectFilterId(v === "all" ? undefined : parseInt(v, 10))}
+                  >
+                    <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
+                      <SelectValue placeholder="Project" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px]">
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          <span className="truncate block">{p.title}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {hasActiveFilters && (
                 <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-md" onClick={clearFilters}>
                   {tQuotes("clearFilters")}

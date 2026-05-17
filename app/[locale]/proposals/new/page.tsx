@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useLocale, useTranslations } from "next-intl"
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, FileText, FolderOpen } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,8 @@ interface Quote {
   updated_at?: string
   title?: string | null
   project_type?: string | null
+  project_id?: number | null
+  project_title?: string | null
   proposal_document?: ProposalDocument | null
 }
 
@@ -96,19 +98,41 @@ export default function NewProposalPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined)
+  const [projectFilterId, setProjectFilterId] = useState<number | undefined>(undefined)
+  const [projects, setProjects] = useState<{ id: number; title: string }[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    setCurrentPage(1)
-    void fetchQuotes(1, activeFilter)
-  }, [activeFilter])
+    let cancelled = false
+    api
+      .getProjects({ limit: 500 })
+      .then((raw) => {
+        if (cancelled) return
+        const arr = Array.isArray(raw) ? raw : []
+        const mapped = arr
+          .map((p: { id: number; title: string }) => ({ id: p.id, title: p.title }))
+          .sort((a: { title: string }, b: { title: string }) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+          )
+        setProjects(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([])
+      })
+    return () => { cancelled = true }
+  }, [])
 
-  const fetchQuotes = async (page: number, statusFilter = activeFilter) => {
+  useEffect(() => {
+    setCurrentPage(1)
+    void fetchQuotes(1, activeFilter, projectFilterId)
+  }, [activeFilter, projectFilterId])
+
+  const fetchQuotes = async (page: number, statusFilter = activeFilter, projFilter = projectFilterId) => {
     try {
       setLoading(true)
       const skip = (page - 1) * ITEMS_PER_PAGE
-      const data = (await api.getMyJobs(statusFilter, skip, ITEMS_PER_PAGE + 1)) as Quote[]
+      const data = (await api.getMyJobs(statusFilter, skip, ITEMS_PER_PAGE + 1, undefined, undefined, projFilter)) as Quote[]
 
       if (data.length > ITEMS_PER_PAGE) {
         setHasMore(true)
@@ -128,7 +152,7 @@ export default function NewProposalPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    void fetchQuotes(page)
+    void fetchQuotes(page, activeFilter, projectFilterId)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -191,6 +215,24 @@ export default function NewProposalPage() {
                 </Button>
               </div>
             )}
+            {projects.length > 0 && (
+              <Select
+                value={projectFilterId != null ? String(projectFilterId) : "all"}
+                onValueChange={(v) => setProjectFilterId(v === "all" ? undefined : parseInt(v, 10))}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </Card>
 
@@ -248,6 +290,12 @@ export default function NewProposalPage() {
                             {tDashboard("proposalSelector.saved")}
                           </Badge>
                         ) : null}
+                        {quote.project_id && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                            <FolderOpen className="h-2.5 w-2.5" />
+                            {quote.project_title || "Project"}
+                          </span>
+                        )}
                       </div>
                       {quote.client?.name ? (
                         <p className="mb-1 text-sm text-muted-foreground">{quote.client.name}</p>
