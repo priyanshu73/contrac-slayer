@@ -678,11 +678,11 @@ export function UnifiedLeads() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden pb-16 md:pb-0">
-      <main className="flex-1 h-full md:container md:mx-auto md:px-4 md:py-6 overflow-hidden min-h-0 p-0">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 md:gap-6 h-full">
+      <main className="flex-1 h-full overflow-hidden min-h-0 p-0">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 h-full">
           {/* Left Panel - Leads List */}
           <div className={`lg:col-span-1 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
-            <Card className="h-full flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 md:border md:rounded-lg shadow-none md:shadow-sm bg-background">
+            <Card className="h-full flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 md:border-y-0 md:border-r md:border-l-0 shadow-none bg-background">
               {/* Search and Sort */}
               <div className="px-3 py-3 md:px-3 md:py-2 border-b flex-shrink-0 space-y-3 md:space-y-1.5 bg-background shadow-sm md:shadow-none z-10 sticky top-0">
                 <div className="flex gap-2 items-center">
@@ -791,10 +791,10 @@ export function UnifiedLeads() {
                           setSelectedLeadId(lead.id)
                           setHasUserClearedSelection(false)
                         }}
-                        className={`cursor-pointer border-b border-border/60 px-4 py-3.5 md:p-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
+                        className={`cursor-pointer border-b border-border/60 px-3 py-3.5 md:px-3 md:py-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
                           }`}
                       >
-                        <div className="flex items-center gap-3 md:gap-4">
+                        <div className="flex items-center gap-3">
                           <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
                             {lead.name.charAt(0)}
                           </div>
@@ -877,10 +877,10 @@ export function UnifiedLeads() {
                         setSelectedLeadId(lead.id)
                         setHasUserClearedSelection(false)
                       }}
-                      className={`cursor-pointer border-b border-border/60 px-4 py-3.5 md:p-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
+                      className={`cursor-pointer border-b border-border/60 px-3 py-3.5 md:px-3 md:py-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
                         }`}
                     >
-                      <div className="flex items-center gap-3 md:gap-4">
+                      <div className="flex items-center gap-3">
                         <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
                           {lead.name.charAt(0)}
                         </div>
@@ -1048,9 +1048,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-0 md:border rounded-none md:rounded-lg shadow-none md:shadow-lg">
+    <Card className="h-full flex flex-col overflow-hidden border-0 rounded-none shadow-none">
       {/* Header - aligned single row; tight bottom padding on mobile to sit close to conversation */}
-      <div className="flex items-center gap-3 md:gap-4 p-3 md:p-6 border-b border-border flex-shrink-0 min-h-14 md:min-h-16 bg-background/95 backdrop-blur z-20 sticky top-0">
+      <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 border-b border-border flex-shrink-0 min-h-14 md:min-h-16 bg-background/95 backdrop-blur z-20 sticky top-0">
         {/* Left: back + hamburger (mobile) + avatar + name */}
         {/* Left: back + name centered + more right */}
         <div className="flex items-center justify-between min-w-0 flex-1 relative">

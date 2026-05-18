@@ -19,7 +19,9 @@ import { useToast } from "@/hooks/use-toast"
 import type {
   Job,
   JobItem,
+  Project,
   ProjectMedia,
+  Proposal,
   ProposalAnnotationPoint,
   ProposalBeforeAfterBlock,
   ProposalDocument,
@@ -949,20 +951,37 @@ function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []): Before
 
 export function ProposalBuilder({
   job,
+  proposal,
+  project,
   contractorName,
   locale,
   onJobUpdated,
+  onProposalUpdated,
   publicMode = false,
 }: {
-  job: Job
+  /** Legacy: job-centric mode. Pass when building from a quote directly. */
+  job?: Job
+  /** New: proposal-centric mode. Pass when building from a project proposal. */
+  proposal?: Proposal
+  project?: Project
   contractorName: string
   locale: string
-  onJobUpdated: (job: Job) => void
+  onJobUpdated?: (job: Job) => void
+  onProposalUpdated?: (proposal: Proposal) => void
   publicMode?: boolean
 }) {
+  const isProposalMode = !!proposal
   const { toast } = useToast()
   const fileInputId = useId()
-  const [document, setDocument] = useState<ProposalDocument>(() => buildInitialProposalDocument(job, contractorName))
+  const [document, setDocument] = useState<ProposalDocument>(() => {
+    if (isProposalMode && proposal) {
+      return buildInitialProposalDocument(
+        { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
+        contractorName
+      )
+    }
+    return buildInitialProposalDocument(job as Job, contractorName)
+  })
   const [viewMode, setViewMode] = useState(publicMode)
   const [saving, setSaving] = useState(false)
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null)
@@ -971,32 +990,44 @@ export function ProposalBuilder({
   const [showAIModal, setShowAIModal] = useState(false)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [generatingProposal, setGeneratingProposal] = useState(false)
-  const [customDescription, setCustomDescription] = useState(job.job_description ?? "")
+  const [customDescription, setCustomDescription] = useState(job?.job_description ?? "")
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(() => new Set((job.items ?? []).map((item) => item.id)))
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(() => new Set((job?.items ?? []).map((item) => item.id)))
   const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
-    buildBeforeAfterPairsFromMedia(job.project_media ?? [])
+    buildBeforeAfterPairsFromMedia(
+      isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
+    )
   )
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
-    setDocument(buildInitialProposalDocument(job, contractorName))
+    if (isProposalMode && proposal) {
+      setDocument(buildInitialProposalDocument(
+        { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
+        contractorName
+      ))
+    } else if (job) {
+      setDocument(buildInitialProposalDocument(job, contractorName))
+    }
     setDirty(false)
     setOverviewLoaded(false)
-  }, [contractorName, job, publicMode])
+  }, [contractorName, isProposalMode, job, proposal, publicMode])
 
   useEffect(() => {
     setViewMode(publicMode)
-  }, [job.id, publicMode])
+  }, [isProposalMode ? proposal?.id : job?.id, publicMode])
 
   useEffect(() => {
-    setImagePairs(buildBeforeAfterPairsFromMedia(job.project_media ?? []))
-  }, [job.id, job.project_media])
+    setImagePairs(buildBeforeAfterPairsFromMedia(
+      isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
+    ))
+  }, [isProposalMode, job?.id, job?.project_media, project?.id, project?.media])
 
   useEffect(() => {
+    const hasExistingDoc = isProposalMode ? !!proposal?.proposal_document : !!job?.proposal_document
     const shouldHydrateOverview =
-      !job.proposal_document &&
+      !hasExistingDoc &&
       !overviewLoaded &&
       document.projectOverview.description === DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML
 
@@ -1008,7 +1039,9 @@ export function ProposalBuilder({
 
     const loadOverview = async () => {
       try {
-        const generated = (await api.getProposalOverview(job.id)) as ProposalOverviewResponse
+        const generated = isProposalMode && proposal
+          ? (await api.getProposalOverviewForProject(proposal.project_id, proposal.id)) as ProposalOverviewResponse
+          : (await api.getProposalOverview(job!.id)) as ProposalOverviewResponse
         if (cancelled) return
         setDocument((current) => ({
           ...current,
@@ -1031,7 +1064,7 @@ export function ProposalBuilder({
     return () => {
       cancelled = true
     }
-  }, [document.projectOverview.description, job.id, job.proposal_document, overviewLoaded])
+  }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
 
   const updateDocument = (updater: (current: ProposalDocument) => ProposalDocument) => {
     setDocument((current) => {
@@ -1063,7 +1096,9 @@ export function ProposalBuilder({
   const pageHeaderStyle = {
     backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.08)}, rgba(255,255,255,0.97) 56%, ${withAlpha(tintColor, 0.14)})`,
   }
-  const proposalPublicHref = job.proposal_public_link ? `/${locale}/proposals/${job.proposal_public_link}` : null
+  const proposalPublicHref = isProposalMode
+    ? (proposal?.public_link ? `/${locale}/proposals/${proposal.public_link}` : null)
+    : (job?.proposal_public_link ? `/${locale}/proposals/${job.proposal_public_link}` : null)
 
   const copyDocumentLink = async (href: string, label: string) => {
     if (typeof window === "undefined") return
@@ -1086,15 +1121,22 @@ export function ProposalBuilder({
   const saveProposal = async () => {
     setSaving(true)
     try {
-      const updatedJob = (await api.updateJob(job.id, { proposal_document: document })) as Job
-      onJobUpdated(updatedJob)
-      setDirty(false)
-      toast({
-        title: "Proposal saved",
-        description: updatedJob.proposal_public_link
-          ? "Your proposal is attached to this quote and now has its own share link."
-          : "Your proposal document is now attached to this quote.",
-      })
+      if (isProposalMode && proposal) {
+        const updated = (await api.updateProposal(proposal.project_id, proposal.id, { proposal_document: document })) as Proposal
+        onProposalUpdated?.(updated)
+        setDirty(false)
+        toast({ title: "Proposal saved", description: "Your proposal has been saved." })
+      } else if (job) {
+        const updatedJob = (await api.updateJob(job.id, { proposal_document: document })) as Job
+        onJobUpdated?.(updatedJob)
+        setDirty(false)
+        toast({
+          title: "Proposal saved",
+          description: updatedJob.proposal_public_link
+            ? "Your proposal is attached to this quote and now has its own share link."
+            : "Your proposal document is now attached to this quote.",
+        })
+      }
     } catch (error: any) {
       toast({
         title: "Save failed",
@@ -1109,11 +1151,17 @@ export function ProposalBuilder({
   const generateProposal = async () => {
     setGeneratingProposal(true)
     try {
-      const result = await api.generateAIProposal(
-        job.id,
-        customDescription.trim() || undefined,
-        Array.from(selectedItemIds),
-      )
+      const result = isProposalMode && proposal
+        ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
+            description: customDescription.trim() || undefined,
+            job_id: job?.id,
+            selected_item_ids: Array.from(selectedItemIds),
+          })
+        : await api.generateAIProposal(
+            job!.id,
+            customDescription.trim() || undefined,
+            Array.from(selectedItemIds),
+          )
       setShowGenerateModal(false)
 
       // Index before/after pairs by position for O(1) lookup
@@ -1218,7 +1266,9 @@ export function ProposalBuilder({
     if (!files || files.length === 0) return
     setUploadingPageId(pageId)
     try {
-      const uploaded = (await api.uploadQuoteMedia(job.id, Array.from(files))) as ProjectMedia[]
+      const uploadJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id
+      if (!uploadJobId) throw new Error("No quote to upload media to")
+      const uploaded = (await api.uploadQuoteMedia(uploadJobId, Array.from(files))) as ProjectMedia[]
       const imageBlocks = await Promise.all(uploaded.map((media) => createImageBlock(media)))
       updateDocument((current) =>
         updatePage(current, pageId, (page) => ({
@@ -1953,7 +2003,7 @@ export function ProposalBuilder({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showGenerateModal} onOpenChange={(open) => { if (!generatingProposal) { setShowGenerateModal(open); if (open) { setCustomDescription(job.job_description ?? ""); setSelectedItemIds(new Set((job.items ?? []).map((item) => item.id))); setLineItemsOpen(false) } } }}>
+      <Dialog open={showGenerateModal} onOpenChange={(open) => { if (!generatingProposal) { setShowGenerateModal(open); if (open) { setCustomDescription(job?.job_description ?? ""); setSelectedItemIds(new Set((job?.items ?? []).map((item) => item.id))); setLineItemsOpen(false) } } }}>
         <DialogContent className="flex max-h-[80vh] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
           <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
             <div className="flex items-center gap-3">
@@ -1982,7 +2032,7 @@ export function ProposalBuilder({
                 disabled={generatingProposal}
               />
             </div>
-            {(job.items ?? []).length > 0 ? (
+            {(job?.items ?? []).length > 0 ? (
               <div className="rounded-xl border border-slate-200 overflow-hidden">
                 {/* Dropdown header */}
                 <button
@@ -1994,7 +2044,7 @@ export function ProposalBuilder({
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Line Items</span>
                     <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
-                      {selectedItemIds.size}/{(job.items ?? []).length} selected
+                      {selectedItemIds.size}/{(job?.items ?? []).length} selected
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -2004,7 +2054,7 @@ export function ProposalBuilder({
                       className={cn("text-[11px] font-medium text-violet-600 hover:text-violet-800", generatingProposal && "pointer-events-none opacity-50")}
                       onClick={(e) => {
                         e.stopPropagation()
-                        const allIds = (job.items ?? []).map((item) => item.id)
+                        const allIds = (job?.items ?? []).map((item) => item.id)
                         if (selectedItemIds.size === allIds.length) {
                           setSelectedItemIds(new Set())
                         } else {
@@ -2017,7 +2067,7 @@ export function ProposalBuilder({
                           e.preventDefault()
                           e.stopPropagation()
                           if (generatingProposal) return
-                          const allIds = (job.items ?? []).map((item) => item.id)
+                          const allIds = (job?.items ?? []).map((item) => item.id)
                           if (selectedItemIds.size === allIds.length) {
                             setSelectedItemIds(new Set())
                           } else {
@@ -2027,7 +2077,7 @@ export function ProposalBuilder({
                         }
                       }}
                     >
-                      {selectedItemIds.size === (job.items ?? []).length ? "Deselect all" : "Select all"}
+                      {selectedItemIds.size === (job?.items ?? []).length ? "Deselect all" : "Select all"}
                     </span>
                     <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", lineItemsOpen && "rotate-180")} />
                   </div>
@@ -2036,7 +2086,7 @@ export function ProposalBuilder({
                 {/* Collapsible list */}
                 {lineItemsOpen ? (
                   <ul className="divide-y divide-slate-100 bg-white">
-                    {(job.items ?? []).map((item: JobItem, i: number) => {
+                    {(job?.items ?? []).map((item: JobItem, i: number) => {
                       const selected = selectedItemIds.has(item.id)
                       return (
                         <li
@@ -2138,15 +2188,15 @@ export function ProposalBuilder({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <BeforeAfterPanel
-              jobId={job.id}
-              lineItems={(job.items ?? []).map((item: JobItem) => ({
+              jobId={job?.id ?? proposal?.quote_references?.[0]?.job_id ?? 0}
+              lineItems={(job?.items ?? []).map((item: JobItem) => ({
                 title: item.title,
                 description: item.custom_description,
                 quantity: item.quantity,
                 unitOfMeasure: item.unit_of_measure,
               }))}
-              jobDescription={job.job_description || job.description || ""}
-              jobTitle={job.title || ""}
+              jobDescription={job?.job_description || job?.description || ""}
+              jobTitle={job?.title || project?.title || ""}
               imagePairs={imagePairs}
               onImagePairsChange={setImagePairs}
             />

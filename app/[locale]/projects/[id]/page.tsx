@@ -286,7 +286,7 @@ function StatusDropdown({ status, onChange }: { status: Project["status"]; onCha
 
 // ─── ClientPicker ─────────────────────────────────────────────────────────────
 
-interface SimpleClient { id: number; name: string; phone?: string }
+interface SimpleClient { id: number; name: string; phone?: string; email?: string; address?: string }
 
 function ClientPicker({
   projectId,
@@ -300,8 +300,17 @@ function ClientPicker({
   const [open, setOpen] = useState(false)
   const [clients, setClients] = useState<SimpleClient[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentClient, setCurrentClient] = useState<SimpleClient | null>(null)
   const [search, setSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
+
+  // Load full info for the assigned client on mount / when id changes
+  useEffect(() => {
+    if (!currentClientId) { setCurrentClient(null); return }
+    api.getClient(currentClientId)
+      .then((data: any) => setCurrentClient(data))
+      .catch(() => setCurrentClient(null))
+  }, [currentClientId])
 
   useEffect(() => {
     if (!open) return
@@ -322,10 +331,8 @@ function ClientPicker({
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
+    return clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q))
   }, [clients, search])
-
-  const current = clients.find((c) => c.id === currentClientId)
 
   return (
     <div className="relative" ref={ref}>
@@ -335,12 +342,39 @@ function ClientPicker({
         className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
       >
         <User className="w-3 h-3" />
-        {current ? current.name : <span className="text-slate-400">Assign Client</span>}
+        {currentClient ? currentClient.name : <span className="text-slate-400">Assign Client</span>}
         <ChevronDown className="w-3 h-3 opacity-60" />
       </button>
 
+      {/* Contact info shown inline when a client is assigned */}
+      {currentClient && (currentClient.phone || currentClient.email) && (
+        <div className="flex items-center gap-2 mt-0.5 ml-0.5">
+          {currentClient.phone && (
+            <a
+              href={`tel:${currentClient.phone}`}
+              className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {currentClient.phone}
+            </a>
+          )}
+          {currentClient.phone && currentClient.email && (
+            <span className="text-[10px] text-slate-300">·</span>
+          )}
+          {currentClient.email && (
+            <a
+              href={`mailto:${currentClient.email}`}
+              className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {currentClient.email}
+            </a>
+          )}
+        </div>
+      )}
+
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-56 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute top-full mt-1 left-0 z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -364,7 +398,7 @@ function ClientPicker({
                 {currentClientId && (
                   <button
                     className="w-full px-3 py-2 text-left text-xs text-rose-500 hover:bg-rose-50 flex items-center gap-1.5 border-b border-slate-100"
-                    onClick={() => { onChange(null); setOpen(false) }}
+                    onClick={() => { onChange(null); setOpen(false); setCurrentClient(null) }}
                   >
                     <X className="w-3 h-3" /> Remove client
                   </button>
@@ -372,13 +406,17 @@ function ClientPicker({
                 {filtered.map((c) => (
                   <button
                     key={c.id}
-                    className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
-                      c.id === currentClientId ? "bg-slate-50 font-semibold" : ""
+                    className={`w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors ${
+                      c.id === currentClientId ? "bg-slate-50" : ""
                     }`}
-                    onClick={() => { onChange(c.id); setOpen(false); setSearch("") }}
+                    onClick={() => { onChange(c.id); setOpen(false); setSearch(""); setCurrentClient(c) }}
                   >
-                    <span className="text-slate-900">{c.name}</span>
-                    {c.phone && <span className="text-slate-400 ml-1.5">{c.phone}</span>}
+                    <p className={`text-xs ${c.id === currentClientId ? "font-semibold" : ""} text-slate-900`}>{c.name}</p>
+                    {(c.phone || c.email) && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {c.phone}{c.phone && c.email ? " · " : ""}{c.email}
+                      </p>
+                    )}
                   </button>
                 ))}
               </>

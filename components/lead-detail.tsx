@@ -9,7 +9,9 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { Lead, Measurements } from "@/lib/types"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
-import { Languages, Loader2, RotateCcw } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Languages, Loader2, RotateCcw, FolderOpen } from "lucide-react"
+import { NewProjectDialog, FromLeadProps } from "@/components/projects/new-project-dialog"
 
 // Translation cache utilities
 const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
@@ -79,14 +81,16 @@ const translateWithCache = async (text: string, targetLang: string, sourceLang?:
 
 export function LeadDetail({ leadId }: { leadId: string }) {
   const locale = useLocale()
+  const router = useRouter()
   const tTranslation = useTranslations('translation')
   const tLeads = useTranslations('leads')
-  
+
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
-  
+  const [showCreateProject, setShowCreateProject] = useState(false)
+
   // Translation states
   const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
@@ -412,19 +416,28 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         </div>
 
         {/* Conversion Status */}
-        {(lead.converted_to_job_id || lead.converted_to_client_id) && (
+        {(lead.converted_to_job_id || lead.converted_to_client_id || lead.converted_to_project_id) && (
           <div className="mt-4 pt-4 border-t">
             <p className="text-sm font-semibold mb-2">Conversion Status</p>
             <div className="flex gap-2 flex-wrap">
               {lead.converted_to_client_id && (
                 <Badge className="bg-green-500/10 text-green-500">
-                  ✓ Converted to Client #{lead.converted_to_client_id}
+                  ✓ Client Created #{lead.converted_to_client_id}
                 </Badge>
               )}
-              {lead.converted_to_job_id && (
-                <Badge className="bg-blue-500/10 text-blue-500">
-                  ✓ Job Created #{lead.converted_to_job_id}
-                </Badge>
+              {lead.converted_to_project_id && (
+                <a href={`/projects/${lead.converted_to_project_id}`}>
+                  <Badge className="bg-purple-500/10 text-purple-600 cursor-pointer hover:bg-purple-500/20">
+                    ✓ Project #{lead.converted_to_project_id}
+                  </Badge>
+                </a>
+              )}
+              {lead.converted_to_job_id && !lead.converted_to_project_id && (
+                <a href={`/quotes/${lead.converted_to_job_id}`}>
+                  <Badge className="bg-blue-500/10 text-blue-500 cursor-pointer hover:bg-blue-500/20">
+                    ✓ Quote Created #{lead.converted_to_job_id}
+                  </Badge>
+                </a>
               )}
             </div>
           </div>
@@ -704,7 +717,14 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       <Card className="p-6">
         <h3 className="mb-4 text-lg font-semibold">Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
-          {(lead.status === "QUOTED" || lead.converted_to_job_id) && lead.converted_to_job_id ? (
+          {lead.converted_to_project_id ? (
+            <Button size="lg" asChild>
+              <a href={`/projects/${lead.converted_to_project_id}`}>
+                <FolderOpen className="mr-2 h-5 w-5" />
+                View Project
+              </a>
+            </Button>
+          ) : lead.converted_to_job_id ? (
             <Button size="lg" asChild>
               <a href={`/quotes/${lead.converted_to_job_id}`}>
                 <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -715,13 +735,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
               </a>
             </Button>
           ) : (
-            <Button size="lg" asChild>
-              <a href={`/quotes/new?leadId=${lead.id}`}>
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Create Quote
-              </a>
+            <Button size="lg" onClick={() => setShowCreateProject(true)}>
+              <FolderOpen className="mr-2 h-5 w-5" />
+              Create Project
             </Button>
           )}
           {lead.phone && (
@@ -754,6 +770,27 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           </Button>
         </div>
       </Card>
+
+      {/* Create Project Dialog */}
+      {lead && (
+        <NewProjectDialog
+          open={showCreateProject}
+          onOpenChange={setShowCreateProject}
+          fromLead={{
+            leadId: lead.id,
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            address: lead.address,
+            projectType: lead.project_type,
+            description: lead.description,
+            estimatedValue: lead.estimated_value,
+          } satisfies FromLeadProps}
+          onProjectCreated={(projectId) => {
+            router.push(`/${locale}/projects/${projectId}`)
+          }}
+        />
+      )}
 
       {/* Full-screen media viewer modal */}
       {selectedMedia && (

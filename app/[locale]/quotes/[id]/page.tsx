@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen, FolderOpen, ArrowRight } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen, FolderOpen, ArrowRight, Unlink, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
@@ -133,6 +134,10 @@ export default function QuoteDetailPage() {
   const [deletingQuote, setDeletingQuote] = useState(false)
   const [activeView, setActiveView] = useState<"quote" | "proposal">("quote")
   const [convertToProjectOpen, setConvertToProjectOpen] = useState(false)
+  const [linkProjectOpen, setLinkProjectOpen] = useState(false)
+  const [linkableProjects, setLinkableProjects] = useState<{ id: number; title: string }[]>([])
+  const [linkingProject, setLinkingProject] = useState(false)
+  const [unlinkingProject, setUnlinkingProject] = useState(false)
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -143,6 +148,49 @@ export default function QuoteDetailPage() {
     fetchJob()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier, authLoading])
+
+  // Fetch projects list for the link-to-project dropdown
+  useEffect(() => {
+    if (!job || isPublicView || !user?.is_contractor) return
+    let cancelled = false
+    api.getProjects({ limit: 500 }).then((raw) => {
+      if (cancelled) return
+      const arr = Array.isArray(raw) ? raw : []
+      setLinkableProjects(arr.map((p: any) => ({ id: p.id, title: p.title })).sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" })))
+    }).catch(() => {
+      if (!cancelled) setLinkableProjects([])
+    })
+    return () => { cancelled = true }
+  }, [job?.id, isPublicView, user?.is_contractor])
+
+  const handleLinkProject = async (projectId: number) => {
+    if (!job) return
+    setLinkingProject(true)
+    setLinkProjectOpen(false)
+    try {
+      await api.updateJob(job.id, { project_id: projectId })
+      setJob((prev) => prev ? { ...prev, project_id: projectId } : prev)
+      toast({ title: "Quote linked to project" })
+    } catch {
+      toast({ title: "Failed to link project", variant: "destructive" })
+    } finally {
+      setLinkingProject(false)
+    }
+  }
+
+  const handleUnlinkProject = async () => {
+    if (!job?.project_id) return
+    setUnlinkingProject(true)
+    try {
+      await api.unlinkProjectQuote(job.project_id, job.id)
+      setJob((prev) => prev ? { ...prev, project_id: undefined } : prev)
+      toast({ title: "Quote unlinked from project" })
+    } catch {
+      toast({ title: "Failed to unlink project", variant: "destructive" })
+    } finally {
+      setUnlinkingProject(false)
+    }
+  }
 
   // Fetch Gmail status when contractor is viewing quote (enable/disable Send to client)
   useEffect(() => {
@@ -851,53 +899,81 @@ export default function QuoteDetailPage() {
         ]}
       />
 
-      {/* Project linkage banner — only shown to contractors, not in print */}
-      {(() => {
-        const status = String(job.status ?? "").toUpperCase()
-        const isAccepted = ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"].includes(status)
-        if (job.project_id) {
-          return (
-            <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 print:hidden">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <FolderOpen className="h-4 w-4 shrink-0 text-sky-600" />
-                <span className="text-sm text-sky-800 font-medium truncate">
-                  Linked to project
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0 border-sky-300 bg-white text-sky-700 hover:bg-sky-100 hover:text-sky-800 h-8 gap-1.5 text-xs"
-                onClick={() => router.push(`/${locale}/projects/${job.project_id}`)}
-              >
-                View Project
-                <ArrowRight className="h-3 w-3" />
-              </Button>
-            </div>
-          )
-        }
-        if (isAccepted) {
-          return (
-            <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 print:hidden">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <FolderOpen className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="text-sm text-emerald-800 font-medium">
-                  Quote accepted — ready to convert to a project
-                </span>
-              </div>
-              <Button
-                size="sm"
-                className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white h-8 gap-1.5 text-xs"
-                onClick={() => setConvertToProjectOpen(true)}
-              >
-                Create Project
-                <ArrowRight className="h-3 w-3" />
-              </Button>
-            </div>
-          )
-        }
-        return null
-      })()}
+      {/* Project linkage banner — shown for all statuses, contractors only, not in print */}
+      {job.project_id ? (
+        <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 print:hidden">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <FolderOpen className="h-4 w-4 shrink-0 text-sky-600" />
+            <span className="text-sm text-sky-800 font-medium truncate">
+              {linkableProjects.find((p) => p.id === job.project_id)?.title ?? "Linked to project"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 gap-1.5 text-xs text-sky-700/60 hover:text-destructive hover:bg-destructive/10"
+              onClick={handleUnlinkProject}
+              disabled={unlinkingProject}
+            >
+              {unlinkingProject ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+              Unlink
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-sky-300 bg-white text-sky-700 hover:bg-sky-100 hover:text-sky-800 h-8 gap-1.5 text-xs"
+              onClick={() => router.push(`/${locale}/projects/${job.project_id}`)}
+            >
+              View Project
+              <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 print:hidden">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground font-medium">No project linked</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Popover open={linkProjectOpen} onOpenChange={setLinkProjectOpen}>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
+                  {linkingProject ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  Link to Project
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="w-56 p-1">
+                {linkableProjects.length === 0 ? (
+                  <p className="px-2 py-3 text-xs text-muted-foreground text-center">No projects found</p>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto">
+                    {linkableProjects.map((p) => (
+                      <button
+                        key={p.id}
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-left hover:bg-muted transition-colors"
+                        onClick={() => handleLinkProject(p.id)}
+                      >
+                        <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{p.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Button
+              size="sm"
+              className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white h-8 gap-1.5 text-xs"
+              onClick={() => setConvertToProjectOpen(true)}
+            >
+              Create Project
+              <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <PersonalizedQuoteView
         job={job}
@@ -973,6 +1049,7 @@ export default function QuoteDetailPage() {
           router.push(`/${locale}/projects/${projectId}`)
         }}
       />
+
       <Dialog open={beforeAfterOpen} onOpenChange={handleBeforeAfterOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl">
           <DialogHeader className="pr-8">

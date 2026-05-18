@@ -17,10 +17,10 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { BadgeCheck, Check, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
+import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
-import { formatPhoneForDisplay } from "@/lib/utils"
+import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
@@ -78,6 +78,22 @@ const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "CANCELLED", label: "Cancelled" },
 ]
 
+function getStatusColor(status: string): string {
+  switch (status?.toUpperCase()) {
+    case "DRAFT":       return "bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/25"
+    case "SENT":        return "bg-blue-500/15 text-blue-700 border-blue-300 hover:bg-blue-500/25"
+    case "VIEWED":      return "bg-purple-500/15 text-purple-700 border-purple-300 hover:bg-purple-500/25"
+    case "ACCEPTED":    return "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-500/25"
+    case "REJECTED":    return "bg-red-500/15 text-red-700 border-red-300 hover:bg-red-500/25"
+    case "IN_PROGRESS": return "bg-sky-500/15 text-sky-700 border-sky-300 hover:bg-sky-500/25"
+    case "COMPLETED":   return "bg-teal-500/15 text-teal-700 border-teal-300 hover:bg-teal-500/25"
+    case "INVOICED":    return "bg-indigo-500/15 text-indigo-700 border-indigo-300 hover:bg-indigo-500/25"
+    case "PAID":        return "bg-green-500/15 text-green-700 border-green-300 hover:bg-green-500/25"
+    case "CANCELLED":   return "bg-slate-500/15 text-slate-600 border-slate-300 hover:bg-slate-500/25"
+    default:            return "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+  }
+}
+
 export function PersonalizedQuoteView({
   job,
   showActions = true,
@@ -125,6 +141,8 @@ export function PersonalizedQuoteView({
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [alsoCreateQBO, setAlsoCreateQBO] = useState(false)
   const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null)
+  const [activityOpen, setActivityOpen] = useState(false)
+  const [changeOrdersOpen, setChangeOrdersOpen] = useState(true)
   // Only force email off when Gmail disconnects; don't overwrite when user unchecks
   useEffect(() => {
     if (!gmailConnected) setFollowupSendEmail(false)
@@ -468,18 +486,6 @@ export function PersonalizedQuoteView({
       : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>
 
-  const statusDescription = (() => {
-    const status = currentJob.status?.toString().toUpperCase()
-    if (status === "DRAFT") return "Not yet sent to client"
-    if (status === "SENT") return "Shared with client"
-    if (status === "ACCEPTED") return "Approved by client"
-    if (status === "IN_PROGRESS") return "Work is underway"
-    if (status === "COMPLETED") return "Work has been completed"
-    if (status === "PAID") return "Payment collected"
-    if (status === "INVOICED") return "Invoice has been created"
-    if (status === "CANCELLED") return "Quote was cancelled"
-    return "Current quote status"
-  })()
 
   const renderQuoteActionStrip = () => {
     const showInvoiceSend = currentJob.status?.toString().toUpperCase() === "INVOICED" && currentJob.qbo_invoice_id
@@ -710,7 +716,16 @@ export function PersonalizedQuoteView({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className={inlineActionButtonClass} variant="outline" disabled={updatingStatus}>
+                  <Button
+                    className={cn(
+                      "h-11 rounded-full border px-4 text-sm font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                      updatingStatus
+                        ? "border-slate-200 bg-white text-slate-700"
+                        : getStatusColor(currentJob.status)
+                    )}
+                    variant="outline"
+                    disabled={updatingStatus}
+                  >
                     {updatingStatus ? (
                       <>
                         <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -721,16 +736,18 @@ export function PersonalizedQuoteView({
                       </>
                     ) : (
                       <>
-                        <Clock3 className="mr-2 h-4 w-4 shrink-0" />
-                        Status
+                        <Clock3 className="mr-1.5 h-4 w-4 shrink-0" />
+                        {QUOTE_STATUS_OPTIONS.find((opt) => opt.value === currentJob.status)?.label ?? "Status"}
+                        <ChevronDown className="ml-1.5 h-3.5 w-3.5 shrink-0 opacity-60" />
                       </>
                     )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
                   {QUOTE_STATUS_OPTIONS.map((opt) => (
-                    <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(opt.value)}>
+                    <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(opt.value)} className="flex items-center justify-between">
                       {opt.label}
+                      {opt.value === currentJob.status && <Check className="h-4 w-4 text-primary" />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -1371,93 +1388,101 @@ export function PersonalizedQuoteView({
           {showActions && !isPublicView && (
             <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
               <div className="lg:sticky lg:top-8 space-y-4">
-                <Card className="bg-white shadow-lg p-4 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BadgeCheck className="h-4 w-4 text-slate-500" />
-                    <h3 className="text-lg font-semibold text-gray-900">Status</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <Badge className={`${getStatusColor(currentJob.status)} text-xs`}>
-                      {currentJob.status}
-                    </Badge>
-                    <p className="text-sm text-gray-600">{statusDescription}</p>
-                    {getQuoteLinkUrl() && (
-                      <p className="text-xs text-gray-500 break-all">{getQuoteLinkUrl()}</p>
-                    )}
-                  </div>
-                </Card>
-
-                <Card className="bg-white shadow-lg p-4 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Clock3 className="h-4 w-4 text-slate-500" />
-                    <h3 className="text-lg font-semibold text-gray-900">Activity</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {activityItems.map((item) => (
-                      <div key={`${item.label}-${item.value}`} className="flex gap-3">
-                        <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-300" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                          <p className="text-sm text-gray-500">{item.value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* Change Orders Card */}
+                {/* Change Orders — minimal collapsable, no card box */}
                 {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
-                  <Card className="bg-white shadow-lg p-4 sm:p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Change Orders</h3>
-                    {currentJob.created_from_job_id && (
-                      <div className="mb-3">
-                        <Link
-                          href={`/quotes/${currentJob.created_from_job_id}`}
-                          className="text-sm text-sky-600 hover:text-sky-800 hover:underline"
-                        >
-                          View parent quote #{currentJob.created_from_job_id}
-                        </Link>
-                      </div>
-                    )}
-                    {revisedContractAmount && revisedContractAmount.approved_change_orders_total > 0 && (
-                      <div className="mb-3 p-2 bg-gray-50 rounded text-sm space-y-0.5">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Original:</span>
-                          <span>{formatCurrency(revisedContractAmount.original_amount)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Approved COs:</span>
-                          <span>+{formatCurrency(revisedContractAmount.approved_change_orders_total)}</span>
-                        </div>
-                        <div className="flex justify-between font-semibold pt-1 border-t border-gray-200">
-                          <span>Revised Total:</span>
-                          <span>{formatCurrency(revisedContractAmount.revised_amount)}</span>
-                        </div>
-                      </div>
-                    )}
-                    {changeOrders.length > 0 ? (
-                      <div className="space-y-2">
-                        {changeOrders.map((co) => (
+                  <div>
+                    <button
+                      onClick={() => setChangeOrdersOpen((o) => !o)}
+                      className="flex w-full items-center justify-between px-1 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="h-3 w-3" />
+                        Change Orders
+                        {changeOrders.length > 0 && (
+                          <span className="rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 leading-none">
+                            {changeOrders.length}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronDown className={`h-3 w-3 transition-transform ${changeOrdersOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {changeOrdersOpen && (
+                      <div className="mt-1.5 space-y-2 pl-1">
+                        {currentJob.created_from_job_id && (
                           <Link
-                            key={co.id}
-                            href={`/quotes/${co.id}`}
-                            className="block p-2 rounded border border-gray-200 hover:bg-gray-50 text-sm"
+                            href={`/quotes/${currentJob.created_from_job_id}`}
+                            className="text-xs text-sky-600 hover:text-sky-800 hover:underline block"
                           >
-                            <div className="font-medium">{co.job_number || `CO #${co.id}`}</div>
-                            <div className="text-gray-600 text-xs">
-                              {co.change_order_reason || "Change order"} · {co.status}
-                            </div>
-                            {co.total_amount != null && (
-                              <div className="text-xs font-medium mt-0.5">{formatCurrency(co.total_amount)}</div>
-                            )}
+                            ↑ Parent quote #{currentJob.created_from_job_id}
                           </Link>
-                        ))}
+                        )}
+                        {revisedContractAmount && revisedContractAmount.approved_change_orders_total > 0 && (
+                          <div className="space-y-0.5 text-xs text-slate-500 pl-0.5">
+                            <div className="flex justify-between">
+                              <span>Original</span>
+                              <span>{formatCurrency(revisedContractAmount.original_amount)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Approved COs</span>
+                              <span>+{formatCurrency(revisedContractAmount.approved_change_orders_total)}</span>
+                            </div>
+                            <div className="flex justify-between font-semibold text-slate-700 pt-0.5 border-t border-slate-200">
+                              <span>Revised Total</span>
+                              <span>{formatCurrency(revisedContractAmount.revised_amount)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {changeOrders.length > 0 && (
+                          <div className="space-y-1">
+                            {changeOrders.map((co) => (
+                              <Link
+                                key={co.id}
+                                href={`/quotes/${co.id}`}
+                                className="flex items-baseline gap-2 hover:text-slate-700 transition-colors"
+                              >
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 mt-1" />
+                                <div className="min-w-0">
+                                  <span className="text-xs text-slate-600 font-medium">{co.job_number || `CO #${co.id}`}</span>
+                                  {co.total_amount != null && (
+                                    <span className="text-xs text-slate-400 ml-1">· {formatCurrency(co.total_amount)}</span>
+                                  )}
+                                  <div className="text-[10px] text-slate-400">{co.status}</div>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No change orders</p>
                     )}
-                  </Card>
+                  </div>
                 )}
+
+                {/* Activity — minimal collapsable, no card box */}
+                <div>
+                  <button
+                    onClick={() => setActivityOpen((o) => !o)}
+                    className="flex w-full items-center justify-between px-1 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Clock3 className="h-3 w-3" />
+                      Activity
+                    </span>
+                    <ChevronDown className={`h-3 w-3 transition-transform ${activityOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {activityOpen && (
+                    <div className="mt-1.5 space-y-2 pl-1">
+                      {activityItems.map((item) => (
+                        <div key={`${item.label}-${item.value}`} className="flex items-baseline gap-2">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 mt-1" />
+                          <div className="min-w-0">
+                            <span className="text-xs text-slate-500">{item.label} — </span>
+                            <span className="text-xs text-slate-400">{item.value}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

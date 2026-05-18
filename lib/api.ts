@@ -639,30 +639,86 @@ class ApiClient {
   }
 
   async getProposalByPublicLink(publicLink: string) {
-    const url = `${this.baseURL}/jobs/public/proposal/${publicLink}`
+    // New route — serves both new Proposal records and legacy Job-based proposals
+    const url = `${this.baseURL}/proposals/public/${publicLink}`
 
     const config: RequestInit = {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     }
 
     try {
       const response = await fetch(url, config)
-
       if (!response.ok) {
         const error = await response.json()
         throw new Error(this.formatApiErrorDetail(error?.detail))
       }
-
       return response.json()
     } catch (error) {
-      if (error instanceof Error) {
-        throw error
-      }
+      if (error instanceof Error) throw error
       throw new Error('Network error')
     }
+  }
+
+  // ── Proposal CRUD (project-centric) ──────────────────────────────────────
+
+  async getProjectProposals(projectId: number) {
+    return this.request(`/projects/${projectId}/proposals`)
+  }
+
+  async createProposal(projectId: number, data: { title?: string; quote_references?: Array<{ job_id: number }> }) {
+    return this.request(`/projects/${projectId}/proposals`, {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, ...data }),
+    })
+  }
+
+  async getProposal(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`)
+  }
+
+  async updateProposal(projectId: number, proposalId: number, data: {
+    title?: string
+    status?: string
+    proposal_document?: any
+    quote_references?: Array<{ job_id: number; selected_tier?: string; snapshot_total?: number }>
+  }) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProposal(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProposalOverviewForProject(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/proposal-overview`)
+  }
+
+  async generateAIProposalForProject(
+    projectId: number,
+    proposalId: number,
+    opts?: { description?: string; job_id?: number; selected_item_ids?: number[] }
+  ): Promise<{
+    scope_summary_html: string
+    project_overview_title: string
+    project_overview_html: string
+    suggested_theme?: string | null
+    before_after_pairs: Array<{ index: number; before_url: string; after_url: string }>
+    pages: Array<{ title: string; blocks: Array<{ type: string; content_html?: string }> }>
+  }> {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/generate-ai-proposal`, {
+      method: 'POST',
+      body: JSON.stringify({
+        description: opts?.description ?? null,
+        job_id: opts?.job_id ?? null,
+        selected_item_ids: opts?.selected_item_ids ?? null,
+      }),
+    })
   }
 
   async createJob(data: any) {
@@ -814,6 +870,7 @@ class ApiClient {
     labor_charge_type?: string
     labor_rate_value?: number
     labor_unit_type?: string
+    project_brief?: any
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)
     const startTime = Date.now()

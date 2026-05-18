@@ -433,6 +433,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
+  const [useBriefAsContext, setUseBriefAsContext] = useState(false)
+  const [projectBrief, setProjectBrief] = useState<any>(null)
 
   // AI loading stage messages
   const aiLoadingMessages = [
@@ -864,6 +866,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Mark as loaded and ensure loadingMarkup is false for editing
       setHasLoadedInitialData(true)
       setLoadingMarkup(false)
+
+      // Fetch project brief if quote is linked to a project
+      if (initialData.project_id) {
+        api.getProject(initialData.project_id)
+          .then((p: any) => { if (p?.brief) setProjectBrief(p.brief) })
+          .catch(() => {})
+      }
     }
   }, [initialData, quoteId, hasLoadedInitialData])
 
@@ -1174,9 +1183,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         measurements: measurements.items.length > 0 ? measurements : undefined,
         lead_id: leadId ? parseInt(leadId, 10) : undefined,
         location_zip_code: zipCode,
-        labor_charge_type: laborChargeType, // Send labor charge type from form
-        labor_rate_value: laborRateValue, // Send unified labor rate from form
-        labor_unit_type: laborUnitType, // Send labor unit type from form when PER_UNIT
+        labor_charge_type: laborChargeType,
+        labor_rate_value: laborRateValue,
+        labor_unit_type: laborUnitType,
+        project_brief: useBriefAsContext && projectBrief ? projectBrief : undefined,
       }) as any
 
       // Validate response structure to prevent crashes
@@ -1866,6 +1876,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         const tooShort = desc.length < 30 || wordCount < 6
                         return (
                           <div className="flex flex-col gap-2 w-full">
+                            {projectBrief && (
+                              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={useBriefAsContext}
+                                  onChange={(e) => setUseBriefAsContext(e.target.checked)}
+                                  className="h-4 w-4 rounded border-gray-300 accent-primary"
+                                />
+                                Use project brief as context
+                              </label>
+                            )}
                             <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                               {aiLoading ? (
                                 <span className="inline-flex items-center gap-2">

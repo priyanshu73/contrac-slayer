@@ -235,6 +235,7 @@ export interface Lead {
   estimated_value?: number
   converted_to_job_id?: number
   converted_to_client_id?: number
+  converted_to_project_id?: number
   last_contacted_at?: string
   created_at: string
   updated_at?: string
@@ -426,6 +427,36 @@ export interface ProposalOverviewResponse {
   source: 'ai' | 'fallback'
 }
 
+export type ProposalStatus = 'DRAFT' | 'SENT' | 'VIEWED'
+
+export interface ProposalQuoteReference {
+  id: number
+  proposal_id: number
+  project_id: number
+  job_id: number
+  selected_tier?: string | null
+  snapshot_total?: number | null
+  created_at: string
+}
+
+export interface Proposal {
+  id: number
+  uuid: string
+  project_id: number
+  contractor_id: number
+  client_id?: number | null
+  title?: string | null
+  status: ProposalStatus
+  proposal_document?: ProposalDocument | null
+  public_link?: string | null
+  customer_viewed_at?: string | null
+  customer_view_count: number
+  sent_at?: string | null
+  created_at: string
+  updated_at?: string | null
+  quote_references: ProposalQuoteReference[]
+}
+
 export interface Job {
   id: number
   uuid: string
@@ -604,6 +635,7 @@ export interface Project {
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
+  proposals?: Proposal[]
 }
 
 export interface ProjectListItem {

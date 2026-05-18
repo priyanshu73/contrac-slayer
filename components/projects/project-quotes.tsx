@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import type { Job, Project } from "@/lib/types"
 import { JobStatus } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { api } from "@/lib/api"
 import { useTranslations, useLocale } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -44,6 +46,7 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
   const [quotes, setQuotes] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
   const [unlinking, setUnlinking] = useState<number | null>(null)
+  const [unlinkConfirmId, setUnlinkConfirmId] = useState<number | null>(null)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
 
   const fetchQuotes = async () => {
@@ -59,12 +62,10 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
 
   useEffect(() => { fetchQuotes() }, [project.id])
 
-  const handleUnlink = async (e: React.MouseEvent, quoteId: number) => {
-    e.stopPropagation()
+  const handleUnlink = async (quoteId: number) => {
     if (!project.id) return
-    const confirmed = window.confirm("Unlink this quote from the project?")
-    if (!confirmed) return
     setUnlinking(quoteId)
+    setUnlinkConfirmId(null)
     try {
       await api.unlinkProjectQuote(project.id, quoteId)
       toast({ title: "Quote unlinked." })
@@ -176,19 +177,59 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
                     <span className="text-sm font-bold tabular-nums text-slate-900">
                       {quote.total_amount != null ? fmt(quote.total_amount) : "—"}
                     </span>
-                    <button
-                      onClick={(e) => handleUnlink(e, quote.id)}
-                      disabled={unlinking === quote.id}
-                      className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Unlink"
-                    >
-                      {unlinking === quote.id ? (
+                    {unlinking === quote.id ? (
+                      <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Unlink className="w-3.5 h-3.5" />
-                      )}
-                      <span className="hidden sm:inline">Unlink</span>
-                    </button>
+                        <span className="hidden sm:inline">Unlinking…</span>
+                      </span>
+                    ) : (
+                      <Popover
+                        open={unlinkConfirmId === quote.id}
+                        onOpenChange={(open) => {
+                          if (!open) setUnlinkConfirmId(null)
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setUnlinkConfirmId(quote.id)
+                            }}
+                            className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Unlink"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Unlink</span>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="top"
+                          align="end"
+                          className="w-auto p-2.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-xs text-slate-600 mb-2 font-medium">Unlink this quote?</p>
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs"
+                              onClick={(e) => { e.stopPropagation(); setUnlinkConfirmId(null) }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2.5 text-xs"
+                              onClick={(e) => { e.stopPropagation(); handleUnlink(quote.id) }}
+                            >
+                              Unlink
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
                 </div>
               </li>
