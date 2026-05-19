@@ -5,12 +5,17 @@ import { QuoteCreator } from "@/components/Quote-creator"
 import { Button } from "@/components/ui/button"
 import { useSearchParams } from "next/navigation"
 import { api } from "@/lib/api"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
+
+function openAiPanelForEstimate() {
+  window.dispatchEvent(new CustomEvent("open-ai-panel-for-estimate"))
+}
 
 export default function NewQuotePage() {
   const searchParams = useSearchParams()
   const leadId = searchParams.get("leadId")
   const clientId = searchParams.get("clientId")
+  const projectId = searchParams.get("projectId")
   const copyFromId = searchParams.get("copyFromId")
 
   const [copiedQuoteData, setCopiedQuoteData] = useState<any>(null)
@@ -36,8 +41,10 @@ export default function NewQuotePage() {
 
   const subtitle = copyFromId
     ? `Copying from Quote #${copyFromId}`
-    : clientId
-      ? "From client – basic info pre-filled"
+    : projectId
+      ? "From project – client and project pre-filled"
+      : clientId
+        ? "From client – basic info pre-filled"
       : leadId
         ? "From Lead - AI-powered pricing"
         : "AI-powered pricing"
@@ -81,6 +88,15 @@ export default function NewQuotePage() {
               <p className="text-sm text-muted-foreground md:mt-0">{subtitle}</p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openAiPanelForEstimate}
+            className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Estimate
+          </Button>
         </div>
       </header>
 
@@ -88,6 +104,7 @@ export default function NewQuotePage() {
         <QuoteCreator 
           leadId={leadId} 
           clientId={clientId} 
+          projectId={projectId}
           initialData={copiedQuoteData} 
         />
       </main>

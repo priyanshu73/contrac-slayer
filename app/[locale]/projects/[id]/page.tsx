@@ -12,11 +12,13 @@ import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
+import { ProjectProposals } from "@/components/projects/project-proposals"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { BriefPanel } from "@/components/projects/brief-panel"
-import { ChevronDown, Loader2, User, Search, X, FileText } from "lucide-react"
+import { ChevronDown, Loader2, User, Search, X, Pencil, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeProjectBrief } from "@/lib/project-brief"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -25,10 +27,18 @@ export default function ProjectDetailPage() {
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showBrief, setShowBrief] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+  const [isEditingHeader, setIsEditingHeader] = useState(false)
+  const [savingHeader, setSavingHeader] = useState(false)
+  const [draftTitle, setDraftTitle] = useState("")
+  const [draftDescription, setDraftDescription] = useState("")
 
   const projectId = Number(params.id)
+  const projectDescription = useMemo(() => {
+    const objective = project?.objective?.trim()
+    if (objective) return objective
+    return ""
+  }, [project?.objective])
 
   useEffect(() => {
     if (!projectId) return
@@ -49,10 +59,27 @@ export default function ProjectDetailPage() {
     return () => { cancelled = true }
   }, [projectId])
 
+  useEffect(() => {
+    if (!project) return
+    setDraftTitle(project.title || "")
+    setDraftDescription(project.objective || "")
+  }, [project?.id, project?.title, project?.objective])
+
   const refreshProject = async () => {
     if (!projectId) return
     const data = await api.getProject(projectId)
     setProject(data as Project)
+  }
+
+  const handleBriefUpdated = (brief: Record<string, any> | null) => {
+    setProject((prev) => {
+      if (!prev) return prev
+      const normalized = normalizeProjectBrief(brief)
+      return {
+        ...prev,
+        brief: normalized,
+      }
+    })
   }
 
   const handleTasksUpdated = (tasks: ProjectTask[]) => {
@@ -89,6 +116,37 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleSaveHeader = async () => {
+    if (!project) return
+    const nextTitle = draftTitle.trim()
+    if (!nextTitle) {
+      toast({ title: "Project title is required", variant: "destructive" })
+      return
+    }
+    setSavingHeader(true)
+    try {
+      const updated = await api.updateProject(project.id, {
+        title: nextTitle,
+        objective: draftDescription.trim() || undefined,
+      }) as Project
+      setProject(updated)
+      setIsEditingHeader(false)
+      toast({ title: "Project updated" })
+    } catch (err) {
+      console.error("Failed to update project header", err)
+      toast({ title: "Failed to update project", variant: "destructive" })
+    } finally {
+      setSavingHeader(false)
+    }
+  }
+
+  const handleCancelHeaderEdit = () => {
+    if (!project) return
+    setDraftTitle(project.title || "")
+    setDraftDescription(project.objective || "")
+    setIsEditingHeader(false)
+  }
+
   if (!project || loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -106,17 +164,75 @@ export default function ProjectDetailPage() {
 
             {/* Top row: breadcrumb left, actions right */}
             <div className="flex items-start justify-between gap-4">
-              <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <AppBreadcrumb
                   items={[
                     { label: "Projects", href: `/${locale}/projects` },
-                    { label: project.title },
+                    { label: isEditingHeader ? (draftTitle || project.title) : project.title },
                   ]}
                 />
-                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight line-clamp-1">
-                  {project.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2">
+                {isEditingHeader ? (
+                  <div className="max-w-4xl space-y-4 pb-2">
+                    <label className="block space-y-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Project Title
+                      </span>
+                      <input
+                        type="text"
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        placeholder="Project title"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-semibold tracking-tight text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
+                      />
+                    </label>
+
+                    <label className="block space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Project Overview
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Short and useful.
+                        </span>
+                      </div>
+                      <textarea
+                        value={draftDescription}
+                        onChange={(e) => setDraftDescription(e.target.value)}
+                        placeholder="Add a concise summary of the job, goals, or important context."
+                        rows={4}
+                        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <p className="text-xs text-slate-400">
+                        The brief and other project views will use this context too.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCancelHeaderEdit}
+                          disabled={savingHeader}
+                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveHeader}
+                          disabled={savingHeader}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                        >
+                          {savingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          Save changes
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight line-clamp-1">
+                    {project.title}
+                  </h1>
+                )}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-1">
                   {(project.scheduled_start_date || project.scheduled_end_date) && (
                     <span className="text-xs text-slate-500">
                       {project.scheduled_start_date
@@ -128,36 +244,38 @@ export default function ProjectDetailPage() {
                         : "–"}
                     </span>
                   )}
-                  <ClientPicker
-                    projectId={project.id}
-                    currentClientId={project.client_id}
-                    onChange={handleClientChange}
-                  />
-                  {project.objective && (
-                    <span className="text-xs text-slate-400 line-clamp-1">· {project.objective}</span>
-                  )}
                 </div>
-              </div>
-
-              {/* Right: status + contract value + brief */}
-              <div className="flex items-center gap-2 shrink-0 pt-1">
-                <StatusDropdown status={project.status} onChange={handleStatusChange} />
-                {project.contract_value != null && (
-                  <p className="text-sm font-semibold text-slate-900 border-l border-slate-200 pl-3">
-                    {t("contractValue", { amount: project.contract_value })}
+                {!isEditingHeader && projectDescription && (
+                  <p className="pb-2 text-sm text-slate-500 leading-relaxed line-clamp-2">
+                    {projectDescription}
                   </p>
                 )}
-                <button
-                  onClick={() => setShowBrief((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all shadow-sm ${
-                    showBrief
-                      ? "bg-[#1565C0] border-[#1565C0] text-white"
-                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  <FileText className="w-3 h-3" />
-                  Brief
-                </button>
+              </div>
+
+              {/* Right: status + client */}
+              <div className="flex flex-col items-end gap-1.5 shrink-0 pt-1">
+                <div className="flex items-center gap-2">
+                  {!isEditingHeader && (
+                    <button
+                      onClick={() => setIsEditingHeader(true)}
+                      className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition-all shadow-sm hover:border-slate-400 hover:text-slate-900"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                  <StatusDropdown status={project.status} onChange={handleStatusChange} />
+                  {project.contract_value != null && (
+                    <p className="text-sm font-semibold text-slate-900 border-l border-slate-200 pl-3">
+                      {t("contractValue", { amount: project.contract_value })}
+                    </p>
+                  )}
+                </div>
+                <ClientPicker
+                  projectId={project.id}
+                  currentClientId={project.client_id}
+                  onChange={handleClientChange}
+                />
               </div>
             </div>
 
@@ -212,13 +330,18 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Body: tab content + brief sidebar */}
         <div className="flex flex-1 overflow-hidden">
           <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
-            {/* Overview — Quotes */}
-            <TabsContent value="overview" className="mt-0">
+            <TabsContent value="overview" className="mt-0 space-y-8">
+              <BriefPanel
+                projectId={project.id}
+                initialBrief={project.brief}
+                initiallyExpanded
+                onBriefUpdated={handleBriefUpdated}
+              />
               <ProjectQuotes project={project} />
+              <ProjectProposals project={project} />
             </TabsContent>
 
             {/* Scope & Tasks */}
@@ -237,16 +360,6 @@ export default function ProjectDetailPage() {
               <ProjectDocuments project={project} />
             </TabsContent>
           </main>
-
-          {showBrief && (
-            <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white hidden lg:block">
-              <BriefPanel
-                projectId={project.id}
-                initialBrief={project.brief}
-                onClose={() => setShowBrief(false)}
-              />
-            </aside>
-          )}
         </div>
       </Tabs>
     </div>

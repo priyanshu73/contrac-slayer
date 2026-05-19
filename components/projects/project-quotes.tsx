@@ -60,7 +60,7 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
     }
   }
 
-  useEffect(() => { fetchQuotes() }, [project.id])
+  useEffect(() => { fetchQuotes() }, [project.id, project.client_id])
 
   const handleUnlink = async (quoteId: number) => {
     if (!project.id) return
@@ -97,13 +97,29 @@ export function ProjectQuotes({ project }: ProjectQuotesProps) {
             — linked to this project
           </span>
         </div>
-        <button
-          onClick={() => setIsLinkDialogOpen(true)}
-          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
-        >
-          <Plus className="w-3 h-3" />
-          Link Quote
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const params = new URLSearchParams()
+              params.set("projectId", String(project.id))
+              if (project.client_id != null) {
+                params.set("clientId", String(project.client_id))
+              }
+              router.push(`/${locale}/quotes/new?${params.toString()}`)
+            }}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+          >
+            <Plus className="w-3 h-3" />
+            New Quote
+          </button>
+          <button
+            onClick={() => setIsLinkDialogOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+          >
+            <Plus className="w-3 h-3" />
+            Link Quote
+          </button>
+        </div>
       </div>
 
       {/* Body */}

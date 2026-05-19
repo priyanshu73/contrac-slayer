@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
 import { api } from "@/lib/api"
-import type { ContractorProfile, Job, Project, Proposal } from "@/lib/types"
+import type { Client, ContractorProfile, Job, Project, Proposal } from "@/lib/types"
 
 export default function ProjectProposalPage() {
   const params = useParams()
@@ -18,6 +18,8 @@ export default function ProjectProposalPage() {
 
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [project, setProject] = useState<Project | null>(null)
+  const [client, setClient] = useState<Client | null>(null)
+  const [clients, setClients] = useState<Client[]>([])
   const [refJob, setRefJob] = useState<Job | null>(null)
   const [contractorName, setContractorName] = useState("")
   const [loading, setLoading] = useState(true)
@@ -31,20 +33,34 @@ export default function ProjectProposalPage() {
         setLoading(true)
         setError(null)
 
-        const [proposalRes, projectRes, profileRes] = await Promise.all([
+        const [proposalRes, projectRes, profileRes, clientsRes] = await Promise.all([
           api.getProposal(projectId, proposalId),
           api.getProject(projectId),
           api.getMyProfile().catch(() => null),
+          api.getClients(0, 100).catch(() => []),
         ])
 
         const loadedProposal = proposalRes as Proposal
         const loadedProject = projectRes as Project
+        const loadedClients = (Array.isArray(clientsRes) ? clientsRes : (clientsRes as any)?.items ?? []) as Client[]
 
         setProposal(loadedProposal)
         setProject(loadedProject)
+        setClients(loadedClients)
         setContractorName(
           (profileRes as ContractorProfile | null)?.company_name || ""
         )
+
+        // Load client info for pre-filling the proposal cover
+        const linkedClientId = loadedProject.client_id
+        if (linkedClientId) {
+          try {
+            const clientData = (await api.getClient(linkedClientId)) as Client
+            setClient(clientData)
+          } catch {
+            // non-fatal
+          }
+        }
 
         // Load the first referenced quote for line-item context
         const firstRef = loadedProposal.quote_references?.[0]
@@ -111,10 +127,22 @@ export default function ProjectProposalPage() {
       <ProposalBuilder
         proposal={proposal}
         project={project}
+        client={client ?? undefined}
+        clients={clients}
         job={refJob ?? undefined}
         contractorName={contractorName}
         locale={locale}
         onProposalUpdated={setProposal}
+        onProjectClientChanged={async (clientId) => {
+          try {
+            await api.updateProject(projectId, { client_id: clientId })
+            const updated = clients.find((c) => c.id === clientId) ?? null
+            setClient(updated)
+            setProject((prev) => prev ? { ...prev, client_id: clientId } : prev)
+          } catch {
+            // non-fatal — the document already reflects the selection
+          }
+        }}
       />
     </AuthGuard>
   )

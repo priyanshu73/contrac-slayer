@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
+import { AgentChatPanel } from "@/components/agent-chat-panel"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed"
 
@@ -66,6 +67,7 @@ export function ConditionalShell({ children }: { children: React.ReactNode }) {
         <EmailVerificationBanner />
         {children}
       </div>
+      <AgentChatPanel />
     </>
   )
 }

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, Copy, Eye, ExternalLink, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2 } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, Eye, ExternalLink, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -11,12 +11,15 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { api } from "@/lib/api"
 import { DEFAULT_PROPOSAL_THEME_ID, PROPOSAL_THEMES, getProposalTheme, normalizeProposalThemeId } from "@/lib/proposal-themes"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type {
+  Client,
   Job,
   JobItem,
   Project,
@@ -196,14 +199,18 @@ async function createImageBlockFromUrl(url: string, fileName?: string | null): P
   }
 }
 
-function buildInitialProposalDocument(job: Job, contractorName: string): ProposalDocument {
+function buildInitialProposalDocument(job: Job, contractorName: string, client?: import("@/lib/types").Client): ProposalDocument {
   const today = new Date().toISOString().slice(0, 10)
 
   if (job.proposal_document) {
     const themeId = normalizeProposalThemeId(job.proposal_document.themeId)
     const theme = getProposalTheme(themeId)
+    const savedName = job.proposal_document.companyName
+    const isPlaceholder = !savedName || savedName === "Client / Property"
     return {
       ...job.proposal_document,
+      companyName: isPlaceholder ? (client?.name || savedName || "") : savedName,
+      companyAddress: isPlaceholder ? (client?.address || job.proposal_document.companyAddress || "") : job.proposal_document.companyAddress,
       quoteId: job.proposal_document.quoteId ?? job.id,
       contractorName: job.proposal_document.contractorName || contractorName,
       themeId,
@@ -219,10 +226,13 @@ function buildInitialProposalDocument(job: Job, contractorName: string): Proposa
     }
   }
 
+  const clientName = client?.name || job.client?.name || ""
+  const clientAddress = client?.address || job.client?.address || job.address || ""
+
   return {
-    title: job.title || `Proposal for ${job.client?.name || "Project"}`,
-    companyName: job.client?.name || "Client / Property",
-    companyAddress: job.client?.address || job.address || "",
+    title: job.title || (clientName ? `Proposal for ${clientName}` : "Proposal for Project"),
+    companyName: clientName || "Client / Property",
+    companyAddress: clientAddress,
     quoteId: job.id,
     date: today,
     contractorName,
@@ -949,14 +959,74 @@ function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []): Before
     .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
+function ClientNameField({
+  value,
+  clients,
+  onChange,
+  onClientSelect,
+}: {
+  value: string
+  clients?: Client[]
+  onChange: (name: string) => void
+  onClientSelect: (client: Client) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative flex items-center gap-1.5">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Company / property name"
+        className="flex-1"
+      />
+      {clients && clients.length > 0 && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" title="Link client from your contacts">
+              <User className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-0" align="end">
+            <Command>
+              <CommandInput placeholder="Search clients…" />
+              <CommandList>
+                <CommandEmpty>No clients found.</CommandEmpty>
+                <CommandGroup>
+                  {clients.map((c) => (
+                    <CommandItem
+                      key={c.id}
+                      value={c.name}
+                      onSelect={() => {
+                        onClientSelect(c)
+                        setOpen(false)
+                      }}
+                    >
+                      <Check className={cn("mr-2 size-4", value === c.name ? "opacity-100" : "opacity-0")} />
+                      <span className="truncate">{c.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  )
+}
+
 export function ProposalBuilder({
   job,
   proposal,
   project,
+  client,
+  clients,
   contractorName,
   locale,
   onJobUpdated,
   onProposalUpdated,
+  onProjectClientChanged,
   publicMode = false,
 }: {
   /** Legacy: job-centric mode. Pass when building from a quote directly. */
@@ -964,10 +1034,16 @@ export function ProposalBuilder({
   /** New: proposal-centric mode. Pass when building from a project proposal. */
   proposal?: Proposal
   project?: Project
+  /** Client linked to the project — used to pre-fill company name/address on new proposals. */
+  client?: Client
+  /** All clients available for selection — enables the "link client" combobox. */
+  clients?: Client[]
   contractorName: string
   locale: string
   onJobUpdated?: (job: Job) => void
   onProposalUpdated?: (proposal: Proposal) => void
+  /** Called when the user picks a client in the proposal form, so the parent can sync project.client_id. */
+  onProjectClientChanged?: (clientId: number) => void
   publicMode?: boolean
 }) {
   const isProposalMode = !!proposal
@@ -977,7 +1053,8 @@ export function ProposalBuilder({
     if (isProposalMode && proposal) {
       return buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
-        contractorName
+        contractorName,
+        client
       )
     }
     return buildInitialProposalDocument(job as Job, contractorName)
@@ -988,11 +1065,6 @@ export function ProposalBuilder({
   const [dirty, setDirty] = useState(false)
   const [overviewLoaded, setOverviewLoaded] = useState(false)
   const [showAIModal, setShowAIModal] = useState(false)
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [generatingProposal, setGeneratingProposal] = useState(false)
-  const [customDescription, setCustomDescription] = useState(job?.job_description ?? "")
-  const [lineItemsOpen, setLineItemsOpen] = useState(false)
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(() => new Set((job?.items ?? []).map((item) => item.id)))
   const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
     buildBeforeAfterPairsFromMedia(
       isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
@@ -1001,18 +1073,32 @@ export function ProposalBuilder({
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
+  // Sync proposal context to window so AgentChatPanel can read it
+  useEffect(() => {
+    const ctx = {
+      proposalTitle: document.title || proposal?.title || "",
+      projectTitle: project?.title || document.projectOverview?.title || "",
+      description: project?.objective || job?.job_description || "",
+      projectBrief: project?.brief || null,
+      includeProjectBriefInContext: true,
+    }
+    ;(window as any).proposalBuilderContext = ctx
+    window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
+  }, [document.title, proposal?.title, project?.title, document.projectOverview?.title, project?.objective, job?.job_description, project?.brief])
+
   useEffect(() => {
     if (isProposalMode && proposal) {
       setDocument(buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
-        contractorName
+        contractorName,
+        client
       ))
     } else if (job) {
       setDocument(buildInitialProposalDocument(job, contractorName))
     }
     setDirty(false)
     setOverviewLoaded(false)
-  }, [contractorName, isProposalMode, job, proposal, publicMode])
+  }, [contractorName, isProposalMode, job, proposal, publicMode, client])
 
   useEffect(() => {
     setViewMode(publicMode)
@@ -1091,7 +1177,7 @@ export function ProposalBuilder({
     backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.14)}, rgba(255,255,255,0.96) 48%, ${withAlpha(tintColor, 0.22)})`,
   }
   const coverHeaderStyle = {
-    backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.12)}, rgba(255,255,255,0.96) 46%, ${withAlpha(tintColor, 0.16)})`,
+    backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.05)}, rgba(255,255,255,0.99) 52%, ${withAlpha(tintColor, 0.07)})`,
   }
   const pageHeaderStyle = {
     backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.08)}, rgba(255,255,255,0.97) 56%, ${withAlpha(tintColor, 0.14)})`,
@@ -1145,94 +1231,6 @@ export function ProposalBuilder({
       })
     } finally {
       setSaving(false)
-    }
-  }
-
-  const generateProposal = async () => {
-    setGeneratingProposal(true)
-    try {
-      const result = isProposalMode && proposal
-        ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
-            description: customDescription.trim() || undefined,
-            job_id: job?.id,
-            selected_item_ids: Array.from(selectedItemIds),
-          })
-        : await api.generateAIProposal(
-            job!.id,
-            customDescription.trim() || undefined,
-            Array.from(selectedItemIds),
-          )
-      setShowGenerateModal(false)
-
-      // Index before/after pairs by position for O(1) lookup
-      const pairsMap = new Map(
-        (result.before_after_pairs ?? []).map((p) => [p.index, p])
-      )
-
-      // Convert AI pages → ProposalPage[], expanding before_after_placeholder sentinels
-      const newPages: ProposalPage[] = result.pages.map((page) => {
-        const blocks: ProposalPageBlock[] = []
-
-        for (const block of page.blocks) {
-          if (block.type === "before_after_placeholder") {
-            for (const [, pair] of pairsMap) {
-              blocks.push({
-                id: createId("before-after"),
-                type: "before_after",
-                beforeUrl: pair.before_url,
-                afterUrl: pair.after_url,
-                beforeLabel: "Before",
-                afterLabel: "After Render",
-              } as ProposalBeforeAfterBlock)
-            }
-          } else if (block.type === "text" && block.content_html) {
-            blocks.push(createTextBlock(block.content_html))
-          }
-        }
-
-        if (blocks.length === 0) blocks.push(createTextBlock(""))
-
-        return {
-          id: createId("page"),
-          title: page.title,
-          description: blocks,
-        } as ProposalPage
-      })
-
-      updateDocument((current) => {
-        let next = current
-
-        // Apply suggested theme if the AI returned a valid one
-        if (result.suggested_theme) {
-          const themeId = normalizeProposalThemeId(result.suggested_theme)
-          if (themeId === result.suggested_theme) {
-            next = updateProposalTheme(next, themeId)
-          }
-        }
-
-        return {
-          ...next,
-          scopeSummary: result.scope_summary_html || next.scopeSummary,
-          projectOverview: {
-            title: result.project_overview_title || next.projectOverview.title,
-            description: result.project_overview_html || next.projectOverview.description,
-          },
-          pages: newPages.length > 0 ? newPages : next.pages,
-        }
-      })
-
-      toast({
-        title: "AI proposal generated",
-        description: "Review the content, make any edits, then save.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Generation failed",
-        description: error?.message || "Unable to generate proposal. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setGeneratingProposal(false)
     }
   }
 
@@ -1466,7 +1464,7 @@ export function ProposalBuilder({
                     type="button"
                     size="sm"
                     className="h-8 justify-start rounded-2xl border border-fuchsia-200/80 bg-[linear-gradient(135deg,#fff7ed_0%,#f5f3ff_45%,#eef2ff_100%)] px-3 text-slate-900 shadow-[0_10px_30px_-18px_rgba(168,85,247,0.55)] hover:border-fuchsia-300 hover:bg-[linear-gradient(135deg,#ffedd5_0%,#ede9fe_48%,#e0e7ff_100%)]"
-                    onClick={() => setShowGenerateModal(true)}
+                    onClick={() => window.dispatchEvent(new CustomEvent("open-ai-panel-for-proposal"))}
                   >
                     <Sparkles className="mr-1 h-3.5 w-3.5 text-fuchsia-500" />
                     Generate AI Proposal
@@ -1496,12 +1494,12 @@ export function ProposalBuilder({
           <div
             className={cn(
               "border-b px-5 sm:px-6 print:border-b-0 print:px-0",
-              isReadOnly ? "py-4 sm:py-4" : "py-5",
+              isReadOnly ? "py-4 sm:py-4" : "py-4 sm:py-4",
               proposalTheme.coverHeaderClassName,
             )}
             style={coverHeaderStyle}
           >
-            <div className={cn(isReadOnly ? "space-y-3" : "space-y-4")}>
+            <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge
                   className={cn("rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.24em]", proposalTheme.coverPrimaryBadgeClassName)}
@@ -1538,12 +1536,14 @@ export function ProposalBuilder({
               {isReadOnly ? (
                 <h1 className={cn("max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl", proposalTheme.id === "editorial" ? "text-white" : "text-slate-950")}>{document.title}</h1>
               ) : (
-                <Input
+                <input
                   value={document.title}
                   onChange={(event) => updateDocument((current) => ({ ...current, title: event.target.value }))}
                   className={cn(
-                    "h-auto border-none bg-transparent px-0 text-3xl font-semibold tracking-tight shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl",
-                    proposalTheme.id === "editorial" ? "text-white placeholder:text-stone-300" : "text-slate-950 placeholder:text-slate-400",
+                    "w-full max-w-4xl border-0 border-b-2 border-transparent bg-transparent px-0 rounded-none text-3xl font-semibold tracking-tight shadow-none outline-none transition-colors sm:text-5xl",
+                    proposalTheme.id === "editorial"
+                      ? "text-white placeholder:text-stone-400 hover:border-white/20 focus:border-white/40"
+                      : "text-slate-950 placeholder:text-slate-300 hover:border-slate-200 focus:border-slate-400",
                   )}
                   placeholder="Proposal title"
                 />
@@ -1558,10 +1558,18 @@ export function ProposalBuilder({
           <div className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}>
             {!isReadOnly ? (
               <div className={cn("grid gap-4 rounded-[28px] border p-4 sm:grid-cols-2", proposalTheme.coverMetaPanelClassName)}>
-                <Input
+                <ClientNameField
                   value={document.companyName}
-                  onChange={(event) => updateDocument((current) => ({ ...current, companyName: event.target.value }))}
-                  placeholder="Company / property name"
+                  clients={clients}
+                  onChange={(name) => updateDocument((current) => ({ ...current, companyName: name }))}
+                  onClientSelect={(selected) => {
+                    updateDocument((current) => ({
+                      ...current,
+                      companyName: selected.name,
+                      companyAddress: selected.address || current.companyAddress,
+                    }))
+                    onProjectClientChanged?.(selected.id)
+                  }}
                 />
                 <Input
                   value={document.companyAddress}
@@ -1999,172 +2007,6 @@ export function ProposalBuilder({
                 </div>
               </button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showGenerateModal} onOpenChange={(open) => { if (!generatingProposal) { setShowGenerateModal(open); if (open) { setCustomDescription(job?.job_description ?? ""); setSelectedItemIds(new Set((job?.items ?? []).map((item) => item.id))); setLineItemsOpen(false) } } }}>
-        <DialogContent className="flex max-h-[80vh] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
-          <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 ring-1 ring-violet-100">
-                <Sparkles className="h-4 w-4 text-violet-500" />
-              </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-base font-semibold text-slate-900">
-                  Generate AI Proposal
-                </DialogTitle>
-                <DialogDescription className="mt-0.5 text-sm text-slate-500">
-                  AI will write proposal copy using your quote description and line items. You can edit everything after.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Project Description</p>
-              <textarea
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-                rows={5}
-                placeholder="Describe the project scope, goals, and any relevant details for the AI to use…"
-                value={customDescription}
-                onChange={(e) => setCustomDescription(e.target.value)}
-                disabled={generatingProposal}
-              />
-            </div>
-            {(job?.items ?? []).length > 0 ? (
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
-                {/* Dropdown header */}
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
-                  onClick={() => setLineItemsOpen((v) => !v)}
-                  disabled={generatingProposal}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Line Items</span>
-                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
-                      {selectedItemIds.size}/{(job?.items ?? []).length} selected
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      role="button"
-                      tabIndex={generatingProposal ? -1 : 0}
-                      className={cn("text-[11px] font-medium text-violet-600 hover:text-violet-800", generatingProposal && "pointer-events-none opacity-50")}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const allIds = (job?.items ?? []).map((item) => item.id)
-                        if (selectedItemIds.size === allIds.length) {
-                          setSelectedItemIds(new Set())
-                        } else {
-                          setSelectedItemIds(new Set(allIds))
-                        }
-                        setLineItemsOpen(false)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          if (generatingProposal) return
-                          const allIds = (job?.items ?? []).map((item) => item.id)
-                          if (selectedItemIds.size === allIds.length) {
-                            setSelectedItemIds(new Set())
-                          } else {
-                            setSelectedItemIds(new Set(allIds))
-                          }
-                          setLineItemsOpen(false)
-                        }
-                      }}
-                    >
-                      {selectedItemIds.size === (job?.items ?? []).length ? "Deselect all" : "Select all"}
-                    </span>
-                    <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", lineItemsOpen && "rotate-180")} />
-                  </div>
-                </button>
-
-                {/* Collapsible list */}
-                {lineItemsOpen ? (
-                  <ul className="divide-y divide-slate-100 bg-white">
-                    {(job?.items ?? []).map((item: JobItem, i: number) => {
-                      const selected = selectedItemIds.has(item.id)
-                      return (
-                        <li
-                          key={item.id ?? i}
-                          className={cn(
-                            "flex items-start gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors",
-                            selected ? "bg-white hover:bg-violet-50/50" : "bg-slate-50/60 hover:bg-slate-100/60 opacity-60",
-                          )}
-                          onClick={() => {
-                            if (generatingProposal) return
-                            setSelectedItemIds((prev) => {
-                              const next = new Set(prev)
-                              if (next.has(item.id)) { next.delete(item.id) } else { next.add(item.id) }
-                              return next
-                            })
-                            setLineItemsOpen(false)
-                          }}
-                        >
-                          <span className={cn(
-                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
-                            selected
-                              ? "border-violet-500 bg-violet-500"
-                              : "border-slate-300 bg-white",
-                          )}>
-                            {selected ? <Check className="h-3 w-3 text-white" strokeWidth={3} /> : null}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-slate-800 truncate">{item.title}</p>
-                            {item.custom_description ? (
-                              <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.custom_description}</p>
-                            ) : null}
-                          </div>
-                          {item.quantity ? (
-                            <span className="ml-auto shrink-0 text-xs text-slate-400">
-                              {item.quantity}{item.unit_of_measure ? ` ${item.unit_of_measure}` : ""}
-                            </span>
-                          ) : null}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-sm text-amber-800">
-                  No line items on this quote yet. Add line items to the quote for better AI results.
-                </p>
-              </div>
-            )}
-            <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
-              <p className="text-xs text-violet-700 leading-relaxed">
-                <strong>This will replace your current proposal content.</strong> The AI will generate a Scope of Work, project overview, and supporting pages. You can edit everything before saving.
-              </p>
-            </div>
-          </div>
-          <div className="shrink-0 border-t border-slate-100 px-6 py-4 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowGenerateModal(false)}
-              disabled={generatingProposal}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="bg-violet-600 text-white hover:bg-violet-700"
-              onClick={generateProposal}
-              disabled={generatingProposal}
-            >
-              {generatingProposal
-                ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Generating…</>
-                : <><Sparkles className="mr-1.5 h-3.5 w-3.5" />Generate Proposal</>
-              }
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

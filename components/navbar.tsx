@@ -96,7 +96,6 @@ export function Navbar() {
       icon: LayoutDashboard,
     },
     { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
-    { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
     { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
     { href: `/${locale}/clients`, label: t("clients"), icon: Users },
     {
@@ -178,7 +177,6 @@ export function Navbar() {
 
   const mobilePrimaryLinks = uniqueLinksByHref([
     navLinks.find((link) => link.href === `/${locale}/dashboard`),
-    navLinks.find((link) => link.href === `/${locale}/quotes`),
     navLinks.find((link) => link.href === `/${locale}/calendar`),
     navLinks.find((link) => link.href === `/${locale}/clients`),
     navLinks.find((link) => link.href === `/${locale}/leads`),

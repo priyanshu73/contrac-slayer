@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar, Loader2, FileText, User } from "lucide-react"
-
+import { buildInitialProjectBrief } from "@/lib/project-brief"
 export interface FromQuoteProps {
     jobId: number
     title?: string
@@ -44,6 +44,7 @@ interface NewProjectDialogProps {
     onProjectCreated: (projectId: number) => void
     fromQuote?: FromQuoteProps
     fromLead?: FromLeadProps
+    defaultClientId?: number
 }
 
 export function NewProjectDialog({
@@ -52,6 +53,7 @@ export function NewProjectDialog({
     onProjectCreated,
     fromQuote,
     fromLead,
+    defaultClientId,
 }: NewProjectDialogProps) {
     const t = useTranslations("projects.newProjectDialog")
     const { toast } = useToast()
@@ -91,7 +93,7 @@ export function NewProjectDialog({
         }
         setSubmitting(true)
         try {
-            let clientId: number | undefined
+            let clientId: number | undefined = defaultClientId
 
             if (fromLead) {
                 const client = await api.createClient({
@@ -107,9 +109,9 @@ export function NewProjectDialog({
             if (objective.trim()) payload.objective = objective.trim()
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
+            if (clientId) payload.client_id = clientId
 
             if (fromLead) {
-                if (clientId) payload.client_id = clientId
                 if (fromLead.estimatedValue != null) payload.contract_value = fromLead.estimatedValue
                 payload.lead_id = fromLead.leadId
             }
@@ -122,6 +124,20 @@ export function NewProjectDialog({
 
             const created = (await api.createProject(payload)) as any
             if (created?.id) {
+                const initialBrief = buildInitialProjectBrief({
+                    title: title.trim(),
+                    objective: objective.trim(),
+                    startDate,
+                    endDate,
+                    source: fromLead ? "lead" : fromQuote ? "quote" : "manual",
+                })
+
+                try {
+                    await api.updateProject(created.id, { brief: initialBrief })
+                } catch {
+                    // Keep creation successful even if the initial brief seed fails.
+                }
+
                 if (fromLead) {
                     try {
                         await api.updateLead(fromLead.leadId, {

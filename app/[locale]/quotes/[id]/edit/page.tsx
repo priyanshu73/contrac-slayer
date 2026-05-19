@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { QuoteCreator } from "@/components/Quote-creator"
+import { Sparkles } from "lucide-react"
+
+function openAiPanelForEstimate() {
+  window.dispatchEvent(new CustomEvent("open-ai-panel-for-estimate"))
+}
 
 interface JobItem {
   id: number
@@ -152,6 +157,15 @@ export default function EditQuotePage() {
                 </p>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openAiPanelForEstimate}
+              className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Estimate
+            </Button>
           </div>
         </header>
 

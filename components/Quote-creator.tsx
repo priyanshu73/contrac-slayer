@@ -23,7 +23,8 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
-import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
+import { Check, ChevronsUpDown, FolderOpen, Image as ImageIcon, Loader2, Plus, X } from "lucide-react"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { cn } from "@/lib/utils"
 
 interface LineItem {
@@ -413,13 +414,14 @@ function MaterialThumbnail({ src, alt, className, category, index }: {
 interface QuoteCreatorProps {
   leadId?: string | null
   clientId?: string | null
+  projectId?: string | null
   callLeadId?: string | null
   phone?: string | null
   quoteId?: string | null
   initialData?: any // Job/Quote data for editing
 }
 
-export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
@@ -433,7 +435,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
-  const [useBriefAsContext, setUseBriefAsContext] = useState(false)
+  const [useBriefAsContext, setUseBriefAsContext] = useState(true)
   const [projectBrief, setProjectBrief] = useState<any>(null)
 
   // AI loading stage messages
@@ -464,6 +466,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [clientPhone, setClientPhone] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [loadingLead, setLoadingLead] = useState(false)
+
+  // Project linking states
+  const [allProjects, setAllProjects] = useState<any[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false)
 
   // Client matching states
   const [allClients, setAllClients] = useState<Client[]>([])
@@ -590,6 +597,24 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     fetchClients()
   }, [])
 
+  // Load projects on mount
+  useEffect(() => {
+    let cancelled = false
+    const loadProjects = async () => {
+      try {
+        const data = await api.getProjects({ limit: 500 })
+        if (!cancelled) {
+          setAllProjects(Array.isArray(data) ? data : [])
+        }
+      } catch (err) {
+        console.error("Failed to load projects:", err)
+        if (!cancelled) setAllProjects([])
+      }
+    }
+    loadProjects()
+    return () => { cancelled = true }
+  }, [])
+
   // Fetch templates on mount
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -693,6 +718,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
   }, [clientId])
 
+  useEffect(() => {
+    if (projectId && !initialData) {
+      fetchProjectData()
+    }
+  }, [projectId, initialData])
+
   // Fetch call lead data if callLeadId is provided
   // Also handle phone parameter if provided without callLeadId (fallback)
   useEffect(() => {
@@ -789,8 +820,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Load initial quote data if editing or copying
   useEffect(() => {
     if (initialData && !hasLoadedInitialData) {
-      // Reset selected client when loading existing quote
-      setSelectedClientId(null)
+      setSelectedClientId(initialData.client_id || initialData.client?.id || null)
 
       // Set client information - handle both nested client object and flat structure
       const client = initialData.client
@@ -867,8 +897,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       setHasLoadedInitialData(true)
       setLoadingMarkup(false)
 
-      // Fetch project brief if quote is linked to a project
+      // Restore project link when editing
       if (initialData.project_id) {
+        setSelectedProjectId(initialData.project_id)
         api.getProject(initialData.project_id)
           .then((p: any) => { if (p?.brief) setProjectBrief(p.brief) })
           .catch(() => {})
@@ -1066,6 +1097,33 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
   }
 
+  const fetchProjectData = async () => {
+    if (!projectId || isNaN(Number(projectId))) return
+    try {
+      const data = await api.getProject(parseInt(projectId, 10)) as any
+      setSelectedProjectId(data.id)
+      setProjectBrief(data?.brief || null)
+
+      if (data?.client_id) {
+        const client = await api.getClientDetails(data.client_id) as {
+          id: number
+          name: string
+          email: string
+          phone?: string
+          address?: string
+          billing_address?: string
+        }
+        setSelectedClientId(client.id)
+        setClientName(client.name || "")
+        setClientEmail(client.email || "")
+        setClientPhone(client.phone || "")
+        setClientAddress(client.address || client.billing_address || "")
+      }
+    } catch (error) {
+      console.error("Failed to fetch project data:", error)
+    }
+  }
+
   const extractZipCode = (address: string): string | undefined => {
     // Extract 5-digit ZIP code from address
     const zipMatch = address.match(/\b\d{5}\b/)
@@ -1161,6 +1219,98 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       description: `${material.name || "Item"} has been added to your quote`,
     })
   }
+
+  // Keep project brief in sync with selected project for AI context
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectBrief(null)
+      return
+    }
+    let cancelled = false
+    api.getProject(selectedProjectId)
+      .then((p: any) => {
+        if (cancelled) return
+        setProjectBrief(p?.brief || null)
+        if (p?.title) setProjectType((prev) => prev || p.title)
+        if (p?.objective) setServiceDescription((prev) => prev || p.objective)
+        if (p?.client_id && p.client_id !== selectedClientId) {
+          setSelectedClientId(p.client_id)
+          api.getClientDetails(p.client_id)
+            .then((client: any) => {
+              if (cancelled) return
+              setClientName(client?.name || "")
+              setClientEmail(client?.email || "")
+              setClientPhone(client?.phone || "")
+              setClientAddress(client?.address || client?.billing_address || "")
+            })
+            .catch(() => {
+              if (cancelled) return
+            })
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        setProjectBrief(null)
+      })
+    return () => { cancelled = true }
+  }, [selectedProjectId, selectedClientId])
+
+  // Sync quote context to window so AgentChatPanel can read it
+  useEffect(() => {
+    ;(window as any).quoteEstimateContext = {
+      projectType,
+      serviceDescription,
+      laborRate: laborRateValue,
+      laborChargeType,
+      projectBrief,
+      includeProjectBriefInContext: useBriefAsContext,
+    }
+    window.dispatchEvent(new CustomEvent("quote-context-updated", {
+      detail: {
+        projectType,
+        serviceDescription,
+        laborRate: laborRateValue,
+        laborChargeType,
+        projectBrief,
+        includeProjectBriefInContext: useBriefAsContext,
+      },
+    }))
+  }, [projectType, serviceDescription, laborRateValue, laborChargeType, projectBrief, useBriefAsContext])
+
+  // Listen for trigger from AI panel to run the estimate
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        projectType?: string
+        serviceDescription?: string
+        laborRate?: number
+        laborChargeType?: string
+        includeProjectBriefInContext?: boolean
+        projectBrief?: any
+      }
+      if (detail.projectType !== undefined) setProjectType(detail.projectType)
+      if (detail.serviceDescription !== undefined) setServiceDescription(detail.serviceDescription)
+      if (detail.laborRate !== undefined) setLaborRateValue(detail.laborRate)
+      if (detail.includeProjectBriefInContext !== undefined) setUseBriefAsContext(detail.includeProjectBriefInContext)
+      if (detail.projectBrief !== undefined) setProjectBrief(detail.projectBrief)
+      setTimeout(() => {
+        const ctx = (window as any).quoteEstimateContext || {}
+        const desc = detail.serviceDescription ?? ctx.serviceDescription ?? ""
+        if (!desc.trim()) return
+        window.dispatchEvent(new CustomEvent("_run-ai-estimate-internal"))
+      }, 50)
+    }
+    window.addEventListener("trigger-ai-estimate", handler)
+    return () => window.removeEventListener("trigger-ai-estimate", handler)
+  }, [])
+
+  // Internal listener that fires fetchAiEstimate after state has settled
+  useEffect(() => {
+    const handler = () => { fetchAiEstimate() }
+    window.addEventListener("_run-ai-estimate-internal", handler)
+    return () => window.removeEventListener("_run-ai-estimate-internal", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceDescription, projectType, laborRateValue, laborChargeType, measurements, leadId, clientAddress, useBriefAsContext, projectBrief])
 
   const fetchAiEstimate = async () => {
     if (!serviceDescription.trim()) {
@@ -1397,7 +1547,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
       // Prepare job data
       const jobData = {
-        lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null, // Link to original lead if creating from lead
+        lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null,
+        project_id: selectedProjectId ?? null,
+        client_id: selectedClientId ?? null,
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim() || null,
@@ -1544,10 +1696,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 pt-6">
         {/* Left Column - Main Content */}
         <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
-          {/* Client Information */}
+          {/* Quote Details */}
           <Card className="p-6" id="material-search">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Client Information</h2>
+              <h2 className="text-lg font-semibold">Quote Details</h2>
               <div className="flex items-center gap-2">
                 {selectedClientId && (
                   <button
@@ -1573,6 +1725,51 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 )}
               </div>
             </div>
+
+            {/* Project Assignment */}
+            <div className="mb-3">
+              <Label className="text-sm font-medium mb-1.5 block">Project</Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedProjectId ? String(selectedProjectId) : "__none__"}
+                  onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No project (standalone quote)</SelectItem>
+                    {allProjects.length > 0 && <div className="border-t my-1" />}
+                    {allProjects.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.title || `Project #${p.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 whitespace-nowrap"
+                  onClick={() => setShowNewProjectDialog(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New Project
+                </Button>
+              </div>
+              {selectedProjectId && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <FolderOpen className="h-3 w-3" />
+                  This quote will be linked to the selected project
+                </p>
+              )}
+            </div>
+
+            <div className="border-t pt-3 mb-1">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Client Information</p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="client-name">Client Name *</Label>
@@ -1659,6 +1856,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             )}
           </Card>
 
+          <NewProjectDialog
+            open={showNewProjectDialog}
+            onOpenChange={setShowNewProjectDialog}
+            onProjectCreated={async (projectId) => {
+              setSelectedProjectId(projectId)
+              try {
+                const data = await api.getProjects({ limit: 500 })
+                setAllProjects(Array.isArray(data) ? data : [])
+              } catch {
+                // project was created — list refresh is best-effort
+              }
+            }}
+          />
+
           {/* Material Search */}
           <div className="space-y-3">
             <MaterialSearchWidget
@@ -1687,8 +1898,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             />
           </div>
 
-          {/* Mobile AI Assistant - Collapsible */}
-          <div className="lg:hidden">
+          {/* Mobile AI Assistant - Collapsible - REMOVED: moved to AI chat panel */}
+          {false && <div className="lg:hidden">
             <Collapsible open={isMobileAiOpen} onOpenChange={setIsMobileAiOpen}>
               <div className="border rounded-lg overflow-hidden">
                 <CollapsibleTrigger asChild>
@@ -1884,7 +2095,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                                   onChange={(e) => setUseBriefAsContext(e.target.checked)}
                                   className="h-4 w-4 rounded border-gray-300 accent-primary"
                                 />
-                                Use project brief as context
+                                Include project brief in context
                               </label>
                             )}
                             <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
@@ -2004,7 +2215,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
             </Collapsible>
 
-          </div>
+          </div>}
 
           {/* Line Items */}
           <Card className="p-3 sm:p-4 rounded-lg border border-border">
@@ -2658,8 +2869,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           </div>
         </div>
 
-        {/* Right Column - AI Assistant */}
-        <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
+        {/* Right Column - AI Assistant - REMOVED: moved to AI chat panel */}
+        {false && <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
           <div className="sticky top-6 space-y-6">
             {/* AI Line Items Assistant */}
             <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 rounded-xl">
@@ -2920,6 +3131,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     const tooShort = desc.length < 30 || wordCount < 6
                     return (
                       <div className="flex flex-col gap-2 w-full">
+                        {projectBrief && (
+                          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={useBriefAsContext}
+                              onChange={(e) => setUseBriefAsContext(e.target.checked)}
+                              className="h-4 w-4 rounded border-gray-300 accent-primary"
+                            />
+                            Include project brief in context
+                          </label>
+                        )}
                         <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                           {aiLoading ? (
                             <span className="inline-flex items-center gap-2">
@@ -3036,7 +3258,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </Card>
           </div>
 
-        </div>
+        </div>}
       </div>
 
       {/* Substitute Modal */}

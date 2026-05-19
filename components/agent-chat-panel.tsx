@@ -6,10 +6,28 @@ import { useLocale } from "next-intl"
 import {
     Bot, X, Send, Loader2, Sparkles, Plus,
     MessageSquare, ChevronLeft, Trash2, Clock,
-    Sun, BellRing, Maximize2, Minimize2
+    Sun, BellRing, Maximize2, Minimize2,
+    ChevronDown, ChevronUp, Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactMarkdown from "react-markdown"
+
+interface QuoteEstimateContext {
+    projectType: string
+    serviceDescription: string
+    laborRate: number
+    laborChargeType: string
+    projectBrief?: Record<string, any> | null
+    includeProjectBriefInContext?: boolean
+}
+
+interface ProposalContext {
+    proposalTitle: string
+    projectTitle: string
+    description: string
+    projectBrief?: Record<string, any> | null
+    includeProjectBriefInContext?: boolean
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
@@ -24,6 +42,7 @@ const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
     { pattern: /\/crew\/([^/]+)/, page: "subcontractor_detail" },
     { pattern: /\/clients\/([^/]+)/, page: "client_detail" },
     { pattern: /\/leads\/([^/]+)/, page: "lead_detail" },
+    { pattern: /\/projects\/\d+\/proposals\/([^/]+)/, page: "proposal_builder" },
     { pattern: /\/projects\/([^/]+)/, page: "project_detail" },
     { pattern: /\/quotes\/([^/]+)/, page: "quote_detail" },
     { pattern: /\/calendar\/([^/]+)/, page: "booking_detail" },
@@ -83,6 +102,12 @@ const SUGGESTIONS: Record<string, string[]> = {
         "Show project tasks",
         "What's the status?",
         "Any blockers?",
+    ],
+    proposal_builder: [
+        "Summarize this proposal",
+        "What sections are in this proposal?",
+        "Help me write the scope summary",
+        "What's the project overview?",
     ],
     quote_detail: [
         "Summarize this quote",
@@ -221,9 +246,41 @@ export function AgentChatPanel() {
     const [panelView, setPanelView] = useState<PanelView>("chat")
     const [isLoadingConversations, setIsLoadingConversations] = useState(false)
 
+    // Quote estimate context (populated when on quote pages)
+    const [estimateContext, setEstimateContext] = useState<QuoteEstimateContext>({
+        projectType: "",
+        serviceDescription: "",
+        laborRate: 75,
+        laborChargeType: "HOURLY",
+        includeProjectBriefInContext: true,
+    })
+    const [contextExpanded, setContextExpanded] = useState(false)
+    const [estimateLoading, setEstimateLoading] = useState(false)
+
+    // Proposal context (populated when on proposal builder pages)
+    const [proposalContext, setProposalContext] = useState<ProposalContext>({
+        proposalTitle: "",
+        projectTitle: "",
+        description: "",
+        includeProjectBriefInContext: true,
+    })
+    const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
+
     // Parse page context from current route
     const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
+
+    // Detect if we're on a quote create/edit page
+    const isOnQuotePage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return stripped === "/quotes/new" || /^\/quotes\/\d+\/edit$/.test(stripped)
+    }, [pathname])
+
+    // Detect if we're on a proposal builder page
+    const isOnProposalPage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return /^\/projects\/\d+\/proposals\/\d+$/.test(stripped)
+    }, [pathname])
 
     // Entity color mapping
     const getEntityColorClass = useCallback((toolNameOrPath: string): string => {
@@ -315,6 +372,66 @@ export function AgentChatPanel() {
         }
     }, [isOpen, fetchConversations])
 
+    // Sync estimate context from Quote-creator via window events
+    useEffect(() => {
+        const syncFromWindow = () => {
+            const ctx = (window as any).quoteEstimateContext as QuoteEstimateContext | undefined
+            if (ctx) setEstimateContext({ ...ctx, includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true })
+        }
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as QuoteEstimateContext
+            setEstimateContext({ ...detail, includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true })
+        }
+        syncFromWindow()
+        window.addEventListener("quote-context-updated", handler)
+        return () => window.removeEventListener("quote-context-updated", handler)
+    }, [])
+
+    // Listen for header button → open panel in estimate mode
+    useEffect(() => {
+        const handler = () => {
+            // Read latest context from window
+            const ctx = (window as any).quoteEstimateContext as QuoteEstimateContext | undefined
+            if (ctx) setEstimateContext(ctx)
+            // Auto-expand context if both fields are empty
+            const isEmpty = !ctx?.projectType?.trim() && !ctx?.serviceDescription?.trim()
+            setContextExpanded(isEmpty)
+            setIsOpen(true)
+            setPanelView("chat")
+        }
+        window.addEventListener("open-ai-panel-for-estimate", handler)
+        return () => window.removeEventListener("open-ai-panel-for-estimate", handler)
+    }, [])
+
+    // Sync proposal context from ProposalBuilder via window events
+    useEffect(() => {
+        const syncFromWindow = () => {
+            const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
+            if (ctx) setProposalContext({ ...ctx, includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true })
+        }
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as ProposalContext
+            setProposalContext({ ...detail, includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true })
+        }
+        syncFromWindow()
+        window.addEventListener("proposal-context-updated", handler)
+        return () => window.removeEventListener("proposal-context-updated", handler)
+    }, [])
+
+    // Listen for header button → open panel in proposal mode
+    useEffect(() => {
+        const handler = () => {
+            const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
+            if (ctx) setProposalContext(ctx)
+            const isEmpty = !ctx?.proposalTitle?.trim() && !ctx?.description?.trim()
+            setProposalContextExpanded(isEmpty)
+            setIsOpen(true)
+            setPanelView("chat")
+        }
+        window.addEventListener("open-ai-panel-for-proposal", handler)
+        return () => window.removeEventListener("open-ai-panel-for-proposal", handler)
+    }, [])
+
     // ─── Chat handlers ──────────────────────────────────────────
 
     const handleNewChat = useCallback(() => {
@@ -323,6 +440,26 @@ export function AgentChatPanel() {
         setPanelView("chat")
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [])
+
+    const handleGenerateEstimate = useCallback(() => {
+        setEstimateLoading(true)
+        // Update the Quote-creator's state via the event, then trigger the estimate
+        window.dispatchEvent(new CustomEvent("trigger-ai-estimate", {
+            detail: {
+                projectType: estimateContext.projectType,
+                serviceDescription: estimateContext.serviceDescription,
+                laborRate: estimateContext.laborRate,
+                laborChargeType: estimateContext.laborChargeType,
+                projectBrief: estimateContext.projectBrief,
+                includeProjectBriefInContext: estimateContext.includeProjectBriefInContext ?? true,
+            },
+        }))
+        // Close panel so user can see the quote form populate
+        setTimeout(() => {
+            setIsOpen(false)
+            setEstimateLoading(false)
+        }, 400)
+    }, [estimateContext])
 
     const handleQuickAction = useCallback((message: string) => {
         setInput(message)
@@ -754,6 +891,147 @@ export function AgentChatPanel() {
                 </div>
             )}
 
+            {/* ── Quote Estimate Context (shown on quote pages) ── */}
+            {panelView === "chat" && isOnQuotePage && (
+                <div className="border-b border-border bg-muted/30">
+                    <button
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+                        onClick={() => setContextExpanded((v) => !v)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-sky-500" />
+                            <span className="text-xs font-semibold text-foreground">Project Context</span>
+                            {(estimateContext.projectType || estimateContext.serviceDescription) && (
+                                <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
+                                    filled
+                                </span>
+                            )}
+                        </div>
+                        {contextExpanded
+                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        }
+                    </button>
+                    {contextExpanded && (
+                        <div className="px-4 pb-3 space-y-2">
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Project Type (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={estimateContext.projectType}
+                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, projectType: e.target.value }))}
+                                    placeholder="e.g., Patio Installation, Deck Construction"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Project Description
+                                </label>
+                                <textarea
+                                    value={estimateContext.serviceDescription}
+                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, serviceDescription: e.target.value }))}
+                                    placeholder="Describe the project (materials, labor, installation, etc.)"
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                />
+                            </div>
+                            <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={estimateContext.includeProjectBriefInContext ?? true}
+                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
+                                    className="h-3.5 w-3.5 rounded border-gray-300 accent-sky-600"
+                                />
+                                Include project brief in context
+                            </label>
+                            {!estimateContext.projectBrief && (
+                                <p className="text-[11px] text-muted-foreground/80">
+                                    No project brief loaded yet for this quote.
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Proposal Context (shown on proposal builder pages) ── */}
+            {panelView === "chat" && isOnProposalPage && (
+                <div className="border-b border-border bg-muted/30">
+                    <button
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+                        onClick={() => setProposalContextExpanded((v) => !v)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="text-xs font-semibold text-foreground">Proposal Context</span>
+                            {(proposalContext.proposalTitle || proposalContext.projectTitle || proposalContext.description) && (
+                                <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
+                                    filled
+                                </span>
+                            )}
+                        </div>
+                        {proposalContextExpanded
+                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        }
+                    </button>
+                    {proposalContextExpanded && (
+                        <div className="px-4 pb-3 space-y-2">
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Proposal Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={proposalContext.proposalTitle}
+                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, proposalTitle: e.target.value }))}
+                                    placeholder="e.g., Backyard Renovation Proposal"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Project
+                                </label>
+                                <input
+                                    type="text"
+                                    value={proposalContext.projectTitle}
+                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, projectTitle: e.target.value }))}
+                                    placeholder="Project name"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={proposalContext.description}
+                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Describe the scope, goals, and approach"
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                />
+                            </div>
+                            {proposalContext.projectBrief && (
+                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={proposalContext.includeProjectBriefInContext ?? true}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
+                                    />
+                                    Include project brief in context
+                                </label>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Messages (Chat View) ── */}
             {panelView === "chat" && (
                 <>
@@ -771,34 +1049,68 @@ export function AgentChatPanel() {
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
-                                <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
-                                    <button
-                                        onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
-                                        disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-1.5
-                                            rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
-                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
-                                            transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            disabled:opacity-50 disabled:pointer-events-none"
-                                    >
-                                        <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                        Morning Briefing
-                                    </button>
-                                    <button
-                                        onClick={() => handleQuickAction("What should I follow up on today?")}
-                                        disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-1.5
-                                            rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
-                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
-                                            transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            disabled:opacity-50 disabled:pointer-events-none"
-                                    >
-                                        <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                        Follow-Ups
-                                    </button>
-                                </div>
+                                {isOnQuotePage ? (
+                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
+                                        <button
+                                            onClick={() => setContextExpanded(true)}
+                                            disabled={isLoading}
+                                            className="flex w-full items-center justify-center gap-2
+                                                rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-blue-600/15
+                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/50
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Generate AI Estimate
+                                        </button>
+                                    </div>
+                                ) : isOnProposalPage ? (
+                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
+                                        <button
+                                            onClick={() => setProposalContextExpanded(true)}
+                                            disabled={isLoading}
+                                            className="flex w-full items-center justify-center gap-2
+                                                rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-fuchsia-600/15
+                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-violet-700 dark:text-violet-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-violet-500/10 hover:border-violet-500/50
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Generate AI Proposal
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
+                                        <button
+                                            onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
+                                            disabled={isLoading}
+                                            className="flex-1 flex items-center justify-center gap-1.5
+                                                rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
+                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Morning Briefing
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickAction("What should I follow up on today?")}
+                                            disabled={isLoading}
+                                            className="flex-1 flex items-center justify-center gap-1.5
+                                                rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
+                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Follow-Ups
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="flex max-w-[340px] flex-wrap justify-center gap-2 md:max-w-none md:gap-1.5">
                                     {suggestions.map((suggestion) => (
