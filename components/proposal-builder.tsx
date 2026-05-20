@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useId, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
 import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, Eye, ExternalLink, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User } from "lucide-react"
 
@@ -1151,6 +1151,31 @@ export function ProposalBuilder({
       cancelled = true
     }
   }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
+
+  const generateProposalOverview = useCallback(async () => {
+    try {
+      const generated = isProposalMode && proposal
+        ? (await api.getProposalOverviewForProject(proposal.project_id, proposal.id)) as ProposalOverviewResponse
+        : (await api.getProposalOverview(job!.id)) as ProposalOverviewResponse
+      setDocument((current) => ({
+        ...current,
+        projectOverview: {
+          title: generated.title || current.projectOverview.title,
+          description: `<p>${escapeHtml(generated.description || "")}</p>`,
+        },
+      }))
+      setDirty(true)
+      setOverviewLoaded(true)
+    } catch {
+      // Leave existing content in place if generation fails
+    }
+  }, [isProposalMode, proposal, job])
+
+  useEffect(() => {
+    const handler = () => { void generateProposalOverview() }
+    window.addEventListener("trigger-ai-proposal", handler)
+    return () => window.removeEventListener("trigger-ai-proposal", handler)
+  }, [generateProposalOverview])
 
   const updateDocument = (updater: (current: ProposalDocument) => ProposalDocument) => {
     setDocument((current) => {

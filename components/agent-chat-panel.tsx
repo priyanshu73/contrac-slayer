@@ -265,6 +265,7 @@ export function AgentChatPanel() {
         includeProjectBriefInContext: true,
     })
     const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
+    const [proposalLoading, setProposalLoading] = useState(false)
 
     // Parse page context from current route
     const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
@@ -460,6 +461,15 @@ export function AgentChatPanel() {
             setEstimateLoading(false)
         }, 400)
     }, [estimateContext])
+
+    const handleGenerateProposal = useCallback(() => {
+        setProposalLoading(true)
+        window.dispatchEvent(new CustomEvent("trigger-ai-proposal"))
+        setTimeout(() => {
+            setIsOpen(false)
+            setProposalLoading(false)
+        }, 400)
+    }, [])
 
     const handleQuickAction = useCallback((message: string) => {
         setInput(message)
@@ -1052,8 +1062,15 @@ export function AgentChatPanel() {
                                 {isOnQuotePage ? (
                                     <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
                                         <button
-                                            onClick={() => setContextExpanded(true)}
-                                            disabled={isLoading}
+                                            onClick={() => {
+                                                const hasContext = estimateContext.projectType?.trim() || estimateContext.serviceDescription?.trim()
+                                                if (hasContext) {
+                                                    handleGenerateEstimate()
+                                                } else {
+                                                    setContextExpanded(true)
+                                                }
+                                            }}
+                                            disabled={isLoading || estimateLoading}
                                             className="flex w-full items-center justify-center gap-2
                                                 rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-blue-600/15
                                                 min-h-12 px-4 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
@@ -1061,15 +1078,26 @@ export function AgentChatPanel() {
                                                 hover:scale-[1.02] active:scale-[0.98]
                                                 disabled:opacity-50 disabled:pointer-events-none"
                                         >
-                                            <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            {estimateLoading ? (
+                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            )}
                                             Generate AI Estimate
                                         </button>
                                     </div>
                                 ) : isOnProposalPage ? (
                                     <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
                                         <button
-                                            onClick={() => setProposalContextExpanded(true)}
-                                            disabled={isLoading}
+                                            onClick={() => {
+                                                const hasContext = proposalContext.proposalTitle?.trim() || proposalContext.description?.trim()
+                                                if (hasContext) {
+                                                    handleGenerateProposal()
+                                                } else {
+                                                    setProposalContextExpanded(true)
+                                                }
+                                            }}
+                                            disabled={isLoading || proposalLoading}
                                             className="flex w-full items-center justify-center gap-2
                                                 rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-fuchsia-600/15
                                                 min-h-12 px-4 py-2.5 text-[13px] font-semibold text-violet-700 dark:text-violet-400 md:min-h-0 md:text-xs md:font-medium
@@ -1077,7 +1105,11 @@ export function AgentChatPanel() {
                                                 hover:scale-[1.02] active:scale-[0.98]
                                                 disabled:opacity-50 disabled:pointer-events-none"
                                         >
-                                            <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            {proposalLoading ? (
+                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            )}
                                             Generate AI Proposal
                                         </button>
                                     </div>
