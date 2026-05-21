@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -103,6 +104,11 @@ export function Navbar() {
       label: t("leadGeneratorAgent"),
       icon: Zap,
     },
+    {
+      href: `/${locale}/frontline`,
+      label: t("yourFrontline"),
+      icon: Sparkles,
+    },
     { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
     { href: `/${locale}/projects`, label: t("projects"), icon: FolderKanban },
     { href: `/${locale}/tasks`, label: t("tasks"), icon: ListTodo },
@@ -145,6 +151,7 @@ export function Navbar() {
     if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
     if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
     if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
+    if (currentRoute === "/frontline") return t("yourFrontline");
     if (currentRoute.startsWith("/crew/")) return "Crew Details";
     if (currentRoute === "/crew") return "Crew";
     if (currentRoute.startsWith("/projects/trade/")) return "Trade Scope";

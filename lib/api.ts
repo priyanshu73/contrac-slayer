@@ -20,6 +20,14 @@ import type {
   User,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
+import type {
+  FrontlineActivityEvent,
+  FrontlineKnowledgeDoc,
+  FrontlineReplyApproval,
+  FrontlineSandboxAnswer,
+  FrontlineSettings,
+  FrontlineTeachNote,
+} from './types/frontline'
 
 const DEFAULT_API_URL = 'http://localhost:4000/api'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
@@ -494,6 +502,75 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ message }),
     })
+  }
+
+  // ─── Your Frontline ───────────────────────────────────────────────────────
+
+  async getFrontlineSettings(): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/settings')
+  }
+
+  async updateFrontlineSettings(
+    payload: Partial<FrontlineSettings>,
+  ): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getFrontlineKnowledge(): Promise<FrontlineKnowledgeDoc> {
+    return this.request('/contractors/profile/frontline/knowledge')
+  }
+
+  async updateFrontlineKnowledge(
+    markdown_text: string,
+    reindex = true,
+  ): Promise<FrontlineKnowledgeDoc> {
+    return this.request('/contractors/profile/frontline/knowledge', {
+      method: 'PUT',
+      body: JSON.stringify({ markdown_text, reindex }),
+    })
+  }
+
+  async reindexFrontlineKnowledge(): Promise<{ profile_uuid: string; chunks_indexed: number }> {
+    return this.request('/contractors/profile/frontline/knowledge/reindex', {
+      method: 'POST',
+    })
+  }
+
+  async frontlineSandboxAsk(
+    question: string,
+    contractor_name?: string,
+  ): Promise<FrontlineSandboxAnswer> {
+    return this.request('/contractors/profile/frontline/sandbox/ask', {
+      method: 'POST',
+      body: JSON.stringify({ question, contractor_name }),
+    })
+  }
+
+  async frontlineTeach(payload: {
+    corrected_answer: string
+    question?: string
+    bad_answer?: string
+    source?: string
+  }): Promise<FrontlineTeachNote> {
+    return this.request('/contractors/profile/frontline/teach', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getFrontlineActivity(limit = 50): Promise<{ events: FrontlineActivityEvent[] }> {
+    return this.request(`/contractors/profile/frontline/activity?limit=${limit}`)
+  }
+
+  async getFrontlineApprovals(status = 'pending'): Promise<{
+    approvals: FrontlineReplyApproval[]
+  }> {
+    return this.request(
+      `/contractors/profile/frontline/approvals?status=${encodeURIComponent(status)}`,
+    )
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
