@@ -1350,15 +1350,22 @@
       }
     },
     "aiEstimator": {
-      "title": "Meet your AI Estimator",
-      "description": "Our AI learns your pricing and project types to generate accurate, tailored estimates. Watch how it works below.",
+      "title": "Meet your personal AI office worker",
+      "description": "It's on 24/7 — answering calls and texts, following up with leads, and helping you quote the way you already do. Upload a few real documents so it knows your business from day one.",
       "videoTitle": "How it works",
-      "videoHint": "See how the AI estimator helps you create quotes faster.",
-      "invoiceUploadTitle": "Upload past invoices (optional)",
-      "invoiceUploadDescription": "If you have existing invoices, please upload them. We'll use them to be more accurate and tailor estimates to your work, rates, and materials.",
-      "chooseInvoices": "Choose files or drag and drop",
-      "invoiceFormats": "PDF or images (PNG, JPG)",
-      "invoiceOptional": "Optional — you can skip and add invoices later from settings."
+      "videoHint": "See how your AI office worker handles the front office while you stay on the tools.",
+      "uploadKicker": "Your front office, 24/7",
+      "uploadTitle": "Teach it how you work",
+      "uploadDescription": "Drop invoices, proposals, price lists, or job photos — the same paperwork you already use. Your AI worker learns your rates, tone, and scope so every quote and reply sounds like you.",
+      "docTypeInvoices": "Invoices & estimates",
+      "docTypeProposals": "Proposals & scope",
+      "docTypePriceLists": "Price lists & catalogs",
+      "docTypePhotos": "Job photos",
+      "chooseFiles": "Choose files or drag and drop",
+      "fileFormats": "PDF, Word (.doc/.docx), or images",
+      "uploadOptional": "Optional — skip now and add documents anytime from Settings.",
+      "filesSelected": "{count, plural, one {# file ready to upload} other {# files ready to upload}}",
+      "privacyNote": "Files stay private to your account and power your AI — never shared with other contractors."
     },
     "buttons": {
       "back": "Back",
@@ -1404,7 +1411,7 @@
   "billing": {
     "freeTrial": "14-Day Free Trial",
     "pageTitle": "Start Growing Your Business",
-    "pageSubtitle": "Get full access to all features. Cancel anytime. No credit card charged during trial.",
+    "pageSubtitle": "Get full access to all features. Cancel anytime.",
     "monthly": "Monthly",
     "monthlyDescription": "Flexible month-to-month billing",
     "yearly": "Yearly",
@@ -1414,6 +1421,9 @@
     "billedAnnually": "Billed annually ($1,188/year)",
     "startFreeTrial": "Start Free Trial",
     "processing": "Processing...",
+    "includedInBoth": "Included in both plans",
+    "yearlyExclusive": "Yearly plan also includes",
+    "trialFooter": "14-day free trial · Cancel anytime",
     "features": {
       "aiQuoteGeneration": "AI-Powered Quote Generation",
       "realtimePricing": "Real-time Material Pricing",

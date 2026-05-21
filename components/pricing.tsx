@@ -192,7 +192,7 @@ export function Pricing() {
           transition={{ duration: 0.5, delay: 0.85 }}
           className="mt-8 text-center text-[13px] font-medium text-[#888780]"
         >
-          14-day free trial &middot; No card required &middot; Cancel anytime
+          14-day free trial &middot; Cancel anytime
         </m.p>
       </div>
     </section>

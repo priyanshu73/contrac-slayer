@@ -28,6 +28,15 @@ import { useLanguage } from "@/hooks/useLanguage"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
 import { saveContractorOpsNumberPrefs } from "@/lib/contractor-ops-number-prefs"
+import {
+  FileText,
+  ClipboardList,
+  Tags,
+  Camera,
+  Upload,
+  Sparkles,
+  Shield,
+} from "lucide-react"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
@@ -783,60 +792,112 @@ export default function ProfileSetupPage() {
                 </div>
               )}
 
-              {/* Step 3: AI Estimator — intro in card; video is rendered above (outside card) */}
+              {/*
+                ONBOARDING STEP 3 — Document upload ("personal AI office worker" narrative)
+
+                If you're an AI agent or Johnson working on this: this step is critical product
+                positioning, not a generic file-upload form. The story we sell here is:
+
+                  Meet your personal AI office worker — on 24/7 for calls, texts, and follow-ups,
+                  trained on *their* invoices/proposals so quotes and replies sound like them.
+
+                Do not drift into "AI estimator" spreadsheet jargon alone; keep front-office /
+                always-on teammate language. User-facing strings: profileSetup.aiEstimator in
+                messages/en.json + es.json. Upload API: api.uploadOnboardingAttachments →
+                ContractorBackend /profile/onboarding-attachments (storage today; chunk/embed
+                pipeline may still be project-only — see document_chunks in backend before
+                promising "instant" personalization in copy).
+              */}
               {step === 3 && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div>
+                  <div className="text-center sm:text-left">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 mb-3">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {t('aiEstimator.uploadKicker')}
+                    </span>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('aiEstimator.title')}</h2>
                     <p className="text-gray-600">{t('aiEstimator.description')}</p>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-gray-700 font-medium">{t('aiEstimator.invoiceUploadTitle')}</Label>
-                    <p className="text-sm text-gray-600">{t('aiEstimator.invoiceUploadDescription')}</p>
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-blue-50/40 p-5 space-y-4">
+                    <div>
+                      <Label className="text-gray-800 font-semibold text-base">
+                        {t('aiEstimator.uploadTitle')}
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">{t('aiEstimator.uploadDescription')}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {[
+                        { icon: FileText, label: t('aiEstimator.docTypeInvoices') },
+                        { icon: ClipboardList, label: t('aiEstimator.docTypeProposals') },
+                        { icon: Tags, label: t('aiEstimator.docTypePriceLists') },
+                        { icon: Camera, label: t('aiEstimator.docTypePhotos') },
+                      ].map(({ icon: Icon, label }) => (
+                        <div
+                          key={label}
+                          className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-2 py-3 text-center"
+                        >
+                          <Icon className="h-5 w-5 text-blue-600" strokeWidth={1.75} />
+                          <span className="text-[11px] font-medium leading-tight text-slate-700">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+
                     <input
                       id="invoice-upload"
                       type="file"
-                      accept=".pdf,image/*"
+                      accept=".pdf,image/*,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       multiple
                       onChange={handleInvoiceFilesChange}
                       className="hidden"
                     />
                     <label
                       htmlFor="invoice-upload"
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 py-8 px-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-300/70 bg-white py-10 px-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50/60 transition-colors shadow-sm"
                     >
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <span className="text-sm font-medium text-gray-600">{t('aiEstimator.chooseInvoices')}</span>
-                      <span className="text-xs text-gray-500">{t('aiEstimator.invoiceFormats')}</span>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                        <Upload className="h-6 w-6 text-blue-600" strokeWidth={2} />
+                      </div>
+                      <span className="text-sm font-semibold text-slate-800">{t('aiEstimator.chooseFiles')}</span>
+                      <span className="text-xs text-slate-500">{t('aiEstimator.fileFormats')}</span>
                     </label>
+
                     {invoiceFiles.length > 0 && (
-                      <ul className="space-y-2 mt-3">
-                        {invoiceFiles.map((file, index) => (
-                          <li
-                            key={`${file.name}-${index}`}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white py-2 px-3 text-sm"
-                          >
-                            <span className="truncate text-gray-700">{file.name}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="shrink-0 h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                              onClick={() => removeInvoiceFile(index)}
-                              aria-label={tCommon('delete')}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-blue-800">
+                          {t('aiEstimator.filesSelected', { count: invoiceFiles.length })}
+                        </p>
+                        <ul className="space-y-2">
+                          {invoiceFiles.map((file, index) => (
+                            <li
+                              key={`${file.name}-${index}`}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm"
                             >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
+                              <span className="truncate text-gray-700 font-medium">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="shrink-0 h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                onClick={() => removeInvoiceFile(index)}
+                                aria-label={tCommon('delete')}
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                    <p className="text-xs text-gray-500">{t('aiEstimator.invoiceOptional')}</p>
+
+                    <div className="flex items-start gap-2 rounded-lg bg-slate-100/80 px-3 py-2.5">
+                      <Shield className="h-4 w-4 shrink-0 text-slate-500 mt-0.5" />
+                      <p className="text-xs text-slate-600">{t('aiEstimator.privacyNote')}</p>
+                    </div>
+                    <p className="text-xs text-gray-500">{t('aiEstimator.uploadOptional')}</p>
                   </div>
                 </div>
               )}

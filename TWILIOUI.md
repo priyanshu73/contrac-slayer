@@ -1,5 +1,7 @@
 # Twilio UI Reference — `contrac-slayer` (Frontend)
 
+> **Superseded for current state & plans:** See [`../Twilio Upgrade.md`](../Twilio%20Upgrade.md) (May 2026 — dashboard picker, no onboarding provision). This file remains a frontend file index.
+
 > **Purpose**: Agent reference for all Twilio-related frontend code, UI components, hooks, API bindings, and data flows.
 
 ## Repo Paths

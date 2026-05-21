@@ -1333,15 +1333,22 @@
       }
     },
     "aiEstimator": {
-      "title": "Conozca su Estimador IA",
-      "description": "Nuestra IA aprende sus precios y tipos de proyecto para generar estimados precisos y personalizados. Vea cómo funciona a continuación.",
+      "title": "Conozca a su asistente de oficina con IA",
+      "description": "Disponible 24/7 — contesta llamadas y mensajes, da seguimiento a prospectos y le ayuda a cotizar como ya lo hace. Suba unos documentos reales para que conozca su negocio desde el primer día.",
       "videoTitle": "Cómo funciona",
-      "videoHint": "Vea cómo el estimador IA le ayuda a crear cotizaciones más rápido.",
-      "invoiceUploadTitle": "Subir facturas anteriores (opcional)",
-      "invoiceUploadDescription": "Si tiene facturas existentes, súbalas. Las usaremos para ser más precisos y adaptar las estimaciones a su trabajo, tarifas y materiales.",
-      "chooseInvoices": "Elegir archivos o arrastrar y soltar",
-      "invoiceFormats": "PDF o imágenes (PNG, JPG)",
-      "invoiceOptional": "Opcional — puede omitir y agregar facturas después desde configuración."
+      "videoHint": "Vea cómo su asistente de IA maneja la oficina mientras usted sigue en el trabajo.",
+      "uploadKicker": "Su oficina frontal, 24/7",
+      "uploadTitle": "Enséñele cómo trabaja usted",
+      "uploadDescription": "Suba facturas, propuestas, listas de precios o fotos de trabajos — el mismo papeleo que ya usa. Su asistente aprende sus tarifas, tono y alcance para que cada cotización suene como usted.",
+      "docTypeInvoices": "Facturas y estimados",
+      "docTypeProposals": "Propuestas y alcance",
+      "docTypePriceLists": "Listas de precios",
+      "docTypePhotos": "Fotos de trabajos",
+      "chooseFiles": "Elegir archivos o arrastrar y soltar",
+      "fileFormats": "PDF, Word (.doc/.docx) o imágenes",
+      "uploadOptional": "Opcional — omita ahora y agregue documentos cuando quiera desde Configuración.",
+      "filesSelected": "{count, plural, one {# archivo listo} other {# archivos listos}}",
+      "privacyNote": "Los archivos son privados de su cuenta y alimentan su IA — nunca se comparten con otros contratistas."
     },
     "buttons": {
       "back": "Regresar",
@@ -1387,7 +1394,7 @@
   "billing": {
     "freeTrial": "Prueba Gratis de 14 Días",
     "pageTitle": "Comience a Hacer Crecer Su Negocio",
-    "pageSubtitle": "Obtenga acceso completo a todas las funciones. Cancele en cualquier momento. No se cobra tarjeta de crédito durante la prueba.",
+    "pageSubtitle": "Obtenga acceso completo a todas las funciones. Cancele en cualquier momento.",
     "monthly": "Mensual",
     "monthlyDescription": "Facturación mensual flexible",
     "yearly": "Anual",
@@ -1397,6 +1404,9 @@
     "billedAnnually": "Facturado anualmente ($1,188/año)",
     "startFreeTrial": "Iniciar Prueba Gratis",
     "processing": "Procesando...",
+    "includedInBoth": "Incluido en ambos planes",
+    "yearlyExclusive": "El plan anual también incluye",
+    "trialFooter": "Prueba gratis de 14 días · Cancele cuando quiera",
     "features": {
       "aiQuoteGeneration": "Generación de Cotizaciones con IA",
       "realtimePricing": "Precios de Materiales en Tiempo Real",
