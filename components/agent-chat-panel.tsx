@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactMarkdown from "react-markdown"
+import { api } from "@/lib/api"
+import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/lib/api"
 
 interface QuoteEstimateContext {
     projectType: string
@@ -19,6 +21,7 @@ interface QuoteEstimateContext {
     laborChargeType: string
     projectBrief?: Record<string, any> | null
     includeProjectBriefInContext?: boolean
+    projectId?: number | null
 }
 
 interface ProposalContext {
@@ -27,6 +30,8 @@ interface ProposalContext {
     description: string
     projectBrief?: Record<string, any> | null
     includeProjectBriefInContext?: boolean
+    projectId?: number | null
+    proposalId?: number | null
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
@@ -175,7 +180,7 @@ interface Conversation {
 }
 
 // ─── View type ─────────────────────────────────────────────────
-type PanelView = "chat" | "conversations"
+type PanelView = "chat" | "conversations" | "scope"
 
 // ─── Status color map (value → color class) ─────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -266,6 +271,14 @@ export function AgentChatPanel() {
     })
     const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
     const [proposalLoading, setProposalLoading] = useState(false)
+
+    // Scope clarification inline view
+    const [scopeQuestions, setScopeQuestions] = useState<ScopeQuestion[]>([])
+    const [scopeAnswers, setScopeAnswers] = useState<Record<string, ScopeQuestionAnswer>>({})
+    const [scopeLoading, setScopeLoading] = useState(false)
+    const [scopeSubmitting, setScopeSubmitting] = useState(false)
+    const [scopeTrigger, setScopeTrigger] = useState<"estimate" | "proposal">("estimate")
+    const [scopeStep, setScopeStep] = useState(0)
 
     // Parse page context from current route
     const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
@@ -442,9 +455,8 @@ export function AgentChatPanel() {
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [])
 
-    const handleGenerateEstimate = useCallback(() => {
+    const _fireEstimate = useCallback((scope: ScopeClarifiedScope | null) => {
         setEstimateLoading(true)
-        // Update the Quote-creator's state via the event, then trigger the estimate
         window.dispatchEvent(new CustomEvent("trigger-ai-estimate", {
             detail: {
                 projectType: estimateContext.projectType,
@@ -453,23 +465,77 @@ export function AgentChatPanel() {
                 laborChargeType: estimateContext.laborChargeType,
                 projectBrief: estimateContext.projectBrief,
                 includeProjectBriefInContext: estimateContext.includeProjectBriefInContext ?? true,
+                clarifiedScope: scope,
             },
         }))
-        // Close panel so user can see the quote form populate
         setTimeout(() => {
             setIsOpen(false)
             setEstimateLoading(false)
         }, 400)
     }, [estimateContext])
 
-    const handleGenerateProposal = useCallback(() => {
+    const _fireProposal = useCallback((scope: ScopeClarifiedScope | null) => {
         setProposalLoading(true)
-        window.dispatchEvent(new CustomEvent("trigger-ai-proposal"))
+        window.dispatchEvent(new CustomEvent("trigger-ai-proposal", { detail: { clarifiedScope: scope } }))
         setTimeout(() => {
             setIsOpen(false)
             setProposalLoading(false)
         }, 400)
     }, [])
+
+    const handleGenerateEstimate = useCallback(() => {
+        const pid = estimateContext.projectId
+        if (pid) {
+            setScopeTrigger("estimate")
+            setScopeLoading(true)
+            setScopeQuestions([])
+            setScopeAnswers({})
+            setScopeStep(0)
+            setPanelView("scope")
+            api.getScopeQuestions(pid).then((res) => {
+                if (res.existing_scope && !res.is_stale) {
+                    setPanelView("chat")
+                    _fireEstimate(res.existing_scope)
+                } else {
+                    setScopeQuestions(res.questions ?? [])
+                    setScopeAnswers({})
+                    setScopeStep(0)
+                }
+            }).catch(() => {
+                setPanelView("chat")
+                _fireEstimate(null)
+            }).finally(() => setScopeLoading(false))
+        } else {
+            _fireEstimate(null)
+        }
+    }, [estimateContext.projectId, _fireEstimate])
+
+    const handleGenerateProposal = useCallback(() => {
+        const pid = proposalContext.projectId
+        if (pid) {
+            setScopeTrigger("proposal")
+            setScopeLoading(true)
+            setScopeQuestions([])
+            setScopeAnswers({})
+            setScopeStep(0)
+            setPanelView("scope")
+            api.getScopeQuestions(pid).then((res) => {
+                if (res.existing_scope && !res.is_stale) {
+                    setPanelView("chat")
+                    _fireProposal(res.existing_scope)
+                } else {
+                    setScopeQuestions(res.questions ?? [])
+                    setScopeAnswers({})
+                    setScopeStep(0)
+                }
+            }).catch(() => {
+                setPanelView("chat")
+                _fireProposal(null)
+            }).finally(() => setScopeLoading(false))
+        } else {
+            _fireProposal(null)
+        }
+    }, [proposalContext.projectId, _fireProposal])
 
     const handleQuickAction = useCallback((message: string) => {
         setInput(message)
@@ -900,6 +966,178 @@ export function AgentChatPanel() {
                     )}
                 </div>
             )}
+
+            {/* ── Scope Clarification Inline View ── */}
+            {panelView === "scope" && (() => {
+                const q = scopeQuestions[scopeStep]
+                const isLast = scopeStep === scopeQuestions.length - 1
+                const fireSkipAll = async () => {
+                    try { await api.skipScopeSession(
+                        (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
+                    ) } catch { /* non-critical */ }
+                    setPanelView("chat")
+                    if (scopeTrigger === "estimate") _fireEstimate(null)
+                    else _fireProposal(null)
+                }
+                const fireSubmit = async () => {
+                    const pid = (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
+                    setScopeSubmitting(true)
+                    try {
+                        const answerList = scopeQuestions.map((sq) => ({
+                            ...(scopeAnswers[sq.id] ?? {}),
+                            question_id: sq.id,
+                        }))
+                        const scope = await api.submitScopeAnswers(pid, {
+                            answers: answerList,
+                            questions: scopeQuestions,
+                            trigger: scopeTrigger,
+                        })
+                        setPanelView("chat")
+                        if (scopeTrigger === "estimate") _fireEstimate(scope)
+                        else _fireProposal(scope)
+                    } catch {
+                        setPanelView("chat")
+                        if (scopeTrigger === "estimate") _fireEstimate(null)
+                        else _fireProposal(null)
+                    } finally {
+                        setScopeSubmitting(false)
+                    }
+                }
+                return (
+                    <div className="flex flex-col flex-1 overflow-hidden">
+                        {/* Header: title + progress dots */}
+                        <div className="px-4 pt-4 pb-3 border-b border-border">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-semibold text-foreground">Clarify Scope</p>
+                                {scopeQuestions.length > 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {scopeStep + 1} / {scopeQuestions.length}
+                                    </span>
+                                )}
+                            </div>
+                            {/* Progress bar */}
+                            {scopeQuestions.length > 0 && (
+                                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                                    <div
+                                        className="h-full bg-sky-500 rounded-full transition-all duration-300"
+                                        style={{ width: `${((scopeStep + 1) / scopeQuestions.length) * 100}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Question body */}
+                        <div className="flex-1 overflow-y-auto px-4 py-5">
+                            {scopeLoading && (
+                                <div className="flex items-center justify-center h-full text-muted-foreground">
+                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                    <span className="text-sm">Analyzing project context…</span>
+                                </div>
+                            )}
+                            {!scopeLoading && q && (
+                                <div className="space-y-3">
+                                    <p className="text-sm font-medium leading-snug text-foreground">
+                                        {q.text}
+                                        {q.type === "multi_select" && (
+                                            <span className="text-muted-foreground font-normal"> (select all that apply)</span>
+                                        )}
+                                    </p>
+                                    {q.type === "multi_select" && q.options && (
+                                        <div className="space-y-2">
+                                            {q.options.map((opt, oi) => {
+                                                const selected = scopeAnswers[q.id]?.selected_options?.includes(opt.id) ?? false
+                                                return (
+                                                    <button
+                                                        key={opt.id}
+                                                        type="button"
+                                                        onClick={() => setScopeAnswers((prev) => {
+                                                            const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
+                                                            const sel = existing.selected_options ?? []
+                                                            const next = sel.includes(opt.id) ? sel.filter((id) => id !== opt.id) : [...sel, opt.id]
+                                                            return { ...prev, [q.id]: { ...existing, selected_options: next } }
+                                                        })}
+                                                        className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                                                            selected
+                                                                ? "border-sky-500 bg-sky-500/8"
+                                                                : "border-border bg-card hover:bg-muted/50"
+                                                        }`}
+                                                    >
+                                                        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${
+                                                            selected ? "bg-sky-500 text-white" : "bg-muted text-muted-foreground"
+                                                        }`}>
+                                                            {["A","B","C","D"][oi] ?? oi + 1}
+                                                        </span>
+                                                        <span className="text-sm text-foreground">{opt.label}</span>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                    {q.type === "free_text" && (
+                                        <textarea
+                                            placeholder="Type your answer…"
+                                            rows={3}
+                                            value={scopeAnswers[q.id]?.free_text ?? ""}
+                                            onChange={(e) => setScopeAnswers((prev) => ({
+                                                ...prev,
+                                                [q.id]: { question_id: q.id, free_text: e.target.value },
+                                            }))}
+                                            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer: back / skip-question / next-or-submit */}
+                        <div className="px-4 py-3 border-t border-border bg-card flex items-center justify-between gap-2">
+                            {/* Left: Back (hidden on first) or skip-all */}
+                            <div className="flex items-center gap-3">
+                                {scopeStep > 0 ? (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => setScopeStep((s) => s - 1)}
+                                        disabled={scopeSubmitting}
+                                    >
+                                        Back
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                                        disabled={scopeSubmitting}
+                                        onClick={fireSkipAll}
+                                    >
+                                        Skip all
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Right: skip-this / next-or-submit */}
+                            <div className="flex items-center gap-2">
+                                {!isLast && (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                                        disabled={scopeSubmitting || scopeLoading}
+                                        onClick={() => setScopeStep((s) => s + 1)}
+                                    >
+                                        Skip
+                                    </button>
+                                )}
+                                <button
+                                    disabled={scopeLoading || scopeSubmitting || scopeQuestions.length === 0}
+                                    onClick={isLast ? fireSubmit : () => setScopeStep((s) => s + 1)}
+                                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600
+                                               px-4 py-2 text-sm font-semibold text-white shadow-sm
+                                               hover:shadow-md transition-all disabled:opacity-40 disabled:shadow-none"
+                                >
+                                    {scopeSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                    {isLast ? "Submit & Generate" : "Next →"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
 
             {/* ── Quote Estimate Context (shown on quote pages) ── */}
             {panelView === "chat" && isOnQuotePage && (
@@ -1375,5 +1613,6 @@ export function AgentChatPanel() {
                 </>
             )}
         </div>
+
     )
 }

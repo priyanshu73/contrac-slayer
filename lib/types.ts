@@ -74,11 +74,14 @@ export interface PropertyInsightsResponse {
 
 export interface Attachment {
   id: number
-  file_url: string
+  file_name: string
+  file_path: string
+  file_size?: number
   file_type: string
-  original_filename: string
-  file_size: number
-  created_at: string
+  mime_type?: string
+  context: string
+  public_url?: string
+  thumbnail_url?: string
 }
 
 export interface AttachmentCreate {

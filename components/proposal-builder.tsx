@@ -1081,10 +1081,12 @@ export function ProposalBuilder({
       description: project?.objective || job?.job_description || "",
       projectBrief: project?.brief || null,
       includeProjectBriefInContext: true,
+      projectId: proposal?.project_id ?? null,
+      proposalId: proposal?.id ?? null,
     }
     ;(window as any).proposalBuilderContext = ctx
     window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
-  }, [document.title, proposal?.title, project?.title, document.projectOverview?.title, project?.objective, job?.job_description, project?.brief])
+  }, [document.title, proposal?.title, project?.title, document.projectOverview?.title, project?.objective, job?.job_description, project?.brief, proposal?.project_id, proposal?.id])
 
   useEffect(() => {
     if (isProposalMode && proposal) {
@@ -1152,7 +1154,7 @@ export function ProposalBuilder({
     }
   }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
 
-  const generateProposalOverview = useCallback(async () => {
+  const generateProposalOverview = useCallback(async (clarifiedScope?: any) => {
     try {
       const generated = isProposalMode && proposal
         ? (await api.getProposalOverviewForProject(proposal.project_id, proposal.id)) as ProposalOverviewResponse
@@ -1172,7 +1174,10 @@ export function ProposalBuilder({
   }, [isProposalMode, proposal, job])
 
   useEffect(() => {
-    const handler = () => { void generateProposalOverview() }
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { clarifiedScope?: any } | undefined
+      void generateProposalOverview(detail?.clarifiedScope ?? null)
+    }
     window.addEventListener("trigger-ai-proposal", handler)
     return () => window.removeEventListener("trigger-ai-proposal", handler)
   }, [generateProposalOverview])

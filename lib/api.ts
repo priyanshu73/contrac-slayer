@@ -29,6 +29,42 @@ import type {
   FrontlineTeachNote,
 } from './types/frontline'
 
+// ─── Scope Clarification types ─────────────────────────────────────────────
+
+export interface ScopeQuestionOption {
+  id: string
+  label: string
+}
+
+export interface ScopeQuestion {
+  id: string
+  text: string
+  type: 'multi_select' | 'free_text'
+  options?: ScopeQuestionOption[]
+}
+
+export interface ScopeQuestionAnswer {
+  question_id: string
+  selected_options?: string[]
+  free_text?: string
+}
+
+export interface ScopeClarifiedScope {
+  version: number
+  status: 'finalized' | 'stale' | 'skipped'
+  finalized_at: string
+  trigger: string
+  scope_narrative: string
+  scope_inclusions: string[]
+  scope_exclusions: string[]
+  client_priorities: string
+  client_concerns: string
+  known_risks: string[]
+  timeline_notes: string
+  open_items: string[]
+  brief_hash: string
+}
+
 const DEFAULT_API_URL = 'http://localhost:4000/api'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
@@ -824,7 +860,7 @@ class ApiClient {
   async generateAIProposalForProject(
     projectId: number,
     proposalId: number,
-    opts?: { description?: string; job_id?: number; selected_item_ids?: number[] }
+    opts?: { description?: string; job_id?: number; selected_item_ids?: number[]; clarified_scope?: ScopeClarifiedScope | null }
   ): Promise<{
     scope_summary_html: string
     project_overview_title: string
@@ -839,6 +875,7 @@ class ApiClient {
         description: opts?.description ?? null,
         job_id: opts?.job_id ?? null,
         selected_item_ids: opts?.selected_item_ids ?? null,
+        clarified_scope: opts?.clarified_scope ?? null,
       }),
     })
   }
@@ -993,6 +1030,7 @@ class ApiClient {
     labor_rate_value?: number
     labor_unit_type?: string
     project_brief?: any
+    clarified_scope?: ScopeClarifiedScope | null
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)
     const startTime = Date.now()
@@ -2102,6 +2140,34 @@ class ApiClient {
       method: 'DELETE',
     })
   }
+
+  // ─── Scope Clarification ───────────────────────────────────────────────────
+
+  async getScopeQuestions(projectId: number): Promise<{
+    existing_scope: ScopeClarifiedScope | null
+    questions: ScopeQuestion[] | null
+    is_stale: boolean
+  }> {
+    return this.request(`/projects/${projectId}/scope-clarification`)
+  }
+
+  async submitScopeAnswers(projectId: number, payload: {
+    answers: ScopeQuestionAnswer[]
+    questions: ScopeQuestion[]
+    trigger: string
+  }): Promise<ScopeClarifiedScope> {
+    return this.request(`/projects/${projectId}/scope-clarification/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async skipScopeSession(projectId: number): Promise<{ ok: boolean }> {
+    return this.request(`/projects/${projectId}/scope-clarification/skip`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
 }
 
 class ContractorAIClient {
@@ -2494,6 +2560,7 @@ class ContractorAIClient {
       body: JSON.stringify(data),
     })
   }
+
 
 }
 

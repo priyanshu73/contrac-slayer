@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
-import { api, contractorAI } from "@/lib/api"
+import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
@@ -1255,27 +1255,23 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     return () => { cancelled = true }
   }, [selectedProjectId, selectedClientId])
 
+  // Ref to hold clarified scope passed from AgentChatPanel via trigger event
+  const clarifiedScopeRef = useRef<ScopeClarifiedScope | null>(null)
+
   // Sync quote context to window so AgentChatPanel can read it
   useEffect(() => {
-    ;(window as any).quoteEstimateContext = {
+    const ctx = {
       projectType,
       serviceDescription,
       laborRate: laborRateValue,
       laborChargeType,
       projectBrief,
       includeProjectBriefInContext: useBriefAsContext,
+      projectId: selectedProjectId ? Number(selectedProjectId) : null,
     }
-    window.dispatchEvent(new CustomEvent("quote-context-updated", {
-      detail: {
-        projectType,
-        serviceDescription,
-        laborRate: laborRateValue,
-        laborChargeType,
-        projectBrief,
-        includeProjectBriefInContext: useBriefAsContext,
-      },
-    }))
-  }, [projectType, serviceDescription, laborRateValue, laborChargeType, projectBrief, useBriefAsContext])
+    ;(window as any).quoteEstimateContext = ctx
+    window.dispatchEvent(new CustomEvent("quote-context-updated", { detail: ctx }))
+  }, [projectType, serviceDescription, laborRateValue, laborChargeType, projectBrief, useBriefAsContext, selectedProjectId])
 
   // Listen for trigger from AI panel to run the estimate
   useEffect(() => {
@@ -1287,12 +1283,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         laborChargeType?: string
         includeProjectBriefInContext?: boolean
         projectBrief?: any
+        clarifiedScope?: ScopeClarifiedScope | null
       }
       if (detail.projectType !== undefined) setProjectType(detail.projectType)
       if (detail.serviceDescription !== undefined) setServiceDescription(detail.serviceDescription)
       if (detail.laborRate !== undefined) setLaborRateValue(detail.laborRate)
       if (detail.includeProjectBriefInContext !== undefined) setUseBriefAsContext(detail.includeProjectBriefInContext)
       if (detail.projectBrief !== undefined) setProjectBrief(detail.projectBrief)
+      clarifiedScopeRef.current = detail.clarifiedScope ?? null
       setTimeout(() => {
         const ctx = (window as any).quoteEstimateContext || {}
         const desc = detail.serviceDescription ?? ctx.serviceDescription ?? ""
@@ -1337,6 +1335,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         labor_rate_value: laborRateValue,
         labor_unit_type: laborUnitType,
         project_brief: useBriefAsContext && projectBrief ? projectBrief : undefined,
+        clarified_scope: clarifiedScopeRef.current,
       }) as any
 
       // Validate response structure to prevent crashes

@@ -357,7 +357,7 @@ export default function ProjectDetailPage() {
 
             {/* Files */}
             <TabsContent value="files" className="mt-0">
-              <ProjectDocuments project={project} />
+              <ProjectDocuments project={project} onRefresh={refreshProject} />
             </TabsContent>
           </main>
         </div>

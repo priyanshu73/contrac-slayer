@@ -9,16 +9,15 @@ import { useState, useRef } from "react"
 import { Loader2, Plus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { api } from "@/lib/api"
-import { useRouter } from "next/navigation"
 
 interface ProjectDocumentsProps {
   project: Project
+  onRefresh?: () => Promise<void>
 }
 
-export function ProjectDocuments({ project }: ProjectDocumentsProps) {
+export function ProjectDocuments({ project, onRefresh }: ProjectDocumentsProps) {
   const t = useTranslations("projects.documents")
   const { toast } = useToast()
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -37,7 +36,7 @@ export function ProjectDocuments({ project }: ProjectDocumentsProps) {
 
   const attDocs = allAttachments.filter(a => ["DOCUMENT", "PDF", "OTHER"].includes(a.file_type)).map(a => ({
     id: `a-${a.id}`,
-    url: a.file_path,
+    url: a.public_url || a.file_path,
     name: a.file_name,
     size: a.file_size,
     type: a.file_type
@@ -56,7 +55,7 @@ export function ProjectDocuments({ project }: ProjectDocumentsProps) {
 
   const attPhotos = allAttachments.filter(a => ["IMAGE", "VIDEO"].includes(a.file_type)).map(a => ({
     id: `a-${a.id}`,
-    url: a.file_path,
+    url: a.public_url || a.file_path,
     name: a.file_name,
     size: a.file_size,
     type: a.file_type
@@ -72,7 +71,7 @@ export function ProjectDocuments({ project }: ProjectDocumentsProps) {
     try {
       await api.uploadProjectAttachment(project.id, files)
       toast({ title: t("uploadSuccess") || "Upload successful" })
-      router.refresh() // Refresh project data to show new attachments
+      if (onRefresh) await onRefresh()
     } catch (err: any) {
       toast({ 
         title: t("uploadError") || "Upload failed", 
