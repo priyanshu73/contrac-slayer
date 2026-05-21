@@ -106,29 +106,14 @@ During **Step 2** of onboarding, the contractor selects:
 1. **State** — determines which area codes are available
 2. **Area codes** — preferred area code(s) for their Twilio number
 
-On form submit (Step 3), the selection is posted to **SheetDB** (a Google Sheets API proxy):
+After profile creation (Step 3), the UI opens an in-app **number picker**:
+- `api.getAvailableTwilioNumbers(areaCode)` → ContractorBackend `GET /contractors/profile/twilio-available` → ContractorAI `GET /api/twilio/available`
+- User picks a number → `api.provisionTwilioNumber(...)` → ContractorBackend `POST /contractors/profile/twilio-provision` → ContractorAI `POST /api/twilio/provision`
 
-```typescript
-// Step 2 collects: selectedState, selectedAreaCodes
-// On submit:
-const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
-fetch(sheetDbUrl, {
-  method: "POST",
-  body: JSON.stringify({
-    data: [{
-      contractor_name,
-      phone_number,
-      state: selectedState,
-      area_code: selectedAreaCodes,
-      email,
-      created_at: new Date().toISOString(),
-    }]
-  })
-})
-```
+Dry-run by default unless `TWILIO_PROVISIONING_ENABLED=true` on ContractorAI.
 
-> [!IMPORTANT]
-> **This is a manual provisioning flow.** The SheetDB post creates a request record. An admin then manually purchases and assigns the Twilio number in the ContractorAI admin panel and the Twilio console. There is no automated Twilio number purchase yet.
+> [!NOTE]
+> **SheetDB is no longer used for Twilio onboarding.** Referral tracking on the signup page may still use `NEXT_PUBLIC_SHEETDB_API` — that is separate from number provisioning.
 
 ### Area Code Data: `lib/area-codes.ts`
 - Maps US states to their area codes
@@ -138,7 +123,7 @@ fetch(sheetDbUrl, {
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_SHEETDB_TWILIO` | SheetDB endpoint for Twilio number request submissions |
+| `NEXT_PUBLIC_CONTRACTOR_AI_URL` | ContractorAI base URL (follow-ups; optional direct calls) |
 | `NEXT_PUBLIC_BACKEND_URL` | ContractorBackend API base URL (for number lookup proxy) |
 | `NEXT_PUBLIC_CONTRACTOR_AI_URL` | ContractorAI API base URL (for follow-ups, conversations) |
 
@@ -200,7 +185,8 @@ Contractor clicks "Send SMS" in client card
 
 ## TODO / Known Gaps
 
-- [ ] **No automated Twilio number purchase**: Onboarding submits a SheetDB request, admin manually provisions
+- [x] **Onboarding number picker** — profile-setup uses provisioning API (dry-run unless `TWILIO_PROVISIONING_ENABLED=true`)
+- [ ] **Live purchase in production** — confirm `TWILIO_PROVISIONING_ENABLED` and Twilio console webhooks on deploy
 - [ ] **No Twilio status callbacks in frontend**: Delivery status (delivered/failed) not shown in UI
 - [ ] **No Twilio webhook configuration UI**: Admin must configure webhooks in Twilio console manually
 - [ ] **Cache invalidation**: Twilio number cache only cleared on logout; no push-based invalidation if number changes

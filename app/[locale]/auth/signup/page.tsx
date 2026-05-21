@@ -47,6 +47,9 @@ export default function SignupPage() {
     }
   }, [searchParams])
 
+  // TODO: migrate referral tracking from SheetDB to ContractorBackend API.
+  // This is a separate concern from Twilio provisioning (already migrated to
+  // /api/twilio/provision). SheetDB works for now and costs nothing.
   // Function to track referral in SheetDB
   const trackReferral = async (customerName: string) => {
     if (!referralId) return
