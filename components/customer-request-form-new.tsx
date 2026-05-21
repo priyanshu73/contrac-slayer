@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -37,6 +37,16 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState("")
   const [addressData, setAddressData] = useState<AddressData | null>(null)
+
+  // Build the full booking URL from the calendar_link slug
+  const bookingUrl = useMemo(() => {
+    const slug = contractor?.calendar_link
+    if (!slug) return undefined
+    const base =
+      process.env.NEXT_PUBLIC_FRONTEND_URL ??
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+    return `${base}/book/${slug}`
+  }, [contractor?.calendar_link])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -173,7 +183,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
             </div>
 
             {/* Right: Schedule Call CTA */}
-            {contractor.calendar_link && (
+            {bookingUrl && (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button 
@@ -190,7 +200,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
                   </DialogHeader>
                   <div className="p-4 pt-2">
                     <iframe
-                      src={contractor.calendar_link}
+                      src={bookingUrl}
                       title="Schedule a call"
                       className="w-full h-[70vh] rounded-md border"
                       style={{ border: "none" }}
