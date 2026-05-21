@@ -12,6 +12,8 @@ export interface TwilioAvailableNumber {
   locality?: string | null
   region?: string | null
   postal_code?: string | null
+  /** Set client-side when aggregating searches across multiple area codes. */
+  area_code?: string
   capabilities: {
     voice: boolean
     sms: boolean

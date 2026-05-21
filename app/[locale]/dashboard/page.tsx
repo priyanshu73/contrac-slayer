@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPhoneForDisplay } from "@/lib/utils";
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber";
 import { CalendarPlus2, FilePlus2, FileText, UserPlus } from "lucide-react";
+import { OpsAiNumberSetupPrompt } from "@/components/ops-ai-number-setup-prompt";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -110,6 +111,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-background to-sky-50/40 pb-24 md:pb-6">
       <main className="container mx-auto px-4 pt-3 pb-6">
         <div className="space-y-6">
+          <OpsAiNumberSetupPrompt />
           {/* Unified 6-card grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
 

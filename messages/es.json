@@ -729,9 +729,14 @@
       "description": "Tu línea de IA dedicada para llamadas, mensajes y seguimiento de prospectos.",
       "subtitle": "Tu Línea de IA",
       "notSet": "No configurado",
-      "setUp": "Configurar",
+      "setUp": "Obtener número",
       "numberCopied": "¡Número copiado!",
       "numberCopiedDesc": "Tu número de IA se ha copiado al portapapeles."
+    },
+    "opsAiNumberPrompt": {
+      "title": "Obtenga su línea de IA gratis",
+      "description": "Elija un número local para que los clientes llamen y envíen mensajes a su asistente de IA.",
+      "cta": "Elegir mi número"
     },
     "quoteRequest": {
       "title": "Formulario de Solicitud de Cotización",
@@ -1321,7 +1326,7 @@
       "whatIsNumber": "¿Qué es el Número ContractorOpsAI?",
       "numberDescription": "Una línea telefónica dedicada para su negocio que usa IA para manejar automáticamente llamadas de clientes, solicitudes de cotización y seguimiento de prospectos.",
       "nextSteps": "Próximos Pasos:",
-      "nextStepsDescription": "Termine la configuración y asignaremos su número según el estado y código de área que eligió.",
+      "nextStepsDescription": "Termine la configuración primero. Cuando tenga acceso, podrá elegir su línea de IA desde el panel.",
       "errors": {
         "stateRequired": "Por favor seleccione un estado",
         "areaCodeRequired": "Por favor seleccione al menos un código de área"
@@ -1346,10 +1351,37 @@
       "switchToEnglish": "Switch to English",
       "switchToSpanish": "Cambiar a Español"
     },
+    "numberPicker": {
+      "setupTitle": "Elija sus códigos de área",
+      "setupDescription": "Buscaremos en cada código que seleccione. No se compra nada hasta que elija un número.",
+      "pickDescription": "Toque un número para asignarlo a su cuenta.",
+      "findNumbers": "Buscar números disponibles",
+      "maybeLater": "Más tarde",
+      "title": "Elija su número de negocio",
+      "subtitle": "Números disponibles en el código de área {areaCode}{stateSuffix}. Los clientes lo verán en cotizaciones y su panel.",
+      "subtitleMultiple": "Números de los códigos de área {areaCodes}{stateSuffix}. Elija cualquiera abajo.",
+      "resultsSummary": "{count, plural, one {# número encontrado} other {# números encontrados}} en {areaCodes}",
+      "areaCodeSection": "Código de área {areaCode}",
+      "stateSuffix": " ({state})",
+      "searching": "Buscando números disponibles…",
+      "emptyTitle": "No hay números en el código de área {areaCode}",
+      "emptyDescription": "Twilio no tiene números locales en este código ahora. Pruebe otro código o busque de nuevo — el inventario cambia.",
+      "emptyTriedMultiple": "Revisamos los códigos {areaCodes} y ninguno tenía números disponibles.",
+      "searchFailed": "No se pudo contactar el servicio de búsqueda. Intente de nuevo o omita y elija un número después desde el panel.",
+      "provisionFailed": "No se pudo reservar ese número. Elija otro o intente de nuevo.",
+      "tryAnotherAreaCode": "Elegir otro código de área",
+      "searchAgain": "Buscar de nuevo",
+      "skipForNow": "Omitir por ahora",
+      "profileSaved": "Su perfil ya está guardado. Elija un número abajo u omita y continúe al panel.",
+      "reservedDev": "Número reservado (modo desarrollo)",
+      "assigned": "¡Número asignado!",
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED está desactivado — no se compró, pero puede probar el flujo completo."
+    },
     "errors": {
       "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
       "anErrorOccurred": "Ocurrió un error",
-      "completeProfileToGetStarted": "Complete su perfil para comenzar."
+      "completeProfileToGetStarted": "Complete su perfil para comenzar.",
+      "profileAlreadySaved": "Su perfil ya está guardado. Continúe abajo para elegir su número."
     }
   },
   "billing": {

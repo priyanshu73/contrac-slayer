@@ -746,9 +746,14 @@
       "description": "Your dedicated AI line for customer calls, texts, and lead tracking.",
       "subtitle": "Your AI Phone Line",
       "notSet": "Not set up",
-      "setUp": "Set up",
+      "setUp": "Get your number",
       "numberCopied": "Number copied!",
       "numberCopiedDesc": "Your AI number has been copied to your clipboard."
+    },
+    "opsAiNumberPrompt": {
+      "title": "Get your free AI business line",
+      "description": "Pick a local number so customers can call and text your AI assistant. You can change area codes anytime.",
+      "cta": "Choose my number"
     },
     "quoteRequest": {
       "title": "Quote Request Form",
@@ -1338,7 +1343,7 @@
       "whatIsNumber": "What is ContractorOpsAI Number?",
       "numberDescription": "A dedicated phone line for your business that uses AI to automatically handle customer calls, quote requests, and lead tracking.",
       "nextSteps": "Next Steps:",
-      "nextStepsDescription": "Finish setup, and we'll assign your number based on your chosen state and area code.",
+      "nextStepsDescription": "Finish setup first. After you have access, you can choose your AI business line from the dashboard.",
       "errors": {
         "stateRequired": "Please select a state",
         "areaCodeRequired": "Please select at least one area code"
@@ -1363,10 +1368,37 @@
       "switchToEnglish": "Switch to English",
       "switchToSpanish": "Cambiar a Español"
     },
+    "numberPicker": {
+      "setupTitle": "Choose your area codes",
+      "setupDescription": "We will search every code you select and show what is available. Nothing is purchased until you pick a number.",
+      "pickDescription": "Tap a number to assign it to your account.",
+      "findNumbers": "Search available numbers",
+      "maybeLater": "Maybe later",
+      "title": "Pick your business number",
+      "subtitle": "Available numbers in area code {areaCode}{stateSuffix}. Customers will see this on quotes and your dashboard.",
+      "subtitleMultiple": "Showing numbers from area codes {areaCodes}{stateSuffix}. Pick any line below.",
+      "resultsSummary": "{count, plural, one {# number found} other {# numbers found}} across {areaCodes}",
+      "areaCodeSection": "Area code {areaCode}",
+      "stateSuffix": " ({state})",
+      "searching": "Searching available numbers…",
+      "emptyTitle": "No numbers available in area code {areaCode}",
+      "emptyDescription": "Twilio has no local numbers in this area code right now. Try another area code or search again — inventory changes often.",
+      "emptyTriedMultiple": "We checked area codes {areaCodes} and none had numbers available.",
+      "searchFailed": "Couldn't reach the number search service. Try again or skip and pick a number later from the dashboard.",
+      "provisionFailed": "Couldn't reserve that number. Pick a different one or try again.",
+      "tryAnotherAreaCode": "Choose a different area code",
+      "searchAgain": "Search again",
+      "skipForNow": "Skip for now",
+      "profileSaved": "Your business profile is saved. Pick a number below or skip and continue to the dashboard.",
+      "reservedDev": "Number reserved (dev mode)",
+      "assigned": "Number assigned!",
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED is off — no purchase was made, but you can exercise the full flow."
+    },
     "errors": {
       "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
       "anErrorOccurred": "An error occurred",
-      "completeProfileToGetStarted": "Complete your profile to get started."
+      "completeProfileToGetStarted": "Complete your profile to get started.",
+      "profileAlreadySaved": "Your profile is already saved. Continue below to choose your number."
     }
   },
   "billing": {

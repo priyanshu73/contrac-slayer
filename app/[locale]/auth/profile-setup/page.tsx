@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +27,7 @@ import { useTranslations, useLocale } from "next-intl"
 import { useLanguage } from "@/hooks/useLanguage"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
-import type { TwilioAvailableNumber, TwilioProvisionResult } from "@/lib/types/twilio"
+import { saveContractorOpsNumberPrefs } from "@/lib/contractor-ops-number-prefs"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
@@ -60,13 +60,8 @@ export default function ProfileSetupPage() {
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
 
-  // Twilio number picker (replaces the old SheetDB request flow)
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [pickerNumbers, setPickerNumbers] = useState<TwilioAvailableNumber[]>([])
-  const [pickerLoading, setPickerLoading] = useState(false)
-  const [pickerError, setPickerError] = useState("")
-  const [provisioning, setProvisioning] = useState(false)
-  const [provisionResult, setProvisionResult] = useState<TwilioProvisionResult | null>(null)
+  // True during step-3 submit until redirect (avoids race with profile-exists redirect).
+  const completingSetupRef = useRef(false)
 
   const AI_ESTIMATOR_VIDEO_URL =
     process.env.NEXT_PUBLIC_AI_ESTIMATOR_VIDEO_URL ||
@@ -84,6 +79,10 @@ export default function ProfileSetupPage() {
     // If not logged in, go to login
     if (!user) {
       router.replace(`/${locale}/auth/login`)
+      return
+    }
+
+    if (completingSetupRef.current) {
       return
     }
 
@@ -141,6 +140,10 @@ export default function ProfileSetupPage() {
         setError(t('opsAiNumber.errors.areaCodeRequired'))
         return
       }
+      saveContractorOpsNumberPrefs({
+        state: selectedState,
+        areaCodes: selectedAreaCodes,
+      })
     }
     setError("")
     setStep(step + 1)
@@ -162,67 +165,15 @@ export default function ProfileSetupPage() {
     setStep(step - 1)
   }
 
-  const loadAvailableNumbers = async (areaCode: string) => {
-    setPickerLoading(true)
-    setPickerError("")
-    try {
-      const numbers = await api.getAvailableTwilioNumbers(areaCode, 5)
-      setPickerNumbers(numbers)
-      if (!numbers.length) {
-        setPickerError(
-          `No numbers available in area code ${areaCode}. Try a different area code.`,
-        )
-      }
-    } catch (err: any) {
-      console.error("Failed to load available Twilio numbers:", err)
-      setPickerError(
-        "Couldn't reach the number search service. You can pick a number from the dashboard later.",
-      )
-    } finally {
-      setPickerLoading(false)
-    }
+  const profileAlreadyExistsError = (err: unknown): boolean => {
+    const msg = String((err as { message?: string })?.message ?? "").toLowerCase()
+    return msg.includes("already exists")
   }
 
-  const handlePickNumber = async (phoneNumber: string) => {
-    if (!selectedAreaCodes.length || !selectedState) return
-    setProvisioning(true)
-    setPickerError("")
-    try {
-      const result = await api.provisionTwilioNumber({
-        phoneNumber,
-        areaCode: selectedAreaCodes[0],
-        state: selectedState,
-      })
-      setProvisionResult(result)
-      // Give the user a beat to read the success/dry-run notice, then redirect.
-      setTimeout(() => {
-        router.push(`/${locale}/dashboard`)
-      }, 1500)
-    } catch (err: any) {
-      console.error("Provisioning failed:", err)
-      const msg = String(err?.message ?? "")
-      if (msg.includes("already_provisioned") || msg.includes("409")) {
-        // Treat as success — the contractor already has a number assigned.
-        router.push(`/${locale}/dashboard`)
-        return
-      }
-      setPickerError(
-        "Couldn't reserve that number. Pick a different one or try again.",
-      )
-    } finally {
-      setProvisioning(false)
-    }
-  }
-
-  const handleChangeAreaCode = () => {
-    // Send the user back to step 2 to pick a different area code.
-    setPickerOpen(false)
-    setPickerNumbers([])
-    setPickerError("")
-    setProvisionResult(null)
+  const finishOnboarding = () => {
+    completingSetupRef.current = false
     setSubmitProgress("")
-    setIsLoading(false)
-    setStep(2)
+    router.push(`/${locale}/dashboard`)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -230,6 +181,9 @@ export default function ProfileSetupPage() {
     setError("")
     setIsLoading(true)
     setSubmitProgress("Creating profile...")
+
+    // Block dashboard redirect while we finish (see useEffect).
+    completingSetupRef.current = true
 
     try {
       // Persist zipcode so we can derive tax rate after onboarding (single lookup post-redirect)
@@ -249,6 +203,7 @@ export default function ProfileSetupPage() {
             const formattedType = `other - ${otherContractorType.trim()}`
             // Ensure it doesn't exceed 50 characters
             if (formattedType.length > 50) {
+              completingSetupRef.current = false
               setError(t('errors.contractorTypeTooLong'))
               setIsLoading(false)
               setSubmitProgress("")
@@ -263,8 +218,15 @@ export default function ProfileSetupPage() {
         }
       }
 
-      // Step 1: Create profile (required)
-      setSubmitProgress("Creating profile...")
+      // Step 1: Create profile if this is the first attempt (retries skip POST).
+      let profileExists = false
+      try {
+        await api.getMyProfile()
+        profileExists = true
+      } catch {
+        profileExists = false
+      }
+
       const profilePayload: Record<string, any> = {
         company_name: formData.company_name,
         email: formData.email,
@@ -279,7 +241,20 @@ export default function ProfileSetupPage() {
       if (addressData) {
         profilePayload.address_data = addressData
       }
-      await api.createContractorProfile(profilePayload)
+
+      if (!profileExists) {
+        setSubmitProgress("Creating profile...")
+        try {
+          await api.createContractorProfile(profilePayload)
+        } catch (createErr) {
+          if (!profileAlreadyExistsError(createErr)) {
+            throw createErr
+          }
+          // First submit succeeded; user clicked Complete again — continue.
+        }
+      } else {
+        setSubmitProgress("Profile already saved, continuing...")
+      }
 
       // Step 2: Refresh user to get profile data
       setSubmitProgress("Loading profile data...")
@@ -313,20 +288,23 @@ export default function ProfileSetupPage() {
       // Wait for any background uploads to settle before opening the picker
       await Promise.allSettled(parallelOperations)
 
-      // Open the Twilio number picker — replaces the legacy SheetDB request.
-      // If for any reason the area code is missing, skip straight to dashboard
-      // and the existing manual flow is still available to admins.
-      if (selectedState && selectedAreaCodes.length) {
-        setSubmitProgress("Finding numbers in your area code...")
-        await loadAvailableNumbers(selectedAreaCodes[0])
-        setPickerOpen(true)
-      } else {
-        setSubmitProgress("Finalizing setup...")
-        router.push(`/${locale}/dashboard`)
+      finishOnboarding()
+    } catch (err: unknown) {
+      if (profileAlreadyExistsError(err)) {
+        try {
+          await refreshUser()
+          finishOnboarding()
+          setError("")
+          return
+        } catch (recoveryErr) {
+          console.error("Profile setup recovery failed:", recoveryErr)
+        }
       }
-    } catch (err: any) {
-      setError(t('errors.completeProfileToGetStarted'))
+      completingSetupRef.current = false
+      const msg = String((err as { message?: string })?.message ?? "").trim()
+      setError(msg || t("errors.completeProfileToGetStarted"))
       setSubmitProgress("")
+      console.error("Profile setup failed:", err)
     } finally {
       setIsLoading(false)
     }
@@ -458,112 +436,6 @@ export default function ProfileSetupPage() {
                 </Button>
               </div>
             )}
-            {pickerOpen ? (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Pick your business number
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    These are available in area code{" "}
-                    <span className="font-semibold">{selectedAreaCodes[0]}</span>
-                    {selectedState ? ` (${selectedState})` : ""}. Customers will
-                    see this number on your business cards and quotes.
-                  </p>
-                </div>
-
-                {pickerError && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    {pickerError}
-                  </div>
-                )}
-
-                {provisionResult && (
-                  <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
-                    <div className="font-semibold">
-                      {provisionResult.dry_run
-                        ? "Number reserved (dev mode)"
-                        : "Number assigned!"}
-                    </div>
-                    <div className="font-mono text-base mt-1">
-                      {provisionResult.twilio_number}
-                    </div>
-                    {provisionResult.dry_run && (
-                      <div className="text-xs mt-1 text-green-700">
-                        TWILIO_PROVISIONING_ENABLED is off — no purchase was
-                        made, but you can exercise the full flow.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {pickerLoading ? (
-                  <div className="flex items-center gap-3 text-gray-600 py-8 justify-center">
-                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    Searching available numbers…
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {pickerNumbers.map((n) => (
-                      <button
-                        key={n.phone_number}
-                        type="button"
-                        disabled={provisioning || !!provisionResult}
-                        onClick={() => handlePickNumber(n.phone_number)}
-                        className="text-left border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl p-4 transition-colors flex items-center justify-between gap-4"
-                      >
-                        <div>
-                          <div className="font-mono text-lg font-semibold text-gray-900">
-                            {n.phone_number}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {[n.locality, n.region].filter(Boolean).join(", ") ||
-                              "United States"}
-                          </div>
-                        </div>
-                        <div className="flex gap-2 text-xs">
-                          {n.capabilities?.sms && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                              SMS
-                            </span>
-                          )}
-                          {n.capabilities?.voice && (
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                              Voice
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={pickerLoading || provisioning || !!provisionResult}
-                    onClick={() => loadAvailableNumbers(selectedAreaCodes[0])}
-                  >
-                    Show more options
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={provisioning || !!provisionResult}
-                    onClick={handleChangeAreaCode}
-                  >
-                    Try a different area code
-                  </Button>
-                  {provisioning && (
-                    <span className="text-sm text-gray-500 flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                      Reserving…
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
             <form onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); handleNext() }}>
               {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
@@ -1013,7 +885,6 @@ export default function ProfileSetupPage() {
                 </Button>
               </div>
             </form>
-            )}
           </div>
         </div>
       </div>
