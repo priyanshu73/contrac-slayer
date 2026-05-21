@@ -53,7 +53,7 @@ export function AutoReplySettings() {
 
   const previewMessage = useMemo(() => {
     return draft
-      .replace(/\{quote_link\}/g, "https://contractorops.ai/quote/abc123")
+      .replace(/\{quote_link\}/g, "https://contractorops.ai/quote-request/a1b2c3d4-e5f6-7890-abcd-ef1234567890")
       .replace(/\{contractor_name\}/g, "Your Business")
       .replace(/\{customer_name\}/g, "Sam")
   }, [draft])
@@ -189,7 +189,7 @@ export function AutoReplySettings() {
               )}
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              {"{quote_link}"} → your unique quote-request URL.{" "}
+              {"{quote_link}"} → <span className="font-mono">contractorops.ai/quote-request/your-id</span>.{" "}
               {"{contractor_name}"} → your business name.{" "}
               {"{customer_name}"} → the customer's name if we know it, otherwise
               "there".
