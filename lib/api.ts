@@ -19,6 +19,7 @@ import type {
   StagedLeadActionResponse,
   User,
 } from './types'
+import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 
 const DEFAULT_API_URL = 'http://localhost:4000/api'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
@@ -449,6 +450,50 @@ class ApiClient {
 
   async getContractorOpsAiNumber(): Promise<{ twilio_number: string | null }> {
     return this.request<{ twilio_number: string | null }>('/contractors/profile/contractor-ops-ai-number')
+  }
+
+  /** Search Twilio inventory for purchasable numbers in `areaCode` (read-only). */
+  async getAvailableTwilioNumbers(
+    areaCode: string,
+    limit = 5,
+  ): Promise<TwilioAvailableNumber[]> {
+    const params = new URLSearchParams({ area_code: areaCode, limit: String(limit) })
+    const res = await this.request<{ numbers: TwilioAvailableNumber[] }>(
+      `/contractors/profile/twilio-available?${params.toString()}`,
+    )
+    return res?.numbers ?? []
+  }
+
+  /** Provision the selected Twilio number for the current contractor. */
+  async provisionTwilioNumber(input: {
+    phoneNumber: string
+    areaCode: string
+    state?: string | null
+  }): Promise<TwilioProvisionResult> {
+    return this.request<TwilioProvisionResult>(
+      '/contractors/profile/twilio-provision',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          phone_number: input.phoneNumber,
+          area_code: input.areaCode,
+          state: input.state ?? null,
+        }),
+      },
+    )
+  }
+
+  /** Read the contractor's SMS auto-reply template (or the platform default). */
+  async getAutoReply(): Promise<AutoReplySettings> {
+    return this.request<AutoReplySettings>('/contractors/profile/auto-reply')
+  }
+
+  /** Update the auto-reply template. Pass null to reset to the platform default. */
+  async updateAutoReply(message: string | null): Promise<AutoReplySettings> {
+    return this.request<AutoReplySettings>('/contractors/profile/auto-reply', {
+      method: 'PUT',
+      body: JSON.stringify({ message }),
+    })
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {

@@ -13,18 +13,19 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 import { CostBookSettings } from "@/components/cost-book-settings"
+import { AutoReplySettings } from "@/components/auto-reply-settings"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book"
+type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply"
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -196,7 +197,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "billing", "integrations", "language"].includes(tab)) {
+    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -424,6 +425,7 @@ export function SettingsTabs() {
 
   const sidebarItems = [
     { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare },
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
     { id: "billing" as const, label: "Billing", icon: CreditCard },
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
@@ -1243,6 +1245,11 @@ export function SettingsTabs() {
             {/* Cost Book Section */}
             {activeSection === "cost-book" && (
               <CostBookSettings />
+            )}
+
+            {/* Auto-reply Section */}
+            {activeSection === "auto-reply" && (
+              <AutoReplySettings />
             )}
 
             {/* Logout Section */}
