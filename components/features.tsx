@@ -72,6 +72,7 @@ function FeatureSection({
 }
 
 function EstimateShowcase() {
+  const t = useTranslations("landing")
   const containerRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(containerRef, { once: false, amount: 0.3 })
   const [hasEntered, setHasEntered] = useState(false)
@@ -96,14 +97,14 @@ function EstimateShowcase() {
       <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
           <Activity className="h-5 w-5 text-sky-600" />
-          <p className="text-lg font-black text-slate-950">AI Project Estimator</p>
+          <p className="text-lg font-black text-slate-950">{t("step2NewProjectEstimate")}</p>
         </div>
 
         <div className="space-y-6 border-b border-slate-100 py-8 text-[15px] sm:text-base">
           {[
-            ["Materials Processing", "$1,250.00"],
-            ["Labor Target (24h)", "$1,320.00"],
-            ["Contractor Margin (25%)", "$642.50"],
+            [t("step2Materials"), "$1,250.00"],
+            [t("step2Labor"), "$1,320.00"],
+            [t("step2Margin"), "$642.50"],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between gap-6">
               <span className="text-slate-950">{label}</span>
@@ -113,12 +114,12 @@ function EstimateShowcase() {
         </div>
 
         <div className="flex items-center justify-between gap-6 py-9">
-          <span className="text-lg font-black text-slate-950">Instant Quote Total</span>
+          <span className="text-lg font-black text-slate-950">{t("step2Total")}</span>
           <span className="text-lg font-black text-sky-700">$3,212.50</span>
         </div>
 
         <button type="button" className="h-10 w-full rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
-          Send to Client
+          {t("step2Send")}
         </button>
       </div>
     </m.div>
@@ -126,6 +127,7 @@ function EstimateShowcase() {
 }
 
 function DispatchShowcase() {
+  const t = useTranslations("landing")
   const containerRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(containerRef, { once: false, amount: 0.3 })
   const [hasEntered, setHasEntered] = useState(false)
@@ -154,11 +156,11 @@ function DispatchShowcase() {
             <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px] bg-[#FF7F50]/10">
               <Shield className="h-[14px] w-[14px]" stroke="#FF7F50" strokeWidth={2.5} />
             </div>
-            <p className="text-[13px] font-semibold text-[#0A0A0A]">Subcontractor Dispatch</p>
+            <p className="text-[13px] font-semibold text-[#0A0A0A]">{t("featureDispatchCardTitle")}</p>
           </div>
           <div className="flex items-center gap-1.5 rounded-full bg-[#F1FAF5] px-2 py-1 text-[11px] font-semibold text-[#047857]">
             <span className="motion-safe-animate h-[5px] w-[5px] rounded-full bg-[#10B981]" style={{ animation: "subtle-pulse 2s infinite ease-in-out" }} />
-            Autonomous
+            {t("showcaseDispatchAutonomous")}
           </div>
         </div>
 
@@ -167,17 +169,17 @@ function DispatchShowcase() {
           <div className="flex items-start gap-3 rounded-[10px] border-l-[3px] border-l-[#FF7F50] bg-[#FFF8F4] p-[14px]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" stroke="#FF7F50" strokeWidth={2.5} />
             <div>
-              <p className="text-[13px] font-semibold text-[#0A0A0A]">Emergency dispatch required</p>
+              <p className="text-[13px] font-semibold text-[#0A0A0A]">{t("showcaseDispatchEmergency")}</p>
               <p className="mt-1 text-[12px] text-[#5F5E5A]">
-                Water heater burst &middot; 104 Main St &middot; within 10 mi
+                {t("showcaseDispatchEmergencyDetail")}
               </p>
             </div>
           </div>
 
           {/* Section Label */}
           <div className="mb-[10px] mt-[24px] flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-[1.2px] text-[#888780]">DISPATCH QUEUE</span>
-            <span className="text-[10px] font-medium text-[#888780]">2 candidates</span>
+            <span className="text-[10px] font-semibold tracking-[1.2px] text-[#888780]">{t("showcaseDispatchQueue")}</span>
+            <span className="text-[10px] font-medium text-[#888780]">{t("showcaseDispatchCandidates")}</span>
           </div>
 
           {/* Queue Items */}
@@ -207,8 +209,8 @@ function DispatchShowcase() {
                   <span className="text-[12px] font-bold text-[#FF7F50]">DP</span>
                 </div>
                 <div>
-                  <p className="text-[14px] font-semibold text-[#0A0A0A]">David&apos;s Plumbing Pro</p>
-                  <p className="text-[12px] text-[#5F5E5A]">2.4 mi &middot; Priority 1</p>
+                  <p className="text-[14px] font-semibold text-[#0A0A0A]">{t("featureDispatchCrew1")}</p>
+                  <p className="text-[12px] text-[#5F5E5A]">{t("showcaseDispatchDistancePriority1")}</p>
                 </div>
               </div>
 
@@ -225,7 +227,7 @@ function DispatchShowcase() {
                     />
                   ))}
                 </div>
-                <span className="text-[11px] font-semibold text-white">Calling</span>
+                <span className="text-[11px] font-semibold text-white">{t("featureDispatchStatus1")}</span>
               </div>
             </div>
 
@@ -239,18 +241,18 @@ function DispatchShowcase() {
                   <span className="text-[12px] font-bold text-[#888780]">AW</span>
                 </div>
                 <div>
-                  <p className="text-[14px] font-semibold text-[#5F5E5A]">Apex Water Systems</p>
-                  <p className="text-[12px] text-[#5F5E5A]">4.1 mi &middot; Priority 2</p>
+                  <p className="text-[14px] font-semibold text-[#5F5E5A]">{t("featureDispatchCrew2")}</p>
+                  <p className="text-[12px] text-[#5F5E5A]">{t("showcaseDispatchDistancePriority2")}</p>
                 </div>
               </div>
-              <span className="text-[11px] font-semibold text-[#B4B2A9]">Standby</span>
+              <span className="text-[11px] font-semibold text-[#B4B2A9]">{t("featureDispatchStatus2")}</span>
             </div>
           </div>
 
           {/* Footer */}
           <div className="mt-[16px] flex items-center gap-1.5 border-t border-[#F0EDE3] pt-[14px]">
             <RefreshCw className="h-[12px] w-[12px] text-[#888780]" />
-            <span className="text-[11px] font-medium text-[#888780]">Auto-routes to next sub if no answer in 30s</span>
+            <span className="text-[11px] font-medium text-[#888780]">{t("showcaseDispatchAutoRoute")}</span>
           </div>
         </div>
       </div>
@@ -259,6 +261,7 @@ function DispatchShowcase() {
 }
 
 function LeadAgentShowcase() {
+  const t = useTranslations("landing")
   const containerRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(containerRef, { once: false, amount: 0.3 })
   const [hasEntered, setHasEntered] = useState(false)
@@ -318,8 +321,8 @@ function LeadAgentShowcase() {
           {/* Location Badge */}
           <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-[#E8E3D6] shadow-sm">
             <MapPin className="w-3.5 h-3.5 text-[#00A86B]" />
-            <span className="text-xs font-semibold text-slate-900">Atlanta, GA</span>
-            <span className="text-xs text-slate-500">25 mi</span>
+            <span className="text-xs font-semibold text-slate-900">{t("showcaseOutreachLocation")}</span>
+            <span className="text-xs text-slate-500">{t("showcaseOutreachRadius")}</span>
           </div>
         </div>
 
@@ -332,13 +335,13 @@ function LeadAgentShowcase() {
                 <Zap className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Prospect Radar</h3>
-                <p className="text-xs font-medium text-slate-500">Property Managers</p>
+                <h3 className="text-sm font-bold text-slate-900">{t("showcaseOutreachRadarTitle")}</h3>
+                <p className="text-xs font-medium text-slate-500">{t("showcaseOutreachRadarSub")}</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#00A86B]/10 border border-[#00A86B]/20">
               <div className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse" />
-              <span className="text-xs font-bold text-[#00A86B]">Autopilot</span>
+              <span className="text-xs font-bold text-[#00A86B]">{t("showcaseOutreachAutopilot")}</span>
             </div>
           </div>
 
@@ -347,14 +350,14 @@ function LeadAgentShowcase() {
             <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#F0EDE3]">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#00A86B]" />
-                <span className="text-xs font-medium text-slate-500">Leads Found</span>
+                <span className="text-xs font-medium text-slate-500">{t("showcaseOutreachLeadsFound")}</span>
               </div>
               <p className="text-xl font-black text-slate-900">142</p>
             </div>
             <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#F0EDE3]">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Mail className="w-4 h-4 text-[#00A86B]" />
-                <span className="text-xs font-medium text-slate-500">Drafts Ready</span>
+                <span className="text-xs font-medium text-slate-500">{t("showcaseOutreachDraftsReady")}</span>
               </div>
               <p className="text-xl font-black text-slate-900">142</p>
             </div>
@@ -362,20 +365,20 @@ function LeadAgentShowcase() {
 
           {/* Status Bar */}
           <div className="flex items-center justify-between p-3 rounded-xl bg-[#00A86B]/[0.03] border border-[#00A86B]/10 mb-5">
-            <span className="text-xs font-semibold text-slate-700">Campaign Status</span>
+            <span className="text-xs font-semibold text-slate-700">{t("showcaseOutreachCampaignStatus")}</span>
             <div className="flex items-center gap-2">
               <div className="flex gap-0.5">
                 <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" />
                 <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
                 <div className="w-0.5 h-2.5 bg-[#00A86B] rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
               </div>
-              <span className="text-xs font-bold text-[#00A86B]">Sending...</span>
+              <span className="text-xs font-bold text-[#00A86B]">{t("showcaseOutreachSending")}</span>
             </div>
           </div>
 
           {/* CTA */}
           <button type="button" className="group flex h-10 w-full items-center justify-center rounded-lg bg-[#231F20] text-sm font-semibold text-white transition-colors hover:bg-black">
-            View Discovered Leads
+            {t("showcaseOutreachViewLeads")}
             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -383,13 +386,14 @@ function LeadAgentShowcase() {
 
       {/* Floating Badge */}
       <div className="absolute top-1 right-1 sm:-top-3 sm:-right-3 px-3 py-1.5 rounded-full bg-[#00A86B] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/30">
-        +12 new
+        {t("showcaseOutreachNewBadge")}
       </div>
     </m.div>
   )
 }
 
 function CostShowcase() {
+  const t = useTranslations("landing")
   const containerRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(containerRef, { once: false, amount: 0.3 })
   const [hasEntered, setHasEntered] = useState(false)
@@ -414,19 +418,19 @@ function CostShowcase() {
       <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
           <DollarSign className="h-5 w-5 text-[#228B22]" />
-          <p className="text-lg font-black text-slate-950">Smart Job Costing</p>
+          <p className="text-lg font-black text-slate-950">{t("featuresFinTitle")}</p>
           <span className="ml-auto flex items-center gap-1.5 rounded-full bg-[#228B22]/10 px-2.5 py-1 text-xs font-bold text-[#228B22]">
             <RefreshCw className="h-3 w-3" />
-            Live Sync
+            {t("showcaseCostLiveSync")}
           </span>
         </div>
 
         <div className="space-y-6 border-b border-slate-100 py-8 text-[15px] sm:text-base">
           {[
-            ["Total Hard Costs", "$16,660.00"],
-            ["Subcontractor Payouts", "$12,400.00"],
-            ["Materials & Permits", "$4,260.00"],
-            ["Target Margin (32%)", "$7,840.00"],
+            [t("showcaseCostHardCosts"), "$16,660.00"],
+            [t("showcaseCostSubPayouts"), "$12,400.00"],
+            [t("showcaseCostMaterialsPermits"), "$4,260.00"],
+            [t("showcaseCostTargetMargin"), "$7,840.00"],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between gap-6">
               <span className="text-slate-950">{label}</span>
@@ -436,13 +440,13 @@ function CostShowcase() {
         </div>
 
         <div className="flex items-center justify-between gap-6 py-9">
-          <span className="text-lg font-black text-slate-950">Total Contract Value</span>
+          <span className="text-lg font-black text-slate-950">{t("showcaseCostContractTotal")}</span>
           <span className="text-lg font-black text-[#228B22]">$24,500.00</span>
         </div>
 
         <button type="button" className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
           <RefreshCw className="h-4 w-4" />
-          Sync to QuickBooks
+          {t("showcaseCostSyncQb")}
         </button>
       </div>
     </m.div>
@@ -461,9 +465,9 @@ export function Features() {
         visual={<PhoneMessagePreview className="w-[272px] sm:w-[296px] md:w-[320px]" />}
       />
       <FeatureSection
-        eyebrow="AI Outreach Engine"
-        title="Find and close jobs automatically."
-        body="Stop fighting over expensive shared leads. Our AI Outreach Engine autonomously discovers commercial prospects in your area, drafts highly personalized pitches, and delivers warm, ready-to-close deals straight to your inbox."
+        eyebrow={t("featureOutreachEyebrow")}
+        title={t("featureOutreachTitle")}
+        body={t("featureOutreachBody")}
         visual={<LeadAgentShowcase />}
         reverse
       />

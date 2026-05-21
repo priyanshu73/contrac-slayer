@@ -104,7 +104,7 @@ export function Pricing() {
                 <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$139</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
-              <p className="mt-3 text-[13px] font-medium text-[#888780]">Billed monthly</p>
+              <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledMonthly")}</p>
               <Button
                 size="lg"
                 className="mt-8 h-12 w-full rounded-[10px] border border-[#E8E3D6] bg-white text-[14px] font-semibold text-[#0A0A0A] shadow-sm hover:bg-[#FAFAFA]"
@@ -125,14 +125,14 @@ export function Pricing() {
                 <p className="text-[14px] font-semibold text-[#0A0A0A]">{t("yearly")}</p>
                 <div className="flex items-center gap-1 rounded-full bg-[#E1F5EE] px-[9px] py-[3px]">
                   <ChevronDown className="h-[9px] w-[9px]" stroke="#0F6E56" strokeWidth={3} />
-                  <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">Save 29%</span>
+                  <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">{t("pricingSave29")}</span>
                 </div>
               </div>
               <div className="mt-6 flex items-end gap-1">
                 <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$99</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
-              <p className="mt-3 text-[13px] font-medium text-[#888780]">Billed annually &middot; $1,188</p>
+              <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledAnnuallyShort")}</p>
               <Button
                 size="lg"
                 className="mt-8 h-12 w-full rounded-[10px] bg-[#0A0A0A] text-[14px] font-semibold text-white shadow-sm hover:bg-[#1A1A1A]"
@@ -154,7 +154,7 @@ export function Pricing() {
             <div className="px-[36px] pb-[28px] pt-[32px]">
               <div className="mb-6 flex w-fit items-center gap-1.5 rounded-full bg-[#F1EFE8] px-[10px] py-[4px]">
                 <Check className="h-[10px] w-[10px]" stroke="#5F5E5A" strokeWidth={3} />
-                <span className="text-[10px] font-semibold tracking-[0.3px] text-[#5F5E5A]">INCLUDED IN BOTH</span>
+                <span className="text-[10px] font-semibold tracking-[0.3px] text-[#5F5E5A]">{t("pricingIncludedBothBadge")}</span>
               </div>
 
               <div className="grid grid-cols-1 gap-x-[28px] gap-y-[14px] sm:grid-cols-2">
@@ -171,7 +171,7 @@ export function Pricing() {
             <div className="border-t border-[#F0EDE3] bg-[#FAFAF6] px-[36px] pb-[32px] pt-[28px]">
               <div className="mb-6 flex w-fit items-center gap-1.5 rounded-full bg-[#E1F5EE] px-[10px] py-[4px]">
                 <Star className="h-[10px] w-[10px]" stroke="#0F6E56" strokeWidth={2.5} />
-                <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">YEARLY EXCLUSIVE</span>
+                <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">{t("pricingYearlyExclusiveBadge")}</span>
               </div>
 
               <div className="grid grid-cols-1 gap-x-[28px] gap-y-[14px] sm:grid-cols-2">
@@ -192,7 +192,7 @@ export function Pricing() {
           transition={{ duration: 0.5, delay: 0.85 }}
           className="mt-8 text-center text-[13px] font-medium text-[#888780]"
         >
-          14-day free trial &middot; Cancel anytime
+          {t("pricingTrialCancel")}
         </m.p>
       </div>
     </section>
