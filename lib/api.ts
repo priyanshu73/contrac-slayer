@@ -23,11 +23,14 @@ import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } 
 import type {
   FrontlineActivityEvent,
   FrontlineKnowledgeDoc,
+  FrontlineKnowledgeIntakeResponse,
   FrontlineReplyApproval,
   FrontlineSandboxAnswer,
   FrontlineSettings,
   FrontlineTeachNote,
+  FrontlineVoiceDevStatus,
 } from './types/frontline'
+import { AI_ESTIMATE_REQUEST_TIMEOUT_MS } from './ai-estimate-loading'
 
 // ─── Scope Clarification types ─────────────────────────────────────────────
 
@@ -147,24 +150,25 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit & { timeoutMs?: number } = {}
   ): Promise<T> {
     const baseURL = this.getBaseURL()
     const url = `${baseURL}${endpoint}`
 
+    const { timeoutMs = 90_000, ...fetchOptions } = options
+
     // Create AbortController for timeout handling
     const controller = new AbortController()
-    // Set timeout to 90 seconds (longer than backend timeout to get proper error)
-    const timeoutId = setTimeout(() => controller.abort(), 90000)
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     const config: RequestInit = {
-      ...options,
+      ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...fetchOptions.headers,
       },
       credentials: 'include',
-      signal: controller.signal,
+      signal: fetchOptions.signal ?? controller.signal,
     }
 
     try {
@@ -192,7 +196,10 @@ class ApiClient {
       // Handle timeout/abort errors
       if (error instanceof Error) {
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
-          throw new Error('Request timed out. The server took too long to respond. Please try again.')
+          const seconds = Math.round(timeoutMs / 1000)
+          throw new Error(
+            `Request timed out after ${seconds} seconds. Large AI estimates can take a few minutes — try again or use a shorter description.`
+          )
         }
         if (error.message.includes('Failed to fetch')) {
           const configuredLocally = this.configuredBaseURL.includes('localhost:4000') || this.configuredBaseURL.includes('127.0.0.1:4000')
@@ -569,6 +576,16 @@ class ApiClient {
     })
   }
 
+  async submitFrontlineKnowledgeIntake(
+    intake_text: string,
+    source = 'text_intake',
+  ): Promise<FrontlineKnowledgeIntakeResponse> {
+    return this.request('/contractors/profile/frontline/knowledge/intake', {
+      method: 'POST',
+      body: JSON.stringify({ intake_text, source }),
+    })
+  }
+
   async reindexFrontlineKnowledge(): Promise<{ profile_uuid: string; chunks_indexed: number }> {
     return this.request('/contractors/profile/frontline/knowledge/reindex', {
       method: 'POST',
@@ -607,6 +624,10 @@ class ApiClient {
     return this.request(
       `/contractors/profile/frontline/approvals?status=${encodeURIComponent(status)}`,
     )
+  }
+
+  async getFrontlineVoiceDevStatus(): Promise<FrontlineVoiceDevStatus> {
+    return this.request('/contractors/profile/frontline/voice/dev/status')
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
@@ -1039,6 +1060,7 @@ class ApiClient {
       const result = await this.request('/generate-estimate', {
         method: 'POST',
         body: JSON.stringify(data),
+        timeoutMs: AI_ESTIMATE_REQUEST_TIMEOUT_MS,
       })
       const duration = Date.now() - startTime
       console.log(`🤖 API Client: Estimate generated in ${duration}ms`)

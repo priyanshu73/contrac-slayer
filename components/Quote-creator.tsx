@@ -26,6 +26,11 @@ import Image from "next/image"
 import { Check, ChevronsUpDown, FolderOpen, Image as ImageIcon, Loader2, Plus, X } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { cn } from "@/lib/utils"
+import {
+  AI_ESTIMATE_LOADING_HINT,
+  AI_ESTIMATE_LOADING_INTERVAL_MS,
+  AI_ESTIMATE_LOADING_MESSAGES,
+} from "@/lib/ai-estimate-loading"
 
 interface LineItem {
   title?: string
@@ -429,6 +434,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [projectTitle, setProjectTitle] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiLoadingStage, setAiLoadingStage] = useState(0)
+  const [aiLoadingProgress, setAiLoadingProgress] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
   const [descriptionEditorsOpen, setDescriptionEditorsOpen] = useState<number[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
@@ -438,27 +444,30 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [useBriefAsContext, setUseBriefAsContext] = useState(true)
   const [projectBrief, setProjectBrief] = useState<any>(null)
 
-  // AI loading stage messages
-  const aiLoadingMessages = [
-    "Analyzing project description...",
-    "Identifying required materials...",
-    "Calculating quantities...",
-    "Estimating labor costs...",
-    "Finalizing line items...",
-  ]
+  const aiLoadingMessages = AI_ESTIMATE_LOADING_MESSAGES
 
-  // Progress through loading stages
+  // Rotate fun loading copy + slow progress bar while estimate runs (up to ~3 min)
   useEffect(() => {
-    if (aiLoading) {
+    if (!aiLoading) {
       setAiLoadingStage(0)
-      const interval = setInterval(() => {
-        setAiLoadingStage(prev => (prev + 1) % aiLoadingMessages.length)
-      }, 5000) // Change every 5 seconds
-      return () => clearInterval(interval)
-    } else {
-      setAiLoadingStage(0)
+      setAiLoadingProgress(0)
+      return
     }
-  }, [aiLoading])
+    setAiLoadingStage(0)
+    setAiLoadingProgress(6)
+    const started = Date.now()
+    const rotate = setInterval(() => {
+      setAiLoadingStage((prev) => (prev + 1) % aiLoadingMessages.length)
+    }, AI_ESTIMATE_LOADING_INTERVAL_MS)
+    const progress = setInterval(() => {
+      const elapsed = Date.now() - started
+      setAiLoadingProgress(Math.min(94, 6 + (elapsed / 240_000) * 88))
+    }, 400)
+    return () => {
+      clearInterval(rotate)
+      clearInterval(progress)
+    }
+  }, [aiLoading, aiLoadingMessages.length])
 
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -2116,12 +2125,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                               <div className="w-full space-y-2">
                                 <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-primary transition-all duration-1000 ease-out"
-                                    style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                                    className="h-full bg-primary transition-all duration-500 ease-out"
+                                    style={{ width: `${aiLoadingProgress}%` }}
                                   />
                                 </div>
                                 <p className="text-xs text-muted-foreground text-center">
-                                  This usually takes 15-30 seconds
+                                  {AI_ESTIMATE_LOADING_HINT}
                                 </p>
                               </div>
                             )}
@@ -2256,7 +2265,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     </div>
                   ))}
                   <p className="text-sm text-center text-muted-foreground py-2">
-                    AI is generating line items...
+                    {aiLoadingMessages[aiLoadingStage]}
                   </p>
                 </div>
               )}
@@ -3160,12 +3169,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                           <div className="w-full space-y-2">
                             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-primary transition-all duration-1000 ease-out"
-                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                                className="h-full bg-primary transition-all duration-500 ease-out"
+                                style={{ width: `${aiLoadingProgress}%` }}
                               />
                             </div>
                             <p className="text-xs text-muted-foreground text-center">
-                              This usually takes 15-30 seconds
+                              {AI_ESTIMATE_LOADING_HINT}
                             </p>
                           </div>
                         )}
