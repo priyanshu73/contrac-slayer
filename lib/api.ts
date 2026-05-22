@@ -619,9 +619,11 @@ class ApiClient {
     intake_text: string,
     source = 'text_intake',
   ): Promise<FrontlineKnowledgeIntakeResponse> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
     return this.request('/contractors/profile/frontline/knowledge/intake', {
       method: 'POST',
-      body: JSON.stringify({ intake_text, source }),
+      body: JSON.stringify({ intake_text, source, frontend_origin }),
     })
   }
 
@@ -635,9 +637,11 @@ class ApiClient {
     question: string,
     contractor_name?: string,
   ): Promise<FrontlineSandboxAnswer> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
     return this.request('/contractors/profile/frontline/sandbox/ask', {
       method: 'POST',
-      body: JSON.stringify({ question, contractor_name }),
+      body: JSON.stringify({ question, contractor_name, frontend_origin }),
     })
   }
 

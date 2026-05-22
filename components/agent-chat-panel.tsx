@@ -57,20 +57,24 @@ interface QuotePageContext {
 }
 
 function enrichQuotePageContext(base: PageContext, locale: string): PageContext {
-    if (base.page !== "quote_detail" || typeof window === "undefined") {
-        return base.page === "quote_detail" ? { ...base, locale } : base
+    const origin =
+        typeof window !== "undefined" ? window.location.origin : undefined
+    let ctx: PageContext = origin ? { ...base, frontend_origin: origin } : { ...base }
+
+    if (ctx.page !== "quote_detail" || typeof window === "undefined") {
+        return ctx.page === "quote_detail" ? { ...ctx, locale } : ctx
     }
     const q = (window as Window & { quotePageContext?: QuotePageContext }).quotePageContext
     if (!q?.job_id) {
-        return { ...base, locale }
+        return { ...ctx, locale }
     }
     return {
-        ...base,
+        ...ctx,
         entity_id: String(q.job_id),
         job_id: q.job_id,
         client_email: q.client_email,
         locale,
-        frontend_origin: q.frontend_origin ?? (typeof window !== "undefined" ? window.location.origin : undefined),
+        frontend_origin: q.frontend_origin ?? origin,
         customer_quote_url: q.customer_quote_url,
     }
 }
@@ -181,7 +185,14 @@ const SUGGESTIONS: Record<string, string[]> = {
         "Create a new quote",
         "Dashboard summary",
     ],
+    calendar: [
+        "What's my public booking link?",
+        "What's on my calendar this week?",
+        "Show upcoming appointments",
+        "Dashboard summary",
+    ],
     default: [
+        "What's my booking link?",
         "How many leads do I have?",
         "Show my active projects",
         "What's on my calendar?",
@@ -603,7 +614,7 @@ export function AgentChatPanel() {
                 credentials: "include",
                 body: JSON.stringify({
                     messages: history,
-                    page_context: pageContext.page !== "unknown" ? pageContext : undefined,
+                    page_context: pageContext,
                     conversation_id: activeConversationId || undefined,
                 }),
             })
@@ -705,7 +716,7 @@ export function AgentChatPanel() {
                 credentials: "include",
                 body: JSON.stringify({
                     messages: history,
-                    page_context: pageContext.page !== "unknown" ? pageContext : undefined,
+                    page_context: pageContext,
                     conversation_id: activeConversationId || undefined,
                 }),
             })
