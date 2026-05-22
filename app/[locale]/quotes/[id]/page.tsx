@@ -204,6 +204,39 @@ export default function QuoteDetailPage() {
     return () => { cancelled = true }
   }, [job, isPublicView, user?.is_contractor])
 
+  // Sync loaded quote into agent chat page context (numeric job_id + client email)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!job || isPublicView || !user?.is_contractor) {
+      delete (window as Window & { quotePageContext?: { job_id: number; client_email?: string; quote_public_link?: string } }).quotePageContext
+      return
+    }
+    const clientEmail = job.client?.email ?? job.client_email ?? undefined
+    const customerQuoteUrl =
+      job.quote_public_link && typeof window !== "undefined"
+        ? `${window.location.origin}/${locale}/quotes/${job.quote_public_link}`
+        : undefined
+    ;(window as Window & {
+      quotePageContext?: {
+        job_id: number
+        client_email?: string
+        quote_public_link?: string
+        customer_quote_url?: string
+        frontend_origin?: string
+      }
+    }).quotePageContext = {
+      job_id: job.id,
+      client_email: clientEmail,
+      quote_public_link: job.quote_public_link,
+      customer_quote_url: customerQuoteUrl,
+      frontend_origin: typeof window !== "undefined" ? window.location.origin : undefined,
+    }
+    window.dispatchEvent(new CustomEvent("quote-page-context-updated"))
+    return () => {
+      delete (window as Window & { quotePageContext?: unknown }).quotePageContext
+    }
+  }, [job, isPublicView, user?.is_contractor, locale])
+
   // Fetch QBO status when contractor is viewing quote
   useEffect(() => {
     if (!job || isPublicView || !user?.is_contractor) return

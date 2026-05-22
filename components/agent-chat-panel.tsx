@@ -41,6 +41,38 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 interface PageContext {
     page: string
     entity_id?: string
+    job_id?: number
+    client_email?: string
+    locale?: string
+    frontend_origin?: string
+    customer_quote_url?: string
+}
+
+interface QuotePageContext {
+    job_id: number
+    client_email?: string
+    quote_public_link?: string
+    customer_quote_url?: string
+    frontend_origin?: string
+}
+
+function enrichQuotePageContext(base: PageContext, locale: string): PageContext {
+    if (base.page !== "quote_detail" || typeof window === "undefined") {
+        return base.page === "quote_detail" ? { ...base, locale } : base
+    }
+    const q = (window as Window & { quotePageContext?: QuotePageContext }).quotePageContext
+    if (!q?.job_id) {
+        return { ...base, locale }
+    }
+    return {
+        ...base,
+        entity_id: String(q.job_id),
+        job_id: q.job_id,
+        client_email: q.client_email,
+        locale,
+        frontend_origin: q.frontend_origin ?? (typeof window !== "undefined" ? window.location.origin : undefined),
+        customer_quote_url: q.customer_quote_url,
+    }
 }
 
 const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
@@ -280,8 +312,18 @@ export function AgentChatPanel() {
     const [scopeTrigger, setScopeTrigger] = useState<"estimate" | "proposal">("estimate")
     const [scopeStep, setScopeStep] = useState(0)
 
-    // Parse page context from current route
-    const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
+    const [quotePageCtxTick, setQuotePageCtxTick] = useState(0)
+    useEffect(() => {
+        const onUpdate = () => setQuotePageCtxTick((t) => t + 1)
+        window.addEventListener("quote-page-context-updated", onUpdate)
+        return () => window.removeEventListener("quote-page-context-updated", onUpdate)
+    }, [])
+
+    // Parse page context from current route; quote detail enriches from loaded job on the page
+    const pageContext = useMemo(
+        () => enrichQuotePageContext(parsePageContext(pathname ?? ""), locale),
+        [pathname, locale, quotePageCtxTick]
+    )
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
 
     // Detect if we're on a quote create/edit page

@@ -26,6 +26,26 @@ export interface FrontlineKnowledgeDoc {
   updated_at: string | null
 }
 
+export interface FrontlineKnowledgeIntakeResponse extends FrontlineKnowledgeDoc {
+  intake_summary?: string | null
+}
+
+export interface FrontlineVoiceDevStatus {
+  model_id: string
+  voice_id: string
+  region: string
+  max_seconds: number
+  weekly_limit: number
+  python_version: string
+  python_supported: boolean
+  sdk_package: string
+  sdk_importable: boolean
+  smithy_importable: boolean
+  explicit_aws_credentials_present: boolean
+  ready_for_live_stream: boolean
+  notes: string[]
+}
+
 export interface FrontlineSandboxAnswer {
   answer: string
   confidence: number
