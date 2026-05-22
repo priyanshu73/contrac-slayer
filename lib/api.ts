@@ -73,10 +73,12 @@ export interface ScopeClarifiedScope {
 
 const DEFAULT_API_URL = 'http://localhost:4000/api'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
+const BACKEND_WS_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN?.replace(/\/+$/, '')
 const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
+console.log(`  Backend WS origin: ${BACKEND_WS_ORIGIN || '(derived from API URL)'}`)
 console.log(`  Contractor AI URL: ${CONTRACTOR_AI_API_URL}`)
 
 class ApiClient {
@@ -649,24 +651,25 @@ class ApiClient {
     return this.request(`/contractors/profile/frontline/voice/training/session/${sessionUuid}`)
   }
 
-  frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
-    const apiBase = this.baseURL
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-    let wsUrl: URL
-    try {
-      const parsed = new URL(apiBase)
-      wsUrl = new URL(normalizedPath, parsed.origin)
-    } catch {
-      if (typeof window === 'undefined') {
-        throw new Error(
-          'Cannot build voice WebSocket URL: set NEXT_PUBLIC_API_URL to a full URL (https://your-backend/api).',
-        )
-      }
-      // Same-origin staging setups sometimes use NEXT_PUBLIC_API_URL=/api
-      wsUrl = new URL(normalizedPath, window.location.origin)
+  private resolveWebSocketOrigin(): string {
+    if (BACKEND_WS_ORIGIN) {
+      return BACKEND_WS_ORIGIN
     }
 
+    const apiBase = this.baseURL
+    try {
+      return new URL(apiBase).origin
+    } catch {
+      if (typeof window !== 'undefined') {
+        return window.location.origin
+      }
+      return 'http://localhost:4000'
+    }
+  }
+
+  frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    const wsUrl = new URL(normalizedPath, `${this.resolveWebSocketOrigin()}/`)
     wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
     if (token) {
       wsUrl.searchParams.set('token', token)
