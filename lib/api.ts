@@ -32,6 +32,7 @@ import type {
   FrontlineSetupPreview,
   FrontlineTeachNote,
   FrontlineVoiceDevStatus,
+  FrontlineVoiceDemoSessionStart,
   FrontlineVoiceTrainingEligibility,
   FrontlineVoiceTrainingSession,
   FrontlineVoiceTrainingSessionStart,
@@ -694,6 +695,13 @@ class ApiClient {
     return this.request(`/contractors/profile/frontline/voice/training/session/${sessionUuid}`)
   }
 
+  async startFrontlineVoiceDemoSession(): Promise<FrontlineVoiceDemoSessionStart> {
+    return this.request('/contractors/frontline/voice/demo/session', {
+      method: 'POST',
+      timeoutMs: 30_000,
+    })
+  }
+
   private resolveWebSocketOrigin(): string {
     const configured = BACKEND_WS_ORIGIN
     if (configured) {
@@ -743,6 +751,10 @@ class ApiClient {
     const redacted = wsUrl.toString().replace(/([?&]token=)[^&]+/, '$1[redacted]')
     console.log(`🔌 Voice WebSocket URL: ${redacted}`)
     return wsUrl.toString()
+  }
+
+  frontlineVoiceDemoWebSocketUrl(path: string, token?: string): string {
+    return this.frontlineVoiceTrainingWebSocketUrl(path, token)
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {

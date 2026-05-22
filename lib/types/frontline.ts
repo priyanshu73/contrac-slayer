@@ -113,6 +113,16 @@ export interface FrontlineVoiceTrainingSessionStart {
   max_seconds: number
 }
 
+export interface FrontlineVoiceDemoSessionStart {
+  session_uuid: string
+  websocket_path: string
+  websocket_token: string
+  max_seconds: number
+  model_id: string
+  voice_id: string
+  region: string
+}
+
 export interface FrontlineSandboxAnswer {
   answer: string
   confidence: number

@@ -22,6 +22,7 @@ import {
   Mail,
   ArrowRight,
 } from "lucide-react"
+import { LandingSonicDemoCard } from "@/components/landing-sonic-demo-card"
 import { PhoneMessagePreview } from "@/components/phone-message-preview"
 
 const m = motion as any
@@ -46,15 +47,21 @@ function FeatureSection({
   body,
   visual,
   reverse = false,
+  compactTop = false,
 }: {
   eyebrow: string
   title: string
   body: string
   visual: ReactNode
   reverse?: boolean
+  compactTop?: boolean
 }) {
   return (
-    <section className="scroll-mt-20 bg-[#fbf6f1] px-5 py-12 sm:px-8 lg:py-16">
+    <section
+      className={`scroll-mt-20 bg-[#fbf6f1] px-5 pb-12 sm:px-8 lg:pb-16 ${
+        compactTop ? "pt-6 lg:pt-8" : "pt-12 lg:pt-16"
+      }`}
+    >
       <div className={`mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
         {/* Visual — always on top on mobile (order-first), respects reverse only at lg */}
         <Reveal className={`flex justify-center ${reverse ? "lg:order-2" : ""}`}>{visual}</Reveal>
@@ -453,6 +460,31 @@ function CostShowcase() {
   )
 }
 
+function FrontlineVoiceDemoSection() {
+  const t = useTranslations("landing")
+
+  return (
+    <section className="scroll-mt-20 bg-[#fbf6f1] px-5 pb-12 sm:px-8 lg:pb-16">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 border-y border-slate-200/80 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+        <Reveal className="mx-auto max-w-xl text-center lg:mx-0 lg:text-left">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">
+            {t("frontlineDemoEyebrow")}
+          </p>
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+            {t("frontlineDemoSectionTitle")}
+          </h2>
+          <p className="mt-5 text-lg leading-8 text-slate-600">
+            {t("frontlineDemoSectionBody")}
+          </p>
+        </Reveal>
+        <Reveal className="flex justify-center lg:justify-end">
+          <LandingSonicDemoCard />
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
 export function Features() {
   const t = useTranslations("landing")
 
@@ -464,12 +496,14 @@ export function Features() {
         body={t("featuresCallsBody")}
         visual={<PhoneMessagePreview className="w-[272px] sm:w-[296px] md:w-[320px]" />}
       />
+      <FrontlineVoiceDemoSection />
       <FeatureSection
         eyebrow={t("featureOutreachEyebrow")}
         title={t("featureOutreachTitle")}
         body={t("featureOutreachBody")}
         visual={<LeadAgentShowcase />}
         reverse
+        compactTop
       />
       <FeatureSection
         eyebrow={t("featureEstimateEyebrow")}
