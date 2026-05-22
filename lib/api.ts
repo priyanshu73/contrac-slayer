@@ -650,13 +650,28 @@ class ApiClient {
   }
 
   frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
-    const base = this.baseURL.replace(/\/api$/, '')
-    const url = new URL(path, `${base}/`)
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-    if (token) {
-      url.searchParams.set('token', token)
+    const apiBase = this.baseURL
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+    let wsUrl: URL
+    try {
+      const parsed = new URL(apiBase)
+      wsUrl = new URL(normalizedPath, parsed.origin)
+    } catch {
+      if (typeof window === 'undefined') {
+        throw new Error(
+          'Cannot build voice WebSocket URL: set NEXT_PUBLIC_API_URL to a full URL (https://your-backend/api).',
+        )
+      }
+      // Same-origin staging setups sometimes use NEXT_PUBLIC_API_URL=/api
+      wsUrl = new URL(normalizedPath, window.location.origin)
     }
-    return url.toString()
+
+    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    if (token) {
+      wsUrl.searchParams.set('token', token)
+    }
+    return wsUrl.toString()
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
