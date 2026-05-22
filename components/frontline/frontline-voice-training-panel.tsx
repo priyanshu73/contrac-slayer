@@ -238,10 +238,15 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
             Talk through your business once a week. Nova asks questions; we turn the transcript into
             receptionist knowledge automatically.
           </p>
-          {eligibility && (
+          {eligibility && eligibility.weekly_limit != null && eligibility.weekly_limit > 0 && (
             <p className="mt-2 text-xs text-slate-500">
               {eligibility.completed_this_week}/{eligibility.weekly_limit} sessions used this week
               · up to {Math.round(eligibility.max_seconds / 60)} min
+            </p>
+          )}
+          {eligibility && (eligibility.weekly_limit == null || eligibility.weekly_limit <= 0) && (
+            <p className="mt-2 text-xs text-slate-500">
+              Up to {Math.round(eligibility.max_seconds / 60)} min per session
             </p>
           )}
         </div>
@@ -274,7 +279,10 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         )}
       </div>
 
-      {!eligibility?.allowed && eligibility && voiceState === "idle" && (
+      {!eligibility?.allowed &&
+        eligibility?.weekly_limit != null &&
+        eligibility.weekly_limit > 0 &&
+        voiceState === "idle" && (
         <p className="mt-3 text-xs text-amber-700">
           Weekly limit reached. You can train again next week.
         </p>

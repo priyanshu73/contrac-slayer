@@ -48,7 +48,7 @@ export interface FrontlineVoiceDevStatus {
 
 export interface FrontlineVoiceTrainingEligibility {
   allowed: boolean
-  weekly_limit: number
+  weekly_limit: number | null
   completed_this_week: number
   max_seconds: number
   model_id: string
