@@ -10,6 +10,7 @@ import {
   float32ToInt16,
   FRONTLINE_VOICE_CHUNK_SAMPLES,
   FRONTLINE_VOICE_INPUT_RATE,
+  FRONTLINE_VOICE_MIC_FLUSH_MS,
   FRONTLINE_VOICE_OUTPUT_RATE,
   pcm16ToBase64,
   PcmStreamPlayer,
@@ -29,6 +30,7 @@ type TranscriptItem = {
   role: "user" | "assistant"
   text: string
   at?: string
+  interim?: boolean
 }
 
 type Props = {
@@ -53,9 +55,12 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   const [session, setSession] = useState<FrontlineVoiceTrainingSession | null>(null)
   const [intakeSummary, setIntakeSummary] = useState<string | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
-  const [showTranscript, setShowTranscript] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(true)
   const [orbEnergy, setOrbEnergy] = useState(0)
   const [assistantSpeaking, setAssistantSpeaking] = useState(false)
+  const [liveUserText, setLiveUserText] = useState("")
+  const [liveAssistantText, setLiveAssistantText] = useState("")
+  const [waitingForResponse, setWaitingForResponse] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -66,6 +71,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   const voiceStateRef = useRef<VoiceState>("idle")
   const speakingPollRef = useRef<number | null>(null)
   const assistantSpeakingRef = useRef(false)
+  const micFlushTimerRef = useRef<number | null>(null)
+  const pendingMicRef = useRef<Int16Array>(new Int16Array(0))
+  const inputRateRef = useRef(FRONTLINE_VOICE_INPUT_RATE)
 
   useEffect(() => {
     voiceStateRef.current = voiceState
@@ -103,8 +111,51 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     }, 60)
   }, [stopSpeakingPoll])
 
+  const sendMicChunk = useCallback((chunk: Int16Array) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN || chunk.length === 0) return
+    ws.send(
+      JSON.stringify({
+        type: "audio",
+        sample_rate: inputRateRef.current,
+        data: pcm16ToBase64(chunk),
+      }),
+    )
+  }, [])
+
+  const flushPendingMic = useCallback(
+    (allowPartial = false) => {
+      const pending = pendingMicRef.current
+      if (pending.length === 0) return
+      if (!allowPartial && pending.length < FRONTLINE_VOICE_CHUNK_SAMPLES) return
+      sendMicChunk(pending)
+      pendingMicRef.current = new Int16Array(0)
+    },
+    [sendMicChunk],
+  )
+
+  const stopMicFlush = useCallback(() => {
+    if (micFlushTimerRef.current != null) {
+      window.clearInterval(micFlushTimerRef.current)
+      micFlushTimerRef.current = null
+    }
+    flushPendingMic(true)
+    pendingMicRef.current = new Int16Array(0)
+  }, [flushPendingMic])
+
+  const startMicFlush = useCallback(() => {
+    stopMicFlush()
+    micFlushTimerRef.current = window.setInterval(() => {
+      flushPendingMic(true)
+    }, FRONTLINE_VOICE_MIC_FLUSH_MS)
+  }, [flushPendingMic, stopMicFlush])
+
   const cleanupAudio = useCallback(() => {
+    stopMicFlush()
     stopSpeakingPoll()
+    setLiveUserText("")
+    setLiveAssistantText("")
+    setWaitingForResponse(false)
     processorRef.current?.disconnect()
     processorRef.current = null
     audioContextRef.current?.close().catch(() => {})
@@ -116,17 +167,66 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     wsRef.current?.close()
     wsRef.current = null
     setOrbEnergy(0)
-  }, [stopSpeakingPoll])
+  }, [stopMicFlush, stopSpeakingPoll])
 
   useEffect(() => () => cleanupAudio(), [cleanupAudio])
 
-  const appendTranscript = (role: "user" | "assistant", text: string) => {
+  const applyTranscriptEvent = (
+    role: "user" | "assistant",
+    text: string,
+    stage?: string,
+  ) => {
     const trimmed = text.trim()
     if (!trimmed) return
+    const isSpeculative = String(stage || "FINAL").toUpperCase() === "SPECULATIVE"
+
+    if (role === "user") {
+      setLiveUserText(trimmed)
+      setWaitingForResponse(true)
+      setTranscript((prev) => {
+        const last = prev[prev.length - 1]
+        if (last?.role === "user" && last.text === trimmed && !last.interim) return prev
+        const withoutInterim = prev.filter((item) => !(item.role === "user" && item.interim))
+        return [
+          ...withoutInterim,
+          { role: "user", text: trimmed, at: new Date().toISOString() },
+        ]
+      })
+      return
+    }
+
+    if (isSpeculative) {
+      setWaitingForResponse(false)
+      setLiveAssistantText(trimmed)
+      setTranscript((prev) => {
+        const withoutInterim = prev.filter(
+          (item) => !(item.role === "assistant" && item.interim),
+        )
+        return [
+          ...withoutInterim,
+          {
+            role: "assistant",
+            text: trimmed,
+            at: new Date().toISOString(),
+            interim: true,
+          },
+        ]
+      })
+      return
+    }
+
+    setWaitingForResponse(false)
+    setLiveAssistantText("")
     setTranscript((prev) => {
-      const last = prev[prev.length - 1]
-      if (last && last.role === role && last.text === trimmed) return prev
-      return [...prev, { role, text: trimmed, at: new Date().toISOString() }]
+      const withoutInterim = prev.filter(
+        (item) => !(item.role === "assistant" && item.interim),
+      )
+      const last = withoutInterim[withoutInterim.length - 1]
+      if (last?.role === "assistant" && last.text === trimmed) return withoutInterim
+      return [
+        ...withoutInterim,
+        { role: "assistant", text: trimmed, at: new Date().toISOString() },
+      ]
     })
   }
 
@@ -151,9 +251,11 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     if (!eligibility?.allowed) return
     setLocalError(null)
     setTranscript([])
+    setLiveUserText("")
+    setLiveAssistantText("")
+    setWaitingForResponse(false)
     setIntakeSummary(null)
     setSession(null)
-    setShowTranscript(false)
     setVoiceState("connecting")
 
     try {
@@ -193,6 +295,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
         if (type === "ready") {
           const inputRate = Number(payload.sample_rate) || FRONTLINE_VOICE_INPUT_RATE
+          inputRateRef.current = inputRate
+          pendingMicRef.current = new Int16Array(0)
+
           const audioContext = new AudioContext()
           audioContextRef.current = audioContext
           await audioContext.resume()
@@ -205,8 +310,6 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
           const silent = audioContext.createGain()
           silent.gain.value = 0
 
-          let pendingMic = new Int16Array(0)
-
           processor.onaudioprocess = (e) => {
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
             const input = e.inputBuffer.getChannelData(0)
@@ -218,39 +321,45 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
             const samples = float32ToInt16(downsampled)
             if (samples.length === 0) return
 
-            const merged = new Int16Array(pendingMic.length + samples.length)
-            merged.set(pendingMic)
-            merged.set(samples, pendingMic.length)
-            pendingMic = merged
+            const pending = pendingMicRef.current
+            const merged = new Int16Array(pending.length + samples.length)
+            merged.set(pending)
+            merged.set(samples, pending.length)
+            pendingMicRef.current = merged
 
-            while (pendingMic.length >= FRONTLINE_VOICE_CHUNK_SAMPLES) {
-              const chunk = pendingMic.slice(0, FRONTLINE_VOICE_CHUNK_SAMPLES)
-              pendingMic = pendingMic.slice(FRONTLINE_VOICE_CHUNK_SAMPLES)
-              wsRef.current.send(
-                JSON.stringify({
-                  type: "audio",
-                  sample_rate: inputRate,
-                  data: pcm16ToBase64(chunk),
-                }),
-              )
+            while (pendingMicRef.current.length >= FRONTLINE_VOICE_CHUNK_SAMPLES) {
+              const chunk = pendingMicRef.current.slice(0, FRONTLINE_VOICE_CHUNK_SAMPLES)
+              pendingMicRef.current = pendingMicRef.current.slice(FRONTLINE_VOICE_CHUNK_SAMPLES)
+              sendMicChunk(chunk)
             }
           }
 
           source.connect(processor)
           processor.connect(silent)
           silent.connect(audioContext.destination)
+          startMicFlush()
           setVoiceState("recording")
           return
         }
 
-        if (type === "user_text") appendTranscript("user", String(payload.text || ""))
-        if (type === "assistant_text") appendTranscript("assistant", String(payload.text || ""))
+        if (type === "user_text") {
+          applyTranscriptEvent("user", String(payload.text || ""), String(payload.stage || "FINAL"))
+        }
+        if (type === "assistant_text") {
+          applyTranscriptEvent(
+            "assistant",
+            String(payload.text || ""),
+            String(payload.stage || "FINAL"),
+          )
+        }
         if (type === "barge_in") {
+          setWaitingForResponse(false)
           playerRef.current?.flush()
           assistantSpeakingRef.current = false
           setAssistantSpeaking(false)
         }
         if (type === "assistant_audio") {
+          setWaitingForResponse(false)
           const player = playerRef.current
           if (player) {
             const binary = atob(String(payload.data || ""))
@@ -340,6 +449,29 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
       <VoiceTrainingOrb mode={orbMode} energy={busy ? orbEnergy : 0} />
 
+      {voiceState === "recording" &&
+        (liveUserText || liveAssistantText || waitingForResponse) && (
+        <div className="mx-auto mt-3 max-w-md space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          {liveUserText ? (
+            <p className="text-slate-700">
+              <span className="font-medium">You:</span> {liveUserText}
+            </p>
+          ) : null}
+          {waitingForResponse && !liveAssistantText && !assistantSpeaking ? (
+            <p className="flex items-center gap-2 text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+              <span>Thinking…</span>
+            </p>
+          ) : null}
+          {liveAssistantText ? (
+            <p className="text-slate-500 italic">
+              <span className="font-medium not-italic text-slate-600">Assistant:</span>{" "}
+              {liveAssistantText}
+            </p>
+          ) : null}
+        </div>
+      )}
+
       {eligibility && (
         <p className="text-center text-xs text-slate-500">
           {eligibility.weekly_limit != null && eligibility.weekly_limit > 0
@@ -418,7 +550,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
                   <span className="font-medium text-slate-700">
                     {item.role === "user" ? "You" : "Assistant"}:
                   </span>{" "}
-                  <span className="text-slate-600">{item.text}</span>
+                  <span className={item.interim ? "text-slate-500 italic" : "text-slate-600"}>
+                    {item.text}
+                  </span>
                 </div>
               ))}
             </div>

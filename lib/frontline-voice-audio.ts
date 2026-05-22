@@ -4,6 +4,8 @@ export const FRONTLINE_VOICE_INPUT_RATE = 16000
 export const FRONTLINE_VOICE_OUTPUT_RATE = 24000
 /** AWS sample CHUNK_SIZE: 512 frames at 16 kHz ≈ 32 ms per mic send. */
 export const FRONTLINE_VOICE_CHUNK_SAMPLES = 512
+/** Flush partial mic buffer this often so Nova gets audio while you are still speaking. */
+export const FRONTLINE_VOICE_MIC_FLUSH_MS = 48
 /** Legacy default; prefer resolveCaptureBufferSize() for ScriptProcessor. */
 export const FRONTLINE_VOICE_CAPTURE_BUFFER = 512
 
