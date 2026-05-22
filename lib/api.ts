@@ -75,9 +75,16 @@ export interface ScopeClarifiedScope {
 }
 
 const DEFAULT_API_URL = 'http://localhost:4000/api'
-const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
-const BACKEND_WS_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN?.replace(/\/+$/, '')
-const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
+
+function normalizeEnvUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmed = value.trim().replace(/^['"]+|['"]+$/g, '')
+  return trimmed || undefined
+}
+
+const API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_API_URL) || DEFAULT_API_URL
+const BACKEND_WS_ORIGIN = normalizeEnvUrl(process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN)?.replace(/\/+$/, '')
+const CONTRACTOR_AI_API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL)
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
@@ -97,6 +104,11 @@ class ApiClient {
 
   private getBaseURL(): string {
     if (typeof window === 'undefined') {
+      return this.configuredBaseURL
+    }
+
+    // Vercel staging/prod: NEXT_PUBLIC_API_URL=/api — same-origin rewrites to backend.
+    if (this.configuredBaseURL.startsWith('/')) {
       return this.configuredBaseURL
     }
 
@@ -674,17 +686,40 @@ class ApiClient {
   }
 
   private resolveWebSocketOrigin(): string {
-    if (BACKEND_WS_ORIGIN) {
-      return BACKEND_WS_ORIGIN
+    const configured = BACKEND_WS_ORIGIN
+    if (configured) {
+      try {
+        const origin = new URL(configured).origin
+        console.log(`🔌 Voice WS origin (NEXT_PUBLIC_BACKEND_WS_ORIGIN): ${origin}`)
+        return origin
+      } catch {
+        console.warn(`Invalid NEXT_PUBLIC_BACKEND_WS_ORIGIN: ${configured}`)
+      }
+    }
+
+    // Same-origin /api (Vercel rewrites) — only use frontend origin when
+    // NEXT_PUBLIC_BACKEND_WS_ORIGIN is unset. Prefer setting that env to the
+    // deployed ContractorBackend host (e.g. https://contractorbackend-h0ax.onrender.com).
+    if (typeof window !== 'undefined' && this.getBaseURL().startsWith('/')) {
+      console.warn(
+        'NEXT_PUBLIC_BACKEND_WS_ORIGIN is not set; voice WebSocket will use the frontend origin. ' +
+          'Set it to your ContractorBackend URL for reliable Nova Sonic on staging/prod.',
+      )
+      console.log(`🔌 Voice WS origin (frontend fallback): ${window.location.origin}`)
+      return window.location.origin
     }
 
     const apiBase = this.baseURL
     try {
-      return new URL(apiBase).origin
+      const origin = new URL(apiBase).origin
+      console.log(`🔌 Voice WS origin (derived from API URL): ${origin}`)
+      return origin
     } catch {
       if (typeof window !== 'undefined') {
+        console.log(`🔌 Voice WS origin (browser fallback): ${window.location.origin}`)
         return window.location.origin
       }
+      console.log('🔌 Voice WS origin (default): http://localhost:4000')
       return 'http://localhost:4000'
     }
   }
@@ -696,6 +731,8 @@ class ApiClient {
     if (token) {
       wsUrl.searchParams.set('token', token)
     }
+    const redacted = wsUrl.toString().replace(/([?&]token=)[^&]+/, '$1[redacted]')
+    console.log(`🔌 Voice WebSocket URL: ${redacted}`)
     return wsUrl.toString()
   }
 

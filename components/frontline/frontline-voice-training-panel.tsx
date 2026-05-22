@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import {
   downsampleBuffer,
-  floatTo16BitPCM,
-  FRONTLINE_VOICE_CAPTURE_BUFFER,
+  float32ToInt16,
+  FRONTLINE_VOICE_CHUNK_SAMPLES,
   FRONTLINE_VOICE_INPUT_RATE,
   FRONTLINE_VOICE_OUTPUT_RATE,
   pcm16ToBase64,
   PcmStreamPlayer,
+  resolveCaptureBufferSize,
 } from "@/lib/frontline-voice-audio"
 import type {
   FrontlineKnowledgeIntakeResponse,
@@ -197,15 +198,14 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
           await audioContext.resume()
 
           const source = audioContext.createMediaStreamSource(stream)
-          const processor = audioContext.createScriptProcessor(
-            FRONTLINE_VOICE_CAPTURE_BUFFER,
-            1,
-            1,
-          )
+          const captureBuffer = resolveCaptureBufferSize(audioContext.sampleRate, inputRate)
+          const processor = audioContext.createScriptProcessor(captureBuffer, 1, 1)
           processorRef.current = processor
 
           const silent = audioContext.createGain()
           silent.gain.value = 0
+
+          let pendingMic = new Int16Array(0)
 
           processor.onaudioprocess = (e) => {
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
@@ -215,14 +215,25 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
               return assistantSpeakingRef.current ? prev * 0.6 + level * 0.4 : level
             })
             const downsampled = downsampleBuffer(input, audioContext.sampleRate, inputRate)
-            const pcm = floatTo16BitPCM(downsampled)
-            wsRef.current.send(
-              JSON.stringify({
-                type: "audio",
-                sample_rate: inputRate,
-                data: pcm16ToBase64(pcm),
-              }),
-            )
+            const samples = float32ToInt16(downsampled)
+            if (samples.length === 0) return
+
+            const merged = new Int16Array(pendingMic.length + samples.length)
+            merged.set(pendingMic)
+            merged.set(samples, pendingMic.length)
+            pendingMic = merged
+
+            while (pendingMic.length >= FRONTLINE_VOICE_CHUNK_SAMPLES) {
+              const chunk = pendingMic.slice(0, FRONTLINE_VOICE_CHUNK_SAMPLES)
+              pendingMic = pendingMic.slice(FRONTLINE_VOICE_CHUNK_SAMPLES)
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "audio",
+                  sample_rate: inputRate,
+                  data: pcm16ToBase64(chunk),
+                }),
+              )
+            }
           }
 
           source.connect(processor)
@@ -234,6 +245,11 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
         if (type === "user_text") appendTranscript("user", String(payload.text || ""))
         if (type === "assistant_text") appendTranscript("assistant", String(payload.text || ""))
+        if (type === "barge_in") {
+          playerRef.current?.flush()
+          assistantSpeakingRef.current = false
+          setAssistantSpeaking(false)
+        }
         if (type === "assistant_audio") {
           const player = playerRef.current
           if (player) {
@@ -285,8 +301,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       ws.onclose = () => {
         const state = voiceStateRef.current
         if (state === "recording" || state === "connecting") {
+          setLocalError("Voice connection lost — keep this tab open and try again.")
           cleanupAudio()
-          setVoiceState((s) => (s === "saving" ? s : "idle"))
+          setVoiceState("failed")
         }
       }
     } catch (err) {

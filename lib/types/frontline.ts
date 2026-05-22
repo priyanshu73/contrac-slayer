@@ -35,6 +35,7 @@ export interface FrontlineSetupContextResponse {
   setup_preview_json: FrontlineSetupPreview | null
   setup_completed_at: string | null
   has_system_prompt: boolean
+  setup_available?: boolean
   context: Record<string, unknown>
 }
 
