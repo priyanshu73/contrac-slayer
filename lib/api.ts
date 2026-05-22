@@ -27,6 +27,9 @@ import type {
   FrontlineReplyApproval,
   FrontlineSandboxAnswer,
   FrontlineSettings,
+  FrontlineSetupContextResponse,
+  FrontlineSetupGenerateResponse,
+  FrontlineSetupPreview,
   FrontlineTeachNote,
   FrontlineVoiceDevStatus,
   FrontlineVoiceTrainingEligibility,
@@ -556,6 +559,25 @@ class ApiClient {
 
   async getFrontlineSettings(): Promise<FrontlineSettings> {
     return this.request('/contractors/profile/frontline/settings')
+  }
+
+  async getFrontlineSetupContext(): Promise<FrontlineSetupContextResponse> {
+    return this.request('/contractors/profile/frontline/setup/context')
+  }
+
+  async generateFrontlineSetup(): Promise<FrontlineSetupGenerateResponse> {
+    return this.request('/contractors/profile/frontline/setup/generate', {
+      method: 'POST',
+    })
+  }
+
+  async confirmFrontlineSetup(
+    preview: FrontlineSetupPreview,
+  ): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/setup/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ preview }),
+    })
   }
 
   async updateFrontlineSettings(

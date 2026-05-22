@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-voice-training-panel";
+import { FrontlineInitialSetupCard } from "@/components/frontline/frontline-initial-setup-card";
 import type {
   FrontlineActivityEvent,
   FrontlineKnowledgeIntakeResponse,
@@ -546,6 +547,10 @@ export function FrontlinePage() {
   };
 
   const updateMode = (mode: FrontlineMode) => {
+    if (!settings?.initial_setup_done && mode !== "off") {
+      setError("Complete initial receptionist setup before turning Frontline on.");
+      return;
+    }
     void saveSettings({
       mode,
       enabled: mode !== "off",
@@ -603,6 +608,13 @@ export function FrontlinePage() {
             </div>
           </div>
         </header>
+
+        {settings && !settings.initial_setup_done && (
+          <FrontlineInitialSetupCard
+            onComplete={() => void load()}
+            onError={(message) => setError(message)}
+          />
+        )}
 
         {(error || success) && (
           <div

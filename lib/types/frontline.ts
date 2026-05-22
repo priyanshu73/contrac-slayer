@@ -11,8 +11,35 @@ export interface FrontlineSettings {
   calendar_actions_enabled: boolean
   voice_enabled: boolean
   custom_voice_enabled: boolean
+  initial_setup_done: boolean
+  business_display_name: string | null
+  receptionist_system_prompt: string | null
+  setup_preview_json: Record<string, unknown> | null
+  setup_completed_at: string | null
   created_at: string | null
   updated_at: string | null
+}
+
+export interface FrontlineSetupPreview {
+  business_display_name: string
+  business_snapshot: Record<string, string>
+  receptionist_brief: string
+  receptionist_system_prompt: string
+  starter_knowledge_markdown?: string
+  source_context?: Record<string, unknown>
+}
+
+export interface FrontlineSetupContextResponse {
+  initial_setup_done: boolean
+  business_display_name: string | null
+  setup_preview_json: FrontlineSetupPreview | null
+  setup_completed_at: string | null
+  has_system_prompt: boolean
+  context: Record<string, unknown>
+}
+
+export interface FrontlineSetupGenerateResponse {
+  preview: FrontlineSetupPreview
 }
 
 export interface FrontlineKnowledgeDoc {

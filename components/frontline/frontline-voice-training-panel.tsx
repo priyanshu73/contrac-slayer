@@ -1,21 +1,26 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, Mic2, Square } from "lucide-react"
+import { ChevronDown, ChevronUp, Loader2, Mic2, Square } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import {
   downsampleBuffer,
   floatTo16BitPCM,
+  FRONTLINE_VOICE_CAPTURE_BUFFER,
+  FRONTLINE_VOICE_INPUT_RATE,
+  FRONTLINE_VOICE_OUTPUT_RATE,
   pcm16ToBase64,
-  playPcm16Chunk,
+  PcmStreamPlayer,
 } from "@/lib/frontline-voice-audio"
 import type {
   FrontlineKnowledgeIntakeResponse,
   FrontlineVoiceTrainingEligibility,
   FrontlineVoiceTrainingSession,
 } from "@/lib/types/frontline"
+
+import { VoiceTrainingOrb } from "@/components/frontline/voice-training-orb"
 
 type VoiceState = "idle" | "connecting" | "recording" | "saving" | "completed" | "failed"
 
@@ -30,6 +35,16 @@ type Props = {
   onError?: (message: string) => void
 }
 
+function rmsLevel(samples: Float32Array): number {
+  if (samples.length === 0) return 0
+  let sum = 0
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i] ?? 0
+    sum += s * s
+  }
+  return Math.min(1, Math.sqrt(sum / samples.length) * 8)
+}
+
 export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props) {
   const [eligibility, setEligibility] = useState<FrontlineVoiceTrainingEligibility | null>(null)
   const [voiceState, setVoiceState] = useState<VoiceState>("idle")
@@ -37,14 +52,23 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   const [session, setSession] = useState<FrontlineVoiceTrainingSession | null>(null)
   const [intakeSummary, setIntakeSummary] = useState<string | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [showTranscript, setShowTranscript] = useState(false)
+  const [orbEnergy, setOrbEnergy] = useState(0)
+  const [assistantSpeaking, setAssistantSpeaking] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
-  const playbackContextRef = useRef<AudioContext | null>(null)
-  const playbackQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const playerRef = useRef<PcmStreamPlayer | null>(null)
   const stoppingRef = useRef(false)
+  const voiceStateRef = useRef<VoiceState>("idle")
+  const speakingPollRef = useRef<number | null>(null)
+  const assistantSpeakingRef = useRef(false)
+
+  useEffect(() => {
+    voiceStateRef.current = voiceState
+  }, [voiceState])
 
   const loadEligibility = useCallback(async () => {
     try {
@@ -59,16 +83,39 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     void loadEligibility()
   }, [loadEligibility])
 
+  const stopSpeakingPoll = useCallback(() => {
+    if (speakingPollRef.current != null) {
+      window.clearInterval(speakingPollRef.current)
+      speakingPollRef.current = null
+    }
+    setAssistantSpeaking(false)
+    assistantSpeakingRef.current = false
+  }, [])
+
+  const startSpeakingPoll = useCallback(() => {
+    stopSpeakingPoll()
+    speakingPollRef.current = window.setInterval(() => {
+      const playing = playerRef.current?.isPlaying ?? false
+      setAssistantSpeaking(playing)
+      assistantSpeakingRef.current = playing
+      if (playing) setOrbEnergy((e) => Math.max(e, 0.35))
+    }, 60)
+  }, [stopSpeakingPoll])
+
   const cleanupAudio = useCallback(() => {
+    stopSpeakingPoll()
     processorRef.current?.disconnect()
     processorRef.current = null
     audioContextRef.current?.close().catch(() => {})
     audioContextRef.current = null
+    playerRef.current?.close()
+    playerRef.current = null
     mediaStreamRef.current?.getTracks().forEach((t) => t.stop())
     mediaStreamRef.current = null
     wsRef.current?.close()
     wsRef.current = null
-  }, [])
+    setOrbEnergy(0)
+  }, [stopSpeakingPoll])
 
   useEffect(() => () => cleanupAudio(), [cleanupAudio])
 
@@ -79,20 +126,6 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       const last = prev[prev.length - 1]
       if (last && last.role === role && last.text === trimmed) return prev
       return [...prev, { role, text: trimmed, at: new Date().toISOString() }]
-    })
-  }
-
-  const queuePlayback = (base64: string, sampleRate: number) => {
-    playbackQueueRef.current = playbackQueueRef.current.then(async () => {
-      if (!playbackContextRef.current) {
-        playbackContextRef.current = new AudioContext({ sampleRate })
-      }
-      const ctx = playbackContextRef.current
-      if (ctx.state === "suspended") await ctx.resume()
-      const binary = atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-      await playPcm16Chunk(ctx, bytes.buffer, sampleRate)
     })
   }
 
@@ -119,17 +152,24 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     setTranscript([])
     setIntakeSummary(null)
     setSession(null)
+    setShowTranscript(false)
     setVoiceState("connecting")
 
     try {
       const started = await api.startFrontlineVoiceTrainingSession()
       setSession(started.session)
 
+      const player = new PcmStreamPlayer(FRONTLINE_VOICE_OUTPUT_RATE)
+      playerRef.current = player
+      await player.resume()
+      startSpeakingPoll()
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       })
       mediaStreamRef.current = stream
@@ -151,15 +191,29 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         const type = String(payload.type || "")
 
         if (type === "ready") {
-          const inputRate = Number(payload.sample_rate) || 16000
+          const inputRate = Number(payload.sample_rate) || FRONTLINE_VOICE_INPUT_RATE
           const audioContext = new AudioContext()
           audioContextRef.current = audioContext
+          await audioContext.resume()
+
           const source = audioContext.createMediaStreamSource(stream)
-          const processor = audioContext.createScriptProcessor(4096, 1, 1)
+          const processor = audioContext.createScriptProcessor(
+            FRONTLINE_VOICE_CAPTURE_BUFFER,
+            1,
+            1,
+          )
           processorRef.current = processor
+
+          const silent = audioContext.createGain()
+          silent.gain.value = 0
+
           processor.onaudioprocess = (e) => {
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
             const input = e.inputBuffer.getChannelData(0)
+            setOrbEnergy((prev) => {
+              const level = rmsLevel(input)
+              return assistantSpeakingRef.current ? prev * 0.6 + level * 0.4 : level
+            })
             const downsampled = downsampleBuffer(input, audioContext.sampleRate, inputRate)
             const pcm = floatTo16BitPCM(downsampled)
             wsRef.current.send(
@@ -170,8 +224,10 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
               }),
             )
           }
+
           source.connect(processor)
-          processor.connect(audioContext.destination)
+          processor.connect(silent)
+          silent.connect(audioContext.destination)
           setVoiceState("recording")
           return
         }
@@ -179,13 +235,30 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         if (type === "user_text") appendTranscript("user", String(payload.text || ""))
         if (type === "assistant_text") appendTranscript("assistant", String(payload.text || ""))
         if (type === "assistant_audio") {
-          queuePlayback(String(payload.data || ""), Number(payload.sample_rate) || 24000)
+          const player = playerRef.current
+          if (player) {
+            const binary = atob(String(payload.data || ""))
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            player.schedule(
+              bytes.buffer,
+              Number(payload.sample_rate) || FRONTLINE_VOICE_OUTPUT_RATE,
+            )
+            assistantSpeakingRef.current = true
+            setAssistantSpeaking(true)
+          }
         }
         if (type === "saved") {
           const savedSession = payload.session as FrontlineVoiceTrainingSession | undefined
           const knowledge = payload.knowledge as FrontlineKnowledgeIntakeResponse | undefined
           if (savedSession) setSession(savedSession)
-          setIntakeSummary(String(payload.summary || savedSession?.intake_summary || ""))
+          const summary = String(payload.summary || savedSession?.intake_summary || "")
+          const skipped = Boolean((knowledge as { intake_skipped?: boolean } | undefined)?.intake_skipped)
+          setIntakeSummary(
+            skipped
+              ? summary || "Training skipped — nothing useful was saved to knowledge."
+              : summary,
+          )
           if (knowledge?.markdown_text) {
             onKnowledgeSaved?.(knowledge.markdown_text, savedSession?.intake_summary)
           }
@@ -210,7 +283,8 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       }
 
       ws.onclose = () => {
-        if (voiceState === "recording" || voiceState === "connecting") {
+        const state = voiceStateRef.current
+        if (state === "recording" || state === "connecting") {
           cleanupAudio()
           setVoiceState((s) => (s === "saving" ? s : "idle"))
         }
@@ -226,55 +300,61 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
   const busy = voiceState === "connecting" || voiceState === "recording" || voiceState === "saving"
 
+  const orbMode =
+    voiceState === "connecting"
+      ? "connecting"
+      : voiceState === "saving"
+        ? "saving"
+        : voiceState === "recording" && assistantSpeaking
+          ? "speaking"
+          : voiceState === "recording"
+            ? "listening"
+            : "idle"
+
   return (
     <div className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
-          <Mic2 className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-slate-950">Voice training</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Talk through your business once a week. Nova asks questions; we turn the transcript into
-            receptionist knowledge automatically.
-          </p>
-          {eligibility && eligibility.weekly_limit != null && eligibility.weekly_limit > 0 && (
-            <p className="mt-2 text-xs text-slate-500">
-              {eligibility.completed_this_week}/{eligibility.weekly_limit} sessions used this week
-              · up to {Math.round(eligibility.max_seconds / 60)} min
-            </p>
-          )}
-          {eligibility && (eligibility.weekly_limit == null || eligibility.weekly_limit <= 0) && (
-            <p className="mt-2 text-xs text-slate-500">
-              Up to {Math.round(eligibility.max_seconds / 60)} min per session
-            </p>
-          )}
-        </div>
+      <div className="text-center">
+        <h2 className="text-sm font-semibold text-slate-950">Train your receptionist</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+          Have a short voice conversation about how you run your business. We turn it into
+          receptionist knowledge automatically.
+        </p>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+      <VoiceTrainingOrb mode={orbMode} energy={busy ? orbEnergy : 0} />
+
+      {eligibility && (
+        <p className="text-center text-xs text-slate-500">
+          {eligibility.weekly_limit != null && eligibility.weekly_limit > 0
+            ? `${eligibility.completed_this_week}/${eligibility.weekly_limit} sessions this week · `
+            : null}
+          up to {Math.round(eligibility.max_seconds / 60)} min
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-col items-center gap-3">
         {voiceState === "idle" || voiceState === "completed" || voiceState === "failed" ? (
           <Button
             onClick={() => void startSession()}
             disabled={busy || !eligibility?.allowed}
-            className="gap-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800"
+            className="gap-2 rounded-full bg-slate-950 px-6 text-white hover:bg-slate-800"
           >
             <Mic2 className="h-4 w-4" />
-            Start voice training
+            Start conversation
           </Button>
         ) : (
           <Button
             variant="outline"
             onClick={() => void stopSession()}
             disabled={voiceState === "saving"}
-            className="gap-2 rounded-xl border-slate-200"
+            className="gap-2 rounded-full border-slate-200 px-6"
           >
             {voiceState === "saving" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Square className="h-4 w-4" />
             )}
-            Stop and save
+            End and save
           </Button>
         )}
       </div>
@@ -283,37 +363,55 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         eligibility?.weekly_limit != null &&
         eligibility.weekly_limit > 0 &&
         voiceState === "idle" && (
-        <p className="mt-3 text-xs text-amber-700">
-          Weekly limit reached. You can train again next week.
-        </p>
-      )}
+          <p className="mt-3 text-center text-xs text-amber-700">
+            Weekly limit reached. You can train again next week.
+          </p>
+        )}
 
       {(localError || voiceState === "failed") && localError && (
-        <p className="mt-3 text-sm text-red-600">{localError}</p>
+        <p className="mt-3 text-center text-sm text-red-600">{localError}</p>
       )}
 
       {voiceState === "completed" && intakeSummary && (
-        <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          Saved to knowledge: {intakeSummary}
+        <p
+          className={`mt-3 rounded-xl border p-3 text-sm ${
+            intakeSummary.startsWith("Skipped:")
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
+          {intakeSummary.startsWith("Skipped:") ? intakeSummary : `Saved: ${intakeSummary}`}
         </p>
       )}
 
       {transcript.length > 0 && (
-        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-          {transcript.map((item, idx) => (
-            <div key={`${item.role}-${idx}`} className="text-sm">
-              <span className="font-medium text-slate-700">
-                {item.role === "user" ? "You" : "Frontline"}:
-              </span>{" "}
-              <span className="text-slate-600">{item.text}</span>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowTranscript((v) => !v)}
+            className="flex w-full items-center justify-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+          >
+            {showTranscript ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {showTranscript ? "Hide transcript" : "Show transcript"}
+          </button>
+          {showTranscript && (
+            <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+              {transcript.map((item, idx) => (
+                <div key={`${item.role}-${idx}`} className="text-sm">
+                  <span className="font-medium text-slate-700">
+                    {item.role === "user" ? "You" : "Assistant"}:
+                  </span>{" "}
+                  <span className="text-slate-600">{item.text}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {session?.status === "completed" && session.transcript_text && voiceState === "completed" && (
-        <p className="mt-2 text-xs text-slate-500">
-          Session {session.uuid.slice(0, 8)} · {session.duration_seconds ?? 0}s
+        <p className="mt-2 text-center text-xs text-slate-400">
+          {session.duration_seconds ?? 0}s session
         </p>
       )}
     </div>
