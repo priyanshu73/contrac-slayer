@@ -46,6 +46,45 @@ export interface FrontlineVoiceDevStatus {
   notes: string[]
 }
 
+export interface FrontlineVoiceTrainingEligibility {
+  allowed: boolean
+  weekly_limit: number
+  completed_this_week: number
+  max_seconds: number
+  model_id: string
+  voice_id: string
+  region: string
+}
+
+export interface FrontlineVoiceTrainingSession {
+  id: number
+  uuid: string
+  contractor_id: number
+  profile_uuid: string
+  sp_id: number | null
+  status: 'created' | 'active' | 'completed' | 'failed' | 'cancelled' | string
+  provider: string
+  model_id: string
+  voice_id: string
+  region: string
+  duration_seconds: number | null
+  transcript_text: string | null
+  transcript_json: Array<{ role: string; text: string; at?: string }> | null
+  intake_summary: string | null
+  failure_reason: string | null
+  started_at: string | null
+  ended_at: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface FrontlineVoiceTrainingSessionStart {
+  session: FrontlineVoiceTrainingSession
+  websocket_path: string
+  websocket_token?: string
+  max_seconds: number
+}
+
 export interface FrontlineSandboxAnswer {
   answer: string
   confidence: number

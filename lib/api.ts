@@ -29,6 +29,9 @@ import type {
   FrontlineSettings,
   FrontlineTeachNote,
   FrontlineVoiceDevStatus,
+  FrontlineVoiceTrainingEligibility,
+  FrontlineVoiceTrainingSession,
+  FrontlineVoiceTrainingSessionStart,
 } from './types/frontline'
 import { AI_ESTIMATE_REQUEST_TIMEOUT_MS } from './ai-estimate-loading'
 
@@ -628,6 +631,32 @@ class ApiClient {
 
   async getFrontlineVoiceDevStatus(): Promise<FrontlineVoiceDevStatus> {
     return this.request('/contractors/profile/frontline/voice/dev/status')
+  }
+
+  async getFrontlineVoiceTrainingEligibility(): Promise<FrontlineVoiceTrainingEligibility> {
+    return this.request('/contractors/profile/frontline/voice/training/eligibility')
+  }
+
+  async startFrontlineVoiceTrainingSession(): Promise<FrontlineVoiceTrainingSessionStart> {
+    return this.request('/contractors/profile/frontline/voice/training/session', {
+      method: 'POST',
+    })
+  }
+
+  async getFrontlineVoiceTrainingSession(
+    sessionUuid: string,
+  ): Promise<FrontlineVoiceTrainingSession> {
+    return this.request(`/contractors/profile/frontline/voice/training/session/${sessionUuid}`)
+  }
+
+  frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
+    const base = this.baseURL.replace(/\/api$/, '')
+    const url = new URL(path, `${base}/`)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    if (token) {
+      url.searchParams.set('token', token)
+    }
+    return url.toString()
   }
 
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
