@@ -323,7 +323,6 @@ export function AgentChatPanel() {
     const [scopeTrigger, setScopeTrigger] = useState<"estimate" | "proposal">("estimate")
     const [scopeStep, setScopeStep] = useState(0)
 
-<<<<<<< Updated upstream
     const [quotePageCtxTick, setQuotePageCtxTick] = useState(0)
     useEffect(() => {
         const onUpdate = () => setQuotePageCtxTick((t) => t + 1)
@@ -336,9 +335,6 @@ export function AgentChatPanel() {
         () => enrichQuotePageContext(parsePageContext(pathname ?? ""), locale),
         [pathname, locale, quotePageCtxTick]
     )
-=======
-    // Parse page context from current route
-    const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
     const activeProjectId = useMemo(() => {
         if (proposalContext.projectId) return proposalContext.projectId
         if (estimateContext.projectId) return estimateContext.projectId
@@ -348,7 +344,6 @@ export function AgentChatPanel() {
         }
         return null
     }, [estimateContext.projectId, pageContext, proposalContext.projectId])
->>>>>>> Stashed changes
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
 
     // Detect if we're on a quote create/edit page
