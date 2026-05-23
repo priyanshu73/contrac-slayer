@@ -33,6 +33,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-voice-training-panel";
@@ -913,6 +914,28 @@ export function FrontlinePage() {
                         })
                       }
                       className="mt-3 w-full accent-slate-950"
+                    />
+                  </div>
+                )}
+
+                {settings && (
+                  <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                        <Mic2 className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950">Voice calls (beta)</div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          When enabled, inbound calls to your Twilio number can be answered by AI.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={Boolean(settings.voice_enabled)}
+                      onCheckedChange={(checked) => void saveSettings({ voice_enabled: checked })}
+                      disabled={!settings.initial_setup_done}
+                      aria-label="Enable voice calls"
                     />
                   </div>
                 )}
