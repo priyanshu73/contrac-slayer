@@ -78,7 +78,7 @@ export function pcm16ToBase64(pcm: ArrayBuffer | Int16Array): string {
   return btoa(binary)
 }
 
-export function pcm16ToFloat32(pcm: ArrayBuffer): Float32Array {
+export function pcm16ToFloat32(pcm: ArrayBuffer): Float32Array<ArrayBuffer> {
   const view = new DataView(pcm)
   const out = new Float32Array(pcm.byteLength / 2)
   for (let i = 0; i < out.length; i++) {

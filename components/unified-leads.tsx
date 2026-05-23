@@ -20,7 +20,7 @@ import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound, Menu } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound, Menu, Bot } from "lucide-react"
 import { TranslatableSection } from "@/components/translate-button"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 
@@ -205,6 +205,9 @@ interface UnifiedLead {
 
   // Consolidation tracking
   contractor_ai_call_lead_id?: number // Reference to consolidated call lead in contractor-ai
+  interaction_id?: string
+  interaction_type?: 'phone_call' | 'frontline_voice' | string
+  is_frontline_ai?: boolean
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
 
   source?: string
@@ -292,9 +295,11 @@ export function UnifiedLeads() {
       const mappedLeads: UnifiedLead[] = (response.leads || []).map((lead: any) => {
         const isCallOnly = lead.consolidation_status === 'call_only'
         const isBoth = lead.consolidation_status === 'both'
+        const isFrontlineVoice = lead.is_frontline_ai || lead.source === 'FRONTLINE_VOICE' || lead.interaction_type === 'frontline_voice'
+        const callInteractionId = lead.interaction_id || lead.contractor_ai_customer_id
 
         return {
-          id: isCallOnly ? `call-${lead.contractor_ai_customer_id}` : `request-${lead.id}`,
+          id: isCallOnly ? `call-${callInteractionId}` : `request-${lead.id}`,
           name: lead.name || (isCallOnly ? `Customer ${lead.phone?.slice(-4)}` : "Unknown"),
           type: isCallOnly ? 'call' : 'request',
           status: lead.status,
@@ -305,13 +310,20 @@ export function UnifiedLeads() {
           project_type: lead.project_type,
           service_type: lead.call_data?.service_type || lead.project_type,
           description: lead.description,
+          transcript_text: lead.call_data?.transcript_text,
+          formatted_transcript_text: lead.call_data?.formatted_transcript_text,
+          summary_text: lead.call_data?.summary_text || lead.description,
+          last_message_preview: lead.call_data?.last_message_preview,
           created_at: lead.created_at,
           last_contact_date: lead.last_contact_date || lead.created_at,
           contractor_ai_call_lead_id: lead.contractor_ai_customer_id,
+          interaction_id: callInteractionId,
+          interaction_type: lead.interaction_type,
+          is_frontline_ai: isFrontlineVoice,
           source: lead.source,
           // Enrichment flags
           _needsCallDataLoad: isBoth || isCallOnly,
-          _needsFullLoad: isCallOnly // For call tasks/transcripts
+          _needsFullLoad: isCallOnly && !isFrontlineVoice // Frontline calls arrive with transcript/summary data already
         }
       })
 
@@ -406,6 +418,11 @@ export function UnifiedLeads() {
     if (currentLead?.type !== 'call') {
       // Unknown lead type or not found - return as is
       return currentLead || null
+    }
+
+    if (currentLead.is_frontline_ai) {
+      setLeadDetailsCache(prev => new Map(prev).set(leadId, currentLead))
+      return currentLead
     }
 
     // Extract the numeric ID from the lead ID (e.g., "call-123" -> "123")
@@ -823,12 +840,13 @@ export function UnifiedLeads() {
                                 {lead.status}
                               </span>
                               <div className="flex items-center gap-1 shrink-0">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[9px] md:text-[10px] px-1.5 py-0 ${lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
-                                >
-                                  {lead.type === 'call' ? '📞 Call' : '📝 Request'}
-                                </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`flex items-center gap-1 text-[9px] md:text-[10px] px-1.5 py-0 ${lead.is_frontline_ai ? 'text-sky-700 bg-sky-50/80 border-sky-200/70' : lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
+                              >
+                                  {lead.is_frontline_ai && <Bot className="h-3 w-3" />}
+                                  {lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
+                              </Badge>
                               </div>
                             </div>
                           </div>
@@ -911,9 +929,10 @@ export function UnifiedLeads() {
                             <div className="flex items-center gap-1 shrink-0">
                               <Badge
                                 variant="outline"
-                                className={`text-[9px] md:text-[10px] px-1.5 py-0 ${lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
+                                className={`flex items-center gap-1 text-[9px] md:text-[10px] px-1.5 py-0 ${lead.is_frontline_ai ? 'text-sky-700 bg-sky-50/80 border-sky-200/70' : lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
                               >
-                                {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                                {lead.is_frontline_ai && <Bot className="h-3 w-3" />}
+                                {lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
                               </Badge>
                             </div>
                           </div>
@@ -1082,8 +1101,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     📞📝 {tLeads('consolidated')}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className={`text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 ${lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
-                    {lead.type === 'call' ? '📞 Call' : '📝 Request'}
+                  <Badge variant="outline" className={`flex items-center gap-1 text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 ${lead.is_frontline_ai ? 'border-sky-200 bg-sky-50 text-sky-700' : lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
+                    {lead.is_frontline_ai && <Bot className="h-3.5 w-3.5" />}
+                    {lead.is_frontline_ai ? 'AI Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
                   </Badge>
                 )}
               </div>
@@ -1152,7 +1172,15 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
-                <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
+                {lead.is_frontline_ai ? (
+                  <FrontlineMixedConversation
+                    phoneNumber={normalizePhoneToE164(lead.phone)}
+                    transcript={lead.formatted_transcript_text || lead.transcript_text || ""}
+                    summary={lead.summary_text}
+                  />
+                ) : (
+                  <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
+                )}
               </div>
             </div>
 
@@ -1696,7 +1724,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               <a href={
                 lead.type === 'request'
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
-                  : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
+                  : lead.is_frontline_ai
+                    ? `/quotes/new?phone=${encodeURIComponent(lead.phone || '')}`
+                    : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
               }>
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1724,6 +1754,96 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 // Conversation Messages Component for Call Leads
 interface ConversationMessagesProps {
   phoneNumber: string
+}
+
+interface FrontlineMixedConversationProps {
+  phoneNumber: string
+  transcript?: string
+  summary?: string
+}
+
+function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: FrontlineMixedConversationProps) {
+  const lines = transcript.split('\n').map((line) => line.trim()).filter(Boolean)
+
+  const turns = lines.map((line, index) => {
+    const [speakerRaw, ...messageParts] = line.split(':')
+    const message = messageParts.join(':').trim()
+    const speaker = speakerRaw?.trim() || "Frontline"
+    const lowered = speaker.toLowerCase()
+    const isFrontline = lowered.includes('frontline') || lowered.includes('assistant') || lowered.includes('contractor')
+    return {
+      id: `${index}-${speaker}`,
+      speaker: isFrontline ? 'Frontline' : 'Customer',
+      message: message || line,
+      isFrontline,
+    }
+  })
+  const previewTurns = turns.slice(0, 6)
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
+      {(summary || turns.length > 0) && (
+        <div className="shrink-0 border-b border-sky-100/80 bg-gradient-to-b from-sky-50/70 to-white px-3 py-3 dark:border-sky-900/30 dark:from-sky-950/20 dark:to-background md:px-4">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+              <Bot className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Frontline call context</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">Call summary plus the ongoing SMS thread for this customer</p>
+            </div>
+          </div>
+          {summary && (
+            <p className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-sm leading-5 text-slate-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-slate-200">
+              {summary}
+            </p>
+          )}
+
+          {previewTurns.length > 0 && (
+            <details className="mt-2 rounded-lg border border-sky-100 bg-white/75 px-3 py-2 text-sm dark:border-sky-900/40 dark:bg-background/60">
+              <summary className="cursor-pointer select-none text-xs font-medium text-sky-700 dark:text-sky-300">
+                Call transcript preview
+              </summary>
+              <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
+                {previewTurns.map((turn) => (
+                  <div key={turn.id} className={`flex ${turn.isFrontline ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
+                        turn.isFrontline
+                          ? 'bg-sky-600 text-white'
+                          : 'border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100'
+                      }`}
+                    >
+                      <div className={`mb-1 text-[10px] font-medium ${turn.isFrontline ? 'text-white/75' : 'text-slate-500'}`}>
+                        {turn.speaker}
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm leading-5">{turn.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      <div className="shrink-0 border-b border-border/70 bg-background/80 px-3 py-2 md:px-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SMS thread</p>
+            <p className="text-[11px] text-muted-foreground">Texts and automated replies with this same customer</p>
+          </div>
+          <Badge variant="outline" className="border-sky-200 bg-sky-50 text-[10px] text-sky-700">
+            Frontline
+          </Badge>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1">
+        <ConversationMessages phoneNumber={phoneNumber} />
+      </div>
+    </div>
+  )
 }
 
 function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
@@ -2074,6 +2194,8 @@ interface CallHistoryItem {
   formatted_transcript_text?: string
   summary_text?: string
   phone_number?: string // Added for verification that transcript belongs to correct phone
+  is_frontline_ai?: boolean
+  source?: string
 }
 
 function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionProps) {
@@ -2212,7 +2334,9 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
             transcript_text: lead.transcript_text,
             formatted_transcript_text: lead.formatted_transcript_text,
             summary_text: lead.summary_text,
-            phone_number: lead.phone_number // Keep phone number for verification
+            phone_number: lead.phone_number, // Keep phone number for verification
+            is_frontline_ai: !!lead.is_frontline_ai || lead.source === 'FRONTLINE_VOICE' || lead.interaction_type === 'frontline_voice',
+            source: lead.source,
           }
         })
         .filter((item: CallHistoryItem) => {
@@ -2308,6 +2432,9 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       if (speakerLower.includes('contractor') || speakerLower.includes('contratista')) {
         return isTranslated || locale === 'es' ? 'Contratista' : 'Contractor'
       }
+      if (speakerLower.includes('frontline') || speakerLower.includes('assistant')) {
+        return 'Frontline'
+      }
       if (speakerLower.includes('customer') || speakerLower.includes('client') || speakerLower.includes('cliente')) {
         return isTranslated || locale === 'es' ? 'Cliente' : 'Customer'
       }
@@ -2323,7 +2450,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       }
 
       const speakerLower = speaker.trim().toLowerCase()
-      const isContractor = speakerLower.includes('contractor') || speakerLower.includes('contratista')
+      const isContractor = speakerLower.includes('contractor') || speakerLower.includes('contratista') || speakerLower.includes('frontline') || speakerLower.includes('assistant')
       const displaySpeaker = getDisplaySpeaker(speaker)
 
       return (
@@ -2381,6 +2508,12 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           <Badge variant="secondary" className="text-xs">
             {callHistory.length} {callHistory.length === 1 ? 'call' : 'calls'}
           </Badge>
+          {callHistory.some(call => call.is_frontline_ai) && (
+            <Badge variant="outline" className="flex items-center gap-1 border-sky-200 bg-sky-50 text-xs text-sky-700">
+              <Bot className="h-3 w-3" />
+              Frontline
+            </Badge>
+          )}
         </div>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
