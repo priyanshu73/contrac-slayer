@@ -323,6 +323,7 @@ export function AgentChatPanel() {
     const [scopeTrigger, setScopeTrigger] = useState<"estimate" | "proposal">("estimate")
     const [scopeStep, setScopeStep] = useState(0)
 
+<<<<<<< Updated upstream
     const [quotePageCtxTick, setQuotePageCtxTick] = useState(0)
     useEffect(() => {
         const onUpdate = () => setQuotePageCtxTick((t) => t + 1)
@@ -335,6 +336,19 @@ export function AgentChatPanel() {
         () => enrichQuotePageContext(parsePageContext(pathname ?? ""), locale),
         [pathname, locale, quotePageCtxTick]
     )
+=======
+    // Parse page context from current route
+    const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
+    const activeProjectId = useMemo(() => {
+        if (proposalContext.projectId) return proposalContext.projectId
+        if (estimateContext.projectId) return estimateContext.projectId
+        if (pageContext.page === "project_detail" && pageContext.entity_id) {
+            const parsed = Number(pageContext.entity_id)
+            return Number.isFinite(parsed) ? parsed : null
+        }
+        return null
+    }, [estimateContext.projectId, pageContext, proposalContext.projectId])
+>>>>>>> Stashed changes
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
 
     // Detect if we're on a quote create/edit page
@@ -616,6 +630,7 @@ export function AgentChatPanel() {
                     messages: history,
                     page_context: pageContext,
                     conversation_id: activeConversationId || undefined,
+                    project_id: activeProjectId || undefined,
                 }),
             })
                 .then(async (res) => {
@@ -681,7 +696,7 @@ export function AgentChatPanel() {
                 })
                 .finally(() => setIsLoading(false))
         }, 0)
-    }, [pageContext, activeConversationId, fetchConversations])
+    }, [pageContext, activeConversationId, fetchConversations, activeProjectId])
 
     const handleSend = async () => {
         const text = input.trim()
@@ -718,6 +733,7 @@ export function AgentChatPanel() {
                     messages: history,
                     page_context: pageContext,
                     conversation_id: activeConversationId || undefined,
+                    project_id: activeProjectId || undefined,
                 }),
             })
 

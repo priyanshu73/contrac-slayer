@@ -1173,6 +1173,7 @@ class ApiClient {
     project_type?: string
     measurements?: any
     lead_id?: number
+    project_id?: number | null
     location_zip_code?: string
     labor_charge_type?: string
     labor_rate_value?: number

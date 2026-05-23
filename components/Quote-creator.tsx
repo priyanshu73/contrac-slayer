@@ -1339,6 +1339,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         project_type: projectType || undefined,
         measurements: measurements.items.length > 0 ? measurements : undefined,
         lead_id: leadId ? parseInt(leadId, 10) : undefined,
+        project_id: selectedProjectId ?? undefined,
         location_zip_code: zipCode,
         labor_charge_type: laborChargeType,
         labor_rate_value: laborRateValue,
