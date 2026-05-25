@@ -1000,11 +1000,13 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const [isTranslatingSummary, setIsTranslatingSummary] = useState(false)
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false)
+  const [summaryCardExpanded, setSummaryCardExpanded] = useState(false)
 
-  // Reset translations when lead changes
+  // Reset translations and expand state when lead changes
   useEffect(() => {
     setTranslatedSummary(null)
     setTranslatedDescription(null)
+    setSummaryCardExpanded(false)
   }, [lead.id])
 
   const handleTranslate = async (
@@ -1242,45 +1244,61 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               )}
 
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
-              {lead.summary_text && (
-                <div id="lead-detail-ai-summary" className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
-                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
-                    {tLeads('aiSummary')}
-                  </h3>
-                  {(lead as any).contractor_ai_call_lead_id && (
-                    <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromCall')}</p>
-                  )}
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
-                      {translatedSummary || lead.summary_text}
+              {lead.summary_text && (() => {
+                const SUMMARY_CAP = 240
+                const rawSummary = translatedSummary || lead.summary_text
+                const isLong = rawSummary.length > SUMMARY_CAP
+                const displaySummary = isLong && !summaryCardExpanded
+                  ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
+                  : rawSummary
+                return (
+                  <div id="lead-detail-ai-summary" className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200">
+                        {tLeads('aiSummary')}
+                      </h3>
+                      {locale === 'es' && (
+                        <button
+                          onClick={() => handleTranslate(
+                            lead.summary_text!,
+                            setTranslatedSummary,
+                            setIsTranslatingSummary,
+                            !!translatedSummary
+                          )}
+                          disabled={isTranslatingSummary}
+                          className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                          title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                        >
+                          {isTranslatingSummary ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : translatedSummary ? (
+                            <RotateCcw className="h-4 w-4" />
+                          ) : (
+                            <Languages className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {(lead as any).contractor_ai_call_lead_id && (
+                      <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromCall')}</p>
+                    )}
+                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words leading-relaxed">
+                      {displaySummary}
                     </p>
-                    {locale === 'es' && (
+                    {isLong && (
                       <button
-                        onClick={() => handleTranslate(
-                          lead.summary_text!,
-                          setTranslatedSummary,
-                          setIsTranslatingSummary,
-                          !!translatedSummary
-                        )}
-                        disabled={isTranslatingSummary}
-                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                        title={translatedSummary ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                        onClick={() => setSummaryCardExpanded(v => !v)}
+                        className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
                       >
-                        {isTranslatingSummary ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : translatedSummary ? (
-                          <RotateCcw className="h-4 w-4" />
-                        ) : (
-                          <Languages className="h-4 w-4" />
-                        )}
+                        {summaryCardExpanded ? 'Show less' : 'Read more'}
                       </button>
                     )}
+                    {translatedSummary && (
+                      <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                    )}
                   </div>
-                  {translatedSummary && (
-                    <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
-                  )}
-                </div>
-              )}
+                )
+              })()}
 
               {/* Project Description from quote request (for consolidated leads) */}
               {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
@@ -1483,15 +1501,19 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         </dl>
                       </div>
                     </Card>
-                    {lead.summary_text && (
+                    {lead.summary_text && (() => {
+                      const SUMMARY_CAP = 240
+                      const rawSummary = translatedSummary || lead.summary_text
+                      const isLong = rawSummary.length > SUMMARY_CAP
+                      const displaySummary = isLong && !summaryCardExpanded
+                        ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
+                        : rawSummary
+                      return (
                       <div className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4">
-                        <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
-                          {tLeads('aiSummary')}
-                        </h3>
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
-                            {translatedSummary || lead.summary_text}
-                          </p>
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200">
+                            {tLeads('aiSummary')}
+                          </h3>
                           {locale === 'es' && (
                             <button
                               onClick={() => handleTranslate(lead.summary_text!, setTranslatedSummary, setIsTranslatingSummary, !!translatedSummary)}
@@ -1503,9 +1525,21 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                             </button>
                           )}
                         </div>
+                        <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words leading-relaxed">
+                          {displaySummary}
+                        </p>
+                        {isLong && (
+                          <button
+                            onClick={() => setSummaryCardExpanded(v => !v)}
+                            className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                          >
+                            {summaryCardExpanded ? 'Show less' : 'Read more'}
+                          </button>
+                        )}
                         {translatedSummary && <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>}
                       </div>
-                    )}
+                      )
+                    })()}
                     <div>
                       <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
                     </div>
@@ -1763,6 +1797,9 @@ interface FrontlineMixedConversationProps {
 }
 
 function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: FrontlineMixedConversationProps) {
+  const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false)
+
   const lines = transcript.split('\n').map((line) => line.trim()).filter(Boolean)
 
   const turns = lines.map((line, index) => {
@@ -1778,7 +1815,16 @@ function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: F
       isFrontline,
     }
   })
-  const previewTurns = turns.slice(0, 6)
+
+  const SUMMARY_PREVIEW_LENGTH = 220
+  const summaryIsLong = summary && summary.length > SUMMARY_PREVIEW_LENGTH
+  const summaryDisplay = summaryIsLong && !summaryExpanded
+    ? summary.slice(0, SUMMARY_PREVIEW_LENGTH).trimEnd() + '…'
+    : summary
+
+  const TRANSCRIPT_PREVIEW_TURNS = 5
+  const visibleTurns = transcriptExpanded ? turns : turns.slice(0, TRANSCRIPT_PREVIEW_TURNS)
+  const hasMoreTurns = turns.length > TRANSCRIPT_PREVIEW_TURNS
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
@@ -1794,35 +1840,59 @@ function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: F
             </div>
           </div>
           {summary && (
-            <p className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-sm leading-5 text-slate-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-slate-200">
-              {summary}
-            </p>
+            <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 dark:border-sky-900/40 dark:bg-sky-950/20">
+              <p className="text-sm leading-5 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+                {summaryDisplay}
+              </p>
+              {summaryIsLong && (
+                <button
+                  onClick={() => setSummaryExpanded(v => !v)}
+                  className="mt-1.5 text-xs font-medium text-sky-700 hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-200"
+                >
+                  {summaryExpanded ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
           )}
 
-          {previewTurns.length > 0 && (
-            <details className="mt-2 rounded-lg border border-sky-100 bg-white/75 px-3 py-2 text-sm dark:border-sky-900/40 dark:bg-background/60">
-              <summary className="cursor-pointer select-none text-xs font-medium text-sky-700 dark:text-sky-300">
-                Call transcript preview
-              </summary>
-              <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
-                {previewTurns.map((turn) => (
-                  <div key={turn.id} className={`flex ${turn.isFrontline ? 'justify-end' : 'justify-start'}`}>
-                    <div
-                      className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
-                        turn.isFrontline
-                          ? 'bg-sky-600 text-white'
-                          : 'border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100'
-                      }`}
-                    >
-                      <div className={`mb-1 text-[10px] font-medium ${turn.isFrontline ? 'text-white/75' : 'text-slate-500'}`}>
-                        {turn.speaker}
+          {turns.length > 0 && (
+            <div className="mt-2 rounded-lg border border-sky-100 bg-white/75 dark:border-sky-900/40 dark:bg-background/60 overflow-hidden">
+              <button
+                onClick={() => setTranscriptExpanded(v => !v)}
+                className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50/50 dark:text-sky-300 dark:hover:bg-sky-950/20"
+              >
+                <span>Call transcript ({turns.length} turns)</span>
+                {transcriptExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {transcriptExpanded && (
+                <div className="max-h-80 space-y-2 overflow-y-auto px-3 pb-3 pr-1">
+                  {visibleTurns.map((turn) => (
+                    <div key={turn.id} className={`flex ${turn.isFrontline ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
+                          turn.isFrontline
+                            ? 'bg-sky-600 text-white'
+                            : 'border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100'
+                        }`}
+                      >
+                        <div className={`mb-1 text-[10px] font-medium ${turn.isFrontline ? 'text-white/75' : 'text-slate-500'}`}>
+                          {turn.speaker}
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-5">{turn.message}</p>
                       </div>
-                      <p className="whitespace-pre-wrap text-sm leading-5">{turn.message}</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </details>
+                  ))}
+                  {hasMoreTurns && !transcriptExpanded && (
+                    <button
+                      onClick={() => setTranscriptExpanded(true)}
+                      className="w-full pt-1 text-center text-xs text-sky-600 hover:text-sky-800 dark:text-sky-400"
+                    >
+                      +{turns.length - TRANSCRIPT_PREVIEW_TURNS} more turns
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
