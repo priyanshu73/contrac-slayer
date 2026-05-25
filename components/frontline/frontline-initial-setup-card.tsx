@@ -27,10 +27,19 @@ const OPERATOR_OPTIONS = [
   },
 ] as const
 
+const CONFIGURING_LINES = [
+  (name: string) => `${name} is on the way.`,
+  (name: string) => `${name} found the clean polo shirt.`,
+  (name: string) => `${name} is driving to the office now.`,
+  (name: string) => `${name} is testing the headset.`,
+  (name: string) => `${name} is opening the front desk notebook.`,
+] as const
+
 export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
   const [loading, setLoading] = useState(true)
   const [phase, setPhase] = useState<Phase>("idle")
   const [setup, setSetup] = useState<FrontlineSetupContextResponse | null>(null)
+  const [configuringLineIndex, setConfiguringLineIndex] = useState(0)
   const [operator, setOperator] = useState<(typeof OPERATOR_OPTIONS)[number]>(
     OPERATOR_OPTIONS[0],
   )
@@ -50,6 +59,19 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (phase !== "configuring") {
+      setConfiguringLineIndex(0)
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setConfiguringLineIndex((current) => (current + 1) % CONFIGURING_LINES.length)
+    }, 1600)
+
+    return () => window.clearInterval(timer)
+  }, [phase])
 
   const configure = async () => {
     if (setup?.setup_available === false) return
@@ -97,6 +119,8 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
     setup?.business_display_name?.trim() ||
     String((setup?.context as Record<string, unknown> | undefined)?.company_name || "").trim() ||
     "your business"
+  const configuringLine =
+    CONFIGURING_LINES[configuringLineIndex % CONFIGURING_LINES.length](operator.name)
 
   return (
     <div className="relative overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -146,12 +170,12 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
         <Button
           onClick={() => void configure()}
           disabled={phase === "configuring" || setup?.setup_available === false}
-          className="mt-8 gap-2 rounded-full bg-slate-950 px-8 py-6 text-sm font-medium text-white hover:bg-slate-800"
+          className="mt-8 min-w-[220px] gap-2 rounded-full bg-slate-950 px-8 py-6 text-sm font-medium text-white hover:bg-slate-800"
         >
           {phase === "configuring" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Configuring…
+              Configuring operator…
             </>
           ) : (
             <>
@@ -160,6 +184,12 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
             </>
           )}
         </Button>
+
+        {phase === "configuring" && (
+          <p className="mx-auto mt-3 min-h-5 max-w-xs text-xs font-medium text-slate-500">
+            {configuringLine}
+          </p>
+        )}
 
         {setup?.setup_available === false && (
           <p className="mt-4 text-xs text-amber-700">
