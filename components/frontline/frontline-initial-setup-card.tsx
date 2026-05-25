@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react"
+import { CheckCircle2, Loader2, Mic2, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
@@ -14,10 +14,26 @@ type Props = {
 
 type Phase = "idle" | "configuring" | "success"
 
+const OPERATOR_OPTIONS = [
+  {
+    name: "Henry",
+    voiceId: "matthew",
+    label: "Male",
+  },
+  {
+    name: "Jane",
+    voiceId: "tiffany",
+    label: "Female",
+  },
+] as const
+
 export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
   const [loading, setLoading] = useState(true)
   const [phase, setPhase] = useState<Phase>("idle")
   const [setup, setSetup] = useState<FrontlineSetupContextResponse | null>(null)
+  const [operator, setOperator] = useState<(typeof OPERATOR_OPTIONS)[number]>(
+    OPERATOR_OPTIONS[0],
+  )
 
   const load = useCallback(async () => {
     try {
@@ -39,13 +55,16 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
     if (setup?.setup_available === false) return
     try {
       setPhase("configuring")
-      const generated = await api.generateFrontlineSetup()
+      const generated = await api.generateFrontlineSetup({
+        operator_display_name: operator.name,
+        operator_voice_id: operator.voiceId,
+      })
       await api.confirmFrontlineSetup(generated.preview)
       setPhase("success")
       window.setTimeout(() => onComplete(), 1400)
     } catch (err) {
       setPhase("idle")
-      onError?.(err instanceof Error ? err.message : "Unable to configure receptionist.")
+      onError?.(err instanceof Error ? err.message : "Unable to configure operator.")
     }
   }
 
@@ -65,7 +84,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
             <CheckCircle2 className="h-7 w-7" />
           </span>
-          <h2 className="mt-5 text-lg font-semibold text-slate-950">Receptionist configured</h2>
+          <h2 className="mt-5 text-lg font-semibold text-slate-950">Operator configured</h2>
           <p className="mt-2 max-w-sm text-center text-sm leading-6 text-slate-600">
             Your AI front desk is ready. Train it below or turn it on when you&apos;re set.
           </p>
@@ -86,13 +105,43 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <Sparkles className="h-5 w-5" />
         </span>
         <h2 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">
-          Set up your AI receptionist
+          Set up your AI operator
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          One tap configures a receptionist tailored to{" "}
+          Pick the operator voice first, then we&apos;ll configure it for{" "}
           <span className="font-medium text-slate-900">{businessName}</span>. It learns how to
           answer calls and texts in your voice — you can refine it anytime.
         </p>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {OPERATOR_OPTIONS.map((option) => {
+            const active = operator.voiceId === option.voiceId
+            return (
+              <button
+                key={option.voiceId}
+                type="button"
+                onClick={() => setOperator(option)}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  active
+                    ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300 hover:bg-white"
+                }`}
+              >
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    active ? "bg-white/15 text-white" : "bg-white text-slate-600"
+                  }`}
+                >
+                  <Mic2 className="h-4 w-4" />
+                </span>
+                <span className="mt-3 block text-sm font-semibold">{option.name}</span>
+                <span className={`mt-1 block text-xs ${active ? "text-slate-200" : "text-slate-500"}`}>
+                  {option.label} operator voice
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
         <Button
           onClick={() => void configure()}
@@ -107,7 +156,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           ) : (
             <>
               <Sparkles className="h-4 w-4" />
-              Configure receptionist
+              Configure operator
             </>
           )}
         </Button>

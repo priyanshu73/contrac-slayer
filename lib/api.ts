@@ -578,14 +578,17 @@ class ApiClient {
     return this.request('/contractors/profile/frontline/setup/context')
   }
 
-  async generateFrontlineSetup(): Promise<FrontlineSetupGenerateResponse> {
+  async generateFrontlineSetup(operator?: {
+    operator_display_name?: string
+    operator_voice_id?: string
+  }): Promise<FrontlineSetupGenerateResponse> {
     const frontend_origin =
       typeof window !== 'undefined'
         ? window.location.origin
         : process.env.NEXT_PUBLIC_FRONTEND_URL || undefined
     return this.request('/contractors/profile/frontline/setup/generate', {
       method: 'POST',
-      body: JSON.stringify({ frontend_origin }),
+      body: JSON.stringify({ frontend_origin, ...operator }),
     })
   }
 

@@ -80,7 +80,7 @@ const TRAINING_PROMPTS: TrainingPrompt[] = [
     key: "pricing",
     title: "Pricing",
     prompt:
-      "How should the receptionist explain estimates, minimums, deposits, trip fees, and pricing boundaries?",
+      "How should the operator explain estimates, minimums, deposits, trip fees, and pricing boundaries?",
   },
   {
     key: "schedule",
@@ -155,10 +155,15 @@ const MODE_OPTIONS: Array<{
   {
     mode: "off",
     title: "Off",
-    subtitle: "Keeps the smart receptionist paused.",
+    subtitle: "Keeps the smart operator paused.",
     icon: Clock3,
   },
 ];
+
+const OPERATOR_OPTIONS = [
+  { name: "Henry", voiceId: "matthew", label: "Male" },
+  { name: "Jane", voiceId: "tiffany", label: "Female" },
+] as const;
 
 const QUICK_TESTS = [
   "Do you service my area and can I get an estimate?",
@@ -416,6 +421,8 @@ export function FrontlinePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [operatorEditing, setOperatorEditing] = useState(false);
+  const [operatorDraftVoiceId, setOperatorDraftVoiceId] = useState("matthew");
 
   const sections = useMemo(() => parseKnowledgeSections(markdown), [markdown]);
   const wordCount = useMemo(
@@ -452,6 +459,11 @@ export function FrontlinePage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!settings) return;
+    setOperatorDraftVoiceId(settings.operator_voice_id || "matthew");
+  }, [settings?.operator_voice_id]);
+
   const flashSuccess = (message: string) => {
     setSuccess(message);
     window.setTimeout(() => setSuccess(null), 2600);
@@ -469,6 +481,18 @@ export function FrontlinePage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveOperatorIdentity = async () => {
+    const selected =
+      OPERATOR_OPTIONS.find((option) => option.voiceId === operatorDraftVoiceId) ||
+      OPERATOR_OPTIONS[0];
+    if (!selected) return;
+    await saveSettings({
+      operator_display_name: selected.name,
+      operator_voice_id: selected.voiceId,
+    });
+    setOperatorEditing(false);
   };
 
   const saveKnowledge = async (nextMarkdown = markdown) => {
@@ -495,7 +519,7 @@ export function FrontlinePage() {
       setMarkdown(result.markdown_text || "");
       setTrainingIntake("");
       setView("test");
-      flashSuccess("Training notes turned into receptionist knowledge.");
+      flashSuccess("Training notes turned into operator knowledge.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to process training notes.");
     } finally {
@@ -549,7 +573,7 @@ export function FrontlinePage() {
 
   const updateMode = (mode: FrontlineMode) => {
     if (!settings?.initial_setup_done && mode !== "off") {
-      setError("Complete initial receptionist setup before turning Frontline on.");
+      setError("Complete initial operator setup before turning Frontline on.");
       return;
     }
     void saveSettings({
@@ -593,7 +617,7 @@ export function FrontlinePage() {
                 </Badge>
               </div>
               <h1 className="max-w-3xl text-3xl font-semibold tracking-normal text-slate-950 sm:text-4xl">
-                Make the business number answer like a trained receptionist.
+                Make the business number answer like a trained operator.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 Start by training it with plain business context. Then test replies in the sandbox and
@@ -700,7 +724,7 @@ export function FrontlinePage() {
                   setMarkdown(nextMarkdown)
                   if (summary) setIntakeResult({ markdown_text: nextMarkdown, intake_summary: summary } as FrontlineKnowledgeIntakeResponse)
                   setView("test")
-                  flashSuccess("Voice training saved to receptionist knowledge.")
+                  flashSuccess("Voice training saved to operator knowledge.")
                 }}
                 onError={(message) => setError(message)}
               />
@@ -738,7 +762,7 @@ export function FrontlinePage() {
               </div>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                 Ask it the way a customer would. The answer uses the same knowledge path the SMS
-                receptionist will use.
+                operator will use.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -915,6 +939,103 @@ export function FrontlinePage() {
                       }
                       className="mt-3 w-full accent-slate-950"
                     />
+                  </div>
+                )}
+
+                {settings && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                          <Mic2 className="h-4 w-4 text-slate-500" />
+                          Operator identity
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          Choose the default operator voice for Frontline phone calls.
+                        </p>
+                      </div>
+                      {!operatorEditing ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setOperatorEditing(true)}
+                          className="rounded-xl"
+                        >
+                          <PenLine className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={saving}
+                            onClick={() => {
+                              setOperatorDraftVoiceId(settings.operator_voice_id || "matthew");
+                              setOperatorEditing(false);
+                            }}
+                            className="rounded-xl"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                              saving ||
+                              operatorDraftVoiceId === (settings.operator_voice_id || "matthew")
+                            }
+                            onClick={() => void saveOperatorIdentity()}
+                            className="rounded-xl bg-slate-950 text-white hover:bg-slate-800"
+                          >
+                            {saving ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Save
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      Current operator:{" "}
+                      <span className="font-semibold text-slate-950">
+                        {settings.operator_display_name ||
+                          OPERATOR_OPTIONS.find(
+                            (option) =>
+                              option.voiceId === (settings.operator_voice_id || "matthew"),
+                          )?.name ||
+                          "Henry"}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {OPERATOR_OPTIONS.map((option) => {
+                        const active = operatorDraftVoiceId === option.voiceId;
+                        return (
+                          <button
+                            key={option.voiceId}
+                            type="button"
+                            onClick={() => setOperatorDraftVoiceId(option.voiceId)}
+                            disabled={!operatorEditing}
+                            className={cx(
+                              "rounded-xl border px-3 py-3 text-left text-sm transition",
+                              !operatorEditing && "cursor-default opacity-75",
+                              active
+                                ? "border-slate-950 bg-white text-slate-950 shadow-sm"
+                                : "border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300 hover:bg-white",
+                            )}
+                          >
+                            <span className="block font-semibold">{option.name}</span>
+                            <span className="mt-1 block text-xs text-slate-500">
+                              {option.label} voice
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

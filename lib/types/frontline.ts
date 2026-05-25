@@ -11,6 +11,8 @@ export interface FrontlineSettings {
   calendar_actions_enabled: boolean
   voice_enabled: boolean
   custom_voice_enabled: boolean
+  operator_display_name: string | null
+  operator_voice_id: string | null
   initial_setup_done: boolean
   business_display_name: string | null
   receptionist_system_prompt: string | null
@@ -26,6 +28,8 @@ export interface FrontlineSetupPreview {
   receptionist_brief: string
   receptionist_system_prompt: string
   starter_knowledge_markdown?: string
+  operator_display_name?: string
+  operator_voice_id?: string
   source_context?: Record<string, unknown>
 }
 

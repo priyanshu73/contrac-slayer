@@ -440,10 +440,10 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   return (
     <div className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="text-center">
-        <h2 className="text-sm font-semibold text-slate-950">Train your receptionist</h2>
+        <h2 className="text-sm font-semibold text-slate-950">Train your operator</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
           Have a short voice conversation about how you run your business. We turn it into
-          receptionist knowledge automatically.
+          operator knowledge automatically.
         </p>
       </div>
 
