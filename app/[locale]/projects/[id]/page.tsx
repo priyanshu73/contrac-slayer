@@ -334,14 +334,14 @@ export default function ProjectDetailPage() {
           <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
             <TabsContent value="overview" className="mt-0 space-y-8">
+              <ProjectQuotes project={project} />
+              <ProjectProposals project={project} />
               <BriefPanel
                 projectId={project.id}
                 initialBrief={project.brief}
                 initiallyExpanded
                 onBriefUpdated={handleBriefUpdated}
               />
-              <ProjectQuotes project={project} />
-              <ProjectProposals project={project} />
             </TabsContent>
 
             {/* Scope & Tasks */}

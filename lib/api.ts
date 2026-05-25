@@ -169,6 +169,36 @@ class ApiClient {
     return msg
   }
 
+  /** Unauthenticated fetch for public client/quote/proposal endpoints (no session cookie). */
+  private async fetchPublic<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.getBaseURL()}${endpoint}`
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      body: options.body,
+    })
+    if (!response.ok) {
+      let parsed: any = null
+      try {
+        parsed = await response.json()
+      } catch {
+        // ignore
+      }
+      const detail = parsed?.detail ?? parsed?.message ?? parsed?.error
+      throw new Error(this.formatApiErrorDetail(detail))
+    }
+    if (response.status === 204) {
+      return undefined as T
+    }
+    return response.json()
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit & { timeoutMs?: number } = {}
@@ -919,60 +949,43 @@ class ApiClient {
   }
 
   async getJobByPublicLink(publicLink: string) {
-    // Public endpoint - don't require authentication
-    const url = `${this.baseURL}/jobs/public/${publicLink}`
-
-    const config: RequestInit = {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Don't include credentials for public endpoint
-    }
-
-    try {
-      const response = await fetch(url, config)
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(this.formatApiErrorDetail(error?.detail))
-      }
-
-      return response.json()
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error
-      }
-      throw new Error('Network error')
-    }
+    return this.fetchPublic(`/jobs/public/${publicLink}`)
   }
 
   async getProposalByPublicLink(publicLink: string) {
-    // New route — serves both new Proposal records and legacy Job-based proposals
-    const url = `${this.baseURL}/proposals/public/${publicLink}`
-
-    const config: RequestInit = {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    }
-
-    try {
-      const response = await fetch(url, config)
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(this.formatApiErrorDetail(error?.detail))
-      }
-      return response.json()
-    } catch (error) {
-      if (error instanceof Error) throw error
-      throw new Error('Network error')
-    }
+    return this.fetchPublic(`/proposals/public/${publicLink}`)
   }
 
   // ── Proposal CRUD (project-centric) ──────────────────────────────────────
 
   async getProjectProposals(projectId: number) {
     return this.request(`/projects/${projectId}/proposals`)
+  }
+
+  async createStandaloneProposal(data: { title?: string; client_id?: number }) {
+    return this.request(`/proposals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getStandaloneProposal(proposalId: number) {
+    return this.request(`/proposals/${proposalId}`)
+  }
+
+  async updateStandaloneProposal(proposalId: number, data: {
+    title?: string
+    status?: string
+    proposal_document?: any
+  }) {
+    return this.request(`/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listStandaloneProposals() {
+    return this.request(`/proposals/standalone`)
   }
 
   async createProposal(projectId: number, data: { title?: string; quote_references?: Array<{ job_id: number }> }) {
@@ -1225,8 +1238,7 @@ class ApiClient {
     accepted_total_amount?: string
     additional_notes?: string
   }) {
-    // Public endpoint but safe to use standard request helper (credentials included)
-    return this.request(`/jobs/${jobId}/sign/customer`, {
+    return this.fetchPublic(`/jobs/${jobId}/sign/customer`, {
       method: 'POST',
       body: JSON.stringify(signatureData),
     })
@@ -1241,6 +1253,14 @@ class ApiClient {
       method: 'POST',
     })
     return response.public_link
+  }
+
+  /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string): Promise<{ message: string }> {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, proposal_url: proposalUrl }),
+    })
   }
 
   /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected. */
@@ -2320,6 +2340,16 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({}),
     })
+  }
+
+  async generateClientPortal(clientId: number): Promise<{ token: string; url: string }> {
+    return this.request(`/clients/${clientId}/generate-portal`, {
+      method: 'POST',
+    })
+  }
+
+  async getClientPortal(token: string) {
+    return this.fetchPublic(`/projects/client/${token}`)
   }
 }
 

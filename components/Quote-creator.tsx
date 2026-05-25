@@ -424,9 +424,10 @@ interface QuoteCreatorProps {
   phone?: string | null
   quoteId?: string | null
   initialData?: any // Job/Quote data for editing
+  onProjectContextChange?: (context: { projectId: number | null; clientId: number | null }) => void
 }
 
-export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData, onProjectContextChange }: QuoteCreatorProps) {
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
@@ -910,7 +911,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       if (initialData.project_id) {
         setSelectedProjectId(initialData.project_id)
         api.getProject(initialData.project_id)
-          .then((p: any) => { if (p?.brief) setProjectBrief(p.brief) })
+          .then((p: any) => {
+            if (p?.brief) setProjectBrief(p.brief)
+            if (p?.title) setProjectTitle(p.title)
+          })
           .catch(() => {})
       }
     }
@@ -1112,6 +1116,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       const data = await api.getProject(parseInt(projectId, 10)) as any
       setSelectedProjectId(data.id)
       setProjectBrief(data?.brief || null)
+      setProjectTitle(data?.title || "")
 
       if (data?.client_id) {
         const client = await api.getClientDetails(data.client_id) as {
@@ -1240,6 +1245,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       .then((p: any) => {
         if (cancelled) return
         setProjectBrief(p?.brief || null)
+        if (p?.title) setProjectTitle(p.title)
         if (p?.title) setProjectType((prev) => prev || p.title)
         if (p?.objective) setServiceDescription((prev) => prev || p.objective)
         if (p?.client_id && p.client_id !== selectedClientId) {
@@ -1270,6 +1276,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   // Sync quote context to window so AgentChatPanel can read it
   useEffect(() => {
     const ctx = {
+      clientName: clientName || null,
+      projectTitle: projectTitle || null,
       projectType,
       serviceDescription,
       laborRate: laborRateValue,
@@ -1277,10 +1285,33 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       projectBrief,
       includeProjectBriefInContext: useBriefAsContext,
       projectId: selectedProjectId ? Number(selectedProjectId) : null,
+      clientId: selectedClientId ?? null,
+      clientEmail: clientEmail || null,
+      clientPhone: clientPhone || null,
     }
     ;(window as any).quoteEstimateContext = ctx
     window.dispatchEvent(new CustomEvent("quote-context-updated", { detail: ctx }))
-  }, [projectType, serviceDescription, laborRateValue, laborChargeType, projectBrief, useBriefAsContext, selectedProjectId])
+  }, [
+    projectType,
+    serviceDescription,
+    laborRateValue,
+    laborChargeType,
+    projectBrief,
+    useBriefAsContext,
+    selectedProjectId,
+    selectedClientId,
+    clientName,
+    clientEmail,
+    clientPhone,
+    projectTitle,
+  ])
+
+  useEffect(() => {
+    onProjectContextChange?.({
+      projectId: selectedProjectId ?? null,
+      clientId: selectedClientId ?? null,
+    })
+  }, [onProjectContextChange, selectedClientId, selectedProjectId])
 
   // Listen for trigger from AI panel to run the estimate
   useEffect(() => {
@@ -1330,6 +1361,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     }
 
     setAiLoading(true)
+    window.dispatchEvent(new CustomEvent("ai-generation-status", {
+      detail: {
+        kind: "estimate",
+        phase: "running",
+        title: "Generating AI estimate",
+        detail: "Reviewing the project scope, measurements, and pricing context.",
+      },
+    }))
     try {
       const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
       // Send measurements if available (either from lead or manually entered)
@@ -1395,6 +1434,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         title: "Estimate generated",
         description: `Generated ${newItems.length} line items with AI`,
       })
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "estimate",
+          phase: "succeeded",
+          title: "Estimate ready",
+          detail: `Generated ${newItems.length} line items with AI.`,
+        },
+      }))
 
       // Auto-save when editing an existing quote so line items are not lost (pass newItems so we save the just-generated items)
       if (quoteId) {
@@ -1402,6 +1449,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       }
     } catch (error: any) {
       console.error("Failed to generate estimate:", error)
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "estimate",
+          phase: "failed",
+          title: "Estimate generation failed",
+          detail: error?.message || "Failed to generate estimate. Please try again.",
+        },
+      }))
       toast({
         title: "Estimate generation failed",
         description: error.message || "Failed to generate estimate. Please try again.",
@@ -1706,121 +1761,120 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         {/* Left Column - Main Content */}
         <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
           {/* Quote Details */}
-          <Card className="p-6" id="material-search">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Quote Details</h2>
-              <div className="flex items-center gap-2">
-                {selectedClientId && (
-                  <button
-                    onClick={() => {
-                      setSelectedClientId(null)
-                      toast({
-                        title: "Client selection cleared",
-                        description: "You can now enter new client information",
-                      })
-                    }}
-                    className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1"
-                  >
-                    <span>Using Existing Client</span>
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-                {leadId && (
-                  <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
-                    Auto-filled from Lead
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Project Assignment */}
-            <div className="mb-3">
-              <Label className="text-sm font-medium mb-1.5 block">Project</Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedProjectId ? String(selectedProjectId) : "__none__"}
-                  onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No project (standalone quote)</SelectItem>
-                    {allProjects.length > 0 && <div className="border-t my-1" />}
-                    {allProjects.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.title || `Project #${p.id}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1.5 whitespace-nowrap"
-                  onClick={() => setShowNewProjectDialog(true)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  New Project
-                </Button>
-              </div>
-              {selectedProjectId && (
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                  <FolderOpen className="h-3 w-3" />
-                  This quote will be linked to the selected project
+          <Card className="p-4 sm:p-5" id="material-search">
+            <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,1.15fr)] xl:items-start">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold">Quote Details</h2>
+                  {leadId && (
+                    <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
+                      Auto-filled from Lead
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Link the quote to a project and confirm the client information.
                 </p>
-              )}
+              </div>
+
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+                <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                  <Select
+                    value={selectedProjectId ? String(selectedProjectId) : "__none__"}
+                    onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
+                  >
+                    <SelectTrigger className="flex-1 bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No project (standalone quote)</SelectItem>
+                      {allProjects.length > 0 && <div className="my-1 border-t" />}
+                      {allProjects.map((p: any) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.title || `Project #${p.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 whitespace-nowrap"
+                    onClick={() => setShowNewProjectDialog(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New Project
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <div className="border-t pt-3 mb-1">
-              <p className="text-sm font-medium text-muted-foreground mb-3">Client Information</p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="client-name">Client Name *</Label>
-                <Input
-                  id="client-name"
-                  placeholder="John Smith"
-                  value={clientName}
-                  onChange={(e) => handleClientFieldChange('name', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-email">Email *</Label>
-                <Input
-                  id="client-email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={clientEmail}
-                  onChange={(e) => handleClientFieldChange('email', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-phone">Phone</Label>
-                <Input
-                  id="client-phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={clientPhone}
-                  onChange={(e) => handleClientFieldChange('phone', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-address">Address</Label>
-                <Input
-                  id="client-address"
-                  placeholder="123 Oak Street, Springfield, IL"
-                  value={clientAddress}
-                  onChange={(e) => handleClientFieldChange('address', e.target.value)}
-                  disabled={loadingLead}
-                />
+            <div className="grid items-start gap-5">
+              <div className="p-1">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="client-name">Client Name *</Label>
+                      {selectedClientId && (
+                        <button
+                          onClick={() => {
+                            setSelectedClientId(null)
+                            toast({
+                              title: "Client selection cleared",
+                              description: "You can now enter new client information",
+                            })
+                          }}
+                          className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
+                        >
+                          <span>Using Existing Client</span>
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="client-name"
+                      placeholder="John Smith"
+                      value={clientName}
+                      onChange={(e) => handleClientFieldChange('name', e.target.value)}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-email">Email *</Label>
+                    <Input
+                      id="client-email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={clientEmail}
+                      onChange={(e) => handleClientFieldChange('email', e.target.value)}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-phone">Phone</Label>
+                    <Input
+                      id="client-phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={clientPhone}
+                      onChange={(e) => handleClientFieldChange('phone', e.target.value)}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-address">Address</Label>
+                    <Input
+                      id="client-address"
+                      placeholder="123 Oak Street, Springfield, IL"
+                      value={clientAddress}
+                      onChange={(e) => handleClientFieldChange('address', e.target.value)}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2237,6 +2291,34 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 Add Item
               </Button>
             </div>
+
+            {aiLoading && (
+              <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50/80 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
+                      <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                      Generating your AI estimate
+                    </div>
+                    <p className="mt-1 text-sm text-sky-800/80">
+                      {aiLoadingMessages[aiLoadingStage]}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">
+                    Pricing scope in progress
+                  </span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sky-100">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#0ea5e9,#2563eb)] transition-all duration-500 ease-out"
+                    style={{ width: `${aiLoadingProgress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-sky-800/70">
+                  {AI_ESTIMATE_LOADING_HINT}
+                </p>
+              </div>
+            )}
 
             {/* Table Header - Desktop */}
             <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">

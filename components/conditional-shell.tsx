@@ -8,6 +8,16 @@ import { AgentChatPanel } from "@/components/agent-chat-panel"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed"
 
+/** Public customer quote link: /en/quotes/{uuid} (not numeric contractor id or /new, /copy). */
+function isPublicCustomerQuoteRoute(pathname: string): boolean {
+  const match = pathname?.match(/^\/[a-z]{2}\/quotes\/([^/]+)$/)
+  if (!match) return false
+  const segment = match[1]
+  if (segment === "new" || segment === "copy") return false
+  if (/^\d+$/.test(segment)) return false
+  return true
+}
+
 /** Routes that should NOT show the Navbar / shell UI */
 function isPublicShellRoute(pathname: string): boolean {
   return (
@@ -18,7 +28,14 @@ function isPublicShellRoute(pathname: string): boolean {
     !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
     pathname?.startsWith("/features") ||
     !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)
-    pathname === "/"
+    pathname === "/" ||
+    // Public client portal — no contractor shell
+    !!pathname?.match(/^\/[a-z]{2}\/client\//) ||
+    pathname?.startsWith("/client/") ||
+    // Public proposal share links
+    !!pathname?.match(/^\/[a-z]{2}\/proposals\//) ||
+    pathname?.startsWith("/proposals/") ||
+    isPublicCustomerQuoteRoute(pathname ?? "")
   )
 }
 

@@ -7,7 +7,7 @@ import {
     Bot, X, Send, Loader2, Sparkles, Plus,
     MessageSquare, ChevronLeft, Trash2, Clock,
     Sun, BellRing, Maximize2, Minimize2,
-    ChevronDown, ChevronUp, Zap,
+    ChevronDown, ChevronUp, Zap, CheckCircle2, AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactMarkdown from "react-markdown"
@@ -16,12 +16,17 @@ import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/
 
 interface QuoteEstimateContext {
     projectType: string
+    projectTitle?: string | null
     serviceDescription: string
     laborRate: number
     laborChargeType: string
     projectBrief?: Record<string, any> | null
     includeProjectBriefInContext?: boolean
     projectId?: number | null
+    clientId?: number | null
+    clientName?: string | null
+    clientEmail?: string | null
+    clientPhone?: string | null
 }
 
 interface ProposalContext {
@@ -32,6 +37,17 @@ interface ProposalContext {
     includeProjectBriefInContext?: boolean
     projectId?: number | null
     proposalId?: number | null
+    clientId?: number | null
+    clientEmail?: string | null
+    clientPhone?: string | null
+    jobId?: number | null
+}
+
+interface AIGenerationStatus {
+    kind: "estimate" | "proposal"
+    phase: "running" | "succeeded" | "failed"
+    title: string
+    detail?: string
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
@@ -42,40 +58,254 @@ interface PageContext {
     page: string
     entity_id?: string
     job_id?: number
+    project_id?: number
+    client_id?: number
+    lead_id?: number
+    proposal_id?: number
+    booking_id?: number
     client_email?: string
+    client_phone?: string
     locale?: string
     frontend_origin?: string
     customer_quote_url?: string
+    route?: string
 }
 
 interface QuotePageContext {
     job_id: number
+    project_id?: number
+    client_id?: number
+    lead_id?: number
     client_email?: string
     quote_public_link?: string
     customer_quote_url?: string
     frontend_origin?: string
 }
 
-function enrichQuotePageContext(base: PageContext, locale: string): PageContext {
+interface ContextEnvelope {
+    surface: string
+    page: {
+        page_type: string
+        route?: string
+        locale?: string
+        frontend_origin?: string
+    }
+    selection?: {
+        entity_type?: string
+        entity_id?: string | number
+    }
+    related_refs?: {
+        job_id?: number
+        project_id?: number
+        client_id?: number
+        lead_id?: number
+        proposal_id?: number
+        booking_id?: number
+    }
+    ui_hints?: {
+        client_email?: string
+        client_phone?: string
+        customer_quote_url?: string
+    }
+    preloaded_snapshot?: Record<string, unknown>
+}
+
+function enrichPageContext(
+    base: PageContext,
+    locale: string,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): PageContext {
     const origin =
         typeof window !== "undefined" ? window.location.origin : undefined
     let ctx: PageContext = origin ? { ...base, frontend_origin: origin } : { ...base }
 
-    if (ctx.page !== "quote_detail" || typeof window === "undefined") {
-        return ctx.page === "quote_detail" ? { ...ctx, locale } : ctx
-    }
-    const q = (window as Window & { quotePageContext?: QuotePageContext }).quotePageContext
-    if (!q?.job_id) {
+    if (typeof window === "undefined") {
         return { ...ctx, locale }
     }
+
+    const win = window as Window & { quotePageContext?: QuotePageContext }
+    if (ctx.page === "quote_detail") {
+        const quoteCtx = win.quotePageContext
+        if (quoteCtx?.job_id) {
+            ctx = {
+                ...ctx,
+                entity_id: String(quoteCtx.job_id),
+                job_id: quoteCtx.job_id,
+                project_id: quoteCtx.project_id,
+                client_id: quoteCtx.client_id,
+                lead_id: quoteCtx.lead_id,
+                client_email: quoteCtx.client_email,
+                locale,
+                frontend_origin: quoteCtx.frontend_origin ?? origin,
+                customer_quote_url: quoteCtx.customer_quote_url,
+            }
+        }
+    }
+
+    if (ctx.page === "proposal_builder") {
+        const proposalId =
+            proposalContext.proposalId != null ? String(proposalContext.proposalId) : ctx.entity_id
+        ctx = {
+            ...ctx,
+            entity_id: proposalId,
+            proposal_id: proposalContext.proposalId ?? ctx.proposal_id,
+            project_id: proposalContext.projectId ?? ctx.project_id,
+            client_id: proposalContext.clientId ?? ctx.client_id,
+            job_id: proposalContext.jobId ?? ctx.job_id,
+            client_email: proposalContext.clientEmail ?? ctx.client_email,
+            client_phone: proposalContext.clientPhone ?? ctx.client_phone,
+        }
+    }
+
+    if (ctx.page === "unknown") {
+        const hasEstimateContext =
+            !!estimateContext.projectId ||
+            !!estimateContext.projectType?.trim() ||
+            !!estimateContext.serviceDescription?.trim()
+        if (hasEstimateContext) {
+            ctx = {
+                ...ctx,
+                page: "quote_builder",
+                project_id: estimateContext.projectId ?? ctx.project_id,
+                client_id: estimateContext.clientId ?? ctx.client_id,
+                client_email: estimateContext.clientEmail ?? ctx.client_email,
+                client_phone: estimateContext.clientPhone ?? ctx.client_phone,
+            }
+        }
+    }
+
     return {
         ...ctx,
-        entity_id: String(q.job_id),
-        job_id: q.job_id,
-        client_email: q.client_email,
         locale,
-        frontend_origin: q.frontend_origin ?? origin,
-        customer_quote_url: q.customer_quote_url,
+        route: ctx.route ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
+    }
+}
+
+function pageTypeToEntityType(pageType: string): string | undefined {
+    switch (pageType) {
+        case "quote_detail":
+            return "quote"
+        case "project_detail":
+            return "project"
+        case "client_detail":
+            return "client"
+        case "lead_detail":
+            return "lead"
+        case "booking_detail":
+            return "booking"
+        case "proposal_builder":
+            return "proposal"
+        case "subcontractor_detail":
+            return "subcontractor"
+        case "invoice_detail":
+            return "invoice"
+        default:
+            return undefined
+    }
+}
+
+function buildPreloadedSnapshot(
+    pageContext: PageContext,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): Record<string, unknown> {
+    const snapshot: Record<string, unknown> = {}
+
+    if (pageContext.page === "quote_builder") {
+        snapshot.quote_builder = {
+            client_name: estimateContext.clientName ?? null,
+            project_title: estimateContext.projectTitle ?? null,
+            project_type: estimateContext.projectType,
+            service_description: estimateContext.serviceDescription,
+            labor_rate: estimateContext.laborRate,
+            labor_charge_type: estimateContext.laborChargeType,
+            include_project_brief: estimateContext.includeProjectBriefInContext ?? true,
+            project_brief: estimateContext.projectBrief ?? null,
+            project_id: estimateContext.projectId ?? null,
+            client_id: estimateContext.clientId ?? null,
+            client_email: estimateContext.clientEmail ?? null,
+            client_phone: estimateContext.clientPhone ?? null,
+        }
+    }
+
+    if (pageContext.page === "proposal_builder") {
+        snapshot.proposal_builder = {
+            proposal_title: proposalContext.proposalTitle,
+            project_title: proposalContext.projectTitle,
+            description: proposalContext.description,
+            include_project_brief: proposalContext.includeProjectBriefInContext ?? true,
+            project_brief: proposalContext.projectBrief ?? null,
+            project_id: proposalContext.projectId ?? null,
+            proposal_id: proposalContext.proposalId ?? null,
+            client_id: proposalContext.clientId ?? null,
+            client_email: proposalContext.clientEmail ?? null,
+            client_phone: proposalContext.clientPhone ?? null,
+            job_id: proposalContext.jobId ?? null,
+        }
+    }
+
+    return snapshot
+}
+
+function buildContextEnvelope(
+    pageContext: PageContext,
+    pathname: string,
+    locale: string,
+    activeProjectId: number | null,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): ContextEnvelope {
+    const frontendOrigin =
+        pageContext.frontend_origin ||
+        (typeof window !== "undefined" ? window.location.origin : undefined)
+    const entityType = pageTypeToEntityType(pageContext.page)
+    const relatedRefs: ContextEnvelope["related_refs"] = {
+        job_id: pageContext.job_id,
+        project_id: pageContext.project_id ?? activeProjectId ?? undefined,
+        client_id: pageContext.client_id,
+        lead_id: pageContext.lead_id,
+        proposal_id: pageContext.proposal_id,
+        booking_id: pageContext.booking_id,
+    }
+
+    if (pageContext.page === "project_detail" && pageContext.entity_id && !relatedRefs.project_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.project_id = parsed
+    }
+    if (pageContext.page === "quote_detail" && pageContext.job_id && !relatedRefs.job_id) {
+        relatedRefs.job_id = pageContext.job_id
+    }
+    if (pageContext.page === "proposal_builder" && pageContext.entity_id && !relatedRefs.proposal_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.proposal_id = parsed
+    }
+    if (pageContext.page === "booking_detail" && pageContext.entity_id && !relatedRefs.booking_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.booking_id = parsed
+    }
+
+    return {
+        surface: "chat_panel",
+        page: {
+            page_type: pageContext.page,
+            route: pathname,
+            locale,
+            frontend_origin: frontendOrigin,
+        },
+        selection: entityType
+            ? {
+                  entity_type: entityType,
+                  entity_id: pageContext.entity_id,
+              }
+            : undefined,
+        related_refs: relatedRefs,
+        ui_hints: {
+            client_email: pageContext.client_email,
+            client_phone: pageContext.client_phone,
+            customer_quote_url: pageContext.customer_quote_url,
+        },
+        preloaded_snapshot: buildPreloadedSnapshot(pageContext, estimateContext, proposalContext),
     }
 }
 
@@ -224,6 +454,7 @@ interface Conversation {
 
 // ─── View type ─────────────────────────────────────────────────
 type PanelView = "chat" | "conversations" | "scope"
+type ChatLaunchMode = "general" | "quote_estimate"
 
 // ─── Status color map (value → color class) ─────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -297,13 +528,16 @@ export function AgentChatPanel() {
     // Quote estimate context (populated when on quote pages)
     const [estimateContext, setEstimateContext] = useState<QuoteEstimateContext>({
         projectType: "",
+        projectTitle: "",
         serviceDescription: "",
         laborRate: 75,
         laborChargeType: "HOURLY",
         includeProjectBriefInContext: true,
+        clientName: "",
     })
     const [contextExpanded, setContextExpanded] = useState(false)
     const [estimateLoading, setEstimateLoading] = useState(false)
+    const [chatLaunchMode, setChatLaunchMode] = useState<ChatLaunchMode>("general")
 
     // Proposal context (populated when on proposal builder pages)
     const [proposalContext, setProposalContext] = useState<ProposalContext>({
@@ -314,6 +548,7 @@ export function AgentChatPanel() {
     })
     const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
     const [proposalLoading, setProposalLoading] = useState(false)
+    const [generationStatus, setGenerationStatus] = useState<AIGenerationStatus | null>(null)
 
     // Scope clarification inline view
     const [scopeQuestions, setScopeQuestions] = useState<ScopeQuestion[]>([])
@@ -332,8 +567,8 @@ export function AgentChatPanel() {
 
     // Parse page context from current route; quote detail enriches from loaded job on the page
     const pageContext = useMemo(
-        () => enrichQuotePageContext(parsePageContext(pathname ?? ""), locale),
-        [pathname, locale, quotePageCtxTick]
+        () => enrichPageContext(parsePageContext(pathname ?? ""), locale, estimateContext, proposalContext),
+        [pathname, locale, quotePageCtxTick, estimateContext, proposalContext]
     )
     const activeProjectId = useMemo(() => {
         if (proposalContext.projectId) return proposalContext.projectId
@@ -344,6 +579,17 @@ export function AgentChatPanel() {
         }
         return null
     }, [estimateContext.projectId, pageContext, proposalContext.projectId])
+    const contextEnvelope = useMemo(
+        () => buildContextEnvelope(
+            pageContext,
+            pathname ?? "",
+            locale,
+            activeProjectId,
+            estimateContext,
+            proposalContext,
+        ),
+        [activeProjectId, estimateContext, locale, pageContext, pathname, proposalContext]
+    )
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
 
     // Detect if we're on a quote create/edit page
@@ -385,6 +631,81 @@ export function AgentChatPanel() {
         }
     }, [isOpen, panelView])
 
+    const estimateContextSummary = useMemo(() => {
+        const client = estimateContext.clientName?.trim()
+        const project = estimateContext.projectTitle?.trim()
+        const projectType = estimateContext.projectType?.trim()
+
+        if (client && project) return `${client} • ${project}`
+        if (client && projectType) return `${client} • ${projectType}`
+        if (project) return project
+        if (projectType) return projectType
+        if (client) return client
+        return ""
+    }, [
+        estimateContext.clientName,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+    ])
+
+    const estimateActionSentence = useMemo(() => {
+        const client = estimateContext.clientName?.trim()
+        const project = estimateContext.projectTitle?.trim()
+        const projectType = estimateContext.projectType?.trim()
+
+        if (client && project) return `Create an estimate for ${client} for ${project}.`
+        if (client && projectType) return `Create an estimate for ${client} for ${projectType}.`
+        if (project) return `Create an estimate for ${project}.`
+        if (projectType) return `Create an estimate for ${projectType}.`
+        if (client) return `Create an estimate for ${client}.`
+        return "Create an estimate for this quote."
+    }, [
+        estimateContext.clientName,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+    ])
+
+    const estimateContextNeedsDetail = useMemo(() => {
+        const hasDescription = !!estimateContext.serviceDescription?.trim()
+        const hasProjectSignal = !!(
+            estimateContext.projectTitle?.trim() ||
+            estimateContext.projectType?.trim()
+        )
+
+        if (!hasDescription) return "Add a project description for better results."
+        if (!hasProjectSignal) return "Add a project name or type so the estimate is more specific."
+        return "We will use the quote context already loaded on this page."
+    }, [
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+        estimateContext.serviceDescription,
+    ])
+
+    const quoteEstimateReady = useMemo(() => {
+        const desc = estimateContext.serviceDescription?.trim() ?? ""
+        const wordCount = desc ? desc.split(/\s+/).length : 0
+        return desc.length >= 30 && wordCount >= 6
+    }, [estimateContext.serviceDescription])
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<AIGenerationStatus>).detail
+            if (!detail) return
+            setGenerationStatus(detail)
+            setPanelView("chat")
+            setIsOpen(true)
+            if (detail.kind === "estimate") {
+                setEstimateLoading(detail.phase === "running")
+            }
+            if (detail.kind === "proposal") {
+                setProposalLoading(detail.phase === "running")
+            }
+        }
+
+        window.addEventListener("ai-generation-status", handler)
+        return () => window.removeEventListener("ai-generation-status", handler)
+    }, [])
+
     // ─── Conversation API helpers ───────────────────────────────
 
     const fetchConversations = useCallback(async () => {
@@ -419,6 +740,7 @@ export function AgentChatPanel() {
                 setMessages(loadedMessages)
                 setActiveConversationId(conversationId)
                 setPanelView("chat")
+                setChatLaunchMode("general")
             }
         } catch (err) {
             console.error("Failed to load conversation:", err)
@@ -474,6 +796,7 @@ export function AgentChatPanel() {
             setContextExpanded(isEmpty)
             setIsOpen(true)
             setPanelView("chat")
+            setChatLaunchMode("quote_estimate")
         }
         window.addEventListener("open-ai-panel-for-estimate", handler)
         return () => window.removeEventListener("open-ai-panel-for-estimate", handler)
@@ -503,6 +826,7 @@ export function AgentChatPanel() {
             setProposalContextExpanded(isEmpty)
             setIsOpen(true)
             setPanelView("chat")
+            setChatLaunchMode("general")
         }
         window.addEventListener("open-ai-panel-for-proposal", handler)
         return () => window.removeEventListener("open-ai-panel-for-proposal", handler)
@@ -514,11 +838,21 @@ export function AgentChatPanel() {
         setActiveConversationId(null)
         setMessages([])
         setPanelView("chat")
+        setChatLaunchMode("general")
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [])
 
     const _fireEstimate = useCallback((scope: ScopeClarifiedScope | null) => {
         setEstimateLoading(true)
+        setChatLaunchMode("quote_estimate")
+        setGenerationStatus({
+            kind: "estimate",
+            phase: "running",
+            title: "Generating AI estimate",
+            detail: "Handing the scope to the quote builder now.",
+        })
+        setPanelView("chat")
+        setIsOpen(true)
         window.dispatchEvent(new CustomEvent("trigger-ai-estimate", {
             detail: {
                 projectType: estimateContext.projectType,
@@ -530,19 +864,19 @@ export function AgentChatPanel() {
                 clarifiedScope: scope,
             },
         }))
-        setTimeout(() => {
-            setIsOpen(false)
-            setEstimateLoading(false)
-        }, 400)
     }, [estimateContext])
 
     const _fireProposal = useCallback((scope: ScopeClarifiedScope | null) => {
         setProposalLoading(true)
+        setGenerationStatus({
+            kind: "proposal",
+            phase: "running",
+            title: "Generating AI proposal",
+            detail: "Handing the scope to the proposal builder now.",
+        })
+        setPanelView("chat")
+        setIsOpen(true)
         window.dispatchEvent(new CustomEvent("trigger-ai-proposal", { detail: { clarifiedScope: scope } }))
-        setTimeout(() => {
-            setIsOpen(false)
-            setProposalLoading(false)
-        }, 400)
     }, [])
 
     const handleGenerateEstimate = useCallback(() => {
@@ -624,6 +958,7 @@ export function AgentChatPanel() {
                 body: JSON.stringify({
                     messages: history,
                     page_context: pageContext,
+                    context_envelope: contextEnvelope,
                     conversation_id: activeConversationId || undefined,
                     project_id: activeProjectId || undefined,
                 }),
@@ -691,7 +1026,7 @@ export function AgentChatPanel() {
                 })
                 .finally(() => setIsLoading(false))
         }, 0)
-    }, [pageContext, activeConversationId, fetchConversations, activeProjectId])
+    }, [pageContext, contextEnvelope, activeConversationId, fetchConversations, activeProjectId])
 
     const handleSend = async () => {
         const text = input.trim()
@@ -727,6 +1062,7 @@ export function AgentChatPanel() {
                 body: JSON.stringify({
                     messages: history,
                     page_context: pageContext,
+                    context_envelope: contextEnvelope,
                     conversation_id: activeConversationId || undefined,
                     project_id: activeProjectId || undefined,
                 }),
@@ -1107,7 +1443,7 @@ export function AgentChatPanel() {
                                         )}
                                     </p>
                                     {q.type === "multi_select" && q.options && (
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             {q.options.map((opt, oi) => {
                                                 const selected = scopeAnswers[q.id]?.selected_options?.includes(opt.id) ?? false
                                                 return (
@@ -1135,6 +1471,24 @@ export function AgentChatPanel() {
                                                     </button>
                                                 )
                                             })}
+                                            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3">
+                                                <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                                                    Something else?
+                                                </p>
+                                                <textarea
+                                                    placeholder="Add anything not covered by the options above…"
+                                                    rows={3}
+                                                    value={scopeAnswers[q.id]?.free_text ?? ""}
+                                                    onChange={(e) => setScopeAnswers((prev) => {
+                                                        const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
+                                                        return {
+                                                            ...prev,
+                                                            [q.id]: { ...existing, free_text: e.target.value },
+                                                        }
+                                                    })}
+                                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                     {q.type === "free_text" && (
@@ -1213,9 +1567,9 @@ export function AgentChatPanel() {
                         <div className="flex items-center gap-2">
                             <Zap className="h-3.5 w-3.5 text-sky-500" />
                             <span className="text-xs font-semibold text-foreground">Project Context</span>
-                            {(estimateContext.projectType || estimateContext.serviceDescription) && (
-                                <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
-                                    filled
+                            {estimateContextSummary && (
+                                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
+                                    {estimateContextSummary}
                                 </span>
                             )}
                         </div>
@@ -1348,7 +1702,101 @@ export function AgentChatPanel() {
             {panelView === "chat" && (
                 <>
                     <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-4 md:py-3">
-                        {messages.length === 0 && (
+                        {generationStatus && (
+                            <div className={`rounded-2xl border px-4 py-3 shadow-sm ${
+                                generationStatus.phase === "failed"
+                                    ? "border-red-200 bg-red-50/90"
+                                    : generationStatus.phase === "succeeded"
+                                        ? "border-emerald-200 bg-emerald-50/90"
+                                        : "border-sky-200 bg-sky-50/90"
+                            }`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                            {generationStatus.phase === "running" ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                                            ) : generationStatus.phase === "succeeded" ? (
+                                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                            ) : (
+                                                <AlertCircle className="h-4 w-4 text-red-600" />
+                                            )}
+                                            {generationStatus.title}
+                                        </div>
+                                        {generationStatus.detail ? (
+                                            <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                {generationStatus.detail}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setGenerationStatus(null)}
+                                        className="rounded-full p-1 text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
+                                        aria-label="Dismiss generation status"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {isOnQuotePage &&
+                            chatLaunchMode === "quote_estimate" &&
+                            messages.length === 0 &&
+                            !(generationStatus?.kind === "estimate" && generationStatus.phase !== "failed") && (
+                            <div className="rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,rgba(240,249,255,0.98),rgba(255,255,255,0.98),rgba(239,246,255,0.98))] p-4 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                                        <Zap className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-slate-900">Create AI Estimate</p>
+                                        <p className="mt-1 text-sm leading-6 text-slate-700">{estimateActionSentence}</p>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">{estimateContextNeedsDetail}</p>
+                                        {estimateContextSummary ? (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-medium text-sky-700">
+                                                    {estimateContextSummary}
+                                                </span>
+                                                {estimateContext.projectBrief ? (
+                                                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                                        Project brief loaded
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => handleGenerateEstimate()}
+                                                disabled={isLoading || estimateLoading || !quoteEstimateReady}
+                                                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {estimateLoading ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Zap className="h-4 w-4" />
+                                                )}
+                                                Generate Estimate
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setContextExpanded(true)}
+                                                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                                            >
+                                                Edit Context
+                                            </button>
+                                        </div>
+                                        {!quoteEstimateReady ? (
+                                            <p className="mt-2 text-xs leading-5 text-slate-500">
+                                                Add at least a short project description before generating.
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {messages.length === 0 && !(isOnQuotePage && chatLaunchMode === "quote_estimate") && (
                             <div className="flex flex-col items-center justify-center h-full text-center px-6">
                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-sky-500/15 to-blue-600/15 md:h-14 md:w-14 md:rounded-2xl">
                                     <Sparkles className="h-8 w-8 text-sky-600 md:h-7 md:w-7" />
@@ -1361,7 +1809,7 @@ export function AgentChatPanel() {
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
-                                {isOnQuotePage ? (
+                                {isOnQuotePage && chatLaunchMode !== "quote_estimate" ? (
                                     <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
                                         <button
                                             onClick={() => {
@@ -1451,6 +1899,7 @@ export function AgentChatPanel() {
                                         <button
                                             key={suggestion}
                                             onClick={() => {
+                                                setChatLaunchMode("general")
                                                 setInput(suggestion)
                                                 setTimeout(() => inputRef.current?.focus(), 50)
                                             }}

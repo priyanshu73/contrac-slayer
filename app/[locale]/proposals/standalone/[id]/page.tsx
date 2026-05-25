@@ -8,79 +8,51 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
 import { api } from "@/lib/api"
-import type { Client, ContractorProfile, Job, Project, Proposal } from "@/lib/types"
+import type { Client, ContractorProfile, Proposal } from "@/lib/types"
 
-export default function ProjectProposalPage() {
+export default function StandaloneProposalPage() {
   const params = useParams()
   const locale = (params.locale as string) || "en"
-  const projectId = Number(params.id)
-  const proposalId = Number(params.proposalId)
+  const proposalId = Number(params.id)
 
   const [proposal, setProposal] = useState<Proposal | null>(null)
-  const [project, setProject] = useState<Project | null>(null)
   const [client, setClient] = useState<Client | null>(null)
   const [clients, setClients] = useState<Client[]>([])
-  const [refJob, setRefJob] = useState<Job | null>(null)
   const [contractorName, setContractorName] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!projectId || !proposalId) return
+    if (!proposalId) return
 
     const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        const [proposalRes, projectRes, profileRes, clientsRes] = await Promise.all([
-          api.getProposal(projectId, proposalId),
-          api.getProject(projectId),
+        const [proposalRes, profileRes, clientsRes] = await Promise.all([
+          api.getStandaloneProposal(proposalId),
           api.getMyProfile().catch(() => null),
           api.getClients(0, 100).catch(() => []),
         ])
 
         const loadedProposal = proposalRes as Proposal
-        const loadedProject = projectRes as Project
         const loadedClients = (Array.isArray(clientsRes) ? clientsRes : (clientsRes as any)?.items ?? []) as Client[]
 
         setProposal(loadedProposal)
-        setProject(loadedProject)
         setClients(loadedClients)
-        setContractorName(
-          (profileRes as ContractorProfile | null)?.company_name || ""
-        )
+        setContractorName((profileRes as ContractorProfile | null)?.company_name || "")
 
-        // Load client from proposal or project (proposal.client_id is set on create)
-        const linkedClientId = loadedProposal.client_id ?? loadedProject.client_id
-        if (linkedClientId) {
-          try {
-            const clientData = (await api.getClient(linkedClientId)) as Client
-            setClient(clientData)
-          } catch {
-            const fromList = loadedClients.find((c) => c.id === linkedClientId)
-            if (fromList) setClient(fromList)
-          }
-        }
-
-        // Load the first referenced quote for line-item context
-        const firstRef = loadedProposal.quote_references?.[0]
-        if (firstRef?.job_id) {
-          try {
-            const job = (await api.getJob(firstRef.job_id)) as Job
-            setRefJob(job)
-            if (job.client) {
-              setClient((prev) => prev ?? (job.client as Client))
-            } else if (job.client_id && !linkedClientId) {
-              try {
-                const clientData = (await api.getClient(job.client_id)) as Client
-                setClient(clientData)
-              } catch {
-                // non-fatal
-              }
+        if (loadedProposal.client_id) {
+          const fromList = loadedClients.find((c) => c.id === loadedProposal.client_id)
+          if (fromList) {
+            setClient(fromList)
+          } else {
+            try {
+              setClient((await api.getClient(loadedProposal.client_id)) as Client)
+            } catch {
+              // non-fatal
             }
-          } catch {
-            // non-fatal — proposal builder works without a ref job
           }
         }
       } catch (err: any) {
@@ -91,7 +63,7 @@ export default function ProjectProposalPage() {
     }
 
     void fetchData()
-  }, [projectId, proposalId])
+  }, [proposalId])
 
   if (loading) {
     return (
@@ -107,7 +79,7 @@ export default function ProjectProposalPage() {
     )
   }
 
-  if (error || !proposal || !project) {
+  if (error || !proposal) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
@@ -116,7 +88,7 @@ export default function ProjectProposalPage() {
               <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
               <p className="mt-3 text-sm text-slate-600">{error || "Proposal not found."}</p>
               <Button asChild className="mt-6">
-                <a href={`/${locale}/projects/${projectId}`}>Back to Project</a>
+                <a href={`/${locale}/proposals/new`}>Back to Proposals</a>
               </Button>
             </Card>
           </div>
@@ -130,30 +102,17 @@ export default function ProjectProposalPage() {
       <AppBreadcrumb
         className="px-4 pt-4 sm:px-6 sm:pt-6 print:hidden"
         items={[
-          { label: "Projects", href: `/${locale}/projects` },
-          { label: project.title, href: `/${locale}/projects/${projectId}` },
+          { label: "Proposals", href: `/${locale}/proposals/new` },
           { label: proposal.title || "Proposal" },
         ]}
       />
       <ProposalBuilder
         proposal={proposal}
-        project={project}
         client={client ?? undefined}
         clients={clients}
-        job={refJob ?? undefined}
         contractorName={contractorName}
         locale={locale}
         onProposalUpdated={setProposal}
-        onProjectClientChanged={async (clientId) => {
-          try {
-            await api.updateProject(projectId, { client_id: clientId })
-            const updated = clients.find((c) => c.id === clientId) ?? null
-            setClient(updated)
-            setProject((prev) => prev ? { ...prev, client_id: clientId } : prev)
-          } catch {
-            // non-fatal — the document already reflects the selection
-          }
-        }}
       />
     </AuthGuard>
   )

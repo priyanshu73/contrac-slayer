@@ -180,7 +180,12 @@ export function BriefPanel({
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_12px_40px_-24px_rgba(15,23,42,0.35)]">
-      <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((value) => !value)}
+        className="w-full border-b border-slate-200 px-5 py-4 text-left transition hover:bg-slate-50/60 sm:px-6"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -203,17 +208,12 @@ export function BriefPanel({
               </div>
               <span className="text-sm font-medium text-slate-500 tabular-nums">{progress}%</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsExpanded((value) => !value)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
-            >
+            <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700 transition">
               {isExpanded ? "Hide long brief" : "Open long brief"}
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
+            </span>
           </div>
         </div>
-      </div>
+      </button>
 
       {isExpanded && (
         <div className="divide-y divide-slate-200">
@@ -419,7 +419,7 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
   return (
     <div
       className={cn(
-        "cursor-pointer px-5 py-3 transition-colors sm:px-6",
+        "group cursor-pointer px-5 py-3 transition-colors sm:px-6",
         isActive ? "bg-slate-50" : "hover:bg-slate-50/70"
       )}
       onClick={onFocus}
@@ -435,6 +435,12 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
         <span className={cn("flex-1 text-sm leading-6", answered ? "text-slate-900" : "text-slate-500")}>
           {question.label}
         </span>
+        {!answered && !isActive && question.type !== "phases" && (
+          <span className="mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 opacity-90 transition group-hover:border-slate-300 group-hover:bg-slate-50">
+            Click to answer
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+          </span>
+        )}
         {question.type === "phases" && (
           <button
             type="button"

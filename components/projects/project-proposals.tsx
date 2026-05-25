@@ -6,7 +6,9 @@ import { api } from "@/lib/api"
 import { useLocale } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, FileText, Plus, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Loader2, FileText, Plus, Eye, Pencil, Trash2, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ProjectProposalsProps {
@@ -31,6 +33,8 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
   const { toast } = useToast()
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
 
   const fetchProposals = async () => {
     if (!project.id) return
@@ -56,6 +60,20 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
     }
   }
 
+  const handleDelete = async (proposalId: number) => {
+    setDeleting(proposalId)
+    setDeleteConfirmId(null)
+    try {
+      await api.deleteProposal(project.id, proposalId)
+      toast({ title: `Proposal #${proposalId} deleted.` })
+      fetchProposals()
+    } catch (err: any) {
+      toast({ title: "Failed to delete proposal", description: err.message, variant: "destructive" })
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   if (!project.id) return null
 
   return (
@@ -75,9 +93,9 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
         </div>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-indigo-400/20 hover:from-indigo-400 hover:to-indigo-600 transition-all"
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-3.5 h-3.5" />
           New Proposal
         </button>
       </div>
@@ -88,7 +106,7 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
           <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
         </div>
       ) : proposals.length === 0 ? (
-        <div className="px-4 py-8 text-center">
+        <div className="px-4 py-10 text-center">
           <p className="text-sm text-slate-400">No proposals yet.</p>
         </div>
       ) : (
@@ -97,6 +115,8 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
             const vis = proposalStatusVisual(proposal.status)
             const displayTitle = proposal.title || `Proposal #${proposal.id}`
             const viewCount = proposal.customer_view_count ?? 0
+            const dateIso = proposal.updated_at || proposal.created_at
+            const dateLabel = proposal.updated_at ? "Updated" : "Created"
 
             return (
               <li key={proposal.id}>
@@ -138,10 +158,104 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
                     </div>
                   </div>
 
-                  {/* Created date */}
-                  <span className="text-xs text-slate-400 shrink-0 tabular-nums">
-                    {new Date(proposal.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-3 -translate-y-[20%]">
+                      {/* Created/Updated date */}
+                      <div className="flex flex-col items-end text-slate-400 leading-none">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium">
+                          <Clock className="h-3 w-3" />
+                          {dateLabel}
+                        </span>
+                        <span className="text-xs tabular-nums mt-0.5">
+                          {new Date(dateIso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const href = `/${locale}/proposals/${proposal.public_link}`
+                          if (typeof window !== "undefined") {
+                            window.open(href, "_blank", "noopener,noreferrer")
+                          } else {
+                            router.push(href)
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center text-center w-11 h-10 gap-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                        title="Preview"
+                      >
+                        <span className="leading-tight">Preview</span>
+                        <Eye className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/${locale}/projects/${project.id}/proposals/${proposal.id}`)
+                        }}
+                        className="flex flex-col items-center justify-center text-center w-11 h-10 gap-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                        title="Edit"
+                      >
+                        <span className="leading-tight">Edit</span>
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      {deleting === proposal.id ? (
+                        <span className="flex flex-col items-center justify-center text-center w-11 h-10 gap-0.5 text-[10px] font-medium text-slate-500">
+                          <span className="leading-tight">Deleting…</span>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </span>
+                      ) : (
+                        <Popover
+                          open={deleteConfirmId === proposal.id}
+                          onOpenChange={(open) => {
+                            if (!open) setDeleteConfirmId(null)
+                          }}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeleteConfirmId(proposal.id)
+                              }}
+                              className="flex flex-col items-center justify-center text-center w-11 h-10 gap-0.5 text-[10px] font-medium text-slate-500 hover:text-rose-600 transition-colors"
+                              title="Delete"
+                            >
+                              <span className="leading-tight">Delete</span>
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="top"
+                            align="end"
+                            className="w-auto p-2.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="text-xs text-slate-600 mb-2 font-medium">Delete this proposal?</p>
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2.5 text-xs"
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null) }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 px-2.5 text-xs"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(proposal.id) }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </li>
             )
