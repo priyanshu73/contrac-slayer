@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
-import { ArrowLeft, FileText, FolderOpen, Plus } from "lucide-react"
+import { ArrowLeft, FileText, FolderOpen, Loader2, Plus, Unlink } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ export default function NewProposalPage() {
   const [projects, setProjects] = useState<ProjectWithProposals[]>([])
   const [loading, setLoading] = useState(true)
   const [creatingFor, setCreatingFor] = useState<number | null>(null)
+  const [creatingStandalone, setCreatingStandalone] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -71,6 +72,17 @@ export default function NewProposalPage() {
     void load()
     return () => { cancelled = true }
   }, [])
+
+  const handleCreateStandalone = async () => {
+    setCreatingStandalone(true)
+    try {
+      const proposal = (await api.createStandaloneProposal({ title: "Untitled Proposal" })) as Proposal
+      router.push(`/${locale}/proposals/standalone/${proposal.id}`)
+    } catch (err: any) {
+      console.error("Failed to create standalone proposal:", err)
+      setCreatingStandalone(false)
+    }
+  }
 
   const handleNewProposal = async (project: ProjectWithProposals) => {
     setCreatingFor(project.id)
@@ -107,6 +119,45 @@ export default function NewProposalPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {/* Standalone option */}
+        <div className="mb-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Standalone</p>
+          <Card className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                  <Unlink className="h-4 w-4 text-slate-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Standalone Proposal</p>
+                  <p className="text-xs text-muted-foreground">Not linked to any project</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleCreateStandalone()}
+                disabled={creatingStandalone}
+                className="shrink-0"
+              >
+                {creatingStandalone ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Creating…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    Create
+                  </span>
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">From a project</p>
+
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (

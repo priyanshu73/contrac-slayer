@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { QuoteCreator } from "@/components/Quote-creator"
 import { Button } from "@/components/ui/button"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { api } from "@/lib/api"
 import { Loader2, Sparkles } from "lucide-react"
 
@@ -12,6 +12,8 @@ function openAiPanelForEstimate() {
 }
 
 export default function NewQuotePage() {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const leadId = searchParams.get("leadId")
   const clientId = searchParams.get("clientId")
@@ -38,6 +40,28 @@ export default function NewQuotePage() {
       fetchCopiedQuote()
     }
   }, [copyFromId])
+
+  const handleProjectContextChange = ({ projectId, clientId }: { projectId: number | null; clientId: number | null }) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+
+    if (projectId != null) {
+      nextParams.set("projectId", String(projectId))
+    } else {
+      nextParams.delete("projectId")
+    }
+
+    if (clientId != null) {
+      nextParams.set("clientId", String(clientId))
+    } else {
+      nextParams.delete("clientId")
+    }
+
+    const current = searchParams.toString()
+    const next = nextParams.toString()
+    if (current === next) return
+
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false })
+  }
 
   const subtitle = copyFromId
     ? `Copying from Quote #${copyFromId}`
@@ -95,7 +119,7 @@ export default function NewQuotePage() {
             className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            AI Estimate
+            Estimate with AI
           </Button>
         </div>
       </header>
@@ -106,6 +130,7 @@ export default function NewQuotePage() {
           clientId={clientId} 
           projectId={projectId}
           initialData={copiedQuoteData} 
+          onProjectContextChange={handleProjectContextChange}
         />
       </main>
     </div>

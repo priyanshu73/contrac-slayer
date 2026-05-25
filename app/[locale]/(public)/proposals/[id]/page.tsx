@@ -6,16 +6,23 @@ import { useParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
+import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
+import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
+import { resolveQuoteNavUrl } from "@/lib/client-portal-nav"
 import { api } from "@/lib/api"
-import type { Job } from "@/lib/types"
+import type { Proposal } from "@/lib/types"
 
 export default function PublicProposalPage() {
   const params = useParams()
   const locale = (params.locale as string) || "en"
   const identifier = params.id as string
-  const [job, setJob] = useState<Job | null>(null)
+  const [proposal, setProposal] = useState<Proposal | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { quotes: portalQuotes } = useClientPortalDocuments(
+    proposal?.client_portal_token,
+    proposal ? { quotes: proposal.portal_quotes, proposals: proposal.portal_proposals } : null
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -24,9 +31,9 @@ export default function PublicProposalPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = (await api.getProposalByPublicLink(identifier)) as Job
+        const response = (await api.getProposalByPublicLink(identifier)) as Proposal
         if (!cancelled) {
-          setJob(response)
+          setProposal(response)
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -58,16 +65,22 @@ export default function PublicProposalPage() {
     )
   }
 
-  if (error || !job || !job.proposal_document) {
+  const fallbackQuoteUrl = resolveQuoteNavUrl(
+    portalQuotes,
+    locale,
+    proposal?.linked_quote_public_link
+  )
+
+  if (error || !proposal || !proposal.proposal_document) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl">
           <Card className="rounded-3xl p-8 text-center shadow-sm">
             <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
             <p className="mt-3 text-sm text-slate-600">{error || "Proposal not found."}</p>
-            {job?.quote_public_link ? (
+            {fallbackQuoteUrl ? (
               <Button asChild className="mt-6">
-                <a href={`/${locale}/quotes/${job.quote_public_link}`}>View Quote</a>
+                <a href={fallbackQuoteUrl}>View Quote</a>
               </Button>
             ) : null}
           </Card>
@@ -76,15 +89,34 @@ export default function PublicProposalPage() {
     )
   }
 
-  const contractorName = job.contractor?.company_name || job.proposal_document.contractorName || "Contractor"
+  const contractorName =
+    proposal.proposal_document.contractorName || "Contractor"
+  const quoteUrl = resolveQuoteNavUrl(
+    portalQuotes.length > 0 ? portalQuotes : (proposal.portal_quotes ?? []),
+    locale,
+    proposal.linked_quote_public_link
+  )
 
   return (
-    <ProposalBuilder
-      job={job}
-      contractorName={contractorName}
-      locale={locale}
-      publicMode={true}
-      onJobUpdated={setJob}
-    />
+    <div className="flex min-h-screen">
+      <ClientDocumentNav
+        locale={locale}
+        portalToken={proposal.client_portal_token}
+        activeView="proposal"
+        hasQuote={Boolean(quoteUrl)}
+        hasProposal
+        quoteUrl={quoteUrl}
+      />
+
+      <div className={clientDocumentNavContentClassName()}>
+        <ProposalBuilder
+          proposal={proposal}
+          contractorName={contractorName}
+          locale={locale}
+          publicMode={true}
+          onProposalUpdated={setProposal}
+        />
+      </div>
+    </div>
   )
 }

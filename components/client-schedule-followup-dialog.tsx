@@ -146,7 +146,7 @@ export function ClientScheduleFollowupDialog({
   }, [open, followupType, clientId, quotes])
 
   useEffect(() => {
-    if (!selectedQuote) {
+    if (!selectedQuote || !clientId) {
       setQuoteLink(null)
       setMessageText("")
       return
@@ -154,9 +154,9 @@ export function ClientScheduleFollowupDialog({
     setQuoteLinkLoading(true)
     api
       .generateQuotePublicLink(selectedQuote.id)
-      .then((link) => {
+      .then((publicLink) => {
         const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
-        const fullUrl = `${frontendUrl}/quotes/${link}`
+        const fullUrl = `${frontendUrl}/quotes/${publicLink}`
         setQuoteLink(fullUrl)
         const msg = QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? "there").replace(
           /\{quote_link\}/g,
@@ -169,12 +169,12 @@ export function ClientScheduleFollowupDialog({
         setMessageText(
           QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? "there").replace(
             /\{quote_link\}/g,
-            "[Quote link - sign the quote first to generate]"
+            "[Quote link unavailable]"
           )
         )
       })
       .finally(() => setQuoteLinkLoading(false))
-  }, [selectedQuote?.id, clientName])
+  }, [selectedQuote?.id, clientId, clientName])
 
   useEffect(() => {
     if (followupType === "quote" && selectedQuote && !selectedDate) {

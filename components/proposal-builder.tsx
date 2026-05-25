@@ -1,20 +1,29 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, Eye, ExternalLink, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
-import { api } from "@/lib/api"
+import { api, contractorAI, type ScopeClarifiedScope } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
+import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { DEFAULT_PROPOSAL_THEME_ID, PROPOSAL_THEMES, getProposalTheme, normalizeProposalThemeId } from "@/lib/proposal-themes"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -105,6 +114,12 @@ function createTextBlock(html = ""): ProposalTextBlock {
 const DEFAULT_SCOPE_SUMMARY_HTML = "<p>Describe the overall scope, intent, and project goals for this proposal.</p>"
 const DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML = "<p>Summarize the project approach, priorities, and expected outcomes.</p>"
 const PAGE_TEXT_PLACEHOLDER = "Add page notes, photos, and markups here."
+const AI_PROPOSAL_LOADING_MESSAGES = [
+  "Reviewing project context and linked quote details...",
+  "Drafting a client-friendly scope and story...",
+  "Organizing the proposal pages and flow...",
+  "Polishing the final proposal copy...",
+] as const
 
 function normalizeHexColor(value: string | undefined, fallback: string) {
   const normalized = value?.trim()
@@ -1028,6 +1043,7 @@ export function ProposalBuilder({
   onProposalUpdated,
   onProjectClientChanged,
   publicMode = false,
+  portalUrl,
 }: {
   /** Legacy: job-centric mode. Pass when building from a quote directly. */
   job?: Job
@@ -1045,9 +1061,13 @@ export function ProposalBuilder({
   /** Called when the user picks a client in the proposal form, so the parent can sync project.client_id. */
   onProjectClientChanged?: (clientId: number) => void
   publicMode?: boolean
+  /** Client portal URL — shown as a link in the header when in public mode. */
+  portalUrl?: string
 }) {
   const isProposalMode = !!proposal
   const { toast } = useToast()
+  const { user } = useAuth()
+  const { number: contractorOpsAiNumber } = useContractorOpsNumber()
   const fileInputId = useId()
   const [document, setDocument] = useState<ProposalDocument>(() => {
     if (isProposalMode && proposal) {
@@ -1064,7 +1084,20 @@ export function ProposalBuilder({
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [overviewLoaded, setOverviewLoaded] = useState(false)
+  const [aiProposalLoading, setAiProposalLoading] = useState(false)
+  const [aiProposalLoadingStage, setAiProposalLoadingStage] = useState(0)
+  const [aiProposalLoadingProgress, setAiProposalLoadingProgress] = useState(0)
   const [showAIModal, setShowAIModal] = useState(false)
+  const [sendEmailOpen, setSendEmailOpen] = useState(false)
+  const [sendEmailTo, setSendEmailTo] = useState("")
+  const [sendEmailSending, setSendEmailSending] = useState(false)
+  const [sendEmailSuccess, setSendEmailSuccess] = useState(false)
+  const [sentToEmail, setSentToEmail] = useState("")
+  const [optionalNote, setOptionalNote] = useState("")
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [generatingLink, setGeneratingLink] = useState(false)
+  const [proposalShareUrl, setProposalShareUrl] = useState<string | null>(null)
+  const [sendClient, setSendClient] = useState<Client | null>(client ?? null)
   const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
     buildBeforeAfterPairsFromMedia(
       isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
@@ -1072,6 +1105,85 @@ export function ProposalBuilder({
   )
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  useEffect(() => {
+    if (client) setSendClient(client)
+  }, [client])
+
+  useEffect(() => {
+    if (!aiProposalLoading) {
+      setAiProposalLoadingStage(0)
+      setAiProposalLoadingProgress(0)
+      return
+    }
+
+    setAiProposalLoadingStage(0)
+    setAiProposalLoadingProgress(8)
+    const started = Date.now()
+    const rotate = window.setInterval(() => {
+      setAiProposalLoadingStage((prev) => (prev + 1) % AI_PROPOSAL_LOADING_MESSAGES.length)
+    }, 2400)
+    const progress = window.setInterval(() => {
+      const elapsed = Date.now() - started
+      setAiProposalLoadingProgress(Math.min(94, 8 + (elapsed / 180_000) * 86))
+    }, 400)
+
+    return () => {
+      window.clearInterval(rotate)
+      window.clearInterval(progress)
+    }
+  }, [aiProposalLoading])
+
+  // Resolve client phone/email for send actions (contractor builder only)
+  useEffect(() => {
+    if (publicMode) return
+
+    const clientId =
+      proposal?.client_id ?? project?.client_id ?? job?.client_id ?? client?.id ?? null
+
+    const jobClient = job?.client as Client | undefined
+    if (jobClient && (!clientId || jobClient.id === clientId)) {
+      if (jobClient.phone?.trim() || jobClient.email?.trim()) {
+        setSendClient(jobClient)
+        return
+      }
+    }
+
+    if (client?.id && (!clientId || client.id === clientId) && (client.phone?.trim() || client.email?.trim())) {
+      setSendClient(client)
+      return
+    }
+
+    if (clientId && clients?.length) {
+      const fromList = clients.find((c) => c.id === clientId)
+      if (fromList && (fromList.phone?.trim() || fromList.email?.trim())) {
+        setSendClient(fromList)
+        return
+      }
+    }
+
+    if (!clientId) return
+
+    let cancelled = false
+    api
+      .getClient(clientId)
+      .then((data) => {
+        if (!cancelled) setSendClient(data as Client)
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    proposal?.client_id,
+    project?.client_id,
+    job?.client_id,
+    job?.client,
+    client,
+    clients,
+    publicMode,
+  ])
 
   // Sync proposal context to window so AgentChatPanel can read it
   useEffect(() => {
@@ -1083,10 +1195,31 @@ export function ProposalBuilder({
       includeProjectBriefInContext: true,
       projectId: proposal?.project_id ?? null,
       proposalId: proposal?.id ?? null,
+      clientId: project?.client_id ?? proposal?.client_id ?? client?.id ?? null,
+      clientEmail: client?.email ?? null,
+      clientPhone: client?.phone ?? null,
+      jobId: job?.id ?? proposal?.quote_references?.[0]?.job_id ?? null,
     }
     ;(window as any).proposalBuilderContext = ctx
     window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
-  }, [document.title, proposal?.title, project?.title, document.projectOverview?.title, project?.objective, job?.job_description, project?.brief, proposal?.project_id, proposal?.id])
+  }, [
+    document.title,
+    proposal?.title,
+    project?.title,
+    document.projectOverview?.title,
+    project?.objective,
+    job?.job_description,
+    project?.brief,
+    proposal?.project_id,
+    proposal?.id,
+    project?.client_id,
+    proposal?.client_id,
+    client?.id,
+    client?.email,
+    client?.phone,
+    job?.id,
+    proposal?.quote_references,
+  ])
 
   useEffect(() => {
     if (isProposalMode && proposal) {
@@ -1127,7 +1260,7 @@ export function ProposalBuilder({
 
     const loadOverview = async () => {
       try {
-        const generated = isProposalMode && proposal
+        const generated = isProposalMode && proposal && proposal.project_id
           ? (await api.getProposalOverviewForProject(proposal.project_id, proposal.id)) as ProposalOverviewResponse
           : (await api.getProposalOverview(job!.id)) as ProposalOverviewResponse
         if (cancelled) return
@@ -1154,33 +1287,113 @@ export function ProposalBuilder({
     }
   }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
 
-  const generateProposalOverview = useCallback(async (clarifiedScope?: any) => {
+  const generateFullProposal = useCallback(async (clarifiedScope?: ScopeClarifiedScope | null) => {
+    if (aiProposalLoading) return
+
+    setAiProposalLoading(true)
+    window.dispatchEvent(new CustomEvent("ai-generation-status", {
+      detail: {
+        kind: "proposal",
+        phase: "running",
+        title: "Generating AI proposal",
+        detail: "Reviewing scope, project context, and proposal structure.",
+      },
+    }))
     try {
-      const generated = isProposalMode && proposal
-        ? (await api.getProposalOverviewForProject(proposal.project_id, proposal.id)) as ProposalOverviewResponse
-        : (await api.getProposalOverview(job!.id)) as ProposalOverviewResponse
-      setDocument((current) => ({
-        ...current,
-        projectOverview: {
-          title: generated.title || current.projectOverview.title,
-          description: `<p>${escapeHtml(generated.description || "")}</p>`,
-        },
-      }))
+      const generated = isProposalMode && proposal && proposal.project_id
+        ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
+            description: project?.objective ?? undefined,
+            job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
+            clarified_scope: clarifiedScope ?? null,
+          })
+        : await api.generateAIProposal(
+            job!.id,
+            job?.job_description || job?.description || undefined
+          )
+
+      const beforeAfterQueue = [...(generated.before_after_pairs ?? [])]
+      const generatedPages: ProposalPage[] = (generated.pages ?? []).map((page) => {
+        const description = page.blocks.flatMap((block): ProposalPageBlock[] => {
+          if (block.type === "before_after_placeholder") {
+            const pair = beforeAfterQueue.shift()
+            if (!pair?.before_url || !pair?.after_url) return []
+            return [{
+              id: createId("before-after"),
+              type: "before_after",
+              beforeUrl: pair.before_url,
+              afterUrl: pair.after_url,
+              beforeLabel: "Before",
+              afterLabel: "After",
+            }]
+          }
+
+          return [createTextBlock(block.content_html ?? "")]
+        })
+
+        return {
+          id: createId("page"),
+          title: page.title,
+          description,
+        }
+      })
+
+      setDocument((current) => {
+        const withTheme =
+          generated.suggested_theme
+            ? updateProposalTheme(current, normalizeProposalThemeId(generated.suggested_theme))
+            : current
+
+        return {
+          ...withTheme,
+          scopeSummary: generated.scope_summary_html || withTheme.scopeSummary,
+          projectOverview: {
+            title: generated.project_overview_title || withTheme.projectOverview.title,
+            description: generated.project_overview_html || withTheme.projectOverview.description,
+          },
+          pages: generatedPages.length > 0 ? generatedPages : withTheme.pages,
+        }
+      })
       setDirty(true)
       setOverviewLoaded(true)
-    } catch {
-      // Leave existing content in place if generation fails
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "proposal",
+          phase: "succeeded",
+          title: "Proposal ready",
+          detail: "The AI draft has been added to the builder. Review and save when you're ready.",
+        },
+      }))
+      toast({
+        title: "Proposal generated",
+        description: "AI drafted the proposal pages. Review and save when you're ready.",
+      })
+    } catch (error: any) {
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "proposal",
+          phase: "failed",
+          title: "Proposal generation failed",
+          detail: error?.message || "The AI returned an unexpected response. Please try again.",
+        },
+      }))
+      toast({
+        title: "Generation failed",
+        description: error?.message || "Unable to generate the proposal right now.",
+        variant: "destructive",
+      })
+    } finally {
+      setAiProposalLoading(false)
     }
-  }, [isProposalMode, proposal, job])
+  }, [aiProposalLoading, isProposalMode, proposal, project?.objective, job, toast])
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { clarifiedScope?: any } | undefined
-      void generateProposalOverview(detail?.clarifiedScope ?? null)
+      const detail = (e as CustomEvent).detail as { clarifiedScope?: ScopeClarifiedScope | null } | undefined
+      void generateFullProposal(detail?.clarifiedScope ?? null)
     }
     window.addEventListener("trigger-ai-proposal", handler)
     return () => window.removeEventListener("trigger-ai-proposal", handler)
-  }, [generateProposalOverview])
+  }, [generateFullProposal])
 
   const updateDocument = (updater: (current: ProposalDocument) => ProposalDocument) => {
     setDocument((current) => {
@@ -1212,33 +1425,235 @@ export function ProposalBuilder({
   const pageHeaderStyle = {
     backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.08)}, rgba(255,255,255,0.97) 56%, ${withAlpha(tintColor, 0.14)})`,
   }
-  const proposalPublicHref = isProposalMode
-    ? (proposal?.public_link ? `/${locale}/proposals/${proposal.public_link}` : null)
-    : (job?.proposal_public_link ? `/${locale}/proposals/${job.proposal_public_link}` : null)
+  const proposalTitle =
+    document.title || proposal?.title || job?.title || project?.title || "your project"
+  const clientEmail = sendClient?.email ?? job?.client?.email ?? client?.email ?? ""
+  const clientPhone = sendClient?.phone ?? job?.client?.phone ?? client?.phone ?? ""
+  const clientName = sendClient?.name ?? job?.client?.name ?? client?.name ?? "Customer"
+  const emailSubject = `Your proposal for ${proposalTitle} from ${contractorName}`
 
-  const copyDocumentLink = async (href: string, label: string) => {
-    if (typeof window === "undefined") return
+  const getProposalShareUrl = () => {
+    if (proposalShareUrl) return proposalShareUrl
+    const publicLink = isProposalMode ? proposal?.public_link : job?.proposal_public_link
+    if (!publicLink || typeof window === "undefined") return ""
+    return `${window.location.origin}/${locale}/proposals/${publicLink}`
+  }
+
+  const ensureProposalShareLink = async (): Promise<string | null> => {
+    const existing = getProposalShareUrl()
+    if (existing) return existing
 
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${href}`)
+      setGeneratingLink(true)
+      if (isProposalMode && proposal) {
+        const updated = (await persistProposal(proposal, {
+          proposal_document: document,
+        })) as Proposal
+        onProposalUpdated?.(updated)
+        if (!updated.public_link) {
+          toast({
+            title: "No share link",
+            description: "Save the proposal first, then try again.",
+            variant: "destructive",
+          })
+          return null
+        }
+        const url =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/${locale}/proposals/${updated.public_link}`
+            : `/${locale}/proposals/${updated.public_link}`
+        setProposalShareUrl(url)
+        return url
+      }
+      if (job) {
+        const updated = (await api.updateJob(job.id, { proposal_document: document })) as Job
+        onJobUpdated?.(updated)
+        const link = updated.proposal_public_link
+        if (!link) {
+          toast({
+            title: "No share link",
+            description: "Save the proposal first, then try again.",
+            variant: "destructive",
+          })
+          return null
+        }
+        const url =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/${locale}/proposals/${link}`
+            : `/${locale}/proposals/${link}`
+        setProposalShareUrl(url)
+        return url
+      }
+    } catch (err: any) {
       toast({
-        title: `${label} link copied`,
-        description: `The ${label.toLowerCase()} URL is ready to share.`,
+        title: "Error",
+        description: err?.message || "Failed to prepare proposal link.",
+        variant: "destructive",
       })
-    } catch {
+      return null
+    } finally {
+      setGeneratingLink(false)
+    }
+    return null
+  }
+
+  const handleSendToClient = async () => {
+    try {
+      const url = await ensureProposalShareLink()
+      if (!url) return
+
+      const gmail = await api.getGmailStatus()
+      if (!gmail.connected) {
+        toast({
+          title: "Gmail not connected",
+          description: (
+            <>
+              Connect Gmail in{" "}
+              <Link href={`/${locale}/settings`} className="underline font-medium">
+                Settings → Integrations
+              </Link>{" "}
+              to send the proposal from your inbox.
+            </>
+          ),
+          variant: "destructive",
+        })
+        return
+      }
+
+      setSendEmailTo(clientEmail)
+      setSendEmailSuccess(false)
+      setSentToEmail("")
+      setOptionalNote("")
+      setCopiedLink(false)
+      setSendEmailOpen(true)
+    } catch (err: any) {
       toast({
-        title: "Copy failed",
-        description: "Unable to copy the link right now.",
+        title: "Error",
+        description: err?.message || "Failed to prepare email.",
         variant: "destructive",
       })
     }
   }
 
+  const handleSendProposalEmail = async () => {
+    const to = sendEmailTo.trim()
+    if (!to) {
+      toast({ title: "Enter email", description: "Please enter the client's email address.", variant: "destructive" })
+      return
+    }
+    const proposalUrl = await ensureProposalShareLink()
+    if (!proposalUrl) return
+
+    setSendEmailSending(true)
+    try {
+      if (isProposalMode && proposal && proposal.project_id) {
+        await api.sendProposalEmail(proposal.project_id, proposal.id, to, proposalUrl)
+      } else if (job) {
+        await api.sendQuoteEmail(job.id, to, proposalUrl)
+      }
+      setSentToEmail(to)
+      setSendEmailSuccess(true)
+      toast({ title: "Proposal sent", description: `Sent to ${to}.` })
+    } catch (err: any) {
+      const msg = err?.message ?? ""
+      const isInvalidTo = /invalid to header|invalid email|valid email address/i.test(msg)
+      toast({
+        title: "Send failed",
+        description: isInvalidTo
+          ? "Please enter a valid email address in the To field and try again."
+          : msg || "Failed to send email.",
+        variant: "destructive",
+      })
+    } finally {
+      setSendEmailSending(false)
+    }
+  }
+
+  const handleSendViaSms = async () => {
+    if (!user?.contractor_profile?.contractor_ai_sp_id) {
+      toast({
+        title: "SMS not available",
+        description: "Contractor AI integration is not set up. Connect it in settings to send via SMS.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!contractorOpsAiNumber?.trim()) {
+      toast({
+        title: "Contractor Ops AI number required",
+        description: "Set up your Contractor Ops AI number in Settings → Integrations to send via SMS.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!clientPhone) {
+      toast({
+        title: "No phone number",
+        description: "Add a phone number for this client to send the proposal via SMS.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    let shareUrl = getProposalShareUrl()
+    if (!shareUrl) {
+      shareUrl = (await ensureProposalShareLink()) ?? ""
+    }
+    if (!shareUrl) return
+
+    const refJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id ?? 0
+    try {
+      const message = `Hi ${clientName}, your documents are ready. View them here: ${shareUrl}`
+      await contractorAI.sendImmediateSms({
+        sp_id: user.contractor_profile.contractor_ai_sp_id,
+        customer_number: clientPhone,
+        message_text: message,
+        reference_type: "job",
+        reference_id: refJobId,
+      })
+      toast({ title: "SMS sent", description: `Proposal link sent to ${clientName}.` })
+    } catch {
+      toast({
+        title: "Send failed",
+        description: "Failed to send SMS. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCopyProposalLink = async () => {
+    let url = getProposalShareUrl()
+    if (!url) {
+      url = (await ensureProposalShareLink()) ?? ""
+      if (!url) return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedLink(true)
+      toast({ title: "Link copied", description: "Proposal link copied to clipboard." })
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch {
+      toast({ title: "Failed to copy", description: "Please try again or copy manually.", variant: "destructive" })
+    }
+  }
+
+  const sendViaSmsDisabled =
+    !user?.contractor_profile?.contractor_ai_sp_id ||
+    !contractorOpsAiNumber?.trim() ||
+    !clientPhone
+  const inlineActionButtonClass =
+    "h-8 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50"
+
+  const persistProposal = (p: Proposal, data: Parameters<typeof api.updateProposal>[2]) =>
+    p.project_id
+      ? api.updateProposal(p.project_id, p.id, data)
+      : api.updateStandaloneProposal(p.id, data)
+
   const saveProposal = async () => {
     setSaving(true)
     try {
       if (isProposalMode && proposal) {
-        const updated = (await api.updateProposal(proposal.project_id, proposal.id, { proposal_document: document })) as Proposal
+        const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
         onProposalUpdated?.(updated)
         setDirty(false)
         toast({ title: "Proposal saved", description: "Your proposal has been saved." })
@@ -1414,90 +1829,116 @@ export function ProposalBuilder({
             </div>
 
             <div className="flex flex-col items-end gap-1.5">
-              {!publicMode || proposalPublicHref ? (
+              {publicMode && portalUrl && (
+                <a
+                  href={portalUrl}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  My Portal
+                </a>
+              )}
+              {!publicMode ? (
                 <div className="flex items-center gap-1">
-                  {!publicMode ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                          onClick={() => setViewMode((value) => !value)}
-                        >
-                          <Eye className="h-[22px] w-[22px]" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                        {viewMode ? "Edit mode" : "Preview"}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {proposalPublicHref && !publicMode ? (
-                    <Fragment>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                            onClick={() => copyDocumentLink(proposalPublicHref, "Proposal")}
-                          >
-                            <Copy className="h-[22px] w-[22px]" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                          Copy link
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-                            <Link href={proposalPublicHref} target="_blank">
-                              <ExternalLink className="h-[22px] w-[22px]" />
-                            </Link>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                          Open view
-                        </TooltipContent>
-                      </Tooltip>
-                    </Fragment>
-                  ) : null}
-                  {!publicMode ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                          onClick={saveProposal}
-                          disabled={saving}
-                        >
-                          {saving ? <Loader2 className="h-[22px] w-[22px] animate-spin" /> : <Save className="h-[22px] w-[22px]" />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                        Save
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                        onClick={() => setViewMode((value) => !value)}
+                      >
+                        <Eye className="h-[22px] w-[22px]" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                      {viewMode ? "Edit mode" : "Preview"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                        onClick={saveProposal}
+                        disabled={saving}
+                      >
+                        {saving ? <Loader2 className="h-[22px] w-[22px] animate-spin" /> : <Save className="h-[22px] w-[22px]" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
+                      Save
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               ) : null}
 
-              {!publicMode ? (
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {!publicMode ? (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" size="sm" className={inlineActionButtonClass}>
+                        <Send className="mr-1.5 h-3.5 w-3.5" />
+                        Send to Client
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                      <DropdownMenuItem
+                        onClick={() => void handleSendToClient()}
+                        className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
+                      >
+                        <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Send via Email
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => void handleSendViaSms()}
+                        disabled={sendViaSmsDisabled}
+                        className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
+                      >
+                        <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Send via SMS
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="bg-slate-100" />
+                      <DropdownMenuItem
+                        onClick={() => void handleCopyProposalLink()}
+                        disabled={generatingLink}
+                        className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
+                      >
+                        {copiedLink ? (
+                          <Check className="mr-2 h-4 w-4 text-slate-500" />
+                        ) : generatingLink ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-500" />
+                        ) : (
+                          <Copy className="mr-2 h-4 w-4 text-slate-500" />
+                        )}
+                        {copiedLink
+                          ? "Copied!"
+                          : getProposalShareUrl()
+                            ? "Copy proposal link"
+                            : "Generate & copy proposal link"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     type="button"
                     size="sm"
                     className="h-8 justify-start rounded-2xl border border-fuchsia-200/80 bg-[linear-gradient(135deg,#fff7ed_0%,#f5f3ff_45%,#eef2ff_100%)] px-3 text-slate-900 shadow-[0_10px_30px_-18px_rgba(168,85,247,0.55)] hover:border-fuchsia-300 hover:bg-[linear-gradient(135deg,#ffedd5_0%,#ede9fe_48%,#e0e7ff_100%)]"
                     onClick={() => window.dispatchEvent(new CustomEvent("open-ai-panel-for-proposal"))}
+                    disabled={aiProposalLoading}
                   >
-                    <Sparkles className="mr-1 h-3.5 w-3.5 text-fuchsia-500" />
-                    Generate AI Proposal
+                    {aiProposalLoading ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-fuchsia-500" />
+                    ) : (
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-fuchsia-500" />
+                    )}
+                    {aiProposalLoading ? "Generating..." : "Generate AI Proposal"}
                   </Button>
                   <Button
                     type="button"
@@ -1513,6 +1954,34 @@ export function ProposalBuilder({
             </div>
           </div>
         </div>
+
+        {aiProposalLoading ? (
+          <div className="rounded-[28px] border border-violet-200/80 bg-[linear-gradient(135deg,rgba(245,243,255,0.95),rgba(255,255,255,0.98),rgba(238,242,255,0.96))] px-5 py-4 shadow-[0_18px_45px_-28px_rgba(124,58,237,0.45)] print:hidden">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
+                  Generating your AI proposal
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {AI_PROPOSAL_LOADING_MESSAGES[aiProposalLoadingStage]}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full border border-violet-200 bg-white/80 px-3 py-1 text-xs font-medium text-violet-700">
+                Drafting pages and narrative
+              </span>
+            </div>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-violet-100">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#8b5cf6,#ec4899)] transition-all duration-500 ease-out"
+                style={{ width: `${aiProposalLoadingProgress}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              The builder will update automatically when the draft is ready.
+            </p>
+          </div>
+        ) : null}
 
         <Card
           className={cn(
@@ -1774,21 +2243,35 @@ export function ProposalBuilder({
                   }
 
                   if (block.type === "text") {
+                    if (isReadOnly) {
+                      return (
+                        <RichTextEditor
+                          key={block.id}
+                          value={block.html}
+                          onChange={(value) =>
+                            updateDocument((current) =>
+                              updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
+                            )
+                          }
+                          readOnly
+                          readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
+                          placeholder={PAGE_TEXT_PLACEHOLDER}
+                        />
+                      )
+                    }
                     return (
                       <div key={block.id} className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
-                        {!isReadOnly ? (
-                          <div className="mb-2 flex items-center justify-end gap-0.5">
-                            <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-                              <MoveUp className="h-4 w-4" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon-sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-                              <MoveDown className="h-4 w-4" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon-sm" onClick={deleteBlock} className="text-red-400 hover:text-red-600 hover:bg-red-50">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : null}
+                        <div className="mb-2 flex items-center justify-end gap-0.5">
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                            <MoveUp className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
+                            <MoveDown className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={deleteBlock} className="text-red-400 hover:text-red-600 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <RichTextEditor
                           value={block.html}
                           onChange={(value) =>
@@ -1796,11 +2279,10 @@ export function ProposalBuilder({
                               updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
                             )
                           }
-                          readOnly={isReadOnly}
-                          className={!isReadOnly ? proposalTheme.richTextSurfaceClassName : undefined}
+                          readOnly={false}
+                          className={proposalTheme.richTextSurfaceClassName}
                           toolbarClassName={proposalTheme.richTextToolbarClassName}
                           editorClassName={proposalTheme.richTextEditorClassName}
-                          readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
                           placeholder={PAGE_TEXT_PLACEHOLDER}
                         />
                       </div>
@@ -2073,6 +2555,149 @@ export function ProposalBuilder({
               onImagePairsChange={setImagePairs}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={sendEmailOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSendEmailSuccess(false)
+            setOptionalNote("")
+          }
+          setSendEmailOpen(open)
+        }}
+      >
+        <DialogContent className="sm:max-w-xl shadow-xl rounded-xl p-6" showCloseButton>
+          {sendEmailSuccess ? (
+            <div className="py-2">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
+                  <Check className="h-5 w-5 shrink-0" />
+                  Proposal sent to {sentToEmail}
+                </DialogTitle>
+                <DialogDescription>
+                  Your client will receive the email from your Gmail with a link to view the proposal.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 pt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center gap-2"
+                  onClick={async () => {
+                    const url = getProposalShareUrl()
+                    if (url) {
+                      await navigator.clipboard.writeText(url)
+                      setCopiedLink(true)
+                      toast({ title: "Link copied" })
+                      setTimeout(() => setCopiedLink(false), 2000)
+                    }
+                  }}
+                >
+                  {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedLink ? "Copied!" : "Copy share link"}
+                </Button>
+                <Button className="w-full" onClick={() => setSendEmailOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <DialogHeader className="pb-2">
+                <DialogTitle className="text-lg font-semibold">Review &amp; Send Proposal</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-0 border-t">
+                <div className="flex items-center gap-3 py-3 border-b px-1">
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">From</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <UserCircle className="h-5 w-5" />
+                    </div>
+                    <span className="truncate text-sm font-medium">{contractorName} (me)</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 py-3 border-b px-1">
+                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">To</span>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Input
+                      id="send-proposal-email-to"
+                      type="email"
+                      placeholder="Enter client email address"
+                      value={sendEmailTo}
+                      onChange={(e) => setSendEmailTo(e.target.value)}
+                      className="min-h-11 w-full px-3 py-2.5 text-base"
+                      autoComplete="email"
+                      inputMode="email"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 py-3 border-b px-1">
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">Subject</span>
+                  <p className="min-w-0 flex-1 truncate text-sm text-foreground" title={emailSubject}>
+                    {emailSubject}
+                  </p>
+                </div>
+
+                <div className="flex gap-3 py-3 px-1">
+                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5" />
+                  <textarea
+                    placeholder="Add a short message (optional)"
+                    value={optionalNote}
+                    onChange={(e) => setOptionalNote(e.target.value)}
+                    className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="rounded-lg border bg-muted/30 p-3 mx-1 mt-2">
+                  <p className="text-xs text-muted-foreground mb-2">What your client will receive</p>
+                  <div className="rounded-md border bg-background p-3 text-left space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Hi{clientName ? ` ${String(clientName).split(" ")[0]}` : ""},
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {contractorName} has prepared a proposal for{" "}
+                      <strong className="text-foreground">{proposalTitle}</strong>.
+                    </p>
+                    <div className="py-1">
+                      <span className="inline-block rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
+                        View Proposal
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setSendEmailOpen(false)}
+                  disabled={sendEmailSending}
+                  className="order-2 sm:order-1 text-muted-foreground"
+                >
+                  Discard
+                </Button>
+                <Button
+                  onClick={() => void handleSendProposalEmail()}
+                  disabled={
+                    sendEmailSending ||
+                    !sendEmailTo.trim() ||
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sendEmailTo.trim())
+                  }
+                  className="order-1 sm:order-2 text-base font-medium gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {sendEmailSending ? "Sending…" : "Send Proposal"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

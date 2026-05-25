@@ -136,6 +136,7 @@ export function PersonalizedQuoteView({
   const [currentJob, setCurrentJob] = useState<Job>(job)
   const [copiedLink, setCopiedLink] = useState(false)
   const [generatingLink, setGeneratingLink] = useState(false)
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [followupSendSms, setFollowupSendSms] = useState(true)
   const [followupSendEmail, setFollowupSendEmail] = useState(true)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
@@ -154,7 +155,8 @@ export function PersonalizedQuoteView({
   }, [job])
 
   useEffect(() => {
-    // Check if an invoice exists for this job
+    if (isPublicView || !isContractor) return
+    // Check if an invoice exists for this job (contractor-only)
     if (job.id && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'INVOICED'].includes(job.status.toString().toUpperCase())) {
       api.getInvoices(undefined, 0, 1, job.id).then(res => {
         if (res.items && res.items.length > 0) {
@@ -162,7 +164,7 @@ export function PersonalizedQuoteView({
         }
       }).catch(err => console.error("Failed to fetch existing invoices for job", err))
     }
-  }, [job.id, job.status])
+  }, [job.id, job.status, isPublicView, isContractor])
 
   useEffect(() => {
     // For public customer views, use contractor info from job if available
@@ -404,18 +406,18 @@ export function PersonalizedQuoteView({
 
   const handleGeneratePublicLink = async () => {
     if (!isContractor) return
-
     try {
       setGeneratingLink(true)
-      const link = await api.generateQuotePublicLink(currentJob.id)
-      setCurrentJob(prev => prev ? { ...prev, quote_public_link: link } : prev)
-      toast({
-        title: "Public Link Generated!",
-        description: "Quote is now ready to share with your customer.",
-      })
+      const publicLink = await api.generateQuotePublicLink(currentJob.id)
+      setPortalUrl(
+        typeof window !== "undefined"
+          ? `${window.location.origin}/${locale}/quotes/${publicLink}`
+          : `/${locale}/quotes/${publicLink}`
+      )
+      setCurrentJob((prev) => ({ ...prev, quote_public_link: publicLink }))
     } catch (error: any) {
       toast({
-        title: "Failed to generate link",
+        title: "Failed to generate quote link",
         description: error.message || "Please try again.",
         variant: "destructive",
       })
@@ -441,38 +443,35 @@ export function PersonalizedQuoteView({
   }
 
   const handleCopyQuoteLink = async () => {
-    const publicLink = currentJob.quote_public_link
-    if (!publicLink) {
-      // Generate link first if it doesn't exist
+    // If we already have a URL (from state or existing public link), copy it
+    let url = portalUrl
+    if (!url && currentJob.quote_public_link) {
+      url = typeof window !== "undefined"
+        ? `${window.location.origin}/${locale}/quotes/${currentJob.quote_public_link}`
+        : `/${locale}/quotes/${currentJob.quote_public_link}`
+      setPortalUrl(url)
+    }
+    if (!url) {
       await handleGeneratePublicLink()
+      // URL will be set in state; user can click again to copy
       return
     }
-
-    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const fullUrl = `${frontendUrl}/${locale}/quotes/${publicLink}`
-
     try {
-      await navigator.clipboard.writeText(fullUrl)
+      await navigator.clipboard.writeText(url)
       setCopiedLink(true)
-      toast({
-        title: "Link Copied!",
-        description: "Quote link has been copied to your clipboard.",
-      })
+      toast({ title: "Link Copied!", description: "Quote link copied to clipboard." })
       setTimeout(() => setCopiedLink(false), 2000)
-    } catch (error) {
-      toast({
-        title: "Failed to copy",
-        description: "Please try again or copy manually.",
-        variant: "destructive",
-      })
+    } catch {
+      toast({ title: "Failed to copy", description: "Please try again or copy manually.", variant: "destructive" })
     }
   }
 
   const getQuoteLinkUrl = () => {
-    const publicLink = currentJob.quote_public_link
-    if (!publicLink) return null
-    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${frontendUrl}/${locale}/quotes/${publicLink}`
+    if (portalUrl) return portalUrl
+    if (currentJob.quote_public_link && typeof window !== "undefined") {
+      return `${window.location.origin}/${locale}/quotes/${currentJob.quote_public_link}`
+    }
+    return null
   }
 
   const activityItems = [
@@ -554,7 +553,7 @@ export function PersonalizedQuoteView({
                           <DropdownMenuSeparator className="bg-slate-100" />
                           <DropdownMenuItem
                             onClick={handleCopyQuoteLink}
-                            disabled={generatingLink || (!currentJob.quote_public_link && !currentJob.signature?.contractor_signed_at)}
+                            disabled={generatingLink}
                             className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none"
                           >
                             {copiedLink ? (
@@ -571,7 +570,7 @@ export function PersonalizedQuoteView({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                               </svg>
                             )}
-                            {copiedLink ? "Copied!" : currentJob.quote_public_link ? "Copy link" : "Generate & copy link"}
+                            {copiedLink ? "Copied!" : (currentJob.quote_public_link || portalUrl) ? "Copy quote link" : "Generate & copy quote link"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

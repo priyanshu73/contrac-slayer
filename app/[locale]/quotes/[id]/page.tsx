@@ -17,7 +17,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, Copy, ChevronDown, Mail, Send, UserCircle, ExternalLink, FileText, BookOpen, FolderOpen, ArrowRight, Unlink, Loader2, X } from "lucide-react"
+import { Check, Copy, ChevronDown, Mail, Send, UserCircle, FolderOpen, ArrowRight, Unlink, Loader2, X } from "lucide-react"
+import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
+import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
+import { resolveProposalNavUrl } from "@/lib/client-portal-nav"
 import { cn } from "@/lib/utils"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
@@ -114,6 +117,7 @@ export default function QuoteDetailPage() {
   const [sentToEmail, setSentToEmail] = useState("")
   const [optionalNote, setOptionalNote] = useState("")
   const [copiedLink, setCopiedLink] = useState(false)
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [gmailConnected, setGmailConnected] = useState(false)
   const [smsSentSuccessTo, setSmsSentSuccessTo] = useState<string | null>(null)
   const [followupSending, setFollowupSending] = useState(false)
@@ -138,6 +142,13 @@ export default function QuoteDetailPage() {
   const [linkableProjects, setLinkableProjects] = useState<{ id: number; title: string }[]>([])
   const [linkingProject, setLinkingProject] = useState(false)
   const [unlinkingProject, setUnlinkingProject] = useState(false)
+
+  const { proposals: portalProposals, quotes: portalQuotes } = useClientPortalDocuments(
+    isPublicView ? job?.client_portal_token : null,
+    isPublicView && job
+      ? { quotes: job.portal_quotes, proposals: job.portal_proposals }
+      : null
+  )
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching
@@ -212,13 +223,13 @@ export default function QuoteDetailPage() {
       return
     }
     const clientEmail = job.client?.email ?? job.client_email ?? undefined
-    const customerQuoteUrl =
-      job.quote_public_link && typeof window !== "undefined"
-        ? `${window.location.origin}/${locale}/quotes/${job.quote_public_link}`
-        : undefined
+    const customerQuoteUrl = portalUrl ?? undefined
     ;(window as Window & {
       quotePageContext?: {
         job_id: number
+        project_id?: number
+        client_id?: number
+        lead_id?: number
         client_email?: string
         quote_public_link?: string
         customer_quote_url?: string
@@ -226,6 +237,9 @@ export default function QuoteDetailPage() {
       }
     }).quotePageContext = {
       job_id: job.id,
+      project_id: job.project_id,
+      client_id: job.client_id ?? job.client?.id,
+      lead_id: job.lead_id,
       client_email: clientEmail,
       quote_public_link: job.quote_public_link,
       customer_quote_url: customerQuoteUrl,
@@ -235,7 +249,7 @@ export default function QuoteDetailPage() {
     return () => {
       delete (window as Window & { quotePageContext?: unknown }).quotePageContext
     }
-  }, [job, isPublicView, user?.is_contractor, locale])
+  }, [job, isPublicView, user?.is_contractor, locale, portalUrl])
 
   // Fetch QBO status when contractor is viewing quote
   useEffect(() => {
@@ -407,25 +421,28 @@ export default function QuoteDetailPage() {
     })
   }
 
+  const getQuoteUrl = () => {
+    if (portalUrl) return portalUrl
+    if (job?.quote_public_link && typeof window !== "undefined") {
+      return `${window.location.origin}/${locale}/quotes/${job.quote_public_link}`
+    }
+    return ""
+  }
+
   const handleSendToClient = async () => {
     if (!job) return
 
     try {
-      let publicLink = job.quote_public_link
-      if (!publicLink) {
-        try {
-          publicLink = await api.generateQuotePublicLink(job.id)
-          await fetchJob()
-        } catch (err: any) {
-          console.error("Failed to generate public link:", err)
-          toast({
-            title: "Error",
-            description: "Failed to generate quote link. Please try again.",
-            variant: "destructive",
-          })
-          return
-        }
+      // Ensure the quote has a public link
+      let quoteLink = job.quote_public_link
+      if (!quoteLink) {
+        quoteLink = await api.generateQuotePublicLink(job.id)
+        setJob((prev) => prev ? { ...prev, quote_public_link: quoteLink } : prev)
       }
+      const url = typeof window !== "undefined"
+        ? `${window.location.origin}/${locale}/quotes/${quoteLink}`
+        : `/${locale}/quotes/${quoteLink}`
+      setPortalUrl(url)
 
       const gmail = await api.getGmailStatus()
       if (!gmail.connected) {
@@ -461,14 +478,8 @@ export default function QuoteDetailPage() {
     }
   }
 
-  const getQuoteUrl = () => {
-    if (!job?.quote_public_link || typeof window === "undefined") return ""
-    const locale = (params.locale as string) || "en"
-    return `${window.location.origin}/${locale}/quotes/${job.quote_public_link}`
-  }
-
   const handleSendQuoteEmail = async () => {
-    if (!job || !job.quote_public_link) return
+    if (!job) return
     const to = sendEmailTo.trim()
     if (!to) {
       toast({
@@ -649,17 +660,23 @@ export default function QuoteDetailPage() {
       })
       return
     }
-    const quoteUrl = getQuoteUrl()
+    let quoteUrl = getQuoteUrl()
     if (!quoteUrl) {
-      toast({
-        title: "Quote link not ready",
-        description: "Generate the quote link first, then try again.",
-        variant: "destructive",
-      })
-      return
+      try {
+        const quoteLink = await api.generateQuotePublicLink(job.id)
+        setJob((prev) => prev ? { ...prev, quote_public_link: quoteLink } : prev)
+        const url = typeof window !== "undefined"
+          ? `${window.location.origin}/${locale}/quotes/${quoteLink}`
+          : `/${locale}/quotes/${quoteLink}`
+        setPortalUrl(url)
+        quoteUrl = url
+      } catch {
+        toast({ title: "Failed to generate quote link", description: "Please try again.", variant: "destructive" })
+        return
+      }
     }
     try {
-      const message = `Hi ${customerName}, your quote is ready. View and sign here: ${quoteUrl}`
+      const message = `Hi ${customerName}, your documents are ready. View them here: ${quoteUrl}`
       await contractorAI.sendImmediateSms({
         sp_id: user.contractor_profile.contractor_ai_sp_id,
         customer_number: customerPhone,
@@ -686,9 +703,9 @@ export default function QuoteDetailPage() {
 
   const getDefaultFollowupMessage = () => {
     const customerName = job?.client?.name || "Customer"
+    const quoteUrl = getQuoteUrl()
     let msg = `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`
-    if (job?.quote_public_link && typeof window !== "undefined") {
-      const quoteUrl = `${window.location.origin}/quotes/${job.quote_public_link}`
+    if (quoteUrl) {
       msg = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${quoteUrl}\n\nDo you have any questions?`
     }
     return msg
@@ -831,65 +848,29 @@ export default function QuoteDetailPage() {
 
   // If public view, don't wrap in AuthGuard
   if (isPublicView) {
-    const hasProposal = Boolean(job.proposal_document)
     const contractorName = job.contractor?.company_name || "Contractor"
-
-    const navItems = [
-      { id: "quote" as const, label: "Quote", icon: FileText, available: true },
-      { id: "proposal" as const, label: "Proposal", icon: BookOpen, available: hasProposal },
-    ]
+    const jobPortalToken = job.client_portal_token
+    const hasEmbeddedProposal = Boolean(job.proposal_document)
+    const externalProposalUrl = resolveProposalNavUrl(
+      portalProposals.length > 0 ? portalProposals : (job.portal_proposals ?? []),
+      locale,
+      job.linked_proposal_public_link ?? job.proposal_public_link
+    )
+    const hasProposal = hasEmbeddedProposal || Boolean(externalProposalUrl)
 
     return (
       <div className="flex min-h-screen">
-        {/* Left sidebar – desktop/tablet */}
-        <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-40 w-40 flex-col bg-white border-r border-gray-200 px-3 pt-10 pb-6 print:hidden">
-          <p className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Documents</p>
-          <nav className="flex flex-col gap-1">
-            {navItems.map(({ id, label, icon: Icon, available }) => (
-              <button
-                key={id}
-                onClick={() => available && setActiveView(id)}
-                disabled={!available}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left w-full",
-                  !available
-                    ? "cursor-not-allowed text-gray-300"
-                    : activeView === id
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{available ? label : `No ${label.toLowerCase()}`}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
+        <ClientDocumentNav
+          locale={locale}
+          portalToken={jobPortalToken}
+          activeView={activeView}
+          hasQuote
+          hasProposal={hasProposal}
+          proposalUrl={!hasEmbeddedProposal ? externalProposalUrl : undefined}
+          onViewChange={hasEmbeddedProposal ? setActiveView : undefined}
+        />
 
-        {/* Mobile tab bar */}
-        <div className="flex md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 gap-1 pt-2 pb-0 print:hidden">
-          {navItems.map(({ id, label, icon: Icon, available }) => (
-            <button
-              key={id}
-              onClick={() => available && setActiveView(id)}
-              disabled={!available}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors",
-                !available
-                  ? "cursor-not-allowed text-gray-300 border-transparent"
-                  : activeView === id
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {available ? label : `No ${label.toLowerCase()}`}
-            </button>
-          ))}
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 md:ml-40 mt-12 md:mt-0">
+        <div className={clientDocumentNavContentClassName()}>
           {activeView === "quote" ? (
             <PersonalizedQuoteView
               job={job}
@@ -1016,12 +997,10 @@ export default function QuoteDetailPage() {
         onSendViaSms={handleSendViaSms}
         sendToClientDisabled={
           !gmailConnected ||
-          !job?.quote_public_link ||
-          !job?.signature?.contractor_signed_at
+          !(job?.client_id ?? job?.client?.id)
         }
         sendViaSmsDisabled={
-          !job?.quote_public_link ||
-          !job?.signature?.contractor_signed_at ||
+          !(job?.client_id ?? job?.client?.id) ||
           !user?.contractor_profile?.contractor_ai_sp_id ||
           !contractorOpsAiNumber?.trim() ||
           !job?.client?.phone

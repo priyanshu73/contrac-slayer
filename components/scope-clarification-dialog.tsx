@@ -66,7 +66,7 @@ export function ScopeClarificationDialog({ open, projectId, trigger, onComplete,
   const setFreeText = useCallback((questionId: string, text: string) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: { question_id: questionId, free_text: text },
+      [questionId]: { ...(prev[questionId] ?? { question_id: questionId }), free_text: text },
     }))
   }, [])
 
@@ -132,7 +132,7 @@ export function ScopeClarificationDialog({ open, projectId, trigger, onComplete,
               </p>
 
               {q.type === "multi_select" && q.options && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {q.options.map((opt, oi) => {
                     const selected = answers[q.id]?.selected_options?.includes(opt.id) ?? false
                     return (
@@ -155,6 +155,18 @@ export function ScopeClarificationDialog({ open, projectId, trigger, onComplete,
                       </button>
                     )
                   })}
+                  <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      Something else?
+                    </p>
+                    <Textarea
+                      placeholder="Add anything not covered by the options above…"
+                      rows={3}
+                      value={answers[q.id]?.free_text ?? ""}
+                      onChange={(e) => setFreeText(q.id, e.target.value)}
+                      className="resize-none bg-background text-sm"
+                    />
+                  </div>
                 </div>
               )}
 

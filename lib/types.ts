@@ -289,6 +289,7 @@ export interface Client {
   phone: string
   address?: string
   notes?: string
+  client_portal_token?: string | null
   created_at: string
   updated_at?: string
 }
@@ -445,7 +446,7 @@ export interface ProposalQuoteReference {
 export interface Proposal {
   id: number
   uuid: string
-  project_id: number
+  project_id?: number | null
   contractor_id: number
   client_id?: number | null
   title?: string | null
@@ -458,6 +459,11 @@ export interface Proposal {
   created_at: string
   updated_at?: string | null
   quote_references: ProposalQuoteReference[]
+  client_portal_token?: string | null
+  /** Public quote link for client sidebar navigation (from API public proposal endpoint). */
+  linked_quote_public_link?: string | null
+  portal_quotes?: ClientPortalQuoteItem[]
+  portal_proposals?: ClientPortalProposalItem[]
 }
 
 export interface Job {
@@ -465,6 +471,7 @@ export interface Job {
   uuid: string
   contractor_id: number
   client_id?: number
+  lead_id?: number
   project_id?: number
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
@@ -512,6 +519,11 @@ export interface Job {
   qbo_invoice_id?: string
   qbo_invoice_url?: string
   qbo_synced_at?: string
+  client_portal_token?: string | null
+  /** Public proposal link for client sidebar navigation (from API public quote endpoint). */
+  linked_proposal_public_link?: string | null
+  portal_quotes?: ClientPortalQuoteItem[]
+  portal_proposals?: ClientPortalProposalItem[]
 }
 
 export interface QBOInvoiceLineItem {
@@ -653,6 +665,72 @@ export interface ProjectListItem {
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
+}
+
+export interface ClientPortalQuoteItem {
+  id: number
+  title?: string | null
+  status: string
+  estimated_total?: number | null
+  quote_public_link?: string | null
+}
+
+export interface ClientPortalProposalItem {
+  id: number
+  title?: string | null
+  status: string
+  public_link?: string | null
+  updated_at?: string | null
+}
+
+export interface ClientPortalClientInfo {
+  id: number
+  name: string
+  email?: string | null
+  phone?: string | null
+  company_name?: string | null
+  address?: string | null
+}
+
+export interface ClientPortalQuoteRequest {
+  id: number
+  project_type?: string | null
+  description?: string | null
+  status: string
+  created_at: string
+}
+
+export interface ClientPortalBooking {
+  id: number
+  booking_type: string
+  status: string
+  start_time: string
+  end_time: string
+  location?: string | null
+  google_meet_link?: string | null
+}
+
+export interface ClientPortalInvoice {
+  id: number
+  invoice_number: string
+  title?: string | null
+  total_amount: number
+  balance_due: number
+  status: string
+  due_date?: string | null
+}
+
+export interface ClientPortalData {
+  project_title: string
+  project_description?: string | null
+  contractor_name: string
+  contractor_logo_url?: string | null
+  client?: ClientPortalClientInfo | null
+  proposals: ClientPortalProposalItem[]
+  quotes: ClientPortalQuoteItem[]
+  quote_requests: ClientPortalQuoteRequest[]
+  bookings: ClientPortalBooking[]
+  invoices: ClientPortalInvoice[]
 }
 
 export interface ProjectTask {

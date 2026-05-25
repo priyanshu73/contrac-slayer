@@ -164,7 +164,7 @@ export default function EditQuotePage() {
               className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              AI Estimate
+              Estimate with AI
             </Button>
           </div>
         </header>
@@ -179,5 +179,4 @@ export default function EditQuotePage() {
     </AuthGuard>
   )
 }
-
 

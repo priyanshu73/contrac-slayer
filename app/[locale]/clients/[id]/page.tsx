@@ -12,7 +12,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ l
         <AppBreadcrumb
           className="mb-4"
           items={[
-            { label: "Contacts", href: `/${locale}/contacts` },
+            { label: "Clients", href: `/${locale}/clients` },
             { label: "Client Details" },
           ]}
         />
