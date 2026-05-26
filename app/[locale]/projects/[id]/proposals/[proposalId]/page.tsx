@@ -51,8 +51,8 @@ export default function ProjectProposalPage() {
           (profileRes as ContractorProfile | null)?.company_name || ""
         )
 
-        // Load client from proposal or project (proposal.client_id is set on create)
-        const linkedClientId = loadedProposal.client_id ?? loadedProject.client_id
+        // For project-linked proposals, the project's client is the source of truth.
+        const linkedClientId = loadedProject.client_id ?? loadedProposal.client_id
         if (linkedClientId) {
           try {
             const clientData = (await api.getClient(linkedClientId)) as Client
