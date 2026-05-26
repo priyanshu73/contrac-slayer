@@ -110,6 +110,16 @@ interface ContextEnvelope {
     preloaded_snapshot?: Record<string, unknown>
 }
 
+function preferProjectScope<T extends { project_id?: number | null; client_id?: number | null }>(value: T): T {
+    if (value.project_id != null) {
+        return {
+            ...value,
+            client_id: undefined,
+        }
+    }
+    return value
+}
+
 function enrichPageContext(
     base: PageContext,
     locale: string,
@@ -146,7 +156,7 @@ function enrichPageContext(
     if (ctx.page === "proposal_builder") {
         const proposalId =
             proposalContext.proposalId != null ? String(proposalContext.proposalId) : ctx.entity_id
-        ctx = {
+        ctx = preferProjectScope({
             ...ctx,
             entity_id: proposalId,
             proposal_id: proposalContext.proposalId ?? ctx.proposal_id,
@@ -155,7 +165,7 @@ function enrichPageContext(
             job_id: proposalContext.jobId ?? ctx.job_id,
             client_email: proposalContext.clientEmail ?? ctx.client_email,
             client_phone: proposalContext.clientPhone ?? ctx.client_phone,
-        }
+        })
     }
 
     if (ctx.page === "unknown") {
@@ -164,14 +174,14 @@ function enrichPageContext(
             !!estimateContext.projectType?.trim() ||
             !!estimateContext.serviceDescription?.trim()
         if (hasEstimateContext) {
-            ctx = {
+            ctx = preferProjectScope({
                 ...ctx,
                 page: "quote_builder",
                 project_id: estimateContext.projectId ?? ctx.project_id,
                 client_id: estimateContext.clientId ?? ctx.client_id,
                 client_email: estimateContext.clientEmail ?? ctx.client_email,
                 client_phone: estimateContext.clientPhone ?? ctx.client_phone,
-            }
+            })
         }
     }
 
@@ -213,7 +223,7 @@ function buildPreloadedSnapshot(
     const snapshot: Record<string, unknown> = {}
 
     if (pageContext.page === "quote_builder") {
-        snapshot.quote_builder = {
+        snapshot.quote_builder = preferProjectScope({
             client_name: estimateContext.clientName ?? null,
             project_title: estimateContext.projectTitle ?? null,
             project_type: estimateContext.projectType,
@@ -226,11 +236,11 @@ function buildPreloadedSnapshot(
             client_id: estimateContext.clientId ?? null,
             client_email: estimateContext.clientEmail ?? null,
             client_phone: estimateContext.clientPhone ?? null,
-        }
+        })
     }
 
     if (pageContext.page === "proposal_builder") {
-        snapshot.proposal_builder = {
+        snapshot.proposal_builder = preferProjectScope({
             proposal_title: proposalContext.proposalTitle,
             project_title: proposalContext.projectTitle,
             description: proposalContext.description,
@@ -242,7 +252,7 @@ function buildPreloadedSnapshot(
             client_email: proposalContext.clientEmail ?? null,
             client_phone: proposalContext.clientPhone ?? null,
             job_id: proposalContext.jobId ?? null,
-        }
+        })
     }
 
     return snapshot
@@ -260,14 +270,14 @@ function buildContextEnvelope(
         pageContext.frontend_origin ||
         (typeof window !== "undefined" ? window.location.origin : undefined)
     const entityType = pageTypeToEntityType(pageContext.page)
-    const relatedRefs: ContextEnvelope["related_refs"] = {
+    const relatedRefs = preferProjectScope<NonNullable<ContextEnvelope["related_refs"]>>({
         job_id: pageContext.job_id,
         project_id: pageContext.project_id ?? activeProjectId ?? undefined,
         client_id: pageContext.client_id,
         lead_id: pageContext.lead_id,
         proposal_id: pageContext.proposal_id,
         booking_id: pageContext.booking_id,
-    }
+    })
 
     if (pageContext.page === "project_detail" && pageContext.entity_id && !relatedRefs.project_id) {
         const parsed = Number(pageContext.entity_id)

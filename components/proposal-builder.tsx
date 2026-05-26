@@ -1139,7 +1139,9 @@ export function ProposalBuilder({
     if (publicMode) return
 
     const clientId =
-      proposal?.client_id ?? project?.client_id ?? job?.client_id ?? client?.id ?? null
+      project?.client_id ?? proposal?.client_id ?? job?.client_id ?? client?.id ?? null
+
+    setSendClient(null)
 
     const jobClient = job?.client as Client | undefined
     if (jobClient && (!clientId || jobClient.id === clientId)) {
@@ -1196,8 +1198,8 @@ export function ProposalBuilder({
       projectId: proposal?.project_id ?? null,
       proposalId: proposal?.id ?? null,
       clientId: project?.client_id ?? proposal?.client_id ?? client?.id ?? null,
-      clientEmail: client?.email ?? null,
-      clientPhone: client?.phone ?? null,
+      clientEmail: sendClient?.email ?? client?.email ?? null,
+      clientPhone: sendClient?.phone ?? client?.phone ?? null,
       jobId: job?.id ?? proposal?.quote_references?.[0]?.job_id ?? null,
     }
     ;(window as any).proposalBuilderContext = ctx
@@ -1214,6 +1216,8 @@ export function ProposalBuilder({
     proposal?.id,
     project?.client_id,
     proposal?.client_id,
+    sendClient?.email,
+    sendClient?.phone,
     client?.id,
     client?.email,
     client?.phone,

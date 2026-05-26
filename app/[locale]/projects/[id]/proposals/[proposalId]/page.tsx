@@ -147,9 +147,17 @@ export default function ProjectProposalPage() {
         onProjectClientChanged={async (clientId) => {
           try {
             await api.updateProject(projectId, { client_id: clientId })
-            const updated = clients.find((c) => c.id === clientId) ?? null
+            let updated = clients.find((c) => c.id === clientId) ?? null
+            if (clientId && !updated) {
+              try {
+                updated = (await api.getClient(clientId)) as Client
+              } catch {
+                updated = null
+              }
+            }
             setClient(updated)
             setProject((prev) => prev ? { ...prev, client_id: clientId } : prev)
+            setProposal((prev) => prev ? { ...prev, client_id: clientId } : prev)
           } catch {
             // non-fatal — the document already reflects the selection
           }
