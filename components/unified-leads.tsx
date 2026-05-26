@@ -1246,7 +1246,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (() => {
                 const SUMMARY_CAP = 240
-                const rawSummary = translatedSummary || lead.summary_text
+                const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
                 const isLong = rawSummary.length > SUMMARY_CAP
                 const displaySummary = isLong && !summaryCardExpanded
                   ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
@@ -1503,7 +1503,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     </Card>
                     {lead.summary_text && (() => {
                       const SUMMARY_CAP = 240
-                      const rawSummary = translatedSummary || lead.summary_text
+                      const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
                       const isLong = rawSummary.length > SUMMARY_CAP
                       const displaySummary = isLong && !summaryCardExpanded
                         ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
@@ -1796,9 +1796,15 @@ interface FrontlineMixedConversationProps {
   summary?: string
 }
 
+function stripMarkdownBold(text: string): string {
+  return text.replace(/\*\*([^*]*)\*\*/g, '$1').replace(/\*\*/g, '')
+}
+
 function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: FrontlineMixedConversationProps) {
   const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
+
+  const cleanSummary = summary ? stripMarkdownBold(summary) : undefined
 
   const lines = transcript.split('\n').map((line) => line.trim()).filter(Boolean)
 
@@ -1817,10 +1823,10 @@ function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: F
   })
 
   const SUMMARY_PREVIEW_LENGTH = 220
-  const summaryIsLong = summary && summary.length > SUMMARY_PREVIEW_LENGTH
+  const summaryIsLong = cleanSummary && cleanSummary.length > SUMMARY_PREVIEW_LENGTH
   const summaryDisplay = summaryIsLong && !summaryExpanded
-    ? summary.slice(0, SUMMARY_PREVIEW_LENGTH).trimEnd() + '…'
-    : summary
+    ? cleanSummary.slice(0, SUMMARY_PREVIEW_LENGTH).trimEnd() + '…'
+    : cleanSummary
 
   const TRANSCRIPT_PREVIEW_TURNS = 5
   const visibleTurns = transcriptExpanded ? turns : turns.slice(0, TRANSCRIPT_PREVIEW_TURNS)
@@ -1828,19 +1834,10 @@ function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: F
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
-      {(summary || turns.length > 0) && (
+      {(cleanSummary || turns.length > 0) && (
         <div className="shrink-0 border-b border-sky-100/80 bg-gradient-to-b from-sky-50/70 to-white px-3 py-3 dark:border-sky-900/30 dark:from-sky-950/20 dark:to-background md:px-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
-              <Bot className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Frontline call context</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">Call summary plus the ongoing SMS thread for this customer</p>
-            </div>
-          </div>
-          {summary && (
-            <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 dark:border-sky-900/40 dark:bg-sky-950/20">
+          {cleanSummary && (
+            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 dark:border-sky-900/40 dark:bg-sky-950/20">
               <p className="text-sm leading-5 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
                 {summaryDisplay}
               </p>
