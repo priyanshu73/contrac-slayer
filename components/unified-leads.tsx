@@ -1160,7 +1160,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
           <>
             {/* Conversation History - On mobile: only content, full height; minimal gap below header */}
-            <div className="order-1 lg:order-1 flex-1 flex flex-col min-h-0 border-t lg:border-t-0 lg:border-r border-border bg-card lg:bg-muted/10 overflow-hidden">
+            <div className="order-1 lg:order-1 flex-1 flex flex-col min-h-0 border-t lg:border-t-0 lg:border-r border-border bg-muted/20 overflow-hidden">
+              {/* Header row */}
               <div className="flex items-center justify-between gap-2 pt-2 px-3 pb-2 md:p-4 border-b border-border bg-background flex-shrink-0">
                 <div>
                   <h3 className="font-semibold mb-0.5 md:mb-1 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
@@ -1173,21 +1174,40 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 </Badge>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
-                {lead.is_frontline_ai ? (
-                  <FrontlineMixedConversation
-                    phoneNumber={normalizePhoneToE164(lead.phone)}
-                    transcript={lead.formatted_transcript_text || lead.transcript_text || ""}
-                    summary={lead.summary_text}
-                  />
-                ) : (
-                  <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-                )}
+              {/* Phone mockup wrapper */}
+              <div className="flex-1 min-h-0 flex items-start justify-center py-4 px-4 lg:py-6 overflow-hidden">
+                <div className="relative w-full max-w-sm h-full flex flex-col">
+                  {/* Phone shell */}
+                  <div className="relative flex flex-col h-full rounded-[2.5rem] border-[3px] border-slate-800 dark:border-slate-600 bg-slate-900 shadow-2xl overflow-hidden">
+                    {/* Notch bar */}
+                    <div className="flex-shrink-0 flex items-center justify-center bg-slate-900 pt-3 pb-2">
+                      <div className="w-20 h-[5px] rounded-full bg-slate-700" />
+                    </div>
+                    {/* Screen */}
+                    <div className="flex-1 min-h-0 bg-white dark:bg-zinc-950 overflow-hidden flex flex-col">
+                      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
+                        {lead.is_frontline_ai ? (
+                          <FrontlineMixedConversation
+                            phoneNumber={normalizePhoneToE164(lead.phone)}
+                            transcript={lead.formatted_transcript_text || lead.transcript_text || ""}
+                            summary={lead.summary_text}
+                          />
+                        ) : (
+                          <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
+                        )}
+                      </div>
+                    </div>
+                    {/* Home bar */}
+                    <div className="flex-shrink-0 flex items-center justify-center bg-slate-900 py-2">
+                      <div className="w-24 h-[4px] rounded-full bg-slate-600" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Lead Details - Desktop only; on mobile shown in side Sheet via hamburger */}
-            <div className="order-2 lg:order-2 hidden lg:block w-full lg:w-80 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full bg-background">
+            <div className="order-2 lg:order-2 hidden lg:block w-full lg:w-[22rem] xl:w-96 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full bg-background">
               {/* Contact Information - minimal clean */}
               <Card id="lead-detail-contact" className="border border-border/80 bg-card rounded-lg">
                 <div className="p-4">
