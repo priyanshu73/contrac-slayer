@@ -7,12 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { api, contractorAI } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -20,8 +14,7 @@ import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, UserRound, Menu, Bot } from "lucide-react"
-import { TranslatableSection } from "@/components/translate-button"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, Menu, Bot, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 
 // ============================================
@@ -182,6 +175,8 @@ interface UnifiedLead {
   // Conversion tracking
   converted_to_job_id?: number
   converted_to_client_id?: number
+  quote_public_link?: string | null
+  quote_public_url?: string | null
 
   // Timestamps
   created_at: string
@@ -211,6 +206,119 @@ interface UnifiedLead {
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
 
   source?: string
+}
+
+interface SummaryFact {
+  label: string
+  value: string
+}
+
+const SUMMARY_FACT_LABELS = ['Service', 'Scope', 'Location', 'Next step'] as const
+
+const sentenceCase = (value: string): string => {
+  const clean = value.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!clean) return clean
+  return clean.charAt(0).toUpperCase() + clean.slice(1)
+}
+
+const inferServiceLabel = (lead: UnifiedLead, text: string): string => {
+  const explicit = lead.service_type || lead.project_type
+  if (explicit) return sentenceCase(explicit)
+
+  const lower = text.toLowerCase()
+  const matches: Array<[string, string]> = [
+    ['garden bed', 'Landscaping - Garden bed'],
+    ['landscap', 'Landscaping'],
+    ['hardscape', 'Hardscaping'],
+    ['patio', 'Patio work'],
+    ['retaining wall', 'Retaining wall'],
+    ['irrigation', 'Irrigation'],
+    ['lawn', 'Lawn care'],
+    ['kitchen', 'Kitchen renovation'],
+    ['bathroom', 'Bathroom renovation'],
+    ['floor', 'Flooring'],
+    ['paint', 'Painting'],
+  ]
+
+  return matches.find(([needle]) => lower.includes(needle))?.[1] || 'General inquiry'
+}
+
+const inferScopeLabel = (lead: UnifiedLead, text: string): string => {
+  const measurement = lead.measurements?.items?.[0]
+  if (measurement) {
+    if (measurement.type === 'dimensions' && measurement.length && measurement.width) {
+      return `${measurement.length} x ${measurement.width} ${measurement.unit || 'ft'}`
+    }
+    if (measurement.value) {
+      return `${measurement.value} ${measurement.unit || (measurement.type === 'square_footage' ? 'sq ft' : 'ft')}`
+    }
+    if (measurement.name || measurement.label) {
+      return measurement.name || measurement.label || 'Measurement provided'
+    }
+  }
+
+  const normalized = text.replace(/\s+/g, ' ')
+  const quantityMatch = normalized.match(/\b(?:around|about|approximately|roughly|~)?\s*(\d[\d,]*(?:\.\d+)?(?:\s*-\s*\d[\d,]*(?:\.\d+)?)?\s*(?:sq\.?\s*ft|square\s*(?:feet|foot)|linear\s*ft|feet|ft|beds?|rooms?))\b/i)
+  if (quantityMatch?.[1]) return quantityMatch[1].replace(/\s+/g, ' ')
+
+  const scopeMatch = normalized.match(/\b(?:for|regarding|about|requesting|needs?)\s+([^.!?]{8,80})/i)
+  if (scopeMatch?.[1]) return sentenceCase(scopeMatch[1].replace(/\b(work|project|done)\b\.?$/i, '').trim())
+
+  return 'Needs clarification'
+}
+
+const inferLocationLabel = (lead: UnifiedLead, text: string): string => {
+  if (lead.address) return lead.address
+
+  const normalized = text.replace(/\s+/g, ' ')
+  const streetMatch = normalized.match(/\b\d{2,6}\s+[A-Za-z0-9 .'-]+(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|court|ct\.?|way|boulevard|blvd\.?)\b(?:,\s*[A-Za-z .'-]+)?/i)
+  if (streetMatch?.[0]) return sentenceCase(streetMatch[0])
+
+  const placeMatch = normalized.match(/\b(?:from|in|near|around|at)\s+([^.!?]{4,70}?)(?:\s+(?:regarding|requesting|for|about)|[.!?]|$)/i)
+  if (placeMatch?.[1]) return sentenceCase(placeMatch[1].replace(/\b(the|a)\s+caller\b/i, '').trim())
+
+  return 'No address on file'
+}
+
+const inferNextStepLabel = (text: string): string => {
+  const lower = text.toLowerCase()
+  if ((lower.includes('quote link') || lower.includes('quote request')) && (lower.includes('photo') || lower.includes('upload'))) {
+    return 'Awaiting photos via quote link'
+  }
+  if (lower.includes('quote link') || lower.includes('quote request') || lower.includes('estimate')) {
+    return 'Prepare quote follow-up'
+  }
+  if (lower.includes('book') || lower.includes('schedule') || lower.includes('appointment')) {
+    return 'Schedule consultation'
+  }
+  if (lower.includes('owner') || lower.includes('escalat') || lower.includes('call back')) {
+    return 'Owner follow-up'
+  }
+  return 'Review and follow up'
+}
+
+const buildSummaryFacts = (lead: UnifiedLead, summaryText: string): SummaryFact[] => {
+  const contextText = [
+    summaryText,
+    lead.description,
+    lead.project_type,
+    lead.service_type,
+    lead.address,
+  ].filter(Boolean).join(' ')
+
+  return [
+    { label: SUMMARY_FACT_LABELS[0], value: inferServiceLabel(lead, contextText) },
+    { label: SUMMARY_FACT_LABELS[1], value: inferScopeLabel(lead, contextText) },
+    { label: SUMMARY_FACT_LABELS[2], value: inferLocationLabel(lead, contextText) },
+    { label: SUMMARY_FACT_LABELS[3], value: inferNextStepLabel(contextText) },
+  ]
+}
+
+const formatBrowserPhoneTime = (): string => {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date())
 }
 
 export function UnifiedLeads() {
@@ -317,6 +425,10 @@ export function UnifiedLeads() {
           created_at: lead.created_at,
           last_contact_date: lead.last_contact_date || lead.created_at,
           contractor_ai_call_lead_id: lead.contractor_ai_customer_id,
+          converted_to_job_id: lead.converted_to_job_id,
+          converted_to_client_id: lead.converted_to_client_id,
+          quote_public_link: lead.quote_public_link,
+          quote_public_url: lead.quote_public_url,
           interaction_id: callInteractionId,
           interaction_type: lead.interaction_type,
           is_frontline_ai: isFrontlineVoice,
@@ -672,6 +784,81 @@ export function UnifiedLeads() {
 
   const counts = getCounts()
 
+  const getLeadSourceLabel = (lead: UnifiedLead) => {
+    if (lead.is_frontline_ai) return 'Frontline'
+    return lead.type === 'call' ? 'Call' : 'Request'
+  }
+
+  const renderLeadRow = (lead: UnifiedLead) => {
+    const active = selectedLeadId === lead.id
+    const sourceLabel = getLeadSourceLabel(lead)
+    const initial = (lead.name || 'C').charAt(0).toUpperCase()
+
+    return (
+      <button
+        key={lead.id}
+        type="button"
+        onClick={() => {
+          setSelectedLeadId(lead.id)
+          setHasUserClearedSelection(false)
+        }}
+        className={`group relative w-full rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
+          active
+            ? 'border-primary/30 bg-background shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]'
+            : 'border-transparent hover:border-border hover:bg-background/75'
+        }`}
+      >
+        {active && (
+          <span className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />
+        )}
+        <div className="flex items-start gap-3">
+          <div
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border text-sm font-semibold transition-colors ${
+              active
+                ? 'border-primary/40 bg-primary text-primary-foreground'
+                : lead.is_frontline_ai
+                  ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300'
+                  : 'border-border bg-secondary text-secondary-foreground'
+            }`}
+          >
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                {lead.name}
+                {getQuoteRequestWarning(lead) && (
+                  <span className="ml-1.5 inline-block align-text-bottom">{getQuoteRequestWarning(lead)}</span>
+                )}
+              </h3>
+              <span className="shrink-0 text-[11px] text-muted-foreground">
+                {formatTime(lead.created_at)}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {lead.project_type || lead.service_type || "General inquiry"}
+              {lead.phone ? ` · ${formatPhoneForDisplay(lead.phone)}` : ''}
+            </p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(lead.status)} border-current/20`}>
+                <span className="h-1 w-1 rounded-full bg-current" />
+                {lead.status}
+              </span>
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                lead.is_frontline_ai
+                  ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300'
+                  : 'border-border bg-background text-muted-foreground'
+              }`}>
+                {lead.is_frontline_ai ? <Bot className="h-2.5 w-2.5" /> : <Link2 className="h-2.5 w-2.5" />}
+                {sourceLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      </button>
+    )
+  }
+
   // Show full-screen loading only on initial load (when we have no leads yet)
   if (loading && leads.length === 0) {
     return (
@@ -694,20 +881,34 @@ export function UnifiedLeads() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden pb-16 md:pb-0">
+    <div className="h-screen bg-muted/20 flex flex-col overflow-hidden pb-16 md:pb-0">
       <main className="flex-1 h-full overflow-hidden min-h-0 p-0">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-0 h-full">
           {/* Left Panel - Leads List */}
-          <div className={`lg:col-span-1 ${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
-            <Card className="h-full flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 md:border-y-0 md:border-r md:border-l-0 shadow-none bg-background">
+          <div className={`${selectedLead ? 'hidden lg:block' : 'block'} h-full min-h-0`}>
+            <Card className="h-full flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 md:border-y-0 md:border-r md:border-l-0 shadow-none bg-muted/35">
               {/* Search and Sort */}
-              <div className="px-3 py-3 md:px-3 md:py-2 border-b flex-shrink-0 space-y-3 md:space-y-1.5 bg-background shadow-sm md:shadow-none z-10 sticky top-0">
+              <div className="px-3 py-3 md:p-4 border-b flex-shrink-0 space-y-3 bg-background/80 backdrop-blur shadow-sm md:shadow-none z-10 sticky top-0">
+                <div className="hidden md:flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+                      <Inbox className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Inbox</p>
+                      <p className="text-[11px] text-muted-foreground">{counts.all} active leads</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg bg-background">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="flex gap-2 items-center">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-[10px] md:left-2 md:top-2 h-5 w-5 md:h-4 md:w-4 text-muted-foreground" />
+                    <Search className="absolute left-3.5 top-[10px] h-5 w-5 md:h-4 md:w-4 text-muted-foreground" />
                     <Input
                       placeholder={t('searchLeads')}
-                      className="pl-10 h-10 md:h-9 text-[15px] md:text-sm bg-muted/60 border-transparent rounded-[14px] md:bg-transparent md:border-input md:rounded-md focus-visible:ring-1"
+                      className="pl-10 h-10 text-[15px] md:text-sm bg-muted/60 md:bg-background border-transparent md:border-border rounded-[14px] md:rounded-xl focus-visible:ring-4 focus-visible:ring-primary/10 focus-visible:ring-offset-0"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -754,7 +955,8 @@ export function UnifiedLeads() {
                 {/* Desktop Selects */}
                 <div className="hidden md:flex gap-1.5">
                   <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'requests' | 'calls')}>
-                    <SelectTrigger className="h-8 text-sm flex-1 min-w-0 bg-transparent rounded-md">
+                    <SelectTrigger className="h-8 text-xs flex-1 min-w-0 bg-background rounded-lg">
+                      <Filter className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
                       <SelectValue className="truncate">
                         {activeTab === 'all' ? `${tFilters('all')} ${counts.all}` :
                           activeTab === 'requests' ? `${tFilters('requests')} ${counts.requests}` :
@@ -768,19 +970,20 @@ export function UnifiedLeads() {
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
-                    <SelectTrigger className="h-8 text-sm flex-1 min-w-0 bg-transparent rounded-md">
+                    <SelectTrigger className="h-8 text-xs flex-1 min-w-0 bg-background rounded-lg">
+                      <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
                       <SelectValue className="truncate">
-                        {sortBy === 'date-new' ? `📅 ${tFilters('newest')}` :
-                          sortBy === 'date-old' ? `📅 ${tFilters('oldest')}` :
-                            sortBy === 'name-az' ? '🔤 A-Z' :
-                              '🔤 Z-A'}
+                        {sortBy === 'date-new' ? tFilters('newest') :
+                          sortBy === 'date-old' ? tFilters('oldest') :
+                            sortBy === 'name-az' ? 'A-Z' :
+                              'Z-A'}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="date-new">📅 {tFilters('newestFirst')}</SelectItem>
-                      <SelectItem value="date-old">📅 {tFilters('oldestFirst')}</SelectItem>
-                      <SelectItem value="name-az">🔤 {tFilters('nameAZ')}</SelectItem>
-                      <SelectItem value="name-za">🔤 {tFilters('nameZA')}</SelectItem>
+                      <SelectItem value="date-new">{tFilters('newestFirst')}</SelectItem>
+                      <SelectItem value="date-old">{tFilters('oldestFirst')}</SelectItem>
+                      <SelectItem value="name-az">{tFilters('nameAZ')}</SelectItem>
+                      <SelectItem value="name-za">{tFilters('nameZA')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -797,74 +1000,23 @@ export function UnifiedLeads() {
               )}
 
               {/* Leads List */}
-              <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: '100%' }}>
+              <div className="flex-1 space-y-1 overflow-y-auto min-h-0 overscroll-contain p-2" style={{ maxHeight: '100%' }}>
                 {loadingCallLeads && leads.length > 0 ? (
                   // Show existing leads with skeleton for loading call leads
                   <>
-                    {filteredLeads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        onClick={() => {
-                          setSelectedLeadId(lead.id)
-                          setHasUserClearedSelection(false)
-                        }}
-                        className={`cursor-pointer border-b border-border/60 px-3 py-3.5 md:px-3 md:py-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
-                            {lead.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                              <h3 className="font-semibold text-[15px] leading-tight md:text-base text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
-                                {lead.name}
-                                {getQuoteRequestWarning(lead) && (
-                                  <span className="inline-block flex-shrink-0 ml-1.5 align-text-bottom">{getQuoteRequestWarning(lead)}</span>
-                                )}
-                              </h3>
-                              <span className="text-[11px] md:text-xs text-slate-500 shrink-0 font-medium whitespace-nowrap">
-                                {formatTime(lead.created_at)}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-2 mt-[2px]">
-                              <p className="text-[13px] md:text-sm text-slate-500 dark:text-slate-400 truncate flex-1 min-w-0">
-                                {lead.project_type || lead.service_type || "General inquiry"}
-                                {lead.phone ? ` • ${formatPhoneForDisplay(lead.phone)}` : ''}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-2 mt-2">
-                              <span className={`text-[10px] md:text-[11px] rounded-md px-1.5 py-0.5 font-semibold tracking-wide w-fit border ${getStatusColor(lead.status)} border-current/20`}>
-                                {lead.status}
-                              </span>
-                              <div className="flex items-center gap-1 shrink-0">
-                              <Badge
-                                variant="outline"
-                                className={`flex items-center gap-1 text-[9px] md:text-[10px] px-1.5 py-0 ${lead.is_frontline_ai ? 'text-sky-700 bg-sky-50/80 border-sky-200/70' : lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
-                              >
-                                  {lead.is_frontline_ai && <Bot className="h-3 w-3" />}
-                                  {lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
-                              </Badge>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    {filteredLeads.map((lead) => renderLeadRow(lead))}
                     {/* Skeleton for loading call leads */}
-                    <div className="space-y-0">
-                      <div className="border-b border-border p-3 bg-muted/30">
+                    <div className="space-y-1">
+                      <div className="rounded-xl border border-border bg-background p-3">
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                           <p className="text-xs text-muted-foreground">Loading call leads...</p>
                         </div>
                       </div>
                       {[...Array(3)].map((_, i) => (
-                        <div key={`skeleton-${i}`} className="border-b border-border p-4 animate-pulse">
+                        <div key={`skeleton-${i}`} className="rounded-2xl border border-border bg-background p-3 animate-pulse">
                           <div className="flex items-start gap-3">
-                            <div className="h-10 w-10 rounded-full bg-muted"></div>
+                            <div className="h-10 w-10 rounded-xl bg-muted"></div>
                             <div className="flex-1 space-y-2">
                               <div className="h-4 bg-muted rounded w-3/4"></div>
                               <div className="h-3 bg-muted rounded w-1/2"></div>
@@ -888,65 +1040,14 @@ export function UnifiedLeads() {
                     </p>
                   </div>
                 ) : (
-                  filteredLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      onClick={() => {
-                        setSelectedLeadId(lead.id)
-                        setHasUserClearedSelection(false)
-                      }}
-                      className={`cursor-pointer border-b border-border/60 px-3 py-3.5 md:px-3 md:py-4 transition-all hover:bg-secondary active:scale-[0.98] active:bg-secondary/70 ${selectedLeadId === lead.id ? 'bg-primary/5 md:bg-primary/10 border-l-4 border-l-primary' : ''
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold text-[15px] shadow-sm ring-1 ring-black/5 dark:from-blue-900/50 dark:to-indigo-900/50 dark:text-blue-200">
-                          {lead.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <h3 className="font-semibold text-[15px] leading-tight md:text-base text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
-                              {lead.name}
-                              {getQuoteRequestWarning(lead) && (
-                                <span className="inline-block flex-shrink-0 ml-1.5 align-text-bottom">{getQuoteRequestWarning(lead)}</span>
-                              )}
-                            </h3>
-                            <span className="text-[11px] md:text-xs text-slate-500 shrink-0 font-medium whitespace-nowrap">
-                              {formatTime(lead.created_at)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 mt-[2px]">
-                            <p className="text-[13px] md:text-sm text-slate-500 dark:text-slate-400 truncate flex-1 min-w-0">
-                              {lead.project_type || lead.service_type || "General inquiry"}
-                              {lead.phone ? ` • ${formatPhoneForDisplay(lead.phone)}` : ''}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 mt-2">
-                            <span className={`text-[10px] md:text-[11px] rounded-md px-1.5 py-0.5 font-semibold tracking-wide w-fit border ${getStatusColor(lead.status)} border-current/20`}>
-                              {lead.status}
-                            </span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Badge
-                                variant="outline"
-                                className={`flex items-center gap-1 text-[9px] md:text-[10px] px-1.5 py-0 ${lead.is_frontline_ai ? 'text-sky-700 bg-sky-50/80 border-sky-200/70' : lead.type === 'call' ? 'text-blue-600 bg-blue-50/50 border-blue-200/50' : 'text-purple-600 bg-purple-50/50 border-purple-200/50'}`}
-                              >
-                                {lead.is_frontline_ai && <Bot className="h-3 w-3" />}
-                                {lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                  filteredLeads.map((lead) => renderLeadRow(lead))
                 )}
               </div>
             </Card>
           </div>
 
           {/* Right Panel - Lead Details */}
-          <div className={`lg:col-span-3 ${selectedLead || loadingFullLeadDetails ? 'block' : 'hidden lg:block'} h-full min-h-0`}>
+          <div className={`${selectedLead || loadingFullLeadDetails ? 'block' : 'hidden lg:block'} h-full min-h-0`}>
             {loadingFullLeadDetails ? (
               <Card className="h-full flex items-center justify-center">
                 <div className="text-center">
@@ -988,7 +1089,6 @@ interface LeadDetailsPanelProps {
 
 function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const tLeads = useTranslations('leads')
-  const tFilters = useTranslations('filters')
   const tCommon = useTranslations('common')
   const tTranslation = useTranslations('translation')
   const locale = useLocale()
@@ -1001,6 +1101,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false)
   const [summaryCardExpanded, setSummaryCardExpanded] = useState(false)
+  const [phoneClock, setPhoneClock] = useState("")
 
   // Reset translations and expand state when lead changes
   useEffect(() => {
@@ -1008,6 +1109,14 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     setTranslatedDescription(null)
     setSummaryCardExpanded(false)
   }, [lead.id])
+
+  useEffect(() => {
+    const updatePhoneClock = () => setPhoneClock(formatBrowserPhoneTime())
+    updatePhoneClock()
+
+    const interval = window.setInterval(updatePhoneClock, 30_000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   const handleTranslate = async (
     text: string,
@@ -1061,200 +1170,159 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     }
   }
 
-  const scrollToSection = (sectionId: string) => {
-    const el = document.getElementById(sectionId)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
+  const sourceLabel = lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'
+  const quoteHref = lead.converted_to_job_id ? `/quotes/${lead.converted_to_job_id}` : null
+  const publicQuoteHref = lead.quote_public_link
+    ? `/${locale}/quotes/${lead.quote_public_link}`
+    : lead.quote_public_url
+      ? lead.quote_public_url.startsWith('http')
+        ? lead.quote_public_url
+        : `/${locale}${lead.quote_public_url.startsWith('/') ? lead.quote_public_url : `/${lead.quote_public_url}`}`
+      : null
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-0 rounded-none shadow-none">
-      {/* Header - aligned single row; tight bottom padding on mobile to sit close to conversation */}
-      <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 border-b border-border flex-shrink-0 min-h-14 md:min-h-16 bg-background/95 backdrop-blur z-20 sticky top-0">
-        {/* Left: back + hamburger (mobile) + avatar + name */}
-        {/* Left: back + name centered + more right */}
-        <div className="flex items-center justify-between min-w-0 flex-1 relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="lg:hidden shrink-0 h-[44px] w-[44px] -ml-3 text-blue-600 dark:text-blue-400 active:bg-blue-50/50"
-            aria-label={tCommon('back')}
-          >
-            <div className="flex items-center font-medium">
-              <ArrowLeft className="h-6 w-6" />
-            </div>
-          </Button>
+    <Card className="h-full flex flex-col overflow-hidden border-0 rounded-none shadow-none bg-background">
+      {/* Header — polished top section from the reference, but intentionally sans-serif */}
+      <div className="flex items-start justify-between gap-3 border-b border-border bg-background/95 px-3 py-3 md:px-8 md:py-5 flex-shrink-0 backdrop-blur z-20 sticky top-0">
+        {/* Back arrow (mobile) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="lg:hidden shrink-0 h-9 w-9 -ml-1 mt-0.5 text-blue-600 dark:text-blue-400"
+          aria-label={tCommon('back')}
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
 
-          <div className="lg:hidden absolute left-[50%] -translate-x-[50%] flex flex-col items-center justify-center pointer-events-none w-[60%]">
-            <h2 className="text-[17px] leading-tight font-semibold truncate w-full text-center tracking-tight text-foreground">{lead.name}</h2>
-            <p className="text-[12px] leading-tight text-muted-foreground truncate w-full text-center mt-0.5 tracking-tight font-medium">
-              {lead.project_type || lead.service_type || "General inquiry"}
-            </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            <h2 className="min-w-0 truncate text-xl font-semibold leading-tight tracking-tight text-foreground md:text-3xl">
+              {lead.name}
+            </h2>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shrink-0 ${getStatusColor(lead.status)} border-current/20`}>
+              <span className="h-1 w-1 rounded-full bg-current" />
+              {lead.status}
+            </span>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 ${
+              lead.is_frontline_ai
+                ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300'
+                : 'border-border bg-background text-muted-foreground'
+            }`}>
+              {lead.is_frontline_ai ? <Bot className="h-2.5 w-2.5" /> : <Link2 className="h-2.5 w-2.5" />}
+              {sourceLabel}
+            </span>
           </div>
-
-          <div className="hidden lg:flex min-w-0 flex-1 ml-2">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold truncate">{lead.name}</h2>
-                {lead.type === 'request' && (lead as any).contractor_ai_call_lead_id ? (
-                  <Badge variant="outline" className="text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
-                    📞📝 {tLeads('consolidated')}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className={`flex items-center gap-1 text-[10px] md:text-xs px-2 py-0.5 md:py-0 shrink-0 ${lead.is_frontline_ai ? 'border-sky-200 bg-sky-50 text-sky-700' : lead.type === 'call' ? 'text-blue-600' : 'text-purple-600'}`}>
-                    {lead.is_frontline_ai && <Bot className="h-3.5 w-3.5" />}
-                    {lead.is_frontline_ai ? 'AI Frontline' : lead.type === 'call' ? 'Call' : 'Request'}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground truncate mt-1">
-                {lead.project_type || lead.service_type || "General inquiry"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0">
-            {isCallOrMessagesLead && isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-10 w-10 -mr-2 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/30 rounded-full"
-                aria-label={tLeads('moreLeadInfo')}
-                onClick={() => setDetailsSheetOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {lead.phone && (
+              <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors tabular-nums">
+                <Phone className="h-3.5 w-3.5 shrink-0" />
+                {formatPhoneForDisplay(lead.phone)}
+              </a>
             )}
-            {!isMobile && isCallOrMessagesLead && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 bg-secondary/50 rounded-full hover:bg-secondary" aria-label={tLeads('moreLeadInfo')}>
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="bottom" className="w-56">
-                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-contact')}>
-                    <UserRound className="mr-2 h-4 w-4 text-blue-600" />
-                    {tLeads('contactInformation')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-ai-summary')}>
-                    <MessageSquare className="mr-2 h-4 w-4 text-emerald-600" />
-                    {tLeads('aiSummary')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => scrollToSection('lead-detail-call-history')}>
-                    <Phone className="mr-2 h-4 w-4 text-purple-600" />
-                    {tLeads('callHistoryAndTranscripts')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {lead.address ? (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="inline-flex max-w-[20rem] items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{lead.address}</span>
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70 italic">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />No address on file
+              </span>
             )}
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatTime(lead.created_at)}
+            </span>
           </div>
+        </div>
+
+        {/* Action buttons — desktop inline, mobile hamburger */}
+        <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
+          {/* Desktop: Call + Quote buttons */}
+          {lead.phone && (
+            <Button size="sm" variant="outline" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm gap-1.5 bg-background">
+              <a href={`tel:${lead.phone}`}>
+                <Phone className="h-3.5 w-3.5" />{tLeads('callCustomer')}
+              </a>
+            </Button>
+          )}
+          {(lead.status === 'QUOTED' || lead.converted_to_job_id) && quoteHref ? (
+            <Button size="sm" variant="default" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm">
+              <a href={quoteHref}>
+                <Eye className="h-3.5 w-3.5 mr-1" />Open quote
+              </a>
+            </Button>
+          ) : (
+            <Button size="sm" variant="default" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm">
+              <a href={
+                lead.type === 'request'
+                  ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
+                  : lead.is_frontline_ai
+                    ? `/quotes/new?phone=${encodeURIComponent(lead.phone || '')}`
+                  : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
+              }>
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {tLeads('createQuote')}
+              </a>
+            </Button>
+          )}
+          {publicQuoteHref && (
+            <Button size="sm" variant="outline" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm bg-background">
+              <a href={publicQuoteHref} target="_blank" rel="noreferrer">
+                <Link2 className="h-3.5 w-3.5 mr-1" />Public link
+              </a>
+            </Button>
+          )}
+          {/* Mobile: hamburger for sheet */}
+          {isCallOrMessagesLead && isMobile && (
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground lg:hidden" aria-label={tLeads('moreLeadInfo')} onClick={() => setDetailsSheetOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Main Content Area - conversation extends to action bar; minimal bottom gap on mobile */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-6 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-1 lg:pb-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-1 lg:pb-0 bg-muted/20">
         {/* Show call lead layout for both call leads AND consolidated leads (request leads with call data) */}
         {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
           <>
             {/* Conversation History - On mobile: only content, full height; minimal gap below header */}
-            <div className="order-1 lg:order-1 flex-1 flex flex-col min-h-0 border-t lg:border-t-0 lg:border-r border-border bg-muted/20 overflow-hidden">
-              {/* Header row */}
-              <div className="flex items-center justify-between gap-2 pt-2 px-3 pb-2 md:p-4 border-b border-border bg-background flex-shrink-0">
-                <div>
-                  <h3 className="font-semibold mb-0.5 md:mb-1 text-xs md:text-sm uppercase tracking-wide text-muted-foreground">
-                    {tLeads('conversationHistory')}
-                  </h3>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">{tLeads('liveChatMessages')}</p>
+            <div className={`order-1 lg:order-1 flex flex-col min-h-0 overflow-hidden ${isMobile ? 'flex-1 bg-background' : 'flex-shrink-0 lg:w-[350px] xl:w-[370px] bg-muted/20'}`}>
+              {/* Phone mockup — SMS thread only */}
+              <div className={`flex flex-col items-center justify-center ${isMobile ? 'flex-1 min-h-0 px-0 pt-1 pb-0 overflow-hidden' : 'px-5 py-5 lg:px-6 lg:py-7'}`}>
+                <div className="hidden w-full max-w-[300px] pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
+                  Live conversation
                 </div>
-                <Badge className={`${getStatusColor(lead.status)} text-[10px] md:text-xs px-2 py-1 shrink-0`}>
-                  {lead.status}
-                </Badge>
-              </div>
-
-              {/* Phone mockup wrapper */}
-              <div className="flex-1 min-h-0 flex items-start justify-center py-4 px-4 lg:py-6 overflow-hidden">
-                <div className="relative w-full max-w-sm h-full flex flex-col">
-                  {/* Phone shell */}
-                  <div className="relative flex flex-col h-full rounded-[2.5rem] border-[3px] border-slate-800 dark:border-slate-600 bg-slate-900 shadow-2xl overflow-hidden">
-                    {/* Notch bar */}
-                    <div className="flex-shrink-0 flex items-center justify-center bg-slate-900 pt-3 pb-2">
-                      <div className="w-20 h-[5px] rounded-full bg-slate-700" />
-                    </div>
-                    {/* Screen */}
-                    <div className="flex-1 min-h-0 bg-white dark:bg-zinc-950 overflow-hidden flex flex-col">
-                      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
-                        {lead.is_frontline_ai ? (
-                          <FrontlineMixedConversation
-                            phoneNumber={normalizePhoneToE164(lead.phone)}
-                            transcript={lead.formatted_transcript_text || lead.transcript_text || ""}
-                            summary={lead.summary_text}
-                          />
-                        ) : (
-                          <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
-                        )}
+                <div className={`relative flex flex-col ${isMobile ? 'w-full max-w-[18.75rem] h-full' : 'w-full max-w-[300px] aspect-[9/20] max-h-[620px]'}`}>
+                  <div className="relative flex flex-col h-full rounded-[2.75rem] border border-slate-300/80 bg-slate-950/95 p-3 shadow-[0_30px_60px_-25px_rgba(15,23,42,0.35)] dark:border-slate-700 overflow-hidden">
+                    {/* Notch */}
+                    <div className="absolute left-1/2 top-4 z-10 h-1.5 w-24 -translate-x-1/2 rounded-full bg-white/20" />
+                    <div className="overflow-hidden rounded-[2.25rem] bg-white dark:bg-zinc-950 flex flex-col h-full">
+                      <div className="flex items-center justify-between border-b border-border/60 px-5 pb-2 pt-6 text-[11px] font-semibold text-foreground">
+                        <span>{phoneClock || '--:--'}</span>
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" />
+                          SMS
+                        </span>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                        <ConversationMessages phoneNumber={normalizePhoneToE164(lead.phone)} />
                       </div>
                     </div>
-                    {/* Home bar */}
-                    <div className="flex-shrink-0 flex items-center justify-center bg-slate-900 py-2">
-                      <div className="w-24 h-[4px] rounded-full bg-slate-600" />
-                    </div>
                   </div>
+                </div>
+                <div className="mt-3 hidden w-full max-w-[320px] rounded-xl border border-dashed border-border bg-background/70 p-3 text-center text-[11px] text-muted-foreground lg:block">
+                  Mirrors the SMS thread sent to this customer.
                 </div>
               </div>
             </div>
 
-            {/* Lead Details - Desktop only; on mobile shown in side Sheet via hamburger */}
-            <div className="order-2 lg:order-2 hidden lg:block w-full lg:w-[22rem] xl:w-96 lg:overflow-y-auto overflow-x-hidden space-y-4 md:space-y-6 p-3 md:p-6 min-h-0 lg:min-h-full overscroll-contain lg:max-h-full bg-background">
-              {/* Contact Information - minimal clean */}
-              <Card id="lead-detail-contact" className="border border-border/80 bg-card rounded-lg">
-                <div className="p-4">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
-                  <dl className="space-y-2.5 text-sm">
-                    {lead.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                        <dt className="sr-only">Phone</dt>
-                        <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
-                        <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
-                          <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
-                        </Button>
-                      </div>
-                    )}
-                    {lead.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                        <dt className="sr-only">Email</dt>
-                        <dd className="min-w-0 truncate">
-                          <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
-                        </dd>
-                      </div>
-                    )}
-                    {lead.address ? (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
-                        <dt className="sr-only">Address</dt>
-                        <dd className="min-w-0 break-words text-foreground">
-                          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
-                        </dd>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                        <dd className="text-muted-foreground italic">No address provided</dd>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                      <dt className="sr-only">Submitted</dt>
-                      <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </Card>
-
+            {/* Lead Details - Desktop only */}
+            <div className="order-2 lg:order-2 hidden lg:flex lg:flex-col lg:flex-1 min-w-0 lg:overflow-y-auto overflow-x-hidden p-5 lg:p-7 xl:p-8 min-h-0 overscroll-contain lg:max-h-full bg-background">
+              <div className="space-y-5">
               {/* Property insights (when normalized address is available) */}
               {(lead as any).address_data?.id && (
                 <PropertyInsightsCard
@@ -1265,18 +1333,33 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (() => {
-                const SUMMARY_CAP = 240
+                const SUMMARY_CAP = 360
                 const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
                 const isLong = rawSummary.length > SUMMARY_CAP
                 const displaySummary = isLong && !summaryCardExpanded
                   ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                   : rawSummary
+                const summaryFacts = buildSummaryFacts(lead, lead.summary_text)
+                const summaryTitle = summaryFacts[0]?.value && summaryFacts[0].value !== 'General inquiry'
+                  ? `${summaryFacts[0].value} request`
+                  : 'Call summary'
                 return (
-                  <div id="lead-detail-ai-summary" className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200">
-                        {tLeads('aiSummary')}
-                      </h3>
+                  <div id="lead-detail-ai-summary" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="inline-flex items-center gap-2">
+                        <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </span>
+                        <div>
+                          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                            {tLeads('aiSummary')}
+                          </h3>
+                          <p className="text-sm font-semibold text-foreground">{summaryTitle}</p>
+                        </div>
+                      </div>
+                      <span className="hidden text-[11px] text-muted-foreground md:inline">
+                        Generated from call
+                      </span>
                       {locale === 'es' && (
                         <button
                           onClick={() => handleTranslate(
@@ -1299,18 +1382,26 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         </button>
                       )}
                     </div>
-                    {(lead as any).contractor_ai_call_lead_id && (
-                      <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromCall')}</p>
-                    )}
-                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words leading-relaxed">
+                    <p className="mt-3 text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap break-words">
                       {displaySummary}
                     </p>
+                    <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {summaryFacts.map((fact) => (
+                        <div key={fact.label} className="rounded-xl border border-border bg-background px-3 py-3">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider">{fact.label}</span>
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold leading-snug text-foreground">{fact.value}</p>
+                        </div>
+                      ))}
+                    </div>
                     {isLong && (
                       <button
                         onClick={() => setSummaryCardExpanded(v => !v)}
-                        className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                        className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
                       >
-                        {summaryCardExpanded ? 'Show less' : 'Read more'}
+                        {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
                       </button>
                     )}
                     {translatedSummary && (
@@ -1322,11 +1413,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
               {/* Project Description from quote request (for consolidated leads) */}
               {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
-                <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
-                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     {tLeads('projectDescription')}
                   </h3>
-                  <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromQuoteRequest')}</p>
+                  <p className="text-[11px] text-muted-foreground mb-1.5">{tLeads('fromQuoteRequest')}</p>
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
                       {translatedDescription || lead.description}
@@ -1361,8 +1452,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
               {/* Project Description for call-only leads (fallback) */}
               {lead.description && lead.type === 'call' && !lead.summary_text && (
-                <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
-                  <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-2">
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     {tLeads('projectDescription')}
                   </h3>
                   <div className="flex items-start justify-between gap-2">
@@ -1462,20 +1553,22 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 </div>
               )}
 
-              {/* Call History Section (for call leads and consolidated leads) */}
+              {/* Call History Section */}
               <div id="lead-detail-call-history">
                 <CallHistorySection phoneNumber={normalizePhoneToE164(lead.phone)} currentLeadId={String(lead.id)} />
               </div>
+
+              </div>{/* end unified panel */}
             </div>
 
             {/* Mobile: side Sheet with Contact, AI Summary, Call History (only way to access on mobile) */}
             {isCallOrMessagesLead && (
               <Sheet open={detailsSheetOpen} onOpenChange={setDetailsSheetOpen}>
-                <SheetContent side="left" className="w-[85%] max-w-sm p-0 flex flex-col">
+                <SheetContent side="left" className="w-[86%] max-w-[22rem] p-0 flex flex-col">
                   <SheetHeader className="p-4 border-b">
                     <SheetTitle>{tLeads('moreLeadInfo')}</SheetTitle>
                   </SheetHeader>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     <Card className="border border-border/80 bg-card rounded-lg">
                       <div className="p-4">
                         <h3 className="text-sm font-medium text-muted-foreground mb-3">{tLeads('contactInformation')}</h3>
@@ -1522,18 +1615,30 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       </div>
                     </Card>
                     {lead.summary_text && (() => {
-                      const SUMMARY_CAP = 240
+                      const SUMMARY_CAP = 320
                       const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
                       const isLong = rawSummary.length > SUMMARY_CAP
                       const displaySummary = isLong && !summaryCardExpanded
                         ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                         : rawSummary
+                      const summaryFacts = buildSummaryFacts(lead, lead.summary_text)
+                      const summaryTitle = summaryFacts[0]?.value && summaryFacts[0].value !== 'General inquiry'
+                        ? `${summaryFacts[0].value} request`
+                        : 'Call summary'
                       return (
-                      <div className="rounded-lg border border-border shadow-sm bg-[#E0F2FE]/30 dark:bg-sky-950/20 p-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200">
-                            {tLeads('aiSummary')}
-                          </h3>
+                      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="inline-flex items-center gap-2">
+                            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </span>
+                            <div>
+                              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                                {tLeads('aiSummary')}
+                              </h3>
+                              <p className="text-sm font-semibold text-foreground">{summaryTitle}</p>
+                            </div>
+                          </div>
                           {locale === 'es' && (
                             <button
                               onClick={() => handleTranslate(lead.summary_text!, setTranslatedSummary, setIsTranslatingSummary, !!translatedSummary)}
@@ -1545,15 +1650,23 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                             </button>
                           )}
                         </div>
-                        <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words leading-relaxed">
+                        <p className="mt-3 text-sm text-foreground/80 whitespace-pre-wrap break-words leading-relaxed">
                           {displaySummary}
                         </p>
+                        <div className="mt-3 grid grid-cols-1 gap-2">
+                          {summaryFacts.map((fact) => (
+                            <div key={fact.label} className="rounded-xl border border-border bg-background px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{fact.label}</p>
+                              <p className="mt-1 text-sm font-semibold text-foreground">{fact.value}</p>
+                            </div>
+                          ))}
+                        </div>
                         {isLong && (
                           <button
                             onClick={() => setSummaryCardExpanded(v => !v)}
-                            className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                            className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
                           >
-                            {summaryCardExpanded ? 'Show less' : 'Read more'}
+                            {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
                           </button>
                         )}
                         {translatedSummary && <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>}
@@ -1751,11 +1864,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         )}
       </div>
 
-      {/* Action Buttons - compact on mobile to minimize gap above */}
-      <div className="px-3 pt-2 pb-3 md:p-6 border-t bg-muted/20 flex-shrink-0">
-        <div className="flex gap-2 md:gap-3">
+      {/* Action Buttons - mobile only; desktop uses header inline buttons */}
+      <div className={`lg:hidden px-3 pt-2 pb-3 flex-shrink-0 border-t bg-background`}>
+        <div className="flex flex-wrap gap-2 md:gap-3">
           {lead.phone && (
-            <Button variant="default" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
+            <Button variant="default" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={`tel:${lead.phone}`}>
                 <Phone className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
                 {tLeads('callCustomer')}
@@ -1763,18 +1876,15 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             </Button>
           )}
           {/* Check if lead has been quoted and has a valid job ID */}
-          {(lead.status === 'QUOTED' || lead.converted_to_job_id) && lead.converted_to_job_id ? (
-            <Button variant="outline" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
-              <a href={`/quotes/${lead.converted_to_job_id}`}>
-                <svg className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                {tFilters('quoted')}
+          {(lead.status === 'QUOTED' || lead.converted_to_job_id) && quoteHref ? (
+            <Button variant="outline" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
+              <a href={quoteHref}>
+                <Eye className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+                Open quote
               </a>
             </Button>
           ) : (
-            <Button variant="outline" asChild className="flex-1 h-9 md:h-10 text-xs md:text-sm">
+            <Button variant="outline" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
               <a href={
                 lead.type === 'request'
                   ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
@@ -1786,6 +1896,14 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 {tLeads('createQuote')}
+              </a>
+            </Button>
+          )}
+          {publicQuoteHref && (
+            <Button variant="outline" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
+              <a href={publicQuoteHref} target="_blank" rel="noreferrer">
+                <Link2 className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+                Public link
               </a>
             </Button>
           )}
@@ -1810,127 +1928,21 @@ interface ConversationMessagesProps {
   phoneNumber: string
 }
 
-interface FrontlineMixedConversationProps {
-  phoneNumber: string
-  transcript?: string
-  summary?: string
-}
-
 function stripMarkdownBold(text: string): string {
   return text.replace(/\*\*([^*]*)\*\*/g, '$1').replace(/\*\*/g, '')
 }
 
-function FrontlineMixedConversation({ phoneNumber, transcript = "", summary }: FrontlineMixedConversationProps) {
-  const [summaryExpanded, setSummaryExpanded] = useState(false)
-  const [transcriptExpanded, setTranscriptExpanded] = useState(false)
-
-  const cleanSummary = summary ? stripMarkdownBold(summary) : undefined
-
-  const lines = transcript.split('\n').map((line) => line.trim()).filter(Boolean)
-
-  const turns = lines.map((line, index) => {
-    const [speakerRaw, ...messageParts] = line.split(':')
-    const message = messageParts.join(':').trim()
-    const speaker = speakerRaw?.trim() || "Frontline"
-    const lowered = speaker.toLowerCase()
-    const isFrontline = lowered.includes('frontline') || lowered.includes('assistant') || lowered.includes('contractor')
-    return {
-      id: `${index}-${speaker}`,
-      speaker: isFrontline ? 'Frontline' : 'Customer',
-      message: message || line,
-      isFrontline,
-    }
-  })
-
-  const SUMMARY_PREVIEW_LENGTH = 220
-  const summaryIsLong = cleanSummary && cleanSummary.length > SUMMARY_PREVIEW_LENGTH
-  const summaryDisplay = summaryIsLong && !summaryExpanded
-    ? cleanSummary.slice(0, SUMMARY_PREVIEW_LENGTH).trimEnd() + '…'
-    : cleanSummary
-
-  const TRANSCRIPT_PREVIEW_TURNS = 5
-  const visibleTurns = transcriptExpanded ? turns : turns.slice(0, TRANSCRIPT_PREVIEW_TURNS)
-  const hasMoreTurns = turns.length > TRANSCRIPT_PREVIEW_TURNS
-
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
-      {(cleanSummary || turns.length > 0) && (
-        <div className="shrink-0 border-b border-sky-100/80 bg-gradient-to-b from-sky-50/70 to-white px-3 py-3 dark:border-sky-900/30 dark:from-sky-950/20 dark:to-background md:px-4">
-          {cleanSummary && (
-            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 dark:border-sky-900/40 dark:bg-sky-950/20">
-              <p className="text-sm leading-5 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
-                {summaryDisplay}
-              </p>
-              {summaryIsLong && (
-                <button
-                  onClick={() => setSummaryExpanded(v => !v)}
-                  className="mt-1.5 text-xs font-medium text-sky-700 hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-200"
-                >
-                  {summaryExpanded ? 'Show less' : 'Read more'}
-                </button>
-              )}
-            </div>
-          )}
-
-          {turns.length > 0 && (
-            <div className="mt-2 rounded-lg border border-sky-100 bg-white/75 dark:border-sky-900/40 dark:bg-background/60 overflow-hidden">
-              <button
-                onClick={() => setTranscriptExpanded(v => !v)}
-                className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50/50 dark:text-sky-300 dark:hover:bg-sky-950/20"
-              >
-                <span>Call transcript ({turns.length} turns)</span>
-                {transcriptExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </button>
-              {transcriptExpanded && (
-                <div className="max-h-80 space-y-2 overflow-y-auto px-3 pb-3 pr-1">
-                  {visibleTurns.map((turn) => (
-                    <div key={turn.id} className={`flex ${turn.isFrontline ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
-                          turn.isFrontline
-                            ? 'bg-sky-600 text-white'
-                            : 'border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100'
-                        }`}
-                      >
-                        <div className={`mb-1 text-[10px] font-medium ${turn.isFrontline ? 'text-white/75' : 'text-slate-500'}`}>
-                          {turn.speaker}
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm leading-5">{turn.message}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {hasMoreTurns && !transcriptExpanded && (
-                    <button
-                      onClick={() => setTranscriptExpanded(true)}
-                      className="w-full pt-1 text-center text-xs text-sky-600 hover:text-sky-800 dark:text-sky-400"
-                    >
-                      +{turns.length - TRANSCRIPT_PREVIEW_TURNS} more turns
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="shrink-0 border-b border-border/70 bg-background/80 px-3 py-2 md:px-4">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SMS thread</p>
-            <p className="text-[11px] text-muted-foreground">Texts and automated replies with this same customer</p>
-          </div>
-          <Badge variant="outline" className="border-sky-200 bg-sky-50 text-[10px] text-sky-700">
-            Frontline
-          </Badge>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        <ConversationMessages phoneNumber={phoneNumber} />
-      </div>
-    </div>
-  )
+function extractUrls(text: string): { cleanText: string; urls: Array<{ href: string; label: string }> } {
+  const urlRegex = /https?:\/\/[^\s)>\]"']+/g
+  const urls: Array<{ href: string; label: string }> = []
+  const cleanText = text.replace(urlRegex, (url) => {
+    let label = 'Link'
+    if (/\/quote-request\//i.test(url) || /\/request\//i.test(url)) label = 'Quote Request'
+    else if (/\/book\//i.test(url) || /\/booking\//i.test(url)) label = 'Book Appointment'
+    urls.push({ href: url, label })
+    return ''
+  }).replace(/\s{2,}/g, ' ').trim()
+  return { cleanText, urls }
 }
 
 function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
@@ -2204,7 +2216,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
       )}
 
       {/* Messages List - minimal horizontal padding on mobile so bubbles extend to edges */}
-      <div className="flex-1 space-y-3 px-2 py-3 md:px-4 md:py-4 overflow-y-auto min-h-0">
+      <div className="flex-1 space-y-3 px-4 py-4 overflow-y-auto min-h-0">
         {messages.map((msg) => {
           const isTranslated = !!translatedMessages[msg.id]
           const displayText = translatedMessages[msg.id] || msg.message_text
@@ -2216,26 +2228,49 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
               className={`flex ${isServiceProvider ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] md:max-w-[80%] rounded-lg px-3 py-2 ${isServiceProvider
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground'
+                className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm ${isServiceProvider
+                  ? 'rounded-br-md bg-[#0879c9] text-white'
+                  : 'rounded-bl-md bg-muted text-foreground'
                   }`}
               >
                 {/* Sender Label */}
                 <div className={`text-[10px] mb-1 font-medium ${isServiceProvider
-                  ? 'text-primary-foreground/70'
+                  ? 'text-white/70'
                   : 'text-muted-foreground'
                   }`}>
                   {getSenderLabel(msg.sender_type)}
                 </div>
 
-                {/* Message Text */}
-                <p className="text-sm whitespace-pre-wrap">{displayText}</p>
+                {/* Message Text with URL chip extraction */}
+                {(() => {
+                  const { cleanText, urls } = extractUrls(displayText)
+                  return (
+                    <>
+                      {cleanText && <p className="text-[14px] leading-[1.4] whitespace-pre-wrap">{cleanText}</p>}
+                      {urls.map((u, i) => (
+                        <a
+                          key={i}
+                          href={u.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`mt-1.5 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium no-underline ${
+                            isServiceProvider
+                              ? 'bg-white/20 text-white hover:bg-white/30'
+                              : 'bg-primary/10 text-primary hover:bg-primary/20'
+                          }`}
+                        >
+                          <Link2 className="h-3 w-3 shrink-0" />
+                          {u.label} →
+                        </a>
+                      ))}
+                    </>
+                  )
+                })()}
 
                 {/* Timestamp and Status */}
                 <div className="flex items-center justify-between mt-1.5 gap-2">
                   <p className={`text-[10px] ${isServiceProvider
-                    ? 'text-primary-foreground/60'
+                    ? 'text-white/60'
                     : 'text-muted-foreground'
                     }`}>
                     {formatTime(msg.timestamp)}
@@ -2243,16 +2278,16 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
                   <div className="flex items-center gap-1">
                     {isTranslated && (
                       <span className={`text-[10px] italic ${isServiceProvider
-                        ? 'text-primary-foreground/50'
+                        ? 'text-white/50'
                         : 'text-green-600 dark:text-green-400'
                         }`}>
                         ✓ {locale === 'es' ? 'traducido' : 'translated'}
                       </span>
                     )}
                     {msg.status && isServiceProvider && (
-                      <span className={`text-[10px] ${msg.status === 'delivered' ? 'text-primary-foreground/70' :
+                      <span className={`text-[10px] ${msg.status === 'delivered' ? 'text-white/70' :
                         msg.status === 'failed' ? 'text-red-300' :
-                          'text-primary-foreground/50'
+                          'text-white/50'
                         }`}>
                         {msg.status === 'delivered' ? '✓✓' : msg.status === 'sent' ? '✓' : '✗'}
                       </span>
@@ -2292,7 +2327,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([])
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
   const [translatedTranscript, setTranslatedTranscript] = useState<string | null>(null)
   const [isTranslatingTranscript, setIsTranslatingTranscript] = useState(false)
@@ -2487,7 +2522,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       // Clear ALL transcript-related state to ensure clean slate
       setCallHistory([])
       setSelectedCallId(null)
-      setIsExpanded(false)
+      setIsExpanded(true)
       setLastPhoneNumber(phoneNumber)
 
       console.log('✅ Transcript state cleared for phone number change')
@@ -2541,19 +2576,27 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       const displaySpeaker = getDisplaySpeaker(speaker)
 
       return (
-        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground'
+        <div
+          key={index}
+          className={`grid gap-2 rounded-xl border px-3 py-2.5 text-sm leading-relaxed md:grid-cols-[7rem_minmax(0,1fr)] ${
+            isContractor
+              ? 'border-blue-200/70 bg-blue-50/70 dark:border-blue-900/50 dark:bg-blue-950/20'
+              : 'border-border bg-background'
+          }`}
+        >
+          <div className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider ${
+            isContractor ? 'text-blue-700 dark:text-blue-300' : 'text-muted-foreground'
+          }`}>
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] ${
+              isContractor
+                ? 'bg-[#0879c9] text-white'
+                : 'bg-muted text-muted-foreground'
             }`}>
-            <div className={`text-[10px] mb-1 font-medium ${isContractor ? 'text-primary-foreground/70' : 'text-muted-foreground'
-              }`}>
-              {displaySpeaker}
-            </div>
-            <div className="text-sm">
-              {message}
-            </div>
+              {isContractor ? 'F' : 'C'}
+            </span>
+            {displaySpeaker}
           </div>
+          <p className="min-w-0 text-foreground">{message}</p>
         </div>
       )
     })
@@ -2564,7 +2607,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
 
   if (loading) {
     return (
-      <div className="border-t bg-background">
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
         <div className="p-4 flex items-center justify-center">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
           <span className="ml-2 text-sm text-muted-foreground">Loading call history...</span>
@@ -2575,7 +2618,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
 
   if (callHistory.length === 0) {
     return (
-      <div className="border-t bg-background">
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
         <div className="p-4 text-center text-muted-foreground">
           <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No call transcripts available</p>
@@ -2585,18 +2628,18 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   }
 
   return (
-    <div className="border-t bg-background">
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+        className="w-full border-b border-border px-5 py-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">Call History & Transcripts</span>
-          <Badge variant="secondary" className="text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Call History & Transcripts</span>
+          <Badge variant="secondary" className="rounded-full text-[10px]">
             {callHistory.length} {callHistory.length === 1 ? 'call' : 'calls'}
           </Badge>
           {callHistory.some(call => call.is_frontline_ai) && (
-            <Badge variant="outline" className="flex items-center gap-1 border-sky-200 bg-sky-50 text-xs text-sky-700">
+            <Badge variant="outline" className="flex items-center gap-1 rounded-full border-sky-200 bg-sky-50 text-[10px] text-sky-700">
               <Bot className="h-3 w-3" />
               Frontline
             </Badge>
@@ -2610,14 +2653,14 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4">
+        <div className="space-y-4 px-5 py-5">
           {/* Call History Dropdown */}
           <div>
             <Select
               value={selectedCallId || undefined}
               onValueChange={(value) => setSelectedCallId(value)}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-lg bg-background">
                 <SelectValue>
                   {selectedCallId ? (() => {
                     const selected = callHistory.find(call => call.id === selectedCallId)
@@ -2668,7 +2711,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
                 )}
               </div>
 
-              <div className="bg-muted/30 p-3 rounded-lg max-h-96 overflow-y-auto">
+              <div className="bg-muted/20 p-3 rounded-xl max-h-96 overflow-y-auto">
                 {translatedTranscript ? (
                   <>
                     <div className="space-y-2">
