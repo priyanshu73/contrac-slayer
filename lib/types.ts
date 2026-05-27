@@ -703,7 +703,11 @@ export interface ProjectListItem {
   title: string
   status: ProjectStatus
   client_id?: number
+<<<<<<< HEAD
   client_name?: string | null
+=======
+  quote_id?: number
+>>>>>>> 27622d0 (Connect quote proposal and project workflow UI)
   contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string

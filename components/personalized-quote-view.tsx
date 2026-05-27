@@ -940,6 +940,78 @@ export function PersonalizedQuoteView({
                   </div>
                 </div>
 
+
+                {/* Workflow Progress */}
+                {!isPublicView && (
+                  <div className="mb-4 rounded-xl border bg-white p-4 print:hidden">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        "Quote",
+                        "Proposal",
+                        "Signed",
+                        "Sent",
+                        "Accepted",
+                        "Project",
+                        "Done",
+                      ].map((stage, index) => {
+                        const status = currentJob.status?.toString().toUpperCase()
+
+                        const hasProposal = Boolean(proposalHref)
+                        const isSigned = Boolean(
+                          currentJob.signature?.customer_signed_at
+                        )
+
+                        let currentStage = 0
+
+                        if (hasProposal) currentStage = 1
+                        if (isSigned) currentStage = 2
+                        if (status === "SENT") currentStage = 3
+                        if (status === "ACCEPTED") currentStage = 4
+                        if (status === "IN_PROGRESS") currentStage = 5
+                        if (status === "COMPLETED" || status === "PAID") {
+                          currentStage = 6
+                        }
+
+                        return (
+                          <div key={stage} className="flex items-center gap-2">
+                            <div
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                index <= currentStage
+                                  ? "bg-sky-600 text-white"
+                                  : "bg-gray-100 text-gray-500"
+                                }`}
+                            >
+                              {stage}
+                            </div>
+
+                            {index < 6 && (
+                              <span className="text-gray-300">→</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {!proposalHref && (
+                        <Button asChild size="sm">
+                          <Link href={`/${locale}/quotes/${currentJob.id}/proposal`}>
+                            Add Proposal
+                          </Link>
+                        </Button>
+                      )}
+
+                      {currentJob.status?.toString().toUpperCase() === "ACCEPTED"
+                        && !currentJob.project_id && (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/${locale}/projects/new?quoteId=${currentJob.id}`}>
+                              Create Project
+                            </Link>
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                )}
                 {/* Quote Details */}
                 <div className="mb-4 sm:mb-6 print:mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 print:gap-3 print:break-inside-avoid">
                   <div>
@@ -1618,17 +1690,15 @@ export function PersonalizedQuoteView({
               {invoiceScheduleLines.length === 0 && qboConnected && !currentJob.qbo_invoice_id && (
                 <button
                   type="button"
-                  className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${
-                    alsoCreateQBO
+                  className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${alsoCreateQBO
                       ? "bg-green-50 border-green-300"
                       : "bg-gray-50 border-gray-200 hover:border-gray-300"
-                  }`}
+                    }`}
                   onClick={() => setAlsoCreateQBO(!alsoCreateQBO)}
                 >
                   <div
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                      alsoCreateQBO ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"
-                    }`}
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${alsoCreateQBO ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"
+                      }`}
                   >
                     {alsoCreateQBO && <Check className="h-3 w-3 text-white stroke-[3]" />}
                   </div>
