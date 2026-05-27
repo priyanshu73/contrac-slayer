@@ -63,7 +63,7 @@ export function DashboardProjects() {
       {/* PROJECTS SECTION */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{tNav('projects') || "Projects"}</h2>
-        <Link 
+        <Link
           href={`/${locale}/projects`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 hover:border-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 transition-colors"
         >
@@ -101,8 +101,8 @@ export function DashboardProjects() {
       ) : (
         <div className="space-y-1.5 mt-2">
           {projects.map((project) => (
-            <Link 
-              key={project.id} 
+            <Link
+              key={project.id}
               href={`/${locale}/projects/${project.id}`}
               className="block rounded border border-slate-100 p-2.5 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group"
             >
@@ -116,6 +116,11 @@ export function DashboardProjects() {
                       {tProj(`status.${project.status.toLowerCase()}` as any) || project.status}
                     </Badge>
                   </div>
+                  {project.quote_id && (
+                    <p className="text-[11px] text-slate-500 mb-1">
+                      From Quote #{project.quote_id}
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 text-[11px] text-slate-500">
                     {project.scheduled_start_date && (
                       <span>

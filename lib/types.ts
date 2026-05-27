@@ -611,6 +611,7 @@ export interface ProjectListItem {
   title: string
   status: ProjectStatus
   client_id?: number
+  quote_id?: number
   contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string

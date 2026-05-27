@@ -157,24 +157,45 @@ export function RecentQuotesReal() {
                   </div>
 
                   <div className="text-right">
-                    <Badge variant="outline" className={`mb-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusColor(quote.status)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`mb-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusColor(quote.status)}`}
+                    >
                       {formatStatusLabel(quote.status)}
                     </Badge>
-                    <p className="text-sm font-semibold text-slate-900">{formatCurrency(quote.total_amount)}</p>
+
+                    <p className="text-sm font-semibold text-slate-900">
+                      {formatCurrency(quote.total_amount)}
+                    </p>
+
+                    <div className="mt-1 flex justify-end">
+                      {quote.status?.toString().toUpperCase() === "DRAFT" && (
+                        <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100">
+                          Add Proposal
+                        </Badge>
+                      )}
+
+                      {quote.status?.toString().toUpperCase() === "ACCEPTED" && (
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                          Create Project
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  </div>
               </Link>
             )
           })}
         </div>
       )}
 
-      <Button asChild size="sm" className="mt-3 h-9 w-full bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700">
-        <Link href={`/${locale}/quotes/new`}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {t("createQuote") || "Create Quote"}
-        </Link>
-      </Button>
-    </Card>
-  )
+
+                  <Button asChild size="sm" className="mt-3 h-9 w-full bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700">
+                    <Link href={`/${locale}/quotes/new`}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      {t("createQuote") || "Create Quote"}
+                    </Link>
+                  </Button>
+                </Card>
+                )
 }
