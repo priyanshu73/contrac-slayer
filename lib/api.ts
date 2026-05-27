@@ -2533,6 +2533,15 @@ class ContractorAIClient {
     return this.request(`/interactions/${interactionId}/project-summary`)
   }
 
+  async getVoiceSessionProjectSummary(sessionUuid: string): Promise<{
+    session_uuid: string
+    project_summary: string | null
+    caller_name: string | null
+    caller_phone: string | null
+  }> {
+    return this.request(`/frontline/voice/calls/${sessionUuid}/project-summary`)
+  }
+
   async getCampaigns(): Promise<Campaign[]> {
     return this.request<Campaign[]>('/campaigns')
   }
