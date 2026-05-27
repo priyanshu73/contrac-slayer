@@ -14,6 +14,11 @@
         "source": "/api/:path*",
         "has": [{ "type": "host", "value": "dev.frontend.contractorops.ai" }],
         "destination": "https://contractorbackend-h0ax.onrender.com/api/:path*"
-      }
+      },
+        ,
+    {
+      "source": "/api/:path*",
+      "destination": "https://contractorbackend-h0ax.onrender.com/api/:path*"
+    }
     ]
   }
