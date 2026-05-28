@@ -608,6 +608,28 @@ class ApiClient {
     return this.request('/contractors/profile/frontline/setup/context')
   }
 
+  async prefillFrontlineCoreFields(): Promise<{ core_fields: Record<string, any> }> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/setup/prefill', {
+      method: 'POST',
+      body: JSON.stringify({ frontend_origin }),
+    })
+  }
+
+  async getFrontlineCoreFields(): Promise<{ core_fields: Record<string, any>; initial_setup_done: boolean }> {
+    return this.request('/contractors/profile/frontline/core-fields')
+  }
+
+  async saveFrontlineCoreFields(core_fields: Record<string, any>): Promise<FrontlineSettings> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/core-fields', {
+      method: 'PUT',
+      body: JSON.stringify({ core_fields, frontend_origin }),
+    })
+  }
+
   async generateFrontlineSetup(operator?: {
     operator_display_name?: string
     operator_voice_id?: string
