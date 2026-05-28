@@ -673,6 +673,8 @@ export interface ClientPortalQuoteItem {
   status: string
   estimated_total?: number | null
   quote_public_link?: string | null
+  project_id?: number | null
+  project_title?: string | null
 }
 
 export interface ClientPortalProposalItem {
@@ -681,6 +683,8 @@ export interface ClientPortalProposalItem {
   status: string
   public_link?: string | null
   updated_at?: string | null
+  project_id?: number | null
+  project_title?: string | null
 }
 
 export interface ClientPortalClientInfo {

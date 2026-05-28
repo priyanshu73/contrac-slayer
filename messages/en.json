@@ -561,7 +561,15 @@
       "title": "Project Documents",
       "addAttachment": "Add Attachment",
       "uploadSuccess": "Upload successful",
-      "uploadError": "Upload failed"
+      "uploadError": "Upload failed",
+      "openError": "Could not open attachment",
+      "deleteAction": "Delete attachment",
+      "deleteTitle": "Delete attachment?",
+      "deleteDescription": "\"{name}\" will be permanently removed from this project.",
+      "confirmDelete": "Delete",
+      "cancel": "Cancel",
+      "deleteSuccess": "Attachment deleted",
+      "deleteError": "Delete failed"
     },
     "changeOrders": {
       "title": "Change orders",

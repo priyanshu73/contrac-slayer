@@ -447,11 +447,27 @@ interface ProcessStep {
     tool?: string
 }
 
+interface ActionCardOption {
+    id: string
+    label: string
+    prompt: string
+    style?: "primary" | "secondary" | "ghost" | string
+}
+
+interface ActionCard {
+    action?: string
+    title: string
+    description?: string
+    options: ActionCardOption[]
+    entity?: Record<string, unknown>
+}
+
 interface Message {
     id: string
     role: "user" | "assistant"
     content: string
     processSteps?: ProcessStep[]
+    actionCard?: ActionCard
 }
 
 interface Conversation {
@@ -464,7 +480,7 @@ interface Conversation {
 
 // ─── View type ─────────────────────────────────────────────────
 type PanelView = "chat" | "conversations" | "scope"
-type ChatLaunchMode = "general" | "quote_estimate"
+type ChatLaunchMode = "general" | "quote_estimate" | "proposal"
 
 // ─── Status color map (value → color class) ─────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -658,37 +674,42 @@ export function AgentChatPanel() {
         estimateContext.projectType,
     ])
 
-    const estimateActionSentence = useMemo(() => {
+    const estimateClientPrompt = useMemo(() => {
         const client = estimateContext.clientName?.trim()
-        const project = estimateContext.projectTitle?.trim()
-        const projectType = estimateContext.projectType?.trim()
+        return client ? `Create an estimate for ${client}.` : "Create an estimate for this client."
+    }, [estimateContext.clientName])
 
-        if (client && project) return `Create an estimate for ${client} for ${project}.`
-        if (client && projectType) return `Create an estimate for ${client} for ${projectType}.`
-        if (project) return `Create an estimate for ${project}.`
-        if (projectType) return `Create an estimate for ${projectType}.`
-        if (client) return `Create an estimate for ${client}.`
-        return "Create an estimate for this quote."
+    const estimateProjectPrompt = useMemo(() => {
+        const project = estimateContext.projectTitle?.trim() || estimateContext.projectType?.trim()
+        if (project && estimateContext.projectBrief) return `${project} brief loaded.`
+        if (project) return project
+        if (estimateContext.projectBrief) return "Project brief loaded."
+        return ""
     }, [
-        estimateContext.clientName,
+        estimateContext.projectBrief,
         estimateContext.projectTitle,
         estimateContext.projectType,
     ])
 
-    const estimateContextNeedsDetail = useMemo(() => {
-        const hasDescription = !!estimateContext.serviceDescription?.trim()
-        const hasProjectSignal = !!(
-            estimateContext.projectTitle?.trim() ||
-            estimateContext.projectType?.trim()
-        )
+    const proposalClientPrompt = useMemo(() => {
+        const proposal = proposalContext.proposalTitle?.trim()
+        const project = proposalContext.projectTitle?.trim()
 
-        if (!hasDescription) return "Add a project description for better results."
-        if (!hasProjectSignal) return "Add a project name or type so the estimate is more specific."
-        return "We will use the quote context already loaded on this page."
+        if (proposal) return `Create a proposal for ${proposal}.`
+        if (project) return `Create a proposal for ${project}.`
+        return "Create a proposal for this project."
+    }, [proposalContext.projectTitle, proposalContext.proposalTitle])
+
+    const proposalProjectPrompt = useMemo(() => {
+        const project = proposalContext.projectTitle?.trim() || proposalContext.proposalTitle?.trim()
+        if (project && proposalContext.projectBrief) return `${project} brief loaded.`
+        if (project) return project
+        if (proposalContext.projectBrief) return "Project brief loaded."
+        return ""
     }, [
-        estimateContext.projectTitle,
-        estimateContext.projectType,
-        estimateContext.serviceDescription,
+        proposalContext.projectBrief,
+        proposalContext.projectTitle,
+        proposalContext.proposalTitle,
     ])
 
     const quoteEstimateReady = useMemo(() => {
@@ -836,7 +857,7 @@ export function AgentChatPanel() {
             setProposalContextExpanded(isEmpty)
             setIsOpen(true)
             setPanelView("chat")
-            setChatLaunchMode("general")
+            setChatLaunchMode("proposal")
         }
         window.addEventListener("open-ai-panel-for-proposal", handler)
         return () => window.removeEventListener("open-ai-panel-for-proposal", handler)
@@ -943,126 +964,29 @@ export function AgentChatPanel() {
         }
     }, [proposalContext.projectId, _fireProposal])
 
-    const handleQuickAction = useCallback((message: string) => {
-        setInput(message)
-        // Use a micro-delay so setInput triggers the state update, then send
-        setTimeout(() => {
-            // Directly invoke send logic
-            const userMessage: Message = {
-                id: Date.now().toString(),
-                role: "user",
-                content: message,
-            }
-            setMessages((prev) => [...prev, userMessage])
-            setInput("")
-            setIsLoading(true)
-
-            const history = [userMessage].map((m) => ({ role: m.role, content: m.content }))
-            const assistantId = (Date.now() + 1).toString()
-            setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }])
-
-            fetch(`${API_URL}/agent/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    messages: history,
-                    page_context: pageContext,
-                    context_envelope: contextEnvelope,
-                    conversation_id: activeConversationId || undefined,
-                    project_id: activeProjectId || undefined,
-                }),
-            })
-                .then(async (res) => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                    const reader = res.body?.getReader()
-                    const decoder = new TextDecoder()
-                    if (!reader) throw new Error("No response body")
-
-                    let buffer = ""
-                    while (true) {
-                        const { done, value } = await reader.read()
-                        if (done) break
-                        buffer += decoder.decode(value, { stream: true })
-                        const lines = buffer.split("\n")
-                        buffer = lines.pop() || ""
-                        for (const line of lines) {
-                            const trimmed = line.trim()
-                            if (!trimmed.startsWith("data: ")) continue
-                            const data = trimmed.slice(6)
-                            if (data === "[DONE]") break
-                            try {
-                                const parsed = JSON.parse(data)
-                                if (parsed.conversation_id && !activeConversationId) {
-                                    setActiveConversationId(parsed.conversation_id)
-                                }
-                                if (parsed.process_step) {
-                                    setMessages((prev) =>
-                                        prev.map((m) => {
-                                            if (m.id === assistantId) {
-                                                const currentSteps = m.processSteps || []
-                                                return {
-                                                    ...m,
-                                                    processSteps: [...currentSteps, { step: parsed.process_step, tool: parsed.tool }]
-                                                }
-                                            }
-                                            return m
-                                        })
-                                    )
-                                }
-                                if (parsed.content) {
-                                    setMessages((prev) =>
-                                        prev.map((m) =>
-                                            m.id === assistantId
-                                                ? { ...m, content: m.content + parsed.content }
-                                                : m
-                                        )
-                                    )
-                                }
-                            } catch {}
-                        }
-                    }
-                    fetchConversations()
-                })
-                .catch((err) => {
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === assistantId
-                                ? { ...m, content: "Sorry, I encountered an error. Please try again." }
-                                : m
-                        )
-                    )
-                    console.error("Quick action error:", err)
-                })
-                .finally(() => setIsLoading(false))
-        }, 0)
-    }, [pageContext, contextEnvelope, activeConversationId, fetchConversations, activeProjectId])
-
-    const handleSend = async () => {
-        const text = input.trim()
-        if (!text || isLoading) return
+    const sendChatMessage = useCallback(async (text: string) => {
+        const trimmed = text.trim()
+        if (!trimmed || isLoading) return
 
         const userMessage: Message = {
             id: Date.now().toString(),
             role: "user",
-            content: text,
+            content: trimmed,
         }
 
-        setMessages((prev) => [...prev, userMessage])
-        setInput("")
-        setIsLoading(true)
-
-        // Build message history for the API
-        const history = [...messages, userMessage].map((m) => ({
+        const nextHistory = [...messages, userMessage].map((m) => ({
             role: m.role,
             content: m.content,
         }))
-
         const assistantId = (Date.now() + 1).toString()
+
         setMessages((prev) => [
             ...prev,
+            userMessage,
             { id: assistantId, role: "assistant", content: "" },
         ])
+        setInput("")
+        setIsLoading(true)
 
         try {
             const res = await fetch(`${API_URL}/agent/chat`, {
@@ -1070,7 +994,7 @@ export function AgentChatPanel() {
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({
-                    messages: history,
+                    messages: nextHistory,
                     page_context: pageContext,
                     context_envelope: contextEnvelope,
                     conversation_id: activeConversationId || undefined,
@@ -1085,11 +1009,9 @@ export function AgentChatPanel() {
 
             const reader = res.body?.getReader()
             const decoder = new TextDecoder()
-
             if (!reader) throw new Error("No response body")
 
             let buffer = ""
-
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
@@ -1099,21 +1021,19 @@ export function AgentChatPanel() {
                 buffer = lines.pop() || ""
 
                 for (const line of lines) {
-                    const trimmed = line.trim()
-                    if (!trimmed.startsWith("data: ")) continue
+                    const trimmedLine = line.trim()
+                    if (!trimmedLine.startsWith("data: ")) continue
 
-                    const data = trimmed.slice(6)
+                    const data = trimmedLine.slice(6)
                     if (data === "[DONE]") break
 
                     try {
                         const parsed = JSON.parse(data)
 
-                        // Handle conversation_id metadata event
                         if (parsed.conversation_id && !activeConversationId) {
                             setActiveConversationId(parsed.conversation_id)
                         }
 
-                        // Handle process_step event
                         if (parsed.process_step) {
                             setMessages((prev) =>
                                 prev.map((m) => {
@@ -1126,6 +1046,16 @@ export function AgentChatPanel() {
                                     }
                                     return m
                                 })
+                            )
+                        }
+
+                        if (parsed.action_card) {
+                            setMessages((prev) =>
+                                prev.map((m) =>
+                                    m.id === assistantId
+                                        ? { ...m, actionCard: parsed.action_card as ActionCard }
+                                        : m
+                                )
                             )
                         }
 
@@ -1144,17 +1074,14 @@ export function AgentChatPanel() {
                 }
             }
 
-            // Refresh conversation list after sending
             fetchConversations()
-
         } catch (err: any) {
             setMessages((prev) =>
                 prev.map((m) =>
                     m.id === assistantId
                         ? {
                             ...m,
-                            content:
-                                "Sorry, I encountered an error. Please try again.",
+                            content: "Sorry, I encountered an error. Please try again.",
                         }
                         : m
                 )
@@ -1163,6 +1090,22 @@ export function AgentChatPanel() {
         } finally {
             setIsLoading(false)
         }
+    }, [
+        activeConversationId,
+        activeProjectId,
+        contextEnvelope,
+        fetchConversations,
+        isLoading,
+        messages,
+        pageContext,
+    ])
+
+    const handleQuickAction = useCallback((message: string) => {
+        void sendChatMessage(message)
+    }, [sendChatMessage])
+
+    const handleSend = async () => {
+        await sendChatMessage(input)
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1227,8 +1170,8 @@ export function AgentChatPanel() {
                  }`}
         >
             {/* ── Header ── */}
-            <div className="flex items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
-                <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-between gap-2 overflow-hidden border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     {panelView === "conversations" ? (
                         <button
                             onClick={() => setPanelView("chat")}
@@ -1238,15 +1181,15 @@ export function AgentChatPanel() {
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
                     ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
                             <Bot className="h-5 w-5 text-white md:h-4 md:w-4" />
                         </div>
                     )}
-                    <div>
+                    <div className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
                             {panelView === "conversations" ? "Conversations" : "AI Assistant"}
                         </h3>
-                        <p className="mt-0.5 max-w-[210px] truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:max-w-none md:text-[11px]">
+                        <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:text-[11px]">
                             {panelView === "conversations"
                                 ? `${conversations.length} chat${conversations.length !== 1 ? "s" : ""}`
                                 : activeConversationId
@@ -1256,7 +1199,7 @@ export function AgentChatPanel() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                     {panelView === "chat" && (
                         <>
                             <Button
@@ -1755,58 +1698,77 @@ export function AgentChatPanel() {
                             messages.length === 0 &&
                             !(generationStatus?.kind === "estimate" && generationStatus.phase !== "failed") && (
                             <div className="rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,rgba(240,249,255,0.98),rgba(255,255,255,0.98),rgba(239,246,255,0.98))] p-4 shadow-sm">
-                                <div className="flex items-start gap-3">
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                                        <Zap className="h-5 w-5" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900">{estimateClientPrompt}</p>
+                                    {estimateProjectPrompt ? (
+                                        <p className="mt-1 text-sm text-slate-600">{estimateProjectPrompt}</p>
+                                    ) : null}
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => handleGenerateEstimate()}
+                                            disabled={isLoading || estimateLoading || !quoteEstimateReady}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {estimateLoading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4" />
+                                            )}
+                                            Generate Estimate
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setContextExpanded(true)}
+                                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                                        >
+                                            Edit Context
+                                        </button>
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-semibold text-slate-900">Create AI Estimate</p>
-                                        <p className="mt-1 text-sm leading-6 text-slate-700">{estimateActionSentence}</p>
-                                        <p className="mt-1 text-xs leading-5 text-slate-500">{estimateContextNeedsDetail}</p>
-                                        {estimateContextSummary ? (
-                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-medium text-sky-700">
-                                                    {estimateContextSummary}
-                                                </span>
-                                                {estimateContext.projectBrief ? (
-                                                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                                        Project brief loaded
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        ) : null}
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                            <button
-                                                onClick={() => handleGenerateEstimate()}
-                                                disabled={isLoading || estimateLoading || !quoteEstimateReady}
-                                                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                {estimateLoading ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Zap className="h-4 w-4" />
-                                                )}
-                                                Generate Estimate
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setContextExpanded(true)}
-                                                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                                            >
-                                                Edit Context
-                                            </button>
-                                        </div>
-                                        {!quoteEstimateReady ? (
-                                            <p className="mt-2 text-xs leading-5 text-slate-500">
-                                                Add at least a short project description before generating.
-                                            </p>
-                                        ) : null}
+                                    {!quoteEstimateReady ? (
+                                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                                            Add at least a short project description before generating.
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
+
+                        {isOnProposalPage &&
+                            chatLaunchMode === "proposal" &&
+                            messages.length === 0 &&
+                            !(generationStatus?.kind === "proposal" && generationStatus.phase !== "failed") && (
+                            <div className="rounded-[1.5rem] border border-violet-200 bg-[linear-gradient(135deg,rgba(250,245,255,0.98),rgba(255,255,255,0.98),rgba(245,243,255,0.98))] p-4 shadow-sm">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900">{proposalClientPrompt}</p>
+                                    {proposalProjectPrompt ? (
+                                        <p className="mt-1 text-sm text-slate-600">{proposalProjectPrompt}</p>
+                                    ) : null}
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => handleGenerateProposal()}
+                                            disabled={isLoading || proposalLoading}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {proposalLoading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4" />
+                                            )}
+                                            Generate Proposal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProposalContextExpanded(true)}
+                                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                                        >
+                                            Edit Context
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {messages.length === 0 && !(isOnQuotePage && chatLaunchMode === "quote_estimate") && (
+                        {messages.length === 0 && chatLaunchMode === "general" && (
                             <div className="flex flex-col items-center justify-center h-full text-center px-6">
                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-sky-500/15 to-blue-600/15 md:h-14 md:w-14 md:rounded-2xl">
                                     <Sparkles className="h-8 w-8 text-sky-600 md:h-7 md:w-7" />
@@ -1819,7 +1781,7 @@ export function AgentChatPanel() {
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
-                                {isOnQuotePage && chatLaunchMode !== "quote_estimate" ? (
+                                {isOnQuotePage && chatLaunchMode === "general" ? (
                                     <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
                                         <button
                                             onClick={() => {
@@ -1851,11 +1813,8 @@ export function AgentChatPanel() {
                                         <button
                                             onClick={() => {
                                                 const hasContext = proposalContext.proposalTitle?.trim() || proposalContext.description?.trim()
-                                                if (hasContext) {
-                                                    handleGenerateProposal()
-                                                } else {
-                                                    setProposalContextExpanded(true)
-                                                }
+                                                setChatLaunchMode("proposal")
+                                                if (!hasContext) setProposalContextExpanded(true)
                                             }}
                                             disabled={isLoading || proposalLoading}
                                             className="flex w-full items-center justify-center gap-2
@@ -2085,6 +2044,38 @@ export function AgentChatPanel() {
                                                     </ReactMarkdown>
                                                 </div>
                                             )}
+
+                                            {msg.actionCard && msg.actionCard.options.length > 0 && (
+                                                <div className="mt-3 rounded-2xl border border-sky-200/70 bg-white/80 p-3 text-slate-900 shadow-sm">
+                                                    <p className="text-sm font-semibold leading-5">
+                                                        {msg.actionCard.title}
+                                                    </p>
+                                                    {msg.actionCard.description ? (
+                                                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                            {msg.actionCard.description}
+                                                        </p>
+                                                    ) : null}
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {msg.actionCard.options.map((option) => {
+                                                            const isPrimary = option.style === "primary"
+                                                            return (
+                                                                <button
+                                                                    key={option.id}
+                                                                    type="button"
+                                                                    disabled={isLoading}
+                                                                    onClick={() => void sendChatMessage(option.prompt)}
+                                                                    className={isPrimary
+                                                                        ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                                                        : "inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                    }
+                                                                >
+                                                                    {option.label}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                     {msg.role === "user" && (
@@ -2135,6 +2126,7 @@ export function AgentChatPanel() {
                     </div>
                 </>
             )}
+
         </div>
 
     )

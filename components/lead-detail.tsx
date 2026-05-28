@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
-import { Lead, Measurements } from "@/lib/types"
+import { Attachment, Lead, Measurements } from "@/lib/types"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -96,6 +96,11 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [isTranslatingDescription, setIsTranslatingDescription] = useState(false)
   const [translatedNotes, setTranslatedNotes] = useState<string | null>(null)
   const [isTranslatingNotes, setIsTranslatingNotes] = useState(false)
+
+  const openAttachment = useCallback(async (attachment: Attachment) => {
+    const access = await api.getAttachmentAccessUrl(attachment.id)
+    return access
+  }, [])
   
   // Reset translations when lead changes
   useEffect(() => {
@@ -627,14 +632,19 @@ export function LeadDetail({ leadId }: { leadId: string }) {
               return (
                 <button
                   key={attachment.id}
-                  onClick={() => {
-                    if (isImage || isVideo) {
-                      setSelectedMedia({
-                        url: attachment.public_url || attachment.file_path,
-                        type: isVideo ? 'video' : 'image'
-                      })
-                    } else {
-                      window.open(attachment.public_url || attachment.file_path, '_blank')
+                  onClick={async () => {
+                    try {
+                      const access = await openAttachment(attachment)
+                      if (isImage || isVideo) {
+                        setSelectedMedia({
+                          url: access.public_url,
+                          type: isVideo ? 'video' : 'image'
+                        })
+                      } else {
+                        window.open(access.public_url, '_blank', 'noopener,noreferrer')
+                      }
+                    } catch (error) {
+                      console.error("Failed to open attachment:", error)
                     }
                   }}
                   className="group relative aspect-video overflow-hidden rounded-lg border-2 border-border transition-all hover:border-primary hover:shadow-md"

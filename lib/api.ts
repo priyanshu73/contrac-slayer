@@ -1993,6 +1993,16 @@ class ApiClient {
     })
   }
 
+  async getAttachmentAccessUrl(attachmentId: number) {
+    return this.request<{
+      attachment_id: number
+      public_url: string
+      thumbnail_url?: string
+      expires_in_seconds: number
+      expires_at: string
+    }>(`/attachments/${attachmentId}/access-url`)
+  }
+
   async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {
     if (!files || files.length === 0) return []
 

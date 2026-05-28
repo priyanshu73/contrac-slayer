@@ -271,6 +271,28 @@ function buildInitialProposalDocument(job: Job, contractorName: string, client?:
   }
 }
 
+function syncProposalDocumentClient(
+  document: ProposalDocument,
+  client?: Client,
+): ProposalDocument {
+  if (!client) return document
+
+  const nextCompanyName = client.name || document.companyName
+  const nextCompanyAddress = client.address || document.companyAddress
+  const oldGeneratedTitle = document.companyName ? `Proposal for ${document.companyName}` : ""
+  const nextTitle =
+    !document.title || document.title === oldGeneratedTitle
+      ? `Proposal for ${nextCompanyName}`
+      : document.title
+
+  return {
+    ...document,
+    title: nextTitle,
+    companyName: nextCompanyName,
+    companyAddress: nextCompanyAddress,
+  }
+}
+
 function updatePage(
   document: ProposalDocument,
   pageId: string,
@@ -1227,17 +1249,23 @@ export function ProposalBuilder({
 
   useEffect(() => {
     if (isProposalMode && proposal) {
-      setDocument(buildInitialProposalDocument(
+      const initialDocument = buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
         contractorName,
         client
-      ))
+      )
+      setDocument(proposal.project_id ? syncProposalDocumentClient(initialDocument, client) : initialDocument)
     } else if (job) {
       setDocument(buildInitialProposalDocument(job, contractorName))
     }
     setDirty(false)
     setOverviewLoaded(false)
   }, [contractorName, isProposalMode, job, proposal, publicMode, client])
+
+  useEffect(() => {
+    if (!isProposalMode || !proposal?.project_id || !client) return
+    updateDocument((current) => syncProposalDocumentClient(current, client))
+  }, [client, isProposalMode, proposal?.project_id])
 
   useEffect(() => {
     setViewMode(publicMode)

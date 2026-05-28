@@ -561,7 +561,15 @@
       "title": "Documentos del Proyecto",
       "addAttachment": "Añadir Archivo",
       "uploadSuccess": "Carga exitosa",
-      "uploadError": "Carga fallida"
+      "uploadError": "Carga fallida",
+      "openError": "No se pudo abrir el archivo",
+      "deleteAction": "Eliminar archivo",
+      "deleteTitle": "¿Eliminar archivo?",
+      "deleteDescription": "\"{name}\" se eliminará permanentemente de este proyecto.",
+      "confirmDelete": "Eliminar",
+      "cancel": "Cancelar",
+      "deleteSuccess": "Archivo eliminado",
+      "deleteError": "No se pudo eliminar"
     },
     "changeOrders": {
       "title": "Órdenes de cambio",

@@ -11,9 +11,8 @@ import type {
   ClientPortalQuoteRequest,
   ClientPortalBooking,
   ClientPortalInvoice,
-  ClientPortalClientInfo,
 } from "@/lib/types"
-import { Loader2, FileText, Receipt, ClipboardList, Calendar, CreditCard, ExternalLink, User, Mail, Phone, MapPin, Building2, Video, MapPinned } from "lucide-react"
+import { Loader2, FileText, Receipt, ClipboardList, Calendar, CreditCard, ExternalLink, Mail, Phone, MapPin, Video, MapPinned } from "lucide-react"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -64,42 +63,37 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
   )
 }
 
-// ─── Section components ───────────────────────────────────────────────────────
-
-function ClientCard({ client }: { client: ClientPortalClientInfo }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm space-y-2">
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-          <User className="h-4 w-4 text-slate-500" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">{client.name}</p>
-          {client.company_name && (
-            <p className="text-xs text-slate-500 flex items-center gap-1"><Building2 className="h-3 w-3" />{client.company_name}</p>
-          )}
-        </div>
-      </div>
-      <div className="space-y-1 pl-10">
-        {client.email && (
-          <a href={`mailto:${client.email}`} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
-            <Mail className="h-3 w-3 text-slate-400" />{client.email}
-          </a>
-        )}
-        {client.phone && (
-          <a href={`tel:${client.phone}`} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
-            <Phone className="h-3 w-3 text-slate-400" />{client.phone}
-          </a>
-        )}
-        {client.address && (
-          <p className="flex items-center gap-1.5 text-xs text-slate-600">
-            <MapPin className="h-3 w-3 text-slate-400 shrink-0" />{client.address}
-          </p>
-        )}
-      </div>
-    </div>
+function ClientContactLine({
+  icon,
+  href,
+  children,
+  className,
+}: {
+  icon: React.ReactNode
+  href?: string
+  children: React.ReactNode
+  className?: string
+}) {
+  const baseClassName = `flex items-center gap-2 text-sm text-slate-600 ${className ?? ""}`.trim()
+  const content = (
+    <>
+      <span className="text-slate-400 shrink-0">{icon}</span>
+      <span className="break-words">{children}</span>
+    </>
   )
+
+  if (href) {
+    return (
+      <a href={href} className={`${baseClassName} hover:text-slate-900 transition-colors`}>
+        {content}
+      </a>
+    )
+  }
+
+  return <div className={baseClassName}>{content}</div>
 }
+
+// ─── Section components ───────────────────────────────────────────────────────
 
 function ProposalRow({ p, locale }: { p: ClientPortalProposalItem; locale: string }) {
   return (
@@ -109,7 +103,10 @@ function ProposalRow({ p, locale }: { p: ClientPortalProposalItem; locale: strin
           <FileText className="h-4 w-4 text-slate-500" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900 truncate">{p.title || "Proposal"}</p>
+          {p.project_title && (
+            <p className="text-sm font-semibold text-slate-900 truncate">{p.project_title}</p>
+          )}
+          <p className={`${p.project_title ? "mt-1" : ""} text-sm text-slate-500 truncate`}>{p.title || "Proposal"}</p>
           {p.updated_at && (
             <p className="text-[11px] text-slate-400 mt-0.5">Updated {fmt(p.updated_at)}</p>
           )}
@@ -135,7 +132,10 @@ function QuoteRow({ q, locale }: { q: ClientPortalQuoteItem; locale: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-slate-900 truncate">{q.title || "Quote"}</p>
+        {q.project_title && (
+          <p className="text-sm font-semibold text-slate-900 truncate">{q.project_title}</p>
+        )}
+        <p className={`${q.project_title ? "mt-1" : ""} text-sm text-slate-500 truncate`}>{q.title || "Quote"}</p>
         <div className="flex items-center gap-2 mt-1">
           <StatusBadge status={q.status} />
           {q.estimated_total != null && (
@@ -272,33 +272,57 @@ export default function ClientPortalPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-2xl mx-auto px-6 py-6 flex items-center gap-4">
-          {portal.contractor_logo_url && (
-            <img
-              src={portal.contractor_logo_url}
-              alt={portal.contractor_name}
-              className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0"
-            />
-          )}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{portal.contractor_name}</p>
-            <h1 className="text-xl font-semibold text-slate-900 leading-tight">{portal.project_title}</h1>
-            {portal.project_description && (
-              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{portal.project_description}</p>
+        <div className="max-w-2xl mx-auto px-6 py-4">
+          <div className="flex items-center gap-4">
+            {portal.contractor_logo_url && (
+              <img
+                src={portal.contractor_logo_url}
+                alt={portal.contractor_name}
+                className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0"
+              />
             )}
+            <div className="flex-1 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{portal.contractor_name}</p>
+                <h1 className="text-xl font-semibold text-slate-900 leading-tight">{portal.project_title}</h1>
+                {portal.project_description && (
+                  <p className="mt-1 text-sm text-slate-500 leading-relaxed">{portal.project_description}</p>
+                )}
+              </div>
+              {portal.client && (
+                <div className="space-y-1 md:justify-self-end md:text-right">
+                  {portal.client.email && (
+                    <ClientContactLine
+                      href={`mailto:${portal.client.email}`}
+                      icon={<Mail className="h-4 w-4" />}
+                      className="md:justify-end"
+                    >
+                      {portal.client.email}
+                    </ClientContactLine>
+                  )}
+                  {portal.client.phone && (
+                    <ClientContactLine
+                      href={`tel:${portal.client.phone}`}
+                      icon={<Phone className="h-4 w-4" />}
+                      className="md:justify-end"
+                    >
+                      {portal.client.phone}
+                    </ClientContactLine>
+                  )}
+                  {portal.client.address && (
+                    <ClientContactLine icon={<MapPin className="h-4 w-4" />} className="md:justify-end">
+                      {portal.client.address}
+                    </ClientContactLine>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
-
-        {/* Client info */}
-        {portal.client && (
-          <section>
-            <ClientCard client={portal.client} />
-          </section>
-        )}
 
         {/* Proposals */}
         {portal.proposals.length > 0 && (
