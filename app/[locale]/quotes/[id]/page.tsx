@@ -1079,8 +1079,6 @@ export default function QuoteDetailPage() {
                 quantity: item.quantity,
                 unitOfMeasure: item.unit_of_measure,
               }))}
-              jobDescription={job.job_description || job.description || ""}
-              jobTitle={job.title || ""}
               imagePairs={beforeAfterImagePairs}
               onImagePairsChange={setBeforeAfterImagePairs}
             />

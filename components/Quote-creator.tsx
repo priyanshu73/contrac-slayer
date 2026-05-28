@@ -178,6 +178,12 @@ function getRateNumber(rate: LineItem["rate"]): number {
   return Number.isFinite(n) ? n : 0
 }
 
+const quoteInputSurfaceClass =
+  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 disabled:bg-slate-100/70"
+
+const quoteTextareaSurfaceClass =
+  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+
 // Unit Selector Component
 function UnitSelector({ value, onChange, description }: { value: string; onChange: (value: string) => void; description: string }) {
   const [isCustom, setIsCustom] = useState(false)
@@ -260,7 +266,7 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
             value={customValue}
             onChange={(e) => handleCustomChange(e.target.value)}
             placeholder="Custom unit..."
-            className="flex-1 min-w-0"
+            className={cn(quoteInputSurfaceClass, "flex-1 min-w-0")}
           />
           <Button
             variant="ghost"
@@ -1762,7 +1768,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
           {/* Quote Details */}
           <Card className="p-4 sm:p-5" id="material-search">
-            <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,1.15fr)] xl:items-start">
+            <div className="mb-4 space-y-1">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">Quote Details</h2>
@@ -1776,42 +1782,43 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   Link the quote to a project and confirm the client information.
                 </p>
               </div>
-
-              <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-                <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-                  <Select
-                    value={selectedProjectId ? String(selectedProjectId) : "__none__"}
-                    onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
-                  >
-                    <SelectTrigger className="flex-1 bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No project (standalone quote)</SelectItem>
-                      {allProjects.length > 0 && <div className="my-1 border-t" />}
-                      {allProjects.map((p: any) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.title || `Project #${p.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1.5 whitespace-nowrap"
-                    onClick={() => setShowNewProjectDialog(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    New Project
-                  </Button>
-                </div>
-              </div>
             </div>
 
             <div className="grid items-start gap-5">
               <div className="p-1">
+                <div className="mb-4 space-y-1.5">
+                  <Label htmlFor="quote-project">Project</Label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Select
+                      value={selectedProjectId ? String(selectedProjectId) : "__none__"}
+                      onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
+                    >
+                      <SelectTrigger id="quote-project" className={cn(quoteInputSurfaceClass, "min-h-10 flex-1 bg-slate-50/80")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No project (standalone quote)</SelectItem>
+                        {allProjects.length > 0 && <div className="my-1 border-t" />}
+                        {allProjects.map((p: any) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.title || `Project #${p.id}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 items-center gap-1.5 whitespace-nowrap"
+                      onClick={() => setShowNewProjectDialog(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      New Project
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3">
@@ -1839,6 +1846,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       placeholder="John Smith"
                       value={clientName}
                       onChange={(e) => handleClientFieldChange('name', e.target.value)}
+                      className={quoteInputSurfaceClass}
                       disabled={loadingLead}
                     />
                   </div>
@@ -1850,6 +1858,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       placeholder="john@example.com"
                       value={clientEmail}
                       onChange={(e) => handleClientFieldChange('email', e.target.value)}
+                      className={quoteInputSurfaceClass}
                       disabled={loadingLead}
                     />
                   </div>
@@ -1861,6 +1870,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       placeholder="(555) 123-4567"
                       value={clientPhone}
                       onChange={(e) => handleClientFieldChange('phone', e.target.value)}
+                      className={quoteInputSurfaceClass}
                       disabled={loadingLead}
                     />
                   </div>
@@ -1871,6 +1881,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       placeholder="123 Oak Street, Springfield, IL"
                       value={clientAddress}
                       onChange={(e) => handleClientFieldChange('address', e.target.value)}
+                      className={quoteInputSurfaceClass}
                       disabled={loadingLead}
                     />
                   </div>
@@ -2353,6 +2364,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 </div>
               )}
 
+              {!aiLoading && items.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-7 text-center shadow-inner shadow-slate-200/50">
+                  <p className="text-sm font-semibold text-slate-700">No line items yet</p>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+                    Add your first item or generate an AI estimate to start building the quote.
+                  </p>
+                </div>
+              )}
+
               {items.map((item, index) => (
                 <div key={index} className="relative rounded-md border border-border bg-card p-2 shadow-sm">
                   {/* Delete Button - Mobile: Top Right */}
@@ -2395,7 +2415,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                         value={item.title || ""}
                         onChange={(e) => updateItem(index, "title", e.target.value)}
                         placeholder="Item title (optional)"
-                        className="h-10 text-sm"
+                        className={cn(quoteInputSurfaceClass, "h-10 text-sm")}
                       />
                     </div>
                     {/* Description */}
@@ -2408,7 +2428,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                         value={item.description}
                         onChange={(e) => updateItem(index, "description", e.target.value)}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[44px] py-2 px-3 text-sm resize-none"
+                        className={cn(quoteTextareaSurfaceClass, "min-h-[44px] resize-none px-3 py-2 text-sm")}
                         rows={2}
                       />
                       {item.brand && (
@@ -2459,7 +2479,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                             updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                           }}
                           placeholder="0"
-                          className="h-9 text-center text-sm"
+                          className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                         />
                       </div>
                       <div>
@@ -2484,7 +2504,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                             updateItem(index, "rate", Math.round(n * 100) / 100)
                           }}
                           placeholder="0.00"
-                          className="h-9 text-sm"
+                          className={cn(quoteInputSurfaceClass, "h-9 text-sm")}
                         />
                       </div>
                       <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
@@ -2534,6 +2554,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                               }
                             }}
                             placeholder="Item name"
+                            className={quoteTextareaSurfaceClass}
                           />
                         </div>
                         {!isDescriptionEditorVisible(index, item) && (
@@ -2582,7 +2603,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                               e.target.style.height = e.target.scrollHeight + 'px'
                             }}
                             placeholder="Enter item description"
-                            className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
+                            className={cn(
+                              quoteTextareaSurfaceClass,
+                              "min-h-[36px] flex-1 min-w-0 resize-none overflow-hidden px-3 py-2 text-sm hover:border-slate-300"
+                            )}
                             rows={1}
                             ref={(el) => {
                               if (el) {
@@ -2622,7 +2646,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                           updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                         }}
                         placeholder="0"
-                        className="h-9 text-center text-sm"
+                        className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                       />
                     </div>
 
@@ -2646,7 +2670,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                           updateItem(index, "rate", Math.round(n * 100) / 100)
                         }}
                         placeholder="0.00"
-                        className="h-9 w-full min-w-0 text-sm text-right tabular-nums"
+                        className={cn(quoteInputSurfaceClass, "h-9 w-full min-w-0 text-right text-sm tabular-nums")}
                       />
                     </div>
 
@@ -2720,7 +2744,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       }
                     }}
                     placeholder="0"
-                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -2772,7 +2796,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       }
                     }}
                     placeholder="0.00"
-                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -2781,26 +2805,28 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             </div>
 
             {/* Totals */}
-            <div className="mt-6 space-y-2 border-t border-border pt-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal (before markup)</span>
-                <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
-                <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-border pt-2">
-                <span className="text-muted-foreground font-medium">Subtotal (with markup)</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
-                <span className="font-medium">${tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
-                <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+            <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/90 p-4 shadow-inner shadow-slate-200/60">
+              <div className="space-y-2 sm:ml-auto sm:max-w-md">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal (before markup)</span>
+                  <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
+                  <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-2 text-sm">
+                  <span className="font-medium text-muted-foreground">Subtotal (with markup)</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
+                  <span className="font-medium">${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
+                  <span>Total</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </Card>
@@ -2853,7 +2879,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <Textarea
                   id="notes"
                   placeholder="Add any additional notes or terms..."
-                  className="min-h-[100px]"
+                  className={cn(quoteTextareaSurfaceClass, "min-h-[100px]")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -2866,6 +2892,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
+                    className={quoteInputSurfaceClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -2875,6 +2902,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     placeholder="Net 30"
                     value={paymentTerms}
                     onChange={(e) => setPaymentTerms(e.target.value)}
+                    className={quoteInputSurfaceClass}
                   />
                 </div>
               </div>
@@ -2911,11 +2939,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           )}
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-3">
+          <div className="sticky bottom-0 z-30 -mx-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-14px_40px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6">
             <Button
               size="lg"
               onClick={handleCreateQuote}
               disabled={isCreatingQuote}
+              className="shadow-sm"
             >
               {isCreatingQuote ? (
                 <>
@@ -2955,7 +2984,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               </Button>
             )}
             <Button size="lg" variant="outline" asChild>
-              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel          </a>
+              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel</a>
             </Button>
           </div>
         </div>

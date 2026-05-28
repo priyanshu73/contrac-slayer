@@ -1198,9 +1198,9 @@ export function AgentChatPanel() {
                 className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-50
                    flex h-14 w-14 items-center justify-center gap-2 rounded-2xl md:h-auto md:w-auto md:rounded-full
                    bg-gradient-to-r from-sky-500 to-blue-600
-                   text-white shadow-lg shadow-sky-500/25 md:px-4 md:py-3
+                   text-white shadow-[0_18px_45px_rgba(2,132,199,0.34)] ring-1 ring-white/35 md:px-4 md:py-3
                    transition-all duration-300
-                   hover:shadow-xl hover:shadow-sky-500/30 hover:scale-105
+                   hover:scale-105 hover:shadow-[0_22px_54px_rgba(2,132,199,0.42)]
                    active:scale-95"
                 title="Open AI Assistant"
             >
