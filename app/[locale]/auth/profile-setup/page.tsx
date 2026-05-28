@@ -51,7 +51,7 @@ export default function ProfileSetupPage() {
   const [step, setStep] = useState(1)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     company_name: "",
     email: "",
     phone_number: "",
@@ -61,7 +61,10 @@ export default function ProfileSetupPage() {
     default_labor_rate_per_hour: "75.00",
     default_sales_tax_rate: "8.25",
     contractor_type: "",
+    service_radius_miles: "",
+    service_area_notes: "",
   })
+
   const [otherContractorType, setOtherContractorType] = useState("")
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
@@ -96,20 +99,20 @@ export default function ProfileSetupPage() {
     }
 
     let cancelled = false
-    ;(async () => {
-      try {
-        const profile = await api.getMyProfile()
-        if (!cancelled && profile) {
-          router.replace(`/${locale}/dashboard`)
+      ; (async () => {
+        try {
+          const profile = await api.getMyProfile()
+          if (!cancelled && profile) {
+            router.replace(`/${locale}/dashboard`)
+          }
+        } catch (err: any) {
+          // Expected when profile doesn't exist yet; ignore.
+          const msg = String(err?.message ?? "").toLowerCase()
+          if (msg && !msg.includes("not found") && !msg.includes("contractor profile")) {
+            console.warn("Unexpected error checking contractor profile:", err)
+          }
         }
-      } catch (err: any) {
-        // Expected when profile doesn't exist yet; ignore.
-        const msg = String(err?.message ?? "").toLowerCase()
-        if (msg && !msg.includes("not found") && !msg.includes("contractor profile")) {
-          console.warn("Unexpected error checking contractor profile:", err)
-        }
-      }
-    })()
+      })()
 
     return () => {
       cancelled = true
@@ -246,6 +249,11 @@ export default function ProfileSetupPage() {
         default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
         contractor_type: contractorType,
+        service_radius_miles: formData.service_radius_miles
+          ? Math.max(1, parseInt(formData.service_radius_miles, 10))
+          : null,
+        service_area_notes: formData.service_area_notes.trim() || null,
+
       }
       if (addressData) {
         profilePayload.address_data = addressData
@@ -361,13 +369,12 @@ export default function ProfileSetupPage() {
                 return (
                   <div key={s} className="relative z-10 flex flex-col items-center gap-3">
                     <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
-                        isComplete
-                          ? "border-blue-500 bg-blue-500 text-white"
-                          : isActive
-                            ? "border-blue-500 bg-white text-blue-600 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
-                            : "border-slate-200 bg-white text-slate-400"
-                      }`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isComplete
+                        ? "border-blue-500 bg-blue-500 text-white"
+                        : isActive
+                          ? "border-blue-500 bg-white text-blue-600 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
+                          : "border-slate-200 bg-white text-slate-400"
+                        }`}
                     >
                       {isComplete ? (
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -378,9 +385,8 @@ export default function ProfileSetupPage() {
                       )}
                     </div>
                     <span
-                      className={`max-w-[6rem] text-center text-xs font-medium leading-tight sm:text-sm ${
-                        isActive ? "text-slate-900" : isComplete ? "text-blue-600" : "text-slate-400"
-                      }`}
+                      className={`max-w-[6rem] text-center text-xs font-medium leading-tight sm:text-sm ${isActive ? "text-slate-900" : isComplete ? "text-blue-600" : "text-slate-400"
+                        }`}
                     >
                       {s === 1 ? t("step1") : s === 2 ? t("step2") : t("step3")}
                     </span>
@@ -541,7 +547,7 @@ export default function ProfileSetupPage() {
                             setAddressData(data)
                             if (data) {
                               const short = [data.street_line, data.city, data.state].filter(Boolean).join(", ")
-                              setFormData((prev) => ({
+                              setFormData((prev: any) => ({
                                 ...prev,
                                 address: short || data.formatted_address || "",
                                 default_zip_code: data.zip || prev.default_zip_code,
@@ -577,6 +583,77 @@ export default function ProfileSetupPage() {
                         maxLength={10}
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
+                    </div>
+                    <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                      <div>
+                        <Label className="text-gray-700 font-medium">
+                          How far do you travel for jobs?
+                        </Label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This helps the AI answer questions about your service coverage.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {[10, 25, 50, 100].map((miles) => (
+                          <Button
+                            key={miles}
+                            type="button"
+                            variant={formData.service_radius_miles === String(miles) ? "default" : "outline"}
+                            onClick={() =>
+                              setFormData({ ...formData, service_radius_miles: String(miles) })
+                            }
+                            disabled={isLoading}
+                          >
+                            {miles} mi
+                          </Button>
+                        ))}
+
+                        <Button
+                          type="button"
+                          variant={
+                            formData.service_radius_miles &&
+                              !["10", "25", "50", "100"].includes(formData.service_radius_miles)
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setFormData({ ...formData, service_radius_miles: "" })
+                          }
+                          disabled={isLoading}
+                        >
+                          Custom
+                        </Button>
+                      </div>
+
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        placeholder="Custom miles"
+                        value={formData.service_radius_miles}
+                        onChange={(e) =>
+                          setFormData({ ...formData, service_radius_miles: e.target.value })
+                        }
+                        disabled={isLoading}
+                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service_area_notes" className="text-gray-700 font-medium">
+                          Any specific cities or areas? (optional)
+                        </Label>
+                        <Input
+                          id="service_area_notes"
+                          placeholder="e.g. Denver metro, Aurora, Lakewood — not Colorado Springs"
+                          value={formData.service_area_notes}
+                          onChange={(e) =>
+                            setFormData({ ...formData, service_area_notes: e.target.value })
+                          }
+                          disabled={isLoading}
+                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
