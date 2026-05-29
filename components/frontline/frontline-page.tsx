@@ -48,6 +48,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import {
   formatFrontlineActivityDate,
@@ -846,6 +847,112 @@ function SmsPreview({
   );
 }
 
+function FrontlinePageSkeleton() {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-28 rounded-full bg-slate-200/80" />
+            <Skeleton className="h-6 w-24 rounded-full bg-slate-200/80" />
+          </div>
+          <Skeleton className="mt-4 h-8 w-full max-w-xl rounded-lg bg-slate-200/80" />
+          <Skeleton className="mt-2 h-4 w-full max-w-lg rounded-md bg-slate-200/70" />
+          <Skeleton className="mt-1 h-4 w-full max-w-md rounded-md bg-slate-200/60" />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex min-h-[84px] items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+            >
+              <Skeleton className="h-9 w-9 shrink-0 rounded-xl bg-slate-200/80" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-20 rounded-md bg-slate-200/80" />
+                <Skeleton className="h-3 w-full rounded-md bg-slate-200/60" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+          <div className="space-y-6">
+            <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-5 w-28 rounded-md bg-slate-200/80" />
+                <Skeleton className="h-8 w-36 rounded-full bg-slate-200/70" />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5"
+                  >
+                    <Skeleton className="h-7 w-7 rounded-lg bg-slate-200/80" />
+                    <Skeleton className="mt-3 h-3 w-16 rounded bg-slate-200/60" />
+                    <Skeleton className="mt-2 h-7 w-12 rounded-md bg-slate-200/80" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-5 w-32 rounded-md bg-slate-200/80" />
+                <div className="flex gap-3">
+                  <Skeleton className="h-3 w-14 rounded bg-slate-200/60" />
+                  <Skeleton className="h-3 w-16 rounded bg-slate-200/60" />
+                </div>
+              </div>
+              <Skeleton className="mt-5 h-[240px] w-full rounded-2xl bg-slate-200/50" />
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <Skeleton className="h-5 w-36 rounded-md bg-slate-200/80" />
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+                  >
+                    <div className="flex justify-between gap-3">
+                      <Skeleton className="h-3 w-24 rounded bg-slate-200/70" />
+                      <Skeleton className="h-3 w-16 rounded bg-slate-200/60" />
+                    </div>
+                    <Skeleton className="mt-2 h-4 w-full rounded bg-slate-200/60" />
+                    <Skeleton className="mt-1 h-4 w-4/5 rounded bg-slate-200/50" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <Skeleton className="h-5 w-32 rounded-md bg-slate-200/80" />
+              <div className="mt-4 space-y-2.5">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
+                  >
+                    <Skeleton className="h-8 w-8 shrink-0 rounded-xl bg-slate-200/80" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/5 rounded bg-slate-200/80" />
+                      <Skeleton className="h-3 w-24 rounded bg-slate-200/60" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FrontlinePage() {
   const [view, setView] = useState<ViewKey>("dashboard");
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
@@ -1007,14 +1114,7 @@ export function FrontlinePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[520px] items-center justify-center bg-slate-50">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading Your Frontline...
-        </div>
-      </div>
-    );
+    return <FrontlinePageSkeleton />;
   }
 
   return (
