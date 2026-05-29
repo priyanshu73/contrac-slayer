@@ -95,7 +95,7 @@ export function NewProjectDialog({
         try {
             let clientId: number | undefined = defaultClientId
 
-            if (fromLead) {
+            if (fromLead && !clientId) {
                 const client = await api.createClient({
                     name: fromLead.name,
                     email: fromLead.email,

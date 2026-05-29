@@ -7,15 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { api, contractorAI } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import type { Measurements } from "@/lib/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useToast } from "@/hooks/use-toast"
 import { useTranslations, useLocale } from "next-intl"
 import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Eye, Menu, Bot, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
 // ============================================
 // Translation Cache Utilities (localStorage)
@@ -1088,11 +1091,13 @@ interface LeadDetailsPanelProps {
 }
 
 function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
+  const router = useRouter()
   const tLeads = useTranslations('leads')
   const tCommon = useTranslations('common')
   const tTranslation = useTranslations('translation')
   const locale = useLocale()
   const isMobile = useIsMobile()
+  const { toast } = useToast()
 
   // Translation states for different sections
   const [translatedSummary, setTranslatedSummary] = useState<string | null>(null)
@@ -1102,13 +1107,23 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false)
   const [summaryCardExpanded, setSummaryCardExpanded] = useState(false)
   const [phoneClock, setPhoneClock] = useState("")
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
+  const [resolvedClientId, setResolvedClientId] = useState<number | null>(lead.converted_to_client_id ?? null)
+  const [saveAction, setSaveAction] = useState<"client" | "quote" | "project" | null>(null)
+  const [clientPortalToken, setClientPortalToken] = useState<string | null>(null)
+  const [openingClientPortal, setOpeningClientPortal] = useState(false)
 
   // Reset translations and expand state when lead changes
   useEffect(() => {
     setTranslatedSummary(null)
     setTranslatedDescription(null)
     setSummaryCardExpanded(false)
-  }, [lead.id])
+    setResolvedClientId(lead.converted_to_client_id ?? null)
+    setProjectDialogOpen(false)
+    setSaveAction(null)
+    setClientPortalToken(null)
+    setOpeningClientPortal(false)
+  }, [lead.converted_to_client_id, lead.id])
 
   useEffect(() => {
     const updatePhoneClock = () => setPhoneClock(formatBrowserPhoneTime())
@@ -1173,13 +1188,143 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
   const sourceLabel = lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'
   const quoteHref = lead.converted_to_job_id ? `/quotes/${lead.converted_to_job_id}` : null
-  const publicQuoteHref = lead.quote_public_link
-    ? `/${locale}/quotes/${lead.quote_public_link}`
-    : lead.quote_public_url
-      ? lead.quote_public_url.startsWith('http')
-        ? lead.quote_public_url
-        : `/${locale}${lead.quote_public_url.startsWith('/') ? lead.quote_public_url : `/${lead.quote_public_url}`}`
-      : null
+  const requestLeadId = lead.id.startsWith('request-') ? Number(lead.id.replace('request-', '')) : null
+
+  const ensureClientSaved = useCallback(async () => {
+    if (resolvedClientId) return resolvedClientId
+
+    if (lead.converted_to_job_id) {
+      const job = await api.getJob(lead.converted_to_job_id) as { client_id?: number | null; client_portal_token?: string | null }
+      if (job?.client_id) {
+        setResolvedClientId(job.client_id)
+        if (job.client_portal_token) {
+          setClientPortalToken(job.client_portal_token)
+        }
+        if (requestLeadId) {
+          try {
+            await api.updateLead(requestLeadId, { converted_to_client_id: job.client_id })
+          } catch {
+            // Keep the recovered client link even if lead sync fails.
+          }
+        }
+        onRefresh()
+        return job.client_id
+      }
+    }
+
+    const created = await api.createClient({
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone || "",
+      address: lead.address,
+    }) as { id?: number } | undefined
+
+    const clientId = created?.id
+    if (!clientId) throw new Error("Client was not created")
+
+    if (requestLeadId) {
+      try {
+        await api.updateLead(requestLeadId, { converted_to_client_id: clientId })
+      } catch {
+        // Keep the client even if lead linking fails.
+      }
+    }
+
+    setResolvedClientId(clientId)
+    onRefresh()
+    return clientId
+  }, [lead.address, lead.email, lead.name, lead.phone, onRefresh, requestLeadId, resolvedClientId])
+
+  const handleSaveClientAction = useCallback(async (action: "client" | "quote" | "project") => {
+    try {
+      setSaveAction(action)
+      const clientId = await ensureClientSaved()
+
+      if (action === "client") {
+        toast({ title: "Client saved" })
+        router.push(`/${locale}/clients/${clientId}`)
+        return
+      }
+
+      if (action === "quote") {
+        router.push(`/${locale}/quotes/new?clientId=${clientId}`)
+        return
+      }
+
+      setProjectDialogOpen(true)
+    } catch (error: any) {
+      toast({
+        title: "Unable to save client",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaveAction(null)
+    }
+  }, [ensureClientSaved, locale, router, toast])
+
+  const handleOpenClientPortal = useCallback(async () => {
+    try {
+      setOpeningClientPortal(true)
+      const clientId = await ensureClientSaved()
+      let token = clientPortalToken
+
+      if (!token) {
+        const result = await api.generateClientPortal(clientId)
+        token = result.token
+        setClientPortalToken(result.token)
+      }
+
+      const href = typeof window !== "undefined"
+        ? `${window.location.origin}/${locale}/client/${token}`
+        : `/${locale}/client/${token}`
+
+      if (typeof window !== "undefined") {
+        window.open(href, "_blank", "noopener,noreferrer")
+      } else {
+        router.push(href)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Unable to open client portal",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setOpeningClientPortal(false)
+    }
+  }, [clientPortalToken, ensureClientSaved, locale, router, toast])
+
+  const saveClientMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="default" className="h-9 w-full rounded-lg px-3 text-sm justify-between" disabled={saveAction !== null}>
+          <span className="inline-flex items-center">
+            {saveAction ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+            Save Client
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 ml-2 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52 p-1.5">
+        <DropdownMenuItem className="items-start py-3 px-3 rounded-md" onSelect={() => void handleSaveClientAction("project")}>
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold text-sm">Save and Create Project</span>
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              Recommended
+            </span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("quote")}>
+          Save and Create Quote
+        </DropdownMenuItem>
+        <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("client")}>
+          Save Client
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   return (
     <Card className="h-full flex flex-col overflow-hidden border-0 rounded-none shadow-none bg-background">
@@ -1255,24 +1400,20 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </a>
             </Button>
           ) : (
-            <Button size="sm" variant="default" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm">
-              <a href={
-                lead.type === 'request'
-                  ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
-                  : lead.is_frontline_ai
-                    ? `/quotes/new?phone=${encodeURIComponent(lead.phone || '')}`
-                  : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
-              }>
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {tLeads('createQuote')}
-              </a>
-            </Button>
+            <div className="hidden lg:block">
+              {saveClientMenu}
+            </div>
           )}
-          {publicQuoteHref && (
-            <Button size="sm" variant="outline" asChild className="hidden lg:flex h-9 rounded-lg px-3 text-sm bg-background">
-              <a href={publicQuoteHref} target="_blank" rel="noreferrer">
-                <Link2 className="h-3.5 w-3.5 mr-1" />Public link
-              </a>
+          {quoteHref && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden lg:flex h-9 rounded-lg px-3 text-sm bg-background"
+              onClick={() => void handleOpenClientPortal()}
+              disabled={openingClientPortal}
+            >
+              {openingClientPortal ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
+              Client portal
             </Button>
           )}
           {/* Mobile: hamburger for sheet */}
@@ -1864,6 +2005,25 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         )}
       </div>
 
+      <NewProjectDialog
+        open={projectDialogOpen}
+        onOpenChange={setProjectDialogOpen}
+        defaultClientId={resolvedClientId ?? undefined}
+        fromLead={requestLeadId ? {
+          leadId: Number(requestLeadId),
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          address: lead.address,
+          projectType: lead.project_type || lead.service_type,
+          description: lead.description,
+          estimatedValue: lead.estimated_value,
+        } : undefined}
+        onProjectCreated={(projectId) => {
+          router.push(`/${locale}/projects/${projectId}`)
+        }}
+      />
+
       {/* Action Buttons - mobile only; desktop uses header inline buttons */}
       <div className={`lg:hidden px-3 pt-2 pb-3 flex-shrink-0 border-t bg-background`}>
         <div className="flex flex-wrap gap-2 md:gap-3">
@@ -1884,27 +2044,23 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </a>
             </Button>
           ) : (
-            <Button variant="outline" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
-              <a href={
-                lead.type === 'request'
-                  ? `/quotes/new?leadId=${lead.id.replace('request-', '')}`
-                  : lead.is_frontline_ai
-                    ? `/quotes/new?phone=${encodeURIComponent(lead.phone || '')}`
-                    : `/quotes/new?callLeadId=${lead.id.replace('call-', '')}${lead.phone ? `&phone=${encodeURIComponent(lead.phone)}` : ''}`
-              }>
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                {tLeads('createQuote')}
-              </a>
-            </Button>
+            <div className="min-w-[8.5rem] flex-1">
+              {saveClientMenu}
+            </div>
           )}
-          {publicQuoteHref && (
-            <Button variant="outline" asChild className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm">
-              <a href={publicQuoteHref} target="_blank" rel="noreferrer">
+          {quoteHref && (
+            <Button
+              variant="outline"
+              className="min-w-[8.5rem] flex-1 h-9 md:h-10 text-xs md:text-sm"
+              onClick={() => void handleOpenClientPortal()}
+              disabled={openingClientPortal}
+            >
+              {openingClientPortal ? (
+                <Loader2 className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+              ) : (
                 <Link2 className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-                Public link
-              </a>
+              )}
+              Client portal
             </Button>
           )}
         </div>
