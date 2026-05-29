@@ -8,11 +8,22 @@ import {
     MessageSquare, ChevronLeft, Trash2, Clock,
     Sun, BellRing, Maximize2, Minimize2,
     ChevronDown, ChevronUp, Zap, CheckCircle2, AlertCircle,
+    FolderKanban, Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
 import ReactMarkdown from "react-markdown"
 import { api } from "@/lib/api"
 import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/lib/api"
+import type { ProjectListItem } from "@/lib/types"
 
 interface QuoteEstimateContext {
     projectType: string
@@ -35,12 +46,14 @@ interface ProposalContext {
     description: string
     projectBrief?: Record<string, any> | null
     includeProjectBriefInContext?: boolean
+    includeLineItemsInContext?: boolean
     projectId?: number | null
     proposalId?: number | null
     clientId?: number | null
     clientEmail?: string | null
     clientPhone?: string | null
     jobId?: number | null
+    lineItems?: Array<{ id: number; title?: string | null; description?: string | null }> | null
 }
 
 interface AIGenerationStatus {
@@ -108,6 +121,19 @@ interface ContextEnvelope {
         customer_quote_url?: string
     }
     preloaded_snapshot?: Record<string, unknown>
+}
+
+interface SelectedProjectContext {
+    type: "project"
+    projectId: number
+    projectName: string
+    source: "auto" | "manual"
+}
+
+interface PendingProjectContextSwitch {
+    projectId: number
+    projectName: string
+    source: "auto" | "manual"
 }
 
 function preferProjectScope<T extends { project_id?: number | null; client_id?: number | null }>(value: T): T {
@@ -272,7 +298,7 @@ function buildContextEnvelope(
     const entityType = pageTypeToEntityType(pageContext.page)
     const relatedRefs = preferProjectScope<NonNullable<ContextEnvelope["related_refs"]>>({
         job_id: pageContext.job_id,
-        project_id: pageContext.project_id ?? activeProjectId ?? undefined,
+        project_id: activeProjectId ?? pageContext.project_id ?? undefined,
         client_id: pageContext.client_id,
         lead_id: pageContext.lead_id,
         proposal_id: pageContext.proposal_id,
@@ -324,6 +350,7 @@ const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
     { pattern: /\/clients\/([^/]+)/, page: "client_detail" },
     { pattern: /\/leads\/([^/]+)/, page: "lead_detail" },
     { pattern: /\/projects\/\d+\/proposals\/([^/]+)/, page: "proposal_builder" },
+    { pattern: /\/quotes\/(\d+)\/proposal/, page: "proposal_builder" },
     { pattern: /\/projects\/([^/]+)/, page: "project_detail" },
     { pattern: /\/quotes\/([^/]+)/, page: "quote_detail" },
     { pattern: /\/calendar\/([^/]+)/, page: "booking_detail" },
@@ -361,6 +388,14 @@ function parsePageContext(pathname: string): PageContext {
     }
 
     return { page: "unknown" }
+}
+
+function parseProjectRouteId(pathname: string): number | null {
+    const stripped = pathname.replace(/^\/[a-z]{2}/, "")
+    const match = stripped.match(/^\/projects\/(\d+)(?:\/|$)/)
+    if (!match) return null
+    const parsed = Number(match[1])
+    return Number.isFinite(parsed) ? parsed : null
 }
 
 // ─── Contextual suggestions per page type ──────────────────────
@@ -542,8 +577,16 @@ export function AgentChatPanel() {
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isExpanded, setIsExpanded] = useState(false)
+    const [selectedContext, setSelectedContext] = useState<SelectedProjectContext | null>(null)
+    const [pendingProjectSwitch, setPendingProjectSwitch] = useState<PendingProjectContextSwitch | null>(null)
+    const [projectPickerOpen, setProjectPickerOpen] = useState(false)
+    const [availableProjects, setAvailableProjects] = useState<ProjectListItem[]>([])
+    const [projectsLoading, setProjectsLoading] = useState(false)
+    const [projectsLoaded, setProjectsLoaded] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
+    const dismissedAutoProjectIdRef = useRef<number | null>(null)
+    const keptProjectRouteIdRef = useRef<number | null>(null)
 
     // Multi-chat state
     const [conversations, setConversations] = useState<Conversation[]>([])
@@ -571,6 +614,7 @@ export function AgentChatPanel() {
         projectTitle: "",
         description: "",
         includeProjectBriefInContext: true,
+        includeLineItemsInContext: true,
     })
     const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
     const [proposalLoading, setProposalLoading] = useState(false)
@@ -591,20 +635,64 @@ export function AgentChatPanel() {
         return () => window.removeEventListener("quote-page-context-updated", onUpdate)
     }, [])
 
+    const routeProjectId = useMemo(
+        () => parseProjectRouteId(pathname ?? ""),
+        [pathname]
+    )
+
+    useEffect(() => {
+        if (keptProjectRouteIdRef.current != null && keptProjectRouteIdRef.current !== routeProjectId) {
+            keptProjectRouteIdRef.current = null
+        }
+        if (dismissedAutoProjectIdRef.current != null && dismissedAutoProjectIdRef.current !== routeProjectId) {
+            dismissedAutoProjectIdRef.current = null
+        }
+        if (pendingProjectSwitch && pendingProjectSwitch.projectId !== routeProjectId) {
+            setPendingProjectSwitch(null)
+        }
+    }, [pendingProjectSwitch, routeProjectId])
+
     // Parse page context from current route; quote detail enriches from loaded job on the page
     const pageContext = useMemo(
         () => enrichPageContext(parsePageContext(pathname ?? ""), locale, estimateContext, proposalContext),
         [pathname, locale, quotePageCtxTick, estimateContext, proposalContext]
     )
-    const activeProjectId = useMemo(() => {
-        if (proposalContext.projectId) return proposalContext.projectId
-        if (estimateContext.projectId) return estimateContext.projectId
-        if (pageContext.page === "project_detail" && pageContext.entity_id) {
-            const parsed = Number(pageContext.entity_id)
-            return Number.isFinite(parsed) ? parsed : null
+    const fallbackProjectContext = useMemo(() => {
+        if (proposalContext.projectId) {
+            return {
+                projectId: proposalContext.projectId,
+                projectName: proposalContext.projectTitle?.trim() || "Current project",
+            }
+        }
+        if (estimateContext.projectId) {
+            return {
+                projectId: estimateContext.projectId,
+                projectName:
+                    estimateContext.projectTitle?.trim()
+                    || estimateContext.projectType?.trim()
+                    || "Current project",
+            }
         }
         return null
-    }, [estimateContext.projectId, pageContext, proposalContext.projectId])
+    }, [
+        estimateContext.projectId,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+        proposalContext.projectId,
+        proposalContext.projectTitle,
+    ])
+    const activeProjectId = useMemo(() => {
+        if (selectedContext?.projectId) return selectedContext.projectId
+        if (
+            routeProjectId
+            && dismissedAutoProjectIdRef.current !== routeProjectId
+            && keptProjectRouteIdRef.current !== routeProjectId
+        ) {
+            return routeProjectId
+        }
+        if (fallbackProjectContext?.projectId) return fallbackProjectContext.projectId
+        return null
+    }, [fallbackProjectContext?.projectId, routeProjectId, selectedContext?.projectId])
     const contextEnvelope = useMemo(
         () => buildContextEnvelope(
             pageContext,
@@ -617,6 +705,9 @@ export function AgentChatPanel() {
         [activeProjectId, estimateContext, locale, pageContext, pathname, proposalContext]
     )
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
+    const selectedProjectLabel = selectedContext
+        ? `project: ${selectedContext.projectName}`
+        : null
 
     // Detect if we're on a quote create/edit page
     const isOnQuotePage = useMemo(() => {
@@ -627,7 +718,11 @@ export function AgentChatPanel() {
     // Detect if we're on a proposal builder page
     const isOnProposalPage = useMemo(() => {
         const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
-        return /^\/projects\/\d+\/proposals\/\d+$/.test(stripped)
+        return /^\/projects\/\d+\/proposals\/\d+$/.test(stripped) || /^\/quotes\/\d+\/proposal$/.test(stripped)
+    }, [pathname])
+    const isOnQuoteProposalPage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return /^\/quotes\/\d+\/proposal$/.test(stripped)
     }, [pathname])
 
     // Entity color mapping
@@ -656,6 +751,95 @@ export function AgentChatPanel() {
             inputRef.current.focus()
         }
     }, [isOpen, panelView])
+
+    useEffect(() => {
+        if (!projectPickerOpen || projectsLoaded || projectsLoading) return
+        let cancelled = false
+        const run = async () => {
+            try {
+                setProjectsLoading(true)
+                const data = await api.getProjectContextOptions({ limit: 200, skip: 0 })
+                if (cancelled) return
+                const normalizedProjects = Array.isArray(data)
+                    ? data as ProjectListItem[]
+                    : Array.isArray((data as { projects?: unknown })?.projects)
+                        ? ((data as { projects: ProjectListItem[] }).projects)
+                        : []
+                setAvailableProjects(normalizedProjects)
+                setProjectsLoaded(true)
+            } catch (err) {
+                console.error("Failed to load projects for chat context:", err)
+                if (!cancelled) setProjectsLoaded(true)
+            } finally {
+                if (!cancelled) setProjectsLoading(false)
+            }
+        }
+        void run()
+        return () => {
+            cancelled = true
+        }
+    }, [projectPickerOpen, projectsLoaded]) // projectsLoading intentionally excluded: including it causes the effect to cancel itself mid-flight
+
+    useEffect(() => {
+        if (!routeProjectId) return
+        if (dismissedAutoProjectIdRef.current === routeProjectId) return
+        if (keptProjectRouteIdRef.current === routeProjectId) return
+
+        let cancelled = false
+        const run = async () => {
+            try {
+                const project = await api.getProject(routeProjectId) as { id: number; title?: string | null }
+                if (cancelled || !project?.id) return
+                const nextContext: SelectedProjectContext = {
+                    type: "project",
+                    projectId: project.id,
+                    projectName: project.title?.trim() || `Project #${project.id}`,
+                    source: "auto",
+                }
+
+                setSelectedContext((current) => {
+                    if (!current) {
+                        setPendingProjectSwitch(null)
+                        return nextContext
+                    }
+                    if (current.source === "manual" && current.projectId !== nextContext.projectId) {
+                        return current
+                    }
+                    if (current.projectId === nextContext.projectId) {
+                        if (current.projectName !== nextContext.projectName || current.source !== "auto") {
+                            return { ...current, projectName: nextContext.projectName, source: "auto" }
+                        }
+                        return current
+                    }
+                    if (messages.length === 0) {
+                        setPendingProjectSwitch(null)
+                        return nextContext
+                    }
+                    setPendingProjectSwitch((existing) => {
+                        if (
+                            existing?.projectId === nextContext.projectId
+                            && existing.projectName === nextContext.projectName
+                        ) {
+                            return existing
+                        }
+                        return {
+                            projectId: nextContext.projectId,
+                            projectName: nextContext.projectName,
+                            source: "auto",
+                        }
+                    })
+                    return current
+                })
+            } catch (err) {
+                console.error("Failed to load project context:", err)
+            }
+        }
+
+        void run()
+        return () => {
+            cancelled = true
+        }
+    }, [messages.length, routeProjectId])
 
     const estimateContextSummary = useMemo(() => {
         const client = estimateContext.clientName?.trim()
@@ -696,17 +880,27 @@ export function AgentChatPanel() {
         const project = proposalContext.projectTitle?.trim()
 
         if (proposal) return `Create a proposal for ${proposal}.`
+        if (isOnQuoteProposalPage) return "Create a proposal for this quote."
         if (project) return `Create a proposal for ${project}.`
         return "Create a proposal for this project."
-    }, [proposalContext.projectTitle, proposalContext.proposalTitle])
+    }, [isOnQuoteProposalPage, proposalContext.projectTitle, proposalContext.proposalTitle])
 
     const proposalProjectPrompt = useMemo(() => {
         const project = proposalContext.projectTitle?.trim() || proposalContext.proposalTitle?.trim()
         if (project && proposalContext.projectBrief) return `${project} brief loaded.`
-        if (project) return project
+        if (project && proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
+            return `${project} line items loaded.`
+        }
+        if (project && !isOnQuoteProposalPage) return project
         if (proposalContext.projectBrief) return "Project brief loaded."
+        if (proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
+            return "Quote line items loaded."
+        }
         return ""
     }, [
+        isOnQuoteProposalPage,
+        proposalContext.includeLineItemsInContext,
+        proposalContext.lineItems,
         proposalContext.projectBrief,
         proposalContext.projectTitle,
         proposalContext.proposalTitle,
@@ -837,11 +1031,21 @@ export function AgentChatPanel() {
     useEffect(() => {
         const syncFromWindow = () => {
             const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
-            if (ctx) setProposalContext({ ...ctx, includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true })
+            if (ctx) {
+                setProposalContext({
+                    ...ctx,
+                    includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true,
+                    includeLineItemsInContext: ctx.includeLineItemsInContext ?? true,
+                })
+            }
         }
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail as ProposalContext
-            setProposalContext({ ...detail, includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true })
+            setProposalContext({
+                ...detail,
+                includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true,
+                includeLineItemsInContext: detail.includeLineItemsInContext ?? true,
+            })
         }
         syncFromWindow()
         window.addEventListener("proposal-context-updated", handler)
@@ -852,7 +1056,13 @@ export function AgentChatPanel() {
     useEffect(() => {
         const handler = () => {
             const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
-            if (ctx) setProposalContext(ctx)
+            if (ctx) {
+                setProposalContext({
+                    ...ctx,
+                    includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true,
+                    includeLineItemsInContext: ctx.includeLineItemsInContext ?? true,
+                })
+            }
             const isEmpty = !ctx?.proposalTitle?.trim() && !ctx?.description?.trim()
             setProposalContextExpanded(isEmpty)
             setIsOpen(true)
@@ -868,10 +1078,51 @@ export function AgentChatPanel() {
     const handleNewChat = useCallback(() => {
         setActiveConversationId(null)
         setMessages([])
+        setPendingProjectSwitch(null)
         setPanelView("chat")
         setChatLaunchMode("general")
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [])
+
+    const applyProjectContext = useCallback((context: SelectedProjectContext | null) => {
+        setSelectedContext(context)
+        setPendingProjectSwitch(null)
+        if (context) {
+            dismissedAutoProjectIdRef.current = null
+            keptProjectRouteIdRef.current = null
+        }
+    }, [])
+
+    const handleDismissSelectedContext = useCallback(() => {
+        if (routeProjectId && selectedContext?.projectId === routeProjectId) {
+            dismissedAutoProjectIdRef.current = routeProjectId
+        }
+        setPendingProjectSwitch(null)
+        setSelectedContext(null)
+    }, [routeProjectId, selectedContext?.projectId])
+
+    const handleKeepCurrentProjectContext = useCallback(() => {
+        if (routeProjectId) {
+            keptProjectRouteIdRef.current = routeProjectId
+        }
+        setPendingProjectSwitch(null)
+    }, [routeProjectId])
+
+    const handleSwitchProjectContext = useCallback(() => {
+        if (!pendingProjectSwitch) return
+        applyProjectContext({
+            type: "project",
+            projectId: pendingProjectSwitch.projectId,
+            projectName: pendingProjectSwitch.projectName,
+            source: pendingProjectSwitch.source,
+        })
+        handleNewChat()
+    }, [applyProjectContext, handleNewChat, pendingProjectSwitch])
+
+    const queueProjectContextSelection = useCallback((context: SelectedProjectContext) => {
+        setProjectPickerOpen(false)
+        applyProjectContext(context)
+    }, [applyProjectContext])
 
     const _fireEstimate = useCallback((scope: ScopeClarifiedScope | null) => {
         setEstimateLoading(true)
@@ -907,8 +1158,21 @@ export function AgentChatPanel() {
         })
         setPanelView("chat")
         setIsOpen(true)
-        window.dispatchEvent(new CustomEvent("trigger-ai-proposal", { detail: { clarifiedScope: scope } }))
-    }, [])
+        window.dispatchEvent(new CustomEvent("trigger-ai-proposal", {
+            detail: {
+                clarifiedScope: scope,
+                proposalTitle: proposalContext.proposalTitle,
+                projectTitle: proposalContext.projectTitle,
+                description: proposalContext.description,
+                includeProjectBriefInContext: proposalContext.includeProjectBriefInContext ?? true,
+                includeLineItemsInContext: proposalContext.includeLineItemsInContext ?? true,
+                selectedItemIds:
+                    proposalContext.includeLineItemsInContext === false
+                        ? []
+                        : (proposalContext.lineItems ?? []).map((item) => item.id),
+            },
+        }))
+    }, [proposalContext])
 
     const handleGenerateEstimate = useCallback(() => {
         const pid = estimateContext.projectId
@@ -1611,18 +1875,20 @@ export function AgentChatPanel() {
                                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
                                 />
                             </div>
-                            <div>
-                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    Project
-                                </label>
-                                <input
-                                    type="text"
-                                    value={proposalContext.projectTitle}
-                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, projectTitle: e.target.value }))}
-                                    placeholder="Project name"
-                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                                />
-                            </div>
+                            {!isOnQuoteProposalPage && (
+                                <div>
+                                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                        Project
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={proposalContext.projectTitle}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, projectTitle: e.target.value }))}
+                                        placeholder="Project name"
+                                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                    />
+                                </div>
+                            )}
                             <div>
                                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                                     Description
@@ -1635,6 +1901,17 @@ export function AgentChatPanel() {
                                     className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
                                 />
                             </div>
+                            {(proposalContext.lineItems?.length ?? 0) > 0 && (
+                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={proposalContext.includeLineItemsInContext ?? true}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeLineItemsInContext: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
+                                    />
+                                    Include quote line items in context
+                                </label>
+                            )}
                             {proposalContext.projectBrief && (
                                 <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
                                     <input
@@ -1648,6 +1925,46 @@ export function AgentChatPanel() {
                             )}
                         </div>
                     )}
+                </div>
+            )}
+
+            {panelView === "chat" && pendingProjectSwitch && (
+                <div className="border-b border-border bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.92))] px-4 py-3">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 shadow-sm">
+                            <p className="text-sm font-semibold text-amber-950">
+                                Switch project context?
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-amber-900/80">
+                                {pendingProjectSwitch.source === "auto"
+                                    ? (
+                                        <>
+                                            You navigated to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>.
+                                            Switching will start a new chat so the assistant stays scoped to the right project files.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Switch context to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>?
+                                            This will start a new chat so the assistant stays scoped to the right project files.
+                                        </>
+                                    )}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSwitchProjectContext}
+                                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                                >
+                                    Switch and start new chat
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleKeepCurrentProjectContext}
+                                    className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-3.5 py-2 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+                                >
+                                    Keep current project
+                                </button>
+                            </div>
+                    </div>
                 </div>
             )}
 
@@ -2088,7 +2405,83 @@ export function AgentChatPanel() {
                     </div>
 
                     {/* ── Input ── */}
-                    <div className="border-t border-border bg-card px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:py-2.5">
+                    <div className="bg-card px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:py-2.5">
+                        <div className="mb-2 flex items-center justify-end gap-1.5">
+                            {selectedContext && (
+                                <div className="inline-flex max-w-[200px] items-center gap-1.5 rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                    <span className="truncate">{selectedProjectLabel}</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleDismissSelectedContext}
+                                        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/80 transition hover:text-foreground"
+                                        aria-label="Remove project context"
+                                        title="Remove project context"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            )}
+                            <Popover open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
+                                <PopoverTrigger asChild>
+                                    {selectedContext ? (
+                                        <button
+                                            type="button"
+                                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition hover:border-border hover:text-foreground"
+                                            title="Switch context"
+                                        >
+                                            <FolderKanban className="h-3 w-3" />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+                                        >
+                                            <FolderKanban className="h-3 w-3" />
+                                            <span>Select context</span>
+                                            <ChevronDown className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-72 p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search context..." className="h-9" />
+                                        <CommandList>
+                                            {projectsLoading ? (
+                                                <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    Loading context...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <CommandEmpty>No context found.</CommandEmpty>
+                                                    <CommandGroup heading="Projects">
+                                                        {availableProjects.map((project) => {
+                                                            const isSelected = selectedContext?.projectId === project.id
+                                                            return (
+                                                                <CommandItem
+                                                                    key={project.id}
+                                                                    value={`${project.title} ${project.id}`}
+                                                                    onSelect={() => queueProjectContextSelection({
+                                                                        type: "project",
+                                                                        projectId: project.id,
+                                                                        projectName: project.title,
+                                                                        source: "manual",
+                                                                    })}
+                                                                    className="flex items-center justify-between gap-2"
+                                                                >
+                                                                    <span className="truncate">{project.title}</span>
+                                                                    {isSelected ? <Check className="h-3.5 w-3.5 text-sky-500" /> : null}
+                                                                </CommandItem>
+                                                            )
+                                                        })}
+                                                    </CommandGroup>
+                                                </>
+                                            )}
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                         <div className="flex items-end gap-2">
                             <textarea
                                 ref={inputRef}

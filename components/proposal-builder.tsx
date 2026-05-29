@@ -1213,16 +1213,22 @@ export function ProposalBuilder({
   useEffect(() => {
     const ctx = {
       proposalTitle: document.title || proposal?.title || "",
-      projectTitle: project?.title || document.projectOverview?.title || "",
+      projectTitle: project?.title || "",
       description: project?.objective || job?.job_description || "",
       projectBrief: project?.brief || null,
       includeProjectBriefInContext: true,
+      includeLineItemsInContext: true,
       projectId: proposal?.project_id ?? null,
       proposalId: proposal?.id ?? null,
       clientId: project?.client_id ?? proposal?.client_id ?? client?.id ?? null,
       clientEmail: sendClient?.email ?? client?.email ?? null,
       clientPhone: sendClient?.phone ?? client?.phone ?? null,
       jobId: job?.id ?? proposal?.quote_references?.[0]?.job_id ?? null,
+      lineItems: (job?.items ?? []).map((item) => ({
+        id: item.id,
+        title: item.title ?? "",
+        description: item.custom_description ?? "",
+      })),
     }
     ;(window as any).proposalBuilderContext = ctx
     window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
@@ -1319,7 +1325,15 @@ export function ProposalBuilder({
     }
   }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
 
-  const generateFullProposal = useCallback(async (clarifiedScope?: ScopeClarifiedScope | null) => {
+  const generateFullProposal = useCallback(async (opts?: {
+    clarifiedScope?: ScopeClarifiedScope | null
+    proposalTitle?: string
+    projectTitle?: string
+    description?: string
+    includeProjectBriefInContext?: boolean
+    includeLineItemsInContext?: boolean
+    selectedItemIds?: number[]
+  }) => {
     if (aiProposalLoading) return
 
     setAiProposalLoading(true)
@@ -1332,15 +1346,28 @@ export function ProposalBuilder({
       },
     }))
     try {
+      const description = opts?.description?.trim() || project?.objective || job?.job_description || job?.description || undefined
       const generated = isProposalMode && proposal && proposal.project_id
         ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
-            description: project?.objective ?? undefined,
+            description,
             job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
-            clarified_scope: clarifiedScope ?? null,
+            selected_item_ids: opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+            clarified_scope: opts?.clarifiedScope ?? null,
+            proposal_title: opts?.proposalTitle?.trim() || undefined,
+            project_title: opts?.projectTitle?.trim() || undefined,
+            include_project_brief: opts?.includeProjectBriefInContext ?? true,
+            include_line_items: opts?.includeLineItemsInContext ?? true,
           })
         : await api.generateAIProposal(
             job!.id,
-            job?.job_description || job?.description || undefined
+            description,
+            opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+            {
+              proposal_title: opts?.proposalTitle?.trim() || undefined,
+              project_title: opts?.projectTitle?.trim() || undefined,
+              include_project_brief: opts?.includeProjectBriefInContext ?? true,
+              include_line_items: opts?.includeLineItemsInContext ?? true,
+            }
           )
 
       const beforeAfterQueue = [...(generated.before_after_pairs ?? [])]
@@ -1420,8 +1447,16 @@ export function ProposalBuilder({
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { clarifiedScope?: ScopeClarifiedScope | null } | undefined
-      void generateFullProposal(detail?.clarifiedScope ?? null)
+      const detail = (e as CustomEvent).detail as {
+        clarifiedScope?: ScopeClarifiedScope | null
+        proposalTitle?: string
+        projectTitle?: string
+        description?: string
+        includeProjectBriefInContext?: boolean
+        includeLineItemsInContext?: boolean
+        selectedItemIds?: number[]
+      } | undefined
+      void generateFullProposal(detail)
     }
     window.addEventListener("trigger-ai-proposal", handler)
     return () => window.removeEventListener("trigger-ai-proposal", handler)

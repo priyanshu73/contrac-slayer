@@ -950,7 +950,17 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/proposal-overview`)
   }
 
-  async generateAIProposal(jobId: number, description?: string, selectedItemIds?: number[]): Promise<{
+  async generateAIProposal(
+    jobId: number,
+    description?: string,
+    selectedItemIds?: number[],
+    opts?: {
+      proposal_title?: string
+      project_title?: string
+      include_project_brief?: boolean
+      include_line_items?: boolean
+    }
+  ): Promise<{
     scope_summary_html: string
     project_overview_title: string
     project_overview_html: string
@@ -966,6 +976,10 @@ class ApiClient {
       body: JSON.stringify({
         description: description ?? null,
         selected_item_ids: selectedItemIds ?? null,
+        proposal_title: opts?.proposal_title ?? null,
+        project_title: opts?.project_title ?? null,
+        include_project_brief: opts?.include_project_brief ?? true,
+        include_line_items: opts?.include_line_items ?? true,
       }),
     })
   }
@@ -1046,7 +1060,16 @@ class ApiClient {
   async generateAIProposalForProject(
     projectId: number,
     proposalId: number,
-    opts?: { description?: string; job_id?: number; selected_item_ids?: number[]; clarified_scope?: ScopeClarifiedScope | null }
+    opts?: {
+      description?: string
+      job_id?: number
+      selected_item_ids?: number[]
+      clarified_scope?: ScopeClarifiedScope | null
+      proposal_title?: string
+      project_title?: string
+      include_project_brief?: boolean
+      include_line_items?: boolean
+    }
   ): Promise<{
     scope_summary_html: string
     project_overview_title: string
@@ -1062,6 +1085,10 @@ class ApiClient {
         job_id: opts?.job_id ?? null,
         selected_item_ids: opts?.selected_item_ids ?? null,
         clarified_scope: opts?.clarified_scope ?? null,
+        proposal_title: opts?.proposal_title ?? null,
+        project_title: opts?.project_title ?? null,
+        include_project_brief: opts?.include_project_brief ?? true,
+        include_line_items: opts?.include_line_items ?? true,
       }),
     })
   }
@@ -1660,6 +1687,14 @@ class ApiClient {
     if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
     const qs = searchParams.toString()
     return this.request(`/projects${qs ? `?${qs}` : ''}`)
+  }
+
+  async getProjectContextOptions(params?: { skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (typeof params?.skip === 'number') searchParams.append('skip', params.skip.toString())
+    if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
+    const qs = searchParams.toString()
+    return this.request(`/projects/context-options${qs ? `?${qs}` : ''}`)
   }
 
   async getProject(projectId: number) {

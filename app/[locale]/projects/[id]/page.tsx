@@ -16,9 +16,10 @@ import { ProjectProposals } from "@/components/projects/project-proposals"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { BriefPanel } from "@/components/projects/brief-panel"
-import { ChevronDown, Loader2, User, Search, X, Pencil, Save } from "lucide-react"
+import { ChevronDown, Loader2, User, Search, X, Pencil, Save, Calendar, Bold, Italic, List, ListOrdered } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { normalizeProjectBrief } from "@/lib/project-brief"
+import ReactMarkdown from "react-markdown"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -32,6 +33,29 @@ export default function ProjectDetailPage() {
   const [savingHeader, setSavingHeader] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const DESCRIPTION_TRUNCATE_CHARS = 200
+
+  function insertMarkdown(type: "bold" | "italic" | "ul" | "ol") {
+    const el = descriptionTextareaRef.current
+    if (!el) return
+    const { selectionStart: s, selectionEnd: e, value } = el
+    const sel = value.slice(s, e)
+    let replacement = ""
+    if (type === "bold")   replacement = `**${sel || "bold text"}**`
+    if (type === "italic") replacement = `*${sel || "italic text"}*`
+    if (type === "ul")     replacement = (sel || "item").split("\n").map(l => `- ${l}`).join("\n")
+    if (type === "ol")     replacement = (sel || "item").split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n")
+    const next = value.slice(0, s) + replacement + value.slice(e)
+    setDraftDescription(next)
+    // Restore focus & selection after React re-render
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(s, s + replacement.length)
+    })
+  }
 
   const projectId = Number(params.id)
   const projectDescription = useMemo(() => {
@@ -159,125 +183,174 @@ export default function ProjectDetailPage() {
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
         {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
-          <div className="px-4 sm:px-6 lg:px-10 pt-3 pb-0">
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-slate-200">
+          <div className="px-4 sm:px-6 lg:px-10 pt-4 pb-0">
 
-            {/* Top row: breadcrumb left, actions right */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <AppBreadcrumb
-                  items={[
-                    { label: "Projects", href: `/${locale}/projects` },
-                    { label: isEditingHeader ? (draftTitle || project.title) : project.title },
-                  ]}
-                />
-                {isEditingHeader ? (
-                  <div className="max-w-4xl space-y-4 pb-2">
-                    <label className="block space-y-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        Project Title
-                      </span>
-                      <input
-                        type="text"
-                        value={draftTitle}
-                        onChange={(e) => setDraftTitle(e.target.value)}
-                        placeholder="Project title"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-semibold tracking-tight text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
-                      />
-                    </label>
-
-                    <label className="block space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Project Overview
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          Short and useful.
-                        </span>
-                      </div>
-                      <textarea
-                        value={draftDescription}
-                        onChange={(e) => setDraftDescription(e.target.value)}
-                        placeholder="Add a concise summary of the job, goals, or important context."
-                        rows={4}
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
-                      />
-                    </label>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                      <p className="text-xs text-slate-400">
-                        The brief and other project views will use this context too.
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleCancelHeaderEdit}
-                          disabled={savingHeader}
-                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveHeader}
-                          disabled={savingHeader}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-                        >
-                          {savingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                          Save changes
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight line-clamp-1">
-                    {project.title}
-                  </h1>
+            {/* Row 1: breadcrumb left, Edit + Status right */}
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <AppBreadcrumb
+                items={[
+                  { label: "Projects", href: `/${locale}/projects` },
+                  { label: isEditingHeader ? (draftTitle || project.title) : project.title },
+                ]}
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                {!isEditingHeader && (
+                  <button
+                    onClick={() => setIsEditingHeader(true)}
+                    className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all shadow-sm hover:border-slate-400 hover:text-slate-900"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
                 )}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-1">
-                  {(project.scheduled_start_date || project.scheduled_end_date) && (
-                    <span className="text-xs text-slate-500">
-                      {project.scheduled_start_date
-                        ? new Date(project.scheduled_start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                        : "–"}
-                      {" → "}
-                      {project.scheduled_end_date
-                        ? new Date(project.scheduled_end_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                        : "–"}
-                    </span>
-                  )}
-                </div>
-                {!isEditingHeader && projectDescription && (
-                  <p className="pb-2 text-sm text-slate-500 leading-relaxed line-clamp-2">
-                    {projectDescription}
-                  </p>
-                )}
-              </div>
-
-              {/* Right: status + client */}
-              <div className="flex flex-col items-end gap-1.5 shrink-0 pt-1">
-                <div className="flex items-center gap-2">
-                  {!isEditingHeader && (
-                    <button
-                      onClick={() => setIsEditingHeader(true)}
-                      className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition-all shadow-sm hover:border-slate-400 hover:text-slate-900"
-                    >
-                      <Pencil className="w-3 h-3" />
-                      Edit
-                    </button>
-                  )}
-                  <StatusDropdown status={project.status} onChange={handleStatusChange} />
-                  {project.contract_value != null && (
-                    <p className="text-sm font-semibold text-slate-900 border-l border-slate-200 pl-3">
-                      {t("contractValue", { amount: project.contract_value })}
-                    </p>
-                  )}
-                </div>
-                <ClientPicker
-                  projectId={project.id}
-                  currentClientId={project.client_id}
-                  onChange={handleClientChange}
-                />
+                <StatusDropdown status={project.status} onChange={handleStatusChange} />
               </div>
             </div>
+
+            {/* Edit form OR display rows */}
+            {isEditingHeader ? (
+              <div className="max-w-4xl space-y-4 pb-3">
+                <label className="block space-y-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Project Title
+                  </span>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    placeholder="Project title"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-semibold tracking-tight text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
+                  />
+                </label>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      Project Overview
+                    </span>
+                    <span className="text-[11px] text-slate-400">Supports markdown formatting.</span>
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200/70">
+                    {/* Formatting toolbar */}
+                    <div className="flex items-center gap-0.5 border-b border-slate-100 px-2 py-1.5">
+                      {[
+                        { type: "bold"   as const, icon: <Bold className="h-3.5 w-3.5" />,         title: "Bold" },
+                        { type: "italic" as const, icon: <Italic className="h-3.5 w-3.5" />,       title: "Italic" },
+                        { type: "ul"     as const, icon: <List className="h-3.5 w-3.5" />,         title: "Bullet list" },
+                        { type: "ol"     as const, icon: <ListOrdered className="h-3.5 w-3.5" />,  title: "Numbered list" },
+                      ].map(({ type, icon, title }) => (
+                        <button
+                          key={type}
+                          type="button"
+                          title={title}
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdown(type) }}
+                          className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      ref={descriptionTextareaRef}
+                      value={draftDescription}
+                      onChange={(e) => setDraftDescription(e.target.value)}
+                      placeholder="Add a concise summary of the job, goals, or important context. Use **bold**, *italic*, - bullets, or 1. numbered lists."
+                      rows={5}
+                      className="w-full resize-y px-4 py-3 text-sm leading-6 text-slate-700 outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <p className="text-xs text-slate-400">
+                    The brief and other project views will use this context too.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCancelHeaderEdit}
+                      disabled={savingHeader}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveHeader}
+                      disabled={savingHeader}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {savingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Save changes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-8 mb-1">
+                {/* Left: title + description */}
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight mb-2">
+                    {project.title}
+                  </h1>
+                  {projectDescription && (() => {
+                    const isLong = projectDescription.length > DESCRIPTION_TRUNCATE_CHARS
+                    const displayed = isLong && !descriptionExpanded
+                      ? projectDescription.slice(0, DESCRIPTION_TRUNCATE_CHARS).trimEnd() + "…"
+                      : projectDescription
+                    return (
+                      <div>
+                        <div className="text-sm text-slate-500 leading-relaxed [&>*:last-child]:mb-0">
+                          <ReactMarkdown
+                            components={{
+                              p:      ({ ...props }) => <p className="mb-1.5 text-sm text-slate-500 leading-relaxed" {...props} />,
+                              ul:     ({ ...props }) => <ul className="mb-1.5 list-disc space-y-0.5 pl-5 text-sm text-slate-500" {...props} />,
+                              ol:     ({ ...props }) => <ol className="mb-1.5 list-decimal space-y-0.5 pl-5 text-sm text-slate-500" {...props} />,
+                              li:     ({ ...props }) => <li className="leading-relaxed" {...props} />,
+                              strong: ({ ...props }) => <strong className="font-semibold text-slate-700" {...props} />,
+                              em:     ({ ...props }) => <em className="italic" {...props} />,
+                            }}
+                          >
+                            {displayed}
+                          </ReactMarkdown>
+                        </div>
+                        {isLong && (
+                          <button
+                            type="button"
+                            onClick={() => setDescriptionExpanded(v => !v)}
+                            className="mt-1 text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors"
+                          >
+                            {descriptionExpanded ? "Show less" : "Show more"}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Right: date + client */}
+                <div className="shrink-0 flex flex-col items-end gap-2 pt-1">
+                  {(project.scheduled_start_date || project.scheduled_end_date) && (
+                    <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>
+                        {project.scheduled_start_date
+                          ? new Date(project.scheduled_start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                          : "–"}
+                        {" → "}
+                        {project.scheduled_end_date
+                          ? new Date(project.scheduled_end_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : "–"}
+                      </span>
+                    </div>
+                  )}
+                  <ClientPicker
+                    projectId={project.id}
+                    currentClientId={project.client_id}
+                    onChange={handleClientChange}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Bottom row: gooey tabs */}
             {(() => {
@@ -334,8 +407,10 @@ export default function ProjectDetailPage() {
           <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
             <TabsContent value="overview" className="mt-0 space-y-8">
-              <ProjectQuotes project={project} />
-              <ProjectProposals project={project} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProjectQuotes project={project} />
+                <ProjectProposals project={project} />
+              </div>
               <BriefPanel
                 projectId={project.id}
                 initialBrief={project.brief}
@@ -401,6 +476,19 @@ function StatusDropdown({ status, onChange }: { status: Project["status"]; onCha
 
 interface SimpleClient { id: number; name: string; phone?: string; email?: string; address?: string }
 
+const AVATAR_COLORS = [
+  "bg-violet-500", "bg-sky-500", "bg-emerald-500",
+  "bg-orange-500", "bg-pink-500", "bg-indigo-500", "bg-teal-500",
+]
+
+function clientInitials(name: string): string {
+  return name.trim().split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+}
+
+function clientAvatarColor(name: string): string {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+}
+
 function ClientPicker({
   projectId,
   currentClientId,
@@ -417,7 +505,6 @@ function ClientPicker({
   const [search, setSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
 
-  // Load full info for the assigned client on mount / when id changes
   useEffect(() => {
     if (!currentClientId) { setCurrentClient(null); return }
     api.getClient(currentClientId)
@@ -452,42 +539,38 @@ function ClientPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+        className="flex flex-col items-end gap-0.5 py-1 group text-right"
       >
-        <User className="w-3 h-3" />
-        {currentClient ? currentClient.name : <span className="text-slate-400">Assign Client</span>}
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        {currentClient ? (
+          <>
+            <div className="flex items-center gap-2">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${clientAvatarColor(currentClient.name)}`}>
+                {clientInitials(currentClient.name)}
+              </div>
+              <span className="font-semibold text-slate-900 text-sm">{currentClient.name}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </div>
+            {(currentClient.phone || currentClient.email) && (
+              <div className="flex items-center gap-2 text-sm text-slate-400 pl-10">
+                {currentClient.phone && <span>{currentClient.phone}</span>}
+                {currentClient.phone && currentClient.email && <span className="text-slate-300">·</span>}
+                {currentClient.email && <span>{currentClient.email}</span>}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <User className="w-4 h-4" />
+            </div>
+            <span className="text-sm text-slate-400 group-hover:text-slate-600 transition-colors">Assign client</span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </div>
+        )}
       </button>
 
-      {/* Contact info shown inline when a client is assigned */}
-      {currentClient && (currentClient.phone || currentClient.email) && (
-        <div className="flex items-center gap-2 mt-0.5 ml-0.5">
-          {currentClient.phone && (
-            <a
-              href={`tel:${currentClient.phone}`}
-              className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {currentClient.phone}
-            </a>
-          )}
-          {currentClient.phone && currentClient.email && (
-            <span className="text-[10px] text-slate-300">·</span>
-          )}
-          {currentClient.email && (
-            <a
-              href={`mailto:${currentClient.email}`}
-              className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {currentClient.email}
-            </a>
-          )}
-        </div>
-      )}
-
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute top-full mt-1 right-0 z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
