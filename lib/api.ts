@@ -30,6 +30,7 @@ import type {
   FrontlineSetupContextResponse,
   FrontlineSetupGenerateResponse,
   FrontlineSetupPreview,
+  FrontlineStats,
   FrontlineTeachNote,
   FrontlineVoiceDevStatus,
   FrontlineVoiceDemoSessionStart,
@@ -720,6 +721,16 @@ class ApiClient {
 
   async getFrontlineActivity(limit = 50): Promise<{ events: FrontlineActivityEvent[] }> {
     return this.request(`/contractors/profile/frontline/activity?limit=${limit}`)
+  }
+
+  async getFrontlineStats(timezone?: string): Promise<FrontlineStats> {
+    const tz =
+      timezone?.trim() ||
+      (typeof Intl !== 'undefined'
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : '')
+    const query = tz ? `?timezone=${encodeURIComponent(tz)}` : ''
+    return this.request(`/contractors/profile/frontline/stats${query}`)
   }
 
   async getFrontlineApprovals(status = 'pending'): Promise<{

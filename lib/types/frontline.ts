@@ -135,6 +135,29 @@ export interface FrontlineSandboxAnswer {
   sources: string[]
 }
 
+export interface FrontlineStatsWindow {
+  calls_handled: number
+  talk_minutes: number
+  talk_seconds: number
+  texts_handled: number
+  handoffs: number
+}
+
+export interface FrontlineWeeklyCallPoint {
+  day: string
+  date: string
+  answered: number
+  sent_to_you: number
+}
+
+export interface FrontlineStats {
+  all: FrontlineStatsWindow
+  last_30d: FrontlineStatsWindow
+  weekly_calls: FrontlineWeeklyCallPoint[]
+  /** IANA timezone used to bucket weekly_calls (from browser or UTC). */
+  timezone?: string
+}
+
 export interface FrontlineActivityEvent {
   id: number
   profile_uuid: string

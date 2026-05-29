@@ -17,25 +17,44 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
-  FileText,
   FlaskConical,
+  LayoutDashboard,
   Loader2,
   MessageSquare,
   Mic2,
   PenLine,
+  Phone,
+  PhoneCall,
+  PhoneForwarded,
   Save,
+  Send,
   ShieldCheck,
   Sparkles,
   UserRound,
   Wand2,
   Zap,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import {
+  formatFrontlineActivityDate,
+  formatWeeklyChartDayLabel,
+  getBrowserTimezone,
+  parseCalendarDateYmd,
+} from "@/lib/frontline-datetime";
 import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-voice-training-panel";
 import { FrontlineInitialSetupCard } from "@/components/frontline/frontline-initial-setup-card";
 import type {
@@ -45,9 +64,10 @@ import type {
   FrontlineReplyApproval,
   FrontlineSandboxAnswer,
   FrontlineSettings,
+  FrontlineStats,
 } from "@/lib/types/frontline";
 
-type ViewKey = "train" | "test" | "operate";
+type ViewKey = "dashboard" | "train" | "test" | "settings";
 
 type KnowledgeSection = {
   title: string;
@@ -55,11 +75,6 @@ type KnowledgeSection = {
   words: number;
 };
 
-type TrainingPrompt = {
-  key: string;
-  title: string;
-  prompt: string;
-};
 
 type VoiceState = "idle" | "connecting" | "recording" | "saving" | "completed" | "failed";
 
@@ -69,44 +84,6 @@ type VoiceTranscriptItem = {
   at?: string;
 };
 
-const TRAINING_PROMPTS: TrainingPrompt[] = [
-  {
-    key: "services",
-    title: "Services",
-    prompt:
-      "What services do you offer, what jobs do you avoid, and what is your ideal customer?",
-  },
-  {
-    key: "pricing",
-    title: "Pricing",
-    prompt:
-      "How should the operator explain estimates, minimums, deposits, trip fees, and pricing boundaries?",
-  },
-  {
-    key: "schedule",
-    title: "Scheduling",
-    prompt:
-      "What hours, service areas, booking rules, emergency rules, and lead times should it know?",
-  },
-  {
-    key: "tone",
-    title: "Tone",
-    prompt:
-      "How should it sound when replying to customers? Include words or promises it should avoid.",
-  },
-  {
-    key: "handoff",
-    title: "Handoff",
-    prompt:
-      "When should it escalate to you instead of answering by itself?",
-  },
-  {
-    key: "proof",
-    title: "Proof",
-    prompt:
-      "What licenses, warranties, guarantees, neighborhoods, reviews, or trust details should it mention?",
-  },
-];
 
 const VIEW_STEPS: Array<{
   id: ViewKey;
@@ -114,6 +91,12 @@ const VIEW_STEPS: Array<{
   subtitle: string;
   icon: ElementType;
 }> = [
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    subtitle: "Calls, texts, and recent activity.",
+    icon: LayoutDashboard,
+  },
   {
     id: "train",
     title: "Train",
@@ -127,9 +110,9 @@ const VIEW_STEPS: Array<{
     icon: FlaskConical,
   },
   {
-    id: "operate",
-    title: "Operate",
-    subtitle: "Choose how replies are handled.",
+    id: "settings",
+    title: "Settings",
+    subtitle: "Reply mode, voice, and operator.",
     icon: ShieldCheck,
   },
 ];
@@ -218,18 +201,6 @@ function parseKnowledgeSections(markdown: string): KnowledgeSection[] {
   return sections;
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "just now";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "just now";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   for (let index = 0; index < bytes.length; index += 1) {
@@ -277,6 +248,50 @@ function pcm16ToAudioBuffer(bytes: Uint8Array, context: AudioContext, sampleRate
   return buffer;
 }
 
+function formatTalkTime(minutes: number) {
+  if (!minutes || minutes < 1) return "0m";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+const STAT_TONES = {
+  emerald: { ring: "border-emerald-100 bg-emerald-50/60", chip: "bg-emerald-100 text-emerald-700" },
+  sky: { ring: "border-sky-100 bg-sky-50/60", chip: "bg-sky-100 text-sky-700" },
+  violet: { ring: "border-violet-100 bg-violet-50/60", chip: "bg-violet-100 text-violet-700" },
+  amber: { ring: "border-amber-100 bg-amber-50/60", chip: "bg-amber-100 text-amber-700" },
+} as const;
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "emerald",
+}: {
+  icon: ElementType;
+  label: string;
+  value: string | number;
+  tone?: keyof typeof STAT_TONES;
+}) {
+  const palette = STAT_TONES[tone];
+  return (
+    <div className={cx("rounded-2xl border p-3.5", palette.ring)}>
+      <div className="flex items-center gap-2">
+        <span className={cx("flex h-7 w-7 items-center justify-center rounded-lg", palette.chip)}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          {label}
+        </span>
+      </div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-950">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function statusText(settings: FrontlineSettings | null) {
   if (!settings?.enabled || settings.mode === "off") return "Paused";
   if (settings.mode === "auto") return "Auto mode";
@@ -302,27 +317,6 @@ function Surface({
   );
 }
 
-function MiniMetric({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string | number;
-  icon: ElementType;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-        <Icon className="h-4 w-4" />
-      </span>
-      <span>
-        <span className="block text-sm font-semibold text-slate-950">{value}</span>
-        <span className="block text-xs text-slate-500">{label}</span>
-      </span>
-    </div>
-  );
-}
 
 function StepButton({
   active,
@@ -404,8 +398,456 @@ function ModeButton({
   );
 }
 
+function DashboardView({
+  stats,
+  statsWindow,
+  onWindowChange,
+  events,
+  approvals,
+}: {
+  stats: FrontlineStats | null;
+  statsWindow: "all" | "last_30d";
+  onWindowChange: (window: "all" | "last_30d") => void;
+  events: FrontlineActivityEvent[];
+  approvals: FrontlineReplyApproval[];
+}) {
+  const window = stats?.[statsWindow];
+  const weekly = stats?.weekly_calls ?? [];
+  const weeklyChartData = useMemo(
+    () =>
+      weekly.map((point) => ({
+        ...point,
+        day: formatWeeklyChartDayLabel(point.date, point.day),
+      })),
+    [weekly],
+  );
+  const weeklyTotal = weekly.reduce((sum, point) => sum + point.answered + point.sent_to_you, 0);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+      <div className="space-y-6">
+        <Surface>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+              <Activity className="h-4 w-4 text-emerald-500" />
+              At a glance
+            </div>
+            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-0.5">
+              {([
+                { key: "all", label: "All time" },
+                { key: "last_30d", label: "30 days" },
+              ] as const).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => onWindowChange(option.key)}
+                  className={cx(
+                    "rounded-full px-3 py-1 text-[11px] font-medium transition",
+                    statsWindow === option.key
+                      ? "bg-slate-950 text-white"
+                      : "text-slate-500 hover:text-slate-800",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard tone="emerald" icon={PhoneCall} label="Calls handled" value={window?.calls_handled ?? 0} />
+            <StatCard tone="sky" icon={Clock3} label="Talk time" value={formatTalkTime(window?.talk_minutes ?? 0)} />
+            <StatCard tone="violet" icon={MessageSquare} label="Texts handled" value={window?.texts_handled ?? 0} />
+            <StatCard tone="amber" icon={PhoneForwarded} label="Handoffs" value={window?.handoffs ?? 0} />
+          </div>
+        </Surface>
+
+        <Surface>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                <PhoneCall className="h-4 w-4 text-emerald-500" />
+                Calls this week
+              </div>
+              {stats?.timezone ? (
+                <p className="text-[11px] text-slate-500">
+                  Week and days use your local time ({stats.timezone.replace(/_/g, " ")}).
+                </p>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+                Answered
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" />
+                Sent to you
+              </span>
+            </div>
+          </div>
+
+          {weeklyTotal > 0 ? (
+            <div className="mt-5 h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={weeklyChartData}
+                  margin={{ top: 8, right: 4, left: -18, bottom: 0 }}
+                  barSize={26}
+                >
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    width={32}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: "rgba(16,185,129,0.06)" }}
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 12,
+                      boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
+                    }}
+                    labelFormatter={(_label, payload) => {
+                      const dateYmd = payload?.[0]?.payload?.date as string | undefined;
+                      const day = parseCalendarDateYmd(dateYmd ?? "");
+                      if (!day) return _label;
+                      return new Intl.DateTimeFormat(undefined, {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      }).format(day);
+                    }}
+                  />
+                  <Bar dataKey="answered" name="Answered" stackId="calls" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="sent_to_you" name="Sent to you" stackId="calls" fill="#cbd5e1" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm leading-6 text-slate-500">
+              No calls yet this week. Answered calls and handoffs will chart here.
+            </p>
+          )}
+        </Surface>
+
+      </div>
+
+      <div className="space-y-6">
+        <Surface className="bg-gradient-to-br from-white to-amber-50/50">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+            <ClipboardList className="h-4 w-4 text-amber-500" />
+            Waiting for owner
+          </div>
+          <div className="mt-4 space-y-3">
+            {approvals.length ? (
+              approvals.slice(0, 4).map((approval) => (
+                <div
+                  key={approval.id}
+                  className="rounded-2xl border border-amber-100 bg-white/80 p-4"
+                >
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span className="font-medium text-slate-700">{approval.customer_number}</span>
+                    <span>{formatFrontlineActivityDate(approval.created_at)}</span>
+                  </div>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-800">
+                    {approval.draft_body}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-dashed border-amber-200 bg-white/60 p-4 text-sm leading-6 text-slate-500">
+                No pending owner approvals.
+              </p>
+            )}
+          </div>
+        </Surface>
+
+        <Surface>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+            <Activity className="h-4 w-4 text-sky-500" />
+            Recent activity
+          </div>
+          <div className="mt-4 space-y-2.5">
+            {events.length ? (
+              events.slice(0, 6).map((event) => (
+                <div
+                  key={event.id}
+                  className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
+                >
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-sky-600 shadow-sm">
+                    <CalendarClock className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-950">
+                      {event.title || event.event_type}
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      {formatFrontlineActivityDate(event.created_at)}
+                    </div>
+                    {event.detail && (
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">
+                        {event.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+                Activity will appear after sandbox tests, teach notes, approvals, and SMS events.
+              </p>
+            )}
+          </div>
+        </Surface>
+      </div>
+    </div>
+  );
+}
+
+function SmsPreview({
+  operatorName,
+  askedQuestion,
+  answer,
+  pending,
+  quickTests,
+  onSend,
+  teachValue,
+  setTeachValue,
+  onTeach,
+}: {
+  operatorName: string;
+  askedQuestion: string;
+  answer: FrontlineSandboxAnswer | null;
+  pending: boolean;
+  quickTests: readonly string[];
+  onSend: (text: string) => void;
+  teachValue: string;
+  setTeachValue: (value: string) => void;
+  onTeach: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [teaching, setTeaching] = useState(false);
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const confidence = answer ? Math.round((answer.confidence || 0) * 100) : null;
+  const hasThread = Boolean(askedQuestion.trim() || answer || pending);
+
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
+  }, [askedQuestion, answer, pending, teaching]);
+
+  useEffect(() => {
+    if (!answer) setTeaching(false);
+  }, [answer]);
+
+  const send = () => {
+    const text = draft.trim();
+    if (!text || pending) return;
+    onSend(text);
+    setDraft("");
+  };
+
+  const saveCorrection = () => {
+    if (!teachValue.trim()) return;
+    onTeach();
+    setTeaching(false);
+  };
+
+  return (
+    <div className="flex w-full max-w-[360px] flex-col items-center">
+      <div className="w-full rounded-[2.75rem] border border-slate-200 bg-slate-950 p-2.5 shadow-xl">
+        <div className="relative flex flex-col overflow-hidden rounded-[2.25rem] bg-white">
+          <div className="absolute left-1/2 top-2 z-10 h-5 w-28 -translate-x-1/2 rounded-full bg-slate-950" />
+
+          <div className="flex flex-col items-center gap-1 border-b border-slate-100 bg-slate-50/80 px-4 pb-3 pt-8">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+              {operatorName.charAt(0).toUpperCase()}
+            </span>
+            <span className="text-sm font-semibold text-slate-900">{operatorName}</span>
+            {confidence !== null ? (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {confidence}% confident
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                <Phone className="h-3 w-3" />
+                Frontline operator · sandbox
+              </span>
+            )}
+          </div>
+
+          <div
+            ref={threadRef}
+            className="flex h-[440px] flex-col gap-3 overflow-y-auto bg-[linear-gradient(180deg,#fafafa,#f1f5f9)] px-3 py-4"
+          >
+            {!hasThread ? (
+              <div className="m-auto flex flex-col items-center gap-4 px-3 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                  <MessageSquare className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Try it like a customer</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Text a question below. The operator answers from the same knowledge it uses on
+                    real SMS — so you can check it before going live.
+                  </p>
+                </div>
+                <div className="flex w-full flex-col gap-2">
+                  {quickTests.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      onClick={() => setDraft(question)}
+                      className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-left text-xs leading-5 text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50/70 hover:text-emerald-800"
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {askedQuestion.trim() && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-sky-500 px-3.5 py-2 text-sm leading-5 text-white shadow-sm">
+                      {askedQuestion}
+                    </div>
+                  </div>
+                )}
+
+                {pending && (
+                  <div className="flex justify-start">
+                    <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-sm">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.2s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.1s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+                    </div>
+                  </div>
+                )}
+
+                {answer && !pending && (
+                  <>
+                    <div className="flex flex-col items-start gap-1.5">
+                      <div className="max-w-[82%] rounded-2xl rounded-bl-md border border-slate-100 bg-white px-3.5 py-2 text-sm leading-5 text-slate-800 shadow-sm">
+                        {answer.answer}
+                      </div>
+                      {!teaching && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTeachValue(answer.answer || "");
+                            setTeaching(true);
+                          }}
+                          className="ml-1 flex items-center gap-1 text-[11px] font-medium text-slate-400 transition hover:text-emerald-600"
+                        >
+                          <Wand2 className="h-3 w-3" />
+                          Not quite? Teach a better reply
+                        </button>
+                      )}
+                    </div>
+                    {answer.escalation_reason && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[82%] rounded-2xl rounded-bl-md border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs leading-5 text-amber-900">
+                          Would hand off: {answer.escalation_reason}
+                        </div>
+                      </div>
+                    )}
+                    {answer.sources?.length ? (
+                      <div className="flex flex-wrap gap-1.5 pl-1">
+                        {answer.sources.map((source) => (
+                          <span
+                            key={source}
+                            className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 shadow-sm"
+                          >
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {teaching ? (
+            <div className="border-t border-emerald-100 bg-emerald-50/70 px-3 py-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Teaching — this becomes future knowledge
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTeaching(false)}
+                  className="text-[11px] font-medium text-slate-400 hover:text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+              <Textarea
+                value={teachValue}
+                onChange={(event) => setTeachValue(event.target.value)}
+                placeholder="Write the reply it should have given…"
+                className="min-h-[80px] resize-none rounded-2xl border-emerald-200 bg-white text-sm leading-5 focus-visible:ring-emerald-400"
+              />
+              <Button
+                onClick={saveCorrection}
+                disabled={pending || !teachValue.trim()}
+                className="mt-2 w-full gap-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save correction
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 border-t border-slate-100 bg-white px-3 py-3">
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder="Text message"
+                disabled={pending}
+                className="min-w-0 flex-1 rounded-full bg-slate-100 px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
+              />
+              <button
+                type="button"
+                onClick={send}
+                disabled={pending || !draft.trim()}
+                aria-label="Send message"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-3 text-center text-xs text-slate-400">
+        Replies use your live knowledge. Corrections train it instantly.
+      </p>
+    </div>
+  );
+}
+
 export function FrontlinePage() {
-  const [view, setView] = useState<ViewKey>("train");
+  const [view, setView] = useState<ViewKey>("dashboard");
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
   const [markdown, setMarkdown] = useState("");
   const [trainingIntake, setTrainingIntake] = useState("");
@@ -416,7 +858,8 @@ export function FrontlinePage() {
   const [teachGood, setTeachGood] = useState("");
   const [events, setEvents] = useState<FrontlineActivityEvent[]>([]);
   const [approvals, setApprovals] = useState<FrontlineReplyApproval[]>([]);
-  const [showSource, setShowSource] = useState(false);
+  const [stats, setStats] = useState<FrontlineStats | null>(null);
+  const [statsWindow, setStatsWindow] = useState<"all" | "last_30d">("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -425,29 +868,26 @@ export function FrontlinePage() {
   const [operatorDraftVoiceId, setOperatorDraftVoiceId] = useState("matthew");
 
   const sections = useMemo(() => parseKnowledgeSections(markdown), [markdown]);
-  const wordCount = useMemo(
-    () => markdown.split(/\s+/).filter(Boolean).length,
-    [markdown],
-  );
   const activeMode: FrontlineMode = settings?.enabled ? settings.mode : "off";
-  const coverageCount = Math.min(TRAINING_PROMPTS.length, sections.length);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [settingsResponse, knowledgeResponse, activityResponse, approvalResponse] =
+      const [settingsResponse, knowledgeResponse, activityResponse, approvalResponse, statsResponse] =
         await Promise.all([
           api.getFrontlineSettings(),
           api.getFrontlineKnowledge(),
           api.getFrontlineActivity(20),
           api.getFrontlineApprovals("pending"),
+          api.getFrontlineStats(getBrowserTimezone()).catch(() => null),
         ]);
 
       setSettings(settingsResponse);
       setMarkdown(knowledgeResponse.markdown_text || "");
       setEvents(activityResponse.events || []);
       setApprovals(approvalResponse.approvals || []);
+      setStats(statsResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Your Frontline.");
     } finally {
@@ -495,19 +935,6 @@ export function FrontlinePage() {
     setOperatorEditing(false);
   };
 
-  const saveKnowledge = async (nextMarkdown = markdown) => {
-    try {
-      setSaving(true);
-      setError(null);
-      const updated = await api.updateFrontlineKnowledge(nextMarkdown, true);
-      setMarkdown(updated.markdown_text || nextMarkdown);
-      flashSuccess("Knowledge updated.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save knowledge.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const submitTrainingIntake = async () => {
     if (!trainingIntake.trim()) return;
@@ -527,12 +954,14 @@ export function FrontlinePage() {
     }
   };
 
-  const runSandbox = async () => {
-    if (!sandboxQ.trim()) return;
+  const runSandbox = async (text?: string) => {
+    const question = (text ?? sandboxQ).trim();
+    if (!question) return;
     try {
       setSaving(true);
       setError(null);
-      const answer = await api.frontlineSandboxAsk(sandboxQ.trim());
+      setSandboxQ(question);
+      const answer = await api.frontlineSandboxAsk(question);
       setSandboxA(answer);
       setTeachBad(answer.answer || "");
       setTeachGood("");
@@ -564,12 +993,7 @@ export function FrontlinePage() {
     }
   };
 
-  const appendPrompt = (prompt: string) => {
-    setTrainingIntake((current) => {
-      const trimmed = current.trim();
-      return `${trimmed ? `${trimmed}\n\n` : ""}${prompt}\n`;
-    });
-  };
+
 
   const updateMode = (mode: FrontlineMode) => {
     if (!settings?.initial_setup_done && mode !== "off") {
@@ -596,42 +1020,30 @@ export function FrontlinePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="grid gap-5 lg:grid-cols-[1fr_360px] lg:items-center">
-            <div>
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Badge className="border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100">
-                  Your Frontline
-                </Badge>
-                <Badge
-                  className={cx(
-                    "border",
-                    activeMode === "auto"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : activeMode === "review"
-                        ? "border-blue-200 bg-blue-50 text-blue-800"
-                        : "border-slate-200 bg-slate-100 text-slate-600",
-                  )}
-                >
-                  {statusText(settings)}
-                </Badge>
-              </div>
-              <h1 className="max-w-3xl text-3xl font-semibold tracking-normal text-slate-950 sm:text-4xl">
-                Make the business number answer like a trained operator.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Start by training it with plain business context. Then test replies in the sandbox and
-                run SMS in review mode until it earns more trust.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <MiniMetric label="Knowledge sections" value={sections.length || 0} icon={FileText} />
-              <MiniMetric label="Words trained" value={wordCount || 0} icon={BookOpen} />
-              <MiniMetric label="Pending replies" value={approvals.length || 0} icon={MessageSquare} />
-              <MiniMetric label="Recent events" value={events.length || 0} icon={Activity} />
-            </div>
+        <header className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+              Your Frontline
+            </Badge>
+            <Badge
+              className={cx(
+                "border",
+                activeMode === "auto"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : activeMode === "review"
+                    ? "border-sky-200 bg-sky-50 text-sky-800"
+                    : "border-slate-200 bg-slate-100 text-slate-600",
+              )}
+            >
+              {statusText(settings)}
+            </Badge>
           </div>
+          <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Make the business number answer like a trained operator.
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Train it on your business, test replies, then run SMS and calls with the right amount of trust.
+          </p>
         </header>
 
         {settings && !settings.initial_setup_done && (
@@ -653,7 +1065,7 @@ export function FrontlinePage() {
           </div>
         )}
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {VIEW_STEPS.map((step) => (
             <StepButton
               key={step.id}
@@ -664,55 +1076,41 @@ export function FrontlinePage() {
           ))}
         </div>
 
+        {view === "dashboard" && (
+          <DashboardView
+            stats={stats}
+            statsWindow={statsWindow}
+            onWindowChange={setStatsWindow}
+            events={events}
+            approvals={approvals}
+          />
+        )}
+
         {view === "train" && (
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <Surface>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <PenLine className="h-4 w-4 text-slate-500" />
-                    Training notes
-                  </div>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Write naturally, paste notes, or answer the starter prompts. The system converts
-                    this into the structured knowledge used by SMS and sandbox replies.
-                  </p>
-                </div>
-                <Badge className="w-fit border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100">
-                  {coverageCount}/{TRAINING_PROMPTS.length} areas started
-                </Badge>
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-900">
+                <PenLine className="h-3.5 w-3.5 text-slate-400" />
+                Training notes
               </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {TRAINING_PROMPTS.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => appendPrompt(item.prompt)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    {item.title}
-                  </button>
-                ))}
-              </div>
+              <p className="mt-1 text-[12.5px] text-slate-500">
+                Write anything — pricing, policies, how you work. Short is fine.
+              </p>
 
               <Textarea
                 value={trainingIntake}
                 onChange={(event) => setTrainingIntake(event.target.value)}
-                placeholder="Example: We serve homeowners within 25 miles. We usually reply in 10 minutes. Emergency jobs should be escalated. For pricing, explain that final estimates require photos or a visit..."
-                className="mt-5 min-h-[230px] resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 focus-visible:ring-slate-400"
+                placeholder="e.g. We charge $85–150/hr. Free estimates for jobs over $500. We don't do roofing or electrical. Emergency calls go to Mike directly..."
+                className="mt-4 min-h-[180px] resize-none rounded-xl border-slate-200 bg-slate-50/60 text-[13px] leading-6 placeholder:text-slate-400 focus-visible:ring-slate-300"
               />
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-xs text-slate-500">
-                  Better initial notes mean fewer corrections later. Short is fine.
-                </span>
+              <div className="mt-3 flex justify-end">
                 <Button
                   onClick={submitTrainingIntake}
                   disabled={saving || trainingIntake.trim().length < 20}
-                  className="gap-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800"
+                  className="gap-2 rounded-full bg-slate-900 px-5 text-[13px] text-white hover:bg-slate-700"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
                   Build knowledge
                 </Button>
               </div>
@@ -754,132 +1152,35 @@ export function FrontlinePage() {
         )}
 
         {view === "test" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-            <Surface>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                <FlaskConical className="h-4 w-4 text-slate-500" />
-                Sandbox
-              </div>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Ask it the way a customer would. The answer uses the same knowledge path the SMS
-                operator will use.
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {QUICK_TESTS.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => setSandboxQ(question)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-
-              <Textarea
-                value={sandboxQ}
-                onChange={(event) => setSandboxQ(event.target.value)}
-                placeholder="Customer asks..."
-                className="mt-5 min-h-[150px] resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 focus-visible:ring-slate-400"
-              />
-
-              <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={runSandbox}
-                  disabled={saving || !sandboxQ.trim()}
-                  className="gap-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-                  Draft reply
-                </Button>
-              </div>
-            </Surface>
-
-            <div className="space-y-6">
-              <Surface>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <MessageSquare className="h-4 w-4 text-slate-500" />
-                    Draft
-                  </div>
-                  {sandboxA && (
-                    <Badge className="border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100">
-                      {Math.round((sandboxA.confidence || 0) * 100)}% confidence
-                    </Badge>
-                  )}
-                </div>
-
-                {sandboxA ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
-                      {sandboxA.answer}
-                    </div>
-                    {sandboxA.escalation_reason && (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                        Escalate: {sandboxA.escalation_reason}
-                      </div>
-                    )}
-                    {sandboxA.sources?.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {sandboxA.sources.map((source) => (
-                          <Badge
-                            key={source}
-                            className="border-slate-200 bg-white text-slate-600 hover:bg-white"
-                          >
-                            {source}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-                    The drafted answer will appear here.
-                  </p>
-                )}
-              </Surface>
-
-              {sandboxA && (
-                <Surface>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <Wand2 className="h-4 w-4 text-slate-500" />
-                    Teach it
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    If the reply is off, write the answer it should have given. That correction becomes
-                    future knowledge.
-                  </p>
-                  <Textarea
-                    value={teachGood}
-                    onChange={(event) => setTeachGood(event.target.value)}
-                    placeholder="The ideal answer should say..."
-                    className="mt-4 min-h-[120px] resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 focus-visible:ring-slate-400"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={submitTeach}
-                    disabled={saving || !teachGood.trim()}
-                    className="mt-4 w-full gap-2 rounded-xl border-slate-200"
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Save correction
-                  </Button>
-                </Surface>
-              )}
-            </div>
+          <div className="flex justify-center">
+            <SmsPreview
+              operatorName={
+                settings?.operator_display_name ||
+                OPERATOR_OPTIONS.find(
+                  (option) => option.voiceId === (settings?.operator_voice_id || "matthew"),
+                )?.name ||
+                "Henry"
+              }
+              askedQuestion={sandboxQ}
+              answer={sandboxA}
+              pending={saving}
+              quickTests={QUICK_TESTS}
+              onSend={(text) => void runSandbox(text)}
+              teachValue={teachGood}
+              setTeachValue={setTeachGood}
+              onTeach={submitTeach}
+            />
           </div>
         )}
 
-        {view === "operate" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+        {view === "settings" && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
             <div className="space-y-6">
               <Surface>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                      <ShieldCheck className="h-4 w-4 text-slate-500" />
+                      <ShieldCheck className="h-4 w-4 text-emerald-500" />
                       Reply mode
                     </div>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
@@ -1062,124 +1363,31 @@ export function FrontlinePage() {
                 )}
               </Surface>
 
-              <Surface>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <BookOpen className="h-4 w-4 text-slate-500" />
-                    Knowledge map
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setShowSource((current) => !current)}
-                    className="h-8 rounded-xl px-3 text-xs text-slate-600"
-                  >
-                    {showSource ? "Hide source" : "Advanced"}
-                  </Button>
-                </div>
-
-                {sections.length ? (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {sections.slice(0, 4).map((section) => (
-                      <div
-                        key={section.title}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="text-sm font-semibold text-slate-950">{section.title}</div>
-                        <div className="mt-1 text-xs text-slate-500">{section.words} words</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-                    Train it first, then the knowledge map will show the areas it can answer from.
-                  </p>
-                )}
-
-                {showSource && (
-                  <div className="mt-4">
-                    <Textarea
-                      value={markdown}
-                      onChange={(event) => setMarkdown(event.target.value)}
-                      className="min-h-[260px] resize-y rounded-2xl border-slate-200 bg-slate-50 font-mono text-xs leading-5 focus-visible:ring-slate-400"
-                    />
-                    <div className="mt-3 flex justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => saveKnowledge()}
-                        disabled={saving}
-                        className="gap-2 rounded-xl border-slate-200"
-                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Save source
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Surface>
             </div>
 
             <div className="space-y-6">
-              <Surface>
+              <Surface className="bg-gradient-to-br from-white to-sky-50/50">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <ClipboardList className="h-4 w-4 text-slate-500" />
-                  Waiting for owner
+                  <Sparkles className="h-4 w-4 text-sky-500" />
+                  How trust builds
                 </div>
-                <div className="mt-4 space-y-3">
-                  {approvals.length ? (
-                    approvals.slice(0, 3).map((approval) => (
-                      <div
-                        key={approval.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                          <span>{approval.customer_number}</span>
-                          <span>{formatDate(approval.created_at)}</span>
-                        </div>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-800">
-                          {approval.draft_body}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-                      No pending owner approvals.
-                    </p>
-                  )}
-                </div>
-              </Surface>
-
-              <Surface>
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Activity className="h-4 w-4 text-slate-500" />
-                  Recent activity
-                </div>
-                <div className="mt-4 space-y-3">
-                  {events.length ? (
-                    events.slice(0, 5).map((event) => (
-                      <div key={event.id} className="flex gap-3">
-                        <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                          <CalendarClock className="h-4 w-4" />
-                        </span>
-                        <div>
-                          <div className="text-sm font-medium text-slate-950">
-                            {event.title || event.event_type}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">{formatDate(event.created_at)}</div>
-                          {event.detail && (
-                            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">
-                              {event.detail}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-                      Activity will appear after sandbox tests, teach notes, approvals, and SMS events.
-                    </p>
-                  )}
-                </div>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+                  <li className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                    Start in <span className="font-medium text-slate-800">Review</span> — every reply waits for your OK.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                    Use <span className="font-medium text-slate-800">Test</span> to correct answers until they sound right.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                    Switch to <span className="font-medium text-slate-800">Auto</span> once confident — only high-confidence replies send on their own.
+                  </li>
+                </ul>
+                <p className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-3 text-xs leading-5 text-slate-500">
+                  Live stats and recent activity now live in the Dashboard tab.
+                </p>
               </Surface>
             </div>
           </div>
