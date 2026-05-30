@@ -162,8 +162,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       setUser(extendedUser)
-    } catch (error) {
-      setUser(null)
+    } catch (error: any) {
+      // Only clear the user session on actual auth failures (401/403).
+      // Transient errors (network blip, 500, timeout) should not log the user out.
+      const status = error?.status ?? error?.response?.status
+      const msg = String(error?.message ?? "")
+      const isAuthFailure =
+        status === 401 ||
+        status === 403 ||
+        msg.includes("401") ||
+        msg.includes("Unauthorized") ||
+        msg.includes("Forbidden")
+      if (isAuthFailure) {
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }

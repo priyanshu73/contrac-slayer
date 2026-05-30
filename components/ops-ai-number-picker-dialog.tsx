@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { api } from "@/lib/api"
-import { useAuth } from "@/contexts/AuthContext"
 import { getAllStates, getAreaCodesForState, type StateAbbrev } from "@/lib/area-codes"
 import { loadContractorOpsNumberPrefs } from "@/lib/contractor-ops-number-prefs"
 import type { TwilioAvailableNumber, TwilioProvisionResult } from "@/lib/types/twilio"
@@ -40,8 +39,6 @@ export function OpsAiNumberPickerDialog({
 }: OpsAiNumberPickerDialogProps) {
   const tPicker = useTranslations("profileSetup.numberPicker")
   const tOps = useTranslations("profileSetup.opsAiNumber")
-  const { refreshUser } = useAuth()
-
   const [step, setStep] = useState<"area" | "pick">("area")
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
@@ -173,18 +170,22 @@ export function OpsAiNumberPickerDialog({
         areaCode,
         state: selectedState,
       })
+      if (
+        result.status === "already_provisioned" &&
+        result.twilio_number &&
+        result.twilio_number !== phoneNumber
+      ) {
+        setPickerError(
+          tPicker("provisionFailed") +
+            ` (${result.twilio_number} is already assigned to this account.)`,
+        )
+        return
+      }
       setProvisionResult(result)
-      await refreshUser()
       onSuccess?.()
       setTimeout(() => onOpenChange(false), 1600)
     } catch (err: unknown) {
       const msg = String((err as { message?: string })?.message ?? "")
-      if (msg.includes("already_provisioned") || msg.includes("409")) {
-        await refreshUser()
-        onSuccess?.()
-        onOpenChange(false)
-        return
-      }
       setPickerError(msg || tPicker("provisionFailed"))
     } finally {
       setProvisioning(false)
