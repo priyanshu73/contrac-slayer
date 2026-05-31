@@ -1284,7 +1284,7 @@ export function ProposalBuilder({
   }, [isProposalMode, job?.id, job?.project_media, project?.id, project?.media])
 
   useEffect(() => {
-    const hasExistingDoc = isProposalMode ? !!proposal?.proposal_document : !!job?.proposal_document
+    const hasExistingDoc = !!proposal?.proposal_document
     const shouldHydrateOverview =
       !hasExistingDoc &&
       !overviewLoaded &&
@@ -1323,7 +1323,7 @@ export function ProposalBuilder({
     return () => {
       cancelled = true
     }
-  }, [document.projectOverview.description, isProposalMode, job?.id, job?.proposal_document, overviewLoaded, proposal])
+  }, [document.projectOverview.description, isProposalMode, job?.id, overviewLoaded, proposal])
 
   const generateFullProposal = useCallback(async (opts?: {
     clarifiedScope?: ScopeClarifiedScope | null
@@ -1501,7 +1501,9 @@ export function ProposalBuilder({
 
   const getProposalShareUrl = () => {
     if (proposalShareUrl) return proposalShareUrl
-    const publicLink = isProposalMode ? proposal?.public_link : job?.proposal_public_link
+    // Only standalone/project proposals are shareable. Quote-attached proposals
+    // are never publicly viewable, so they have no share link.
+    const publicLink = isProposalMode ? proposal?.public_link : undefined
     if (!publicLink || typeof window === "undefined") return ""
     return `${window.location.origin}/${locale}/proposals/${publicLink}`
   }
@@ -1532,25 +1534,7 @@ export function ProposalBuilder({
         setProposalShareUrl(url)
         return url
       }
-      if (job) {
-        const updated = (await api.updateJob(job.id, { proposal_document: document })) as Job
-        onJobUpdated?.(updated)
-        const link = updated.proposal_public_link
-        if (!link) {
-          toast({
-            title: "No share link",
-            description: "Save the proposal first, then try again.",
-            variant: "destructive",
-          })
-          return null
-        }
-        const url =
-          typeof window !== "undefined"
-            ? `${window.location.origin}/${locale}/proposals/${link}`
-            : `/${locale}/proposals/${link}`
-        setProposalShareUrl(url)
-        return url
-      }
+      // Quote-attached proposals are not shareable — there is no public link.
     } catch (err: any) {
       toast({
         title: "Error",
@@ -1711,39 +1695,40 @@ export function ProposalBuilder({
   const inlineActionButtonClass =
     "h-8 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50"
 
-  const persistProposal = (p: Proposal, data: Parameters<typeof api.updateProposal>[2]) =>
-    p.project_id
-      ? api.updateProposal(p.project_id, p.id, data)
-      : api.updateStandaloneProposal(p.id, data)
+  // Persist a proposal update. Job-linked proposals (quote builder) use the
+  // /jobs/{jobId}/proposals/{id} endpoint; project proposals use the project
+  // endpoint; standalone proposals use the standalone endpoint.
+  const persistProposal = (p: Proposal, data: Parameters<typeof api.updateProposal>[2]) => {
+    const jobId = job?.id ?? p.quote_references?.[0]?.job_id
+    if (jobId) return api.updateJobProposal(jobId, p.id, data)
+    if (p.project_id) return api.updateProposal(p.project_id, p.id, data)
+    return api.updateStandaloneProposal(p.id, data)
+  }
 
-  const saveProposal = async () => {
+  const saveProposal = async (silent = false) => {
+    if (!proposal) return
     setSaving(true)
     try {
-      if (isProposalMode && proposal) {
-        const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
-        onProposalUpdated?.(updated)
-        setDirty(false)
-        toast({ title: "Proposal saved", description: "Your proposal has been saved." })
-      } else if (job) {
-        const updatedJob = (await api.updateJob(job.id, { proposal_document: document })) as Job
-        onJobUpdated?.(updatedJob)
-        setDirty(false)
+      const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
+      onProposalUpdated?.(updated)
+      setDirty(false)
+      if (!silent) toast({ title: "Proposal saved", description: "Your proposal has been saved." })
+    } catch (error: any) {
+      if (!silent) {
         toast({
-          title: "Proposal saved",
-          description: updatedJob.proposal_public_link
-            ? "Your proposal is attached to this quote and now has its own share link."
-            : "Your proposal document is now attached to this quote.",
+          title: "Save failed",
+          description: error?.message || "Unable to save the proposal right now.",
+          variant: "destructive",
         })
       }
-    } catch (error: any) {
-      toast({
-        title: "Save failed",
-        description: error?.message || "Unable to save the proposal right now.",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveAndSend = async (sendAction: () => Promise<void>) => {
+    await saveProposal(true)
+    await sendAction()
   }
 
   const addPage = () => {
@@ -1823,6 +1808,7 @@ export function ProposalBuilder({
                 ) : (
                   <span className="text-xs text-slate-400">Read-only</span>
                 )}
+
               </div>
 
               {!isReadOnly ? (
@@ -1906,7 +1892,7 @@ export function ProposalBuilder({
                 </a>
               )}
               {!publicMode ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1923,38 +1909,32 @@ export function ProposalBuilder({
                       {viewMode ? "Edit mode" : "Preview"}
                     </TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                        onClick={saveProposal}
-                        disabled={saving}
-                      >
-                        {saving ? <Loader2 className="h-[22px] w-[22px] animate-spin" /> : <Save className="h-[22px] w-[22px]" />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                      Save
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              ) : null}
-
-      {!publicMode ? (
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 rounded-xl border-slate-200 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 gap-1.5 shadow-sm"
+                    onClick={() => void saveProposal()}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    Save
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" size="sm" className={inlineActionButtonClass}>
-                        <Send className="mr-1.5 h-3.5 w-3.5" />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-9 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-xs font-semibold text-white shadow-md shadow-indigo-200 hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-300 transition-all duration-200 gap-1.5"
+                        disabled={saving}
+                      >
+                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                         Send to Client
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
                       <DropdownMenuItem
-                        onClick={() => void handleSendToClient()}
+                        onClick={() => void handleSaveAndSend(() => handleSendToClient())}
                         className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
                       >
                         <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1963,7 +1943,7 @@ export function ProposalBuilder({
                         Send via Email
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => void handleSendViaSms()}
+                        onClick={() => void handleSaveAndSend(() => handleSendViaSms())}
                         disabled={sendViaSmsDisabled}
                         className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
                       >
@@ -1974,7 +1954,7 @@ export function ProposalBuilder({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-slate-100" />
                       <DropdownMenuItem
-                        onClick={() => void handleCopyProposalLink()}
+                        onClick={() => void handleSaveAndSend(() => handleCopyProposalLink())}
                         disabled={generatingLink}
                         className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
                       >
@@ -1993,6 +1973,11 @@ export function ProposalBuilder({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                </div>
+              ) : null}
+
+      {!publicMode ? (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Button
                     type="button"
                     size="sm"

@@ -466,6 +466,15 @@ export interface Proposal {
   portal_proposals?: ClientPortalProposalItem[]
 }
 
+/**
+ * Result of the public proposal lookup endpoint. `exists` is false (HTTP 200)
+ * when no proposal is associated with the link — not an error.
+ */
+export interface PublicProposalLookup {
+  exists: boolean
+  proposal?: Proposal | null
+}
+
 export interface Job {
   id: number
   uuid: string
@@ -502,8 +511,6 @@ export interface Job {
   quote_pdf_url?: string
   /** Public link for customer quote view; set when generated via generateQuotePublicLink */
   quote_public_link?: string
-  /** Public link for customer proposal view; generated once a proposal is saved */
-  proposal_public_link?: string
   // Additional fields from API (JobResponse)
   quote_expiration_date?: string
   project_type?: string
@@ -511,7 +518,6 @@ export interface Job {
   job_description?: string
   payment_terms?: string
   customer_notes?: string
-  proposal_document?: ProposalDocument
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
@@ -659,6 +665,7 @@ export interface ProjectListItem {
   title: string
   status: ProjectStatus
   client_id?: number
+  client_name?: string | null
   contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string

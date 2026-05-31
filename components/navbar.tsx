@@ -20,9 +20,34 @@ import {
   ChevronsRight,
   ChevronDown,
   Zap,
-  Sparkles,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import type { LucideProps } from "lucide-react";
+import { forwardRef, useState, useEffect } from "react";
+
+const PhoneAIIcon = forwardRef<SVGSVGElement, LucideProps>(
+  ({ className, ...props }, ref) => (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="2" y="5" width="12" height="17" rx="2" />
+      <path d="M8 18.5h.01" />
+      <path d="M19 2l1.5 3.5L24 7l-3.5 1.5L19 12l-1.5-3.5L14 7l3.5-1.5z" />
+    </svg>
+  ),
+);
+PhoneAIIcon.displayName = "PhoneAIIcon";
 import {
   Tooltip,
   TooltipContent,
@@ -152,7 +177,7 @@ export function Navbar() {
         {
           href: `/${locale}/frontline`,
           label: t("yourFrontline"),
-          icon: Sparkles,
+          icon: PhoneAIIcon,
         },
         {
           href: `/${locale}/actions/scheduling`,

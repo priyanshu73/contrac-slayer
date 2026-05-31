@@ -7,6 +7,14 @@ import type { ProjectListItem, ProjectStatus } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   AlertDialog,
@@ -18,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ChevronRight, Filter, Plus, Trash2, Loader2 } from "lucide-react"
+import { ChevronRight, Plus, Trash2, Loader2, Search } from "lucide-react"
 import { useLocale } from "next-intl"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
@@ -30,6 +38,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
+  const [searchTerm, setSearchTerm] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
 
   // Delete state
@@ -64,6 +73,15 @@ export default function ProjectsPage() {
 
   const stats = computeStats(projects)
 
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredProjects = normalizedSearch
+    ? projects.filter((p) => {
+        const title = (p.title || "").toLowerCase()
+        const client = (p.client_name || "").toLowerCase()
+        return title.includes(normalizedSearch) || client.includes(normalizedSearch)
+      })
+    : projects
+
   const handleProjectCreated = (projectId: number) => {
     window.location.href = `/${locale}/projects/${projectId}`
   }
@@ -94,7 +112,6 @@ export default function ProjectsPage() {
               <p className="text-sm text-slate-500 md:mt-1">{t("subtitle")}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
               <Button className="hidden sm:inline-flex" onClick={() => setDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t("createProject")}
@@ -119,24 +136,34 @@ export default function ProjectsPage() {
 
           {/* Projects list */}
           <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm sm:rounded-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Filter className="h-4 w-4" />
-                <span>{t("filterLabel")}</span>
+            <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by project or client name"
+                    className="h-9 pl-8 text-sm"
+                  />
+                </div>
+                <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} />
               </div>
-              <span className="text-xs text-slate-400">
-                {t("projectCount", { count: projects.length })}
+              <span className="text-xs text-slate-400 sm:ml-3 sm:shrink-0">
+                {t("projectCount", { count: filteredProjects.length })}
               </span>
             </div>
             <div className="divide-y divide-slate-100">
               {loading ? (
                 <ProjectsListSkeleton />
-              ) : projects.length === 0 ? (
+              ) : filteredProjects.length === 0 ? (
                 <div className="p-6 text-center text-sm text-slate-500">
-                  {t("emptyState")}
+                  {projects.length === 0
+                    ? t("emptyState")
+                    : "No projects match your search."}
                 </div>
               ) : (
-                projects.map((project) => (
+                filteredProjects.map((project) => (
                   <div
                     key={project.id}
                     className="group w-full px-4 py-4 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors active:bg-slate-50 hover:bg-slate-50"
@@ -157,6 +184,12 @@ export default function ProjectsPage() {
                           <ProjectStatusBadge status={project.status} />
                         </div>
                         <p className="mt-1 text-xs text-slate-500">
+                          {project.client_name ? (
+                            <>
+                              <span className="text-slate-600">{project.client_name}</span>
+                              <span className="mx-1.5 text-slate-300">·</span>
+                            </>
+                          ) : null}
                           {formatDateRange(project.scheduled_start_date, project.scheduled_end_date, t)}
                         </p>
                       </div>
@@ -308,7 +341,7 @@ function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
   )
 }
 
-function StatusFilterPills({
+function StatusFilterSelect({
   value,
   onChange,
 }: {
@@ -324,24 +357,18 @@ function StatusFilterPills({
   ]
 
   return (
-    <div className="flex max-w-full items-center overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 text-xs shadow-sm sm:inline-flex sm:rounded-full sm:p-0.5">
-      {options.map((opt) => {
-        const active = value === opt.value
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`shrink-0 px-3 py-1.5 rounded-md sm:rounded-full transition-colors min-h-[36px] sm:min-h-[32px] ${active
-              ? "bg-slate-900 text-white"
-              : "text-slate-600 hover:bg-slate-100"
-              }`}
-          >
+    <Select value={value} onValueChange={(v) => onChange(v as StatusFilter)}>
+      <SelectTrigger className="h-9 w-full sm:w-44 text-sm">
+        <SelectValue placeholder={t("all")} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
             {opt.label}
-          </button>
-        )
-      })}
-    </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 

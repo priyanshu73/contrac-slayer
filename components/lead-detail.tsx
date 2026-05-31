@@ -10,8 +10,10 @@ import { Attachment, Lead, Measurements } from "@/lib/types"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
-import { Languages, Loader2, RotateCcw, FolderOpen } from "lucide-react"
+import { Languages, Loader2, RotateCcw, FolderOpen, User as UserIcon } from "lucide-react"
 import { NewProjectDialog, FromLeadProps } from "@/components/projects/new-project-dialog"
+import { SaveClientFromLeadDialog } from "@/components/clients/save-client-from-lead-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 // Translation cache utilities
 const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
@@ -90,6 +92,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [error, setError] = useState("")
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
   const [showCreateProject, setShowCreateProject] = useState(false)
+  const [showSaveClient, setShowSaveClient] = useState(false)
+  const [projectClientId, setProjectClientId] = useState<number | undefined>(undefined)
+  const { toast } = useToast()
 
   // Translation states
   const [translatedDescription, setTranslatedDescription] = useState<string | null>(null)
@@ -745,9 +750,29 @@ export function LeadDetail({ leadId }: { leadId: string }) {
               </a>
             </Button>
           ) : (
-            <Button size="lg" onClick={() => setShowCreateProject(true)}>
+            <Button
+              size="lg"
+              onClick={() => {
+                if (!lead) return
+                const existingClientId = lead.converted_to_client_id ?? projectClientId
+                if (existingClientId) {
+                  setProjectClientId(existingClientId)
+                  setShowCreateProject(true)
+                } else {
+                  setShowSaveClient(true)
+                }
+              }}
+            >
               <FolderOpen className="mr-2 h-5 w-5" />
               Create Project
+            </Button>
+          )}
+          {lead.converted_to_client_id && (
+            <Button variant="outline" size="lg" asChild>
+              <a href={`/${locale}/clients/${lead.converted_to_client_id}`}>
+                <UserIcon className="mr-2 h-4 w-4" />
+                View Client
+              </a>
             </Button>
           )}
           {lead.phone && (
@@ -781,11 +806,41 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         </div>
       </Card>
 
+      {/* Save Client Dialog (shown before project creation) */}
+      {lead && (
+        <SaveClientFromLeadDialog
+          open={showSaveClient}
+          onOpenChange={setShowSaveClient}
+          lead={{
+            leadId: lead.id,
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            address: lead.address,
+          }}
+          defaultAction="project"
+          onClientSaved={(clientId, action) => {
+            setProjectClientId(clientId)
+            if (action === "client") {
+              toast({ title: "Client saved" })
+              router.push(`/${locale}/clients/${clientId}`)
+              return
+            }
+            if (action === "quote") {
+              router.push(`/${locale}/quotes/new?clientId=${clientId}`)
+              return
+            }
+            setShowCreateProject(true)
+          }}
+        />
+      )}
+
       {/* Create Project Dialog */}
       {lead && (
         <NewProjectDialog
           open={showCreateProject}
           onOpenChange={setShowCreateProject}
+          defaultClientId={projectClientId ?? lead.converted_to_client_id ?? undefined}
           fromLead={{
             leadId: lead.id,
             name: lead.name,

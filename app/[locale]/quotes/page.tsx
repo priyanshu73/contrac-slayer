@@ -149,6 +149,7 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [activeStatuses, setActiveStatuses] = useState<string[]>([])
+  const [hasProposalFilter, setHasProposalFilter] = useState(false)
   const [clientFilterId, setClientFilterId] = useState<number | undefined>(undefined)
   const [projectFilterId, setProjectFilterId] = useState<number | undefined>(undefined)
   const [searchInput, setSearchInput] = useState("")
@@ -221,6 +222,8 @@ export default function QuotesPage() {
         const skip = (page - 1) * ITEMS_PER_PAGE
         const selectedStatuses = STATUS_ORDER.filter((code) => activeStatuses.includes(code))
 
+        const proposalParam = hasProposalFilter ? true : undefined
+
         if (selectedStatuses.length <= 1) {
           const statusFilter = selectedStatuses[0]
           const data = (await api.getMyJobs(
@@ -229,7 +232,8 @@ export default function QuotesPage() {
             ITEMS_PER_PAGE + 1,
             clientFilterId,
             debouncedSearch || undefined,
-            projectFilterId
+            projectFilterId,
+            proposalParam
           )) as Quote[]
 
           if (data.length > ITEMS_PER_PAGE) {
@@ -254,7 +258,8 @@ export default function QuotesPage() {
             batchSize,
             clientFilterId,
             debouncedSearch || undefined,
-            projectFilterId
+            projectFilterId,
+            proposalParam
           )) as Quote[]
           allJobs = allJobs.concat(chunk)
           if (chunk.length < batchSize) break
@@ -272,13 +277,13 @@ export default function QuotesPage() {
         setLoading(false)
       }
     },
-    [activeStatuses, debouncedSearch, clientFilterId, projectFilterId]
+    [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, hasProposalFilter]
   )
 
   useEffect(() => {
     setCurrentPage(1)
     loadPage(1)
-  }, [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, loadPage])
+  }, [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, hasProposalFilter, loadPage])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -286,10 +291,11 @@ export default function QuotesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || projectFilterId !== undefined || debouncedSearch.length > 0
+  const hasActiveFilters = activeStatuses.length > 0 || hasProposalFilter || clientFilterId !== undefined || projectFilterId !== undefined || debouncedSearch.length > 0
 
   const clearFilters = () => {
     setActiveStatuses([])
+    setHasProposalFilter(false)
     setClientFilterId(undefined)
     setProjectFilterId(undefined)
     setSearchInput("")
@@ -320,10 +326,13 @@ export default function QuotesPage() {
   }, [tFilters])
 
   const statusFilterLabel = useMemo(() => {
-    if (activeStatuses.length === 0) return tFilters("all")
-    if (activeStatuses.length === 1) return statusLabel(activeStatuses[0])
-    return `${activeStatuses.length} statuses`
-  }, [activeStatuses, statusLabel, tFilters])
+    const parts: string[] = []
+    if (activeStatuses.length === 1) parts.push(statusLabel(activeStatuses[0]))
+    else if (activeStatuses.length > 1) parts.push(`${activeStatuses.length} statuses`)
+    if (hasProposalFilter) parts.push("Has proposal")
+    if (parts.length === 0) return tFilters("all")
+    return parts.join(" · ")
+  }, [activeStatuses, hasProposalFilter, statusLabel, tFilters])
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
     e.preventDefault()
@@ -488,6 +497,17 @@ export default function QuotesPage() {
                         </span>
                       </DropdownMenuCheckboxItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={hasProposalFilter}
+                      onCheckedChange={(checked) => setHasProposalFilter(checked === true)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        Has proposal
+                      </span>
+                    </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

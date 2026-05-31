@@ -91,19 +91,18 @@ export function NewProjectDialog({
             })
             return
         }
+        if (fromLead && !defaultClientId) {
+            toast({
+                title: "Save the client first",
+                description: "Create the client record before starting the project.",
+                variant: "destructive",
+            })
+            return
+        }
+
         setSubmitting(true)
         try {
-            let clientId: number | undefined = defaultClientId
-
-            if (fromLead && !clientId) {
-                const client = await api.createClient({
-                    name: fromLead.name,
-                    email: fromLead.email,
-                    phone: fromLead.phone || "",
-                    address: fromLead.address,
-                }) as any
-                clientId = client?.id
-            }
+            const clientId: number | undefined = defaultClientId
 
             const payload: Record<string, any> = { title: title.trim() }
             if (objective.trim()) payload.objective = objective.trim()
@@ -141,8 +140,6 @@ export function NewProjectDialog({
                 if (fromLead) {
                     try {
                         await api.updateLead(fromLead.leadId, {
-                            status: "WON",
-                            converted_to_client_id: clientId,
                             converted_to_project_id: created.id,
                         })
                     } catch {
@@ -174,7 +171,7 @@ export function NewProjectDialog({
                     {fromLead ? (
                         <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
                             <User className="h-3.5 w-3.5 shrink-0" />
-                            Creating project from lead — a client record will be created for {fromLead.name}.
+                            Creating project from lead — linked to client {fromLead.name}.
                         </DialogDescription>
                     ) : fromQuote ? (
                         <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
@@ -191,7 +188,7 @@ export function NewProjectDialog({
                 <div className="space-y-4 py-2">
                     {fromLead && (
                         <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-1">
-                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Client to be created</p>
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Linked client</p>
                             <p className="text-sm font-medium text-blue-900">{fromLead.name}</p>
                             {fromLead.email && <p className="text-xs text-blue-700">{fromLead.email}</p>}
                             {fromLead.phone && <p className="text-xs text-blue-700">{fromLead.phone}</p>}

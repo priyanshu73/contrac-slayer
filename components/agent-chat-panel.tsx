@@ -1775,7 +1775,9 @@ export function AgentChatPanel() {
             })()}
 
             {/* ── Quote Estimate Context (shown on quote pages) ── */}
-            {panelView === "chat" && isOnQuotePage && (
+            {panelView === "chat" && isOnQuotePage && (() => {
+                const isStandaloneQuote = !estimateContext.projectId
+                return (
                 <div className="border-b border-border bg-muted/30">
                     <button
                         className="flex w-full items-center justify-between px-4 py-2.5 text-left"
@@ -1783,7 +1785,7 @@ export function AgentChatPanel() {
                     >
                         <div className="flex items-center gap-2">
                             <Zap className="h-3.5 w-3.5 text-sky-500" />
-                            <span className="text-xs font-semibold text-foreground">Project Context</span>
+                            <span className="text-xs font-semibold text-foreground">{isStandaloneQuote ? "Quote Context" : "Project Context"}</span>
                             {estimateContextSummary && (
                                 <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
                                     {estimateContextSummary}
@@ -1799,7 +1801,7 @@ export function AgentChatPanel() {
                         <div className="px-4 pb-3 space-y-2">
                             <div>
                                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    Project Type (Optional)
+                                    {isStandaloneQuote ? "Quote Type (Optional)" : "Project Type (Optional)"}
                                 </label>
                                 <input
                                     type="text"
@@ -1811,7 +1813,7 @@ export function AgentChatPanel() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    Project Description
+                                    {isStandaloneQuote ? "Quote Description" : "Project Description"}
                                 </label>
                                 <textarea
                                     value={estimateContext.serviceDescription}
@@ -1821,24 +1823,29 @@ export function AgentChatPanel() {
                                     className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                                 />
                             </div>
-                            <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                                <input
-                                    type="checkbox"
-                                    checked={estimateContext.includeProjectBriefInContext ?? true}
-                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
-                                    className="h-3.5 w-3.5 rounded border-gray-300 accent-sky-600"
-                                />
-                                Include project brief in context
-                            </label>
-                            {!estimateContext.projectBrief && (
-                                <p className="text-[11px] text-muted-foreground/80">
-                                    No project brief loaded yet for this quote.
-                                </p>
+                            {!isStandaloneQuote && (
+                                <>
+                                    <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={estimateContext.includeProjectBriefInContext ?? true}
+                                            onChange={(e) => setEstimateContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
+                                            className="h-3.5 w-3.5 rounded border-gray-300 accent-sky-600"
+                                        />
+                                        Include project brief in context
+                                    </label>
+                                    {!estimateContext.projectBrief && (
+                                        <p className="text-[11px] text-muted-foreground/80">
+                                            No project brief loaded yet for this quote.
+                                        </p>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
                 </div>
-            )}
+                )
+            })()}
 
             {/* ── Proposal Context (shown on proposal builder pages) ── */}
             {panelView === "chat" && isOnProposalPage && (

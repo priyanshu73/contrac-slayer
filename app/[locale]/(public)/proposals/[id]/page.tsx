@@ -10,7 +10,7 @@ import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/componen
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
 import { resolveQuoteNavUrl } from "@/lib/client-portal-nav"
 import { api } from "@/lib/api"
-import type { Proposal } from "@/lib/types"
+import type { Proposal, PublicProposalLookup } from "@/lib/types"
 
 export default function PublicProposalPage() {
   const params = useParams()
@@ -31,9 +31,11 @@ export default function PublicProposalPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = (await api.getProposalByPublicLink(identifier)) as Proposal
+        const response = (await api.getProposalByPublicLink(
+          identifier
+        )) as PublicProposalLookup
         if (!cancelled) {
-          setProposal(response)
+          setProposal(response.exists ? (response.proposal ?? null) : null)
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -71,13 +73,35 @@ export default function PublicProposalPage() {
     proposal?.linked_quote_public_link
   )
 
-  if (error || !proposal || !proposal.proposal_document) {
+  // Genuine failure loading the proposal (network/server error).
+  if (error) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl">
           <Card className="rounded-3xl p-8 text-center shadow-sm">
             <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
-            <p className="mt-3 text-sm text-slate-600">{error || "Proposal not found."}</p>
+            <p className="mt-3 text-sm text-slate-600">{error}</p>
+            {fallbackQuoteUrl ? (
+              <Button asChild className="mt-6">
+                <a href={fallbackQuoteUrl}>View Quote</a>
+              </Button>
+            ) : null}
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // No proposal for this link — a calm empty state, not an error.
+  if (!proposal || !proposal.proposal_document) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-xl">
+          <Card className="rounded-3xl p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-semibold text-slate-950">No Proposal</h1>
+            <p className="mt-3 text-sm text-slate-600">
+              There’s no proposal to view here yet.
+            </p>
             {fallbackQuoteUrl ? (
               <Button asChild className="mt-6">
                 <a href={fallbackQuoteUrl}>View Quote</a>

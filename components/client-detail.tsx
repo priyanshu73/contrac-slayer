@@ -513,7 +513,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </Button>
             <Button size="sm" variant="outline" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
               <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-              Project
+              Create Project
             </Button>
             {clientData.phone && (
               <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>

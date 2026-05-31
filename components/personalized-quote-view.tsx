@@ -25,6 +25,7 @@ import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
+import { QuoteProposalsSection } from "@/components/quote-proposals-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -33,7 +34,6 @@ import { useLocale, useTranslations } from "next-intl"
 interface PersonalizedQuoteViewProps {
   job: Job
   showActions?: boolean
-  proposalHref?: string
   onEdit?: () => void
   onDelete?: () => void
   onSendToClient?: () => void
@@ -97,7 +97,6 @@ function getStatusColor(status: string): string {
 export function PersonalizedQuoteView({
   job,
   showActions = true,
-  proposalHref,
   onEdit,
   onDelete,
   onSendToClient,
@@ -635,15 +634,6 @@ export function PersonalizedQuoteView({
                   Before & After
                 </Button>
               )}
-
-              {proposalHref ? (
-                <Button asChild className={featuredActionButtonClass} variant="outline">
-                  <Link href={proposalHref}>
-                    <PencilLine className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
-                    Proposal
-                  </Link>
-                </Button>
-              ) : null}
 
               {onSendFollowupSubmit && (
                 <DropdownMenu>
@@ -1387,6 +1377,15 @@ export function PersonalizedQuoteView({
           {showActions && !isPublicView && (
             <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
               <div className="lg:sticky lg:top-8 space-y-4">
+                {/* Proposals — featured card, above Change Orders */}
+                {isContractor && (
+                  <QuoteProposalsSection
+                    job={currentJob}
+                    locale={locale}
+                    onChanged={onStatusUpdate}
+                  />
+                )}
+
                 {/* Change Orders — minimal collapsable, no card box */}
                 {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
                   <div>

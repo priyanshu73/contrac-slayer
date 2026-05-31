@@ -850,11 +850,14 @@ export default function QuoteDetailPage() {
   if (isPublicView) {
     const contractorName = job.contractor?.company_name || "Contractor"
     const jobPortalToken = job.client_portal_token
-    const hasEmbeddedProposal = Boolean(job.proposal_document)
+    // Quote-attached proposals are never publicly viewable from the quote uuid.
+    // Only standalone/project proposals (surfaced via the client portal) may be
+    // linked from a shared quote.
+    const hasEmbeddedProposal = false
     const externalProposalUrl = resolveProposalNavUrl(
       portalProposals.length > 0 ? portalProposals : (job.portal_proposals ?? []),
       locale,
-      job.linked_proposal_public_link ?? job.proposal_public_link
+      job.linked_proposal_public_link
     )
     const hasProposal = hasEmbeddedProposal || Boolean(externalProposalUrl)
 
@@ -992,7 +995,6 @@ export default function QuoteDetailPage() {
       <PersonalizedQuoteView
         job={job}
         showActions={true}
-        proposalHref={`/${locale}/quotes/${job.id}/proposal`}
         onSendToClient={handleSendToClient}
         onSendViaSms={handleSendViaSms}
         sendToClientDisabled={

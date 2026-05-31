@@ -904,7 +904,8 @@ class ApiClient {
     limit = 20,
     clientId?: number,
     search?: string,
-    projectId?: number
+    projectId?: number,
+    hasProposal?: boolean
   ) {
     const params = new URLSearchParams()
     if (Array.isArray(status)) {
@@ -918,6 +919,7 @@ class ApiClient {
     if (projectId != null) params.append('project_id', String(projectId))
     const q = search?.trim()
     if (q) params.append('search', q)
+    if (hasProposal != null) params.append('has_proposal', String(hasProposal))
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
 
@@ -1116,6 +1118,28 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async getJobProposals(jobId: number) {
+    return this.request(`/jobs/${jobId}/proposals`)
+  }
+
+  async createJobProposal(jobId: number, data: { title?: string; proposal_document?: any }) {
+    return this.request(`/jobs/${jobId}/proposals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateJobProposal(jobId: number, proposalId: number, data: { title?: string; status?: string; proposal_document?: any }) {
+    return this.request(`/jobs/${jobId}/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteJobProposal(jobId: number, proposalId: number) {
+    return this.request(`/jobs/${jobId}/proposals/${proposalId}`, { method: 'DELETE' })
   }
 
   async uploadQuoteMedia(jobId: number, files: File[]) {
