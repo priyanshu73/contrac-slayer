@@ -1207,7 +1207,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     }
   }
 
-  const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id
+  const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai
   const sourceLabel = lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'
   const quoteHref = lead.converted_to_job_id ? `/quotes/${lead.converted_to_job_id}` : null
   const requestLeadId = lead.id.startsWith('request-') ? Number(lead.id.replace('request-', '')) : null
@@ -1526,8 +1526,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
       {/* Main Content Area - conversation extends to action bar; minimal bottom gap on mobile */}
       <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-1 lg:pb-0 bg-muted/20">
-        {/* Show call lead layout for both call leads AND consolidated leads (request leads with call data) */}
-        {(lead.type === 'call' || (lead.type === 'request' && (lead as any).contractor_ai_call_lead_id)) ? (
+        {/* Show call lead layout for call leads, legacy-consolidated leads, and Frontline-enriched form leads */}
+        {(lead.type === 'call' || (lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai))) ? (
           <>
             {/* Conversation History - On mobile: only content, full height; minimal gap below header */}
             <div className={`order-1 lg:order-1 flex flex-col min-h-0 overflow-hidden ${isMobile ? 'flex-1 bg-background' : 'flex-shrink-0 lg:w-[350px] xl:w-[370px] bg-muted/20'}`}>
@@ -1651,41 +1651,66 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 )
               })()}
 
-              {/* Project Description from quote request (for consolidated leads) */}
-              {lead.description && lead.type === 'request' && (lead as any).contractor_ai_call_lead_id && (
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                    {tLeads('projectDescription')}
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground mb-1.5">{tLeads('fromQuoteRequest')}</p>
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
-                      {translatedDescription || lead.description}
-                    </p>
-                    {locale === 'es' && (
-                      <button
-                        onClick={() => handleTranslate(
-                          lead.description!,
-                          setTranslatedDescription,
-                          setIsTranslatingDescription,
-                          !!translatedDescription
+              {/* Quote Request card (for consolidated + Frontline-enriched form leads) */}
+              {lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai) && (lead.description || lead.project_type) && (
+                <div className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-800/40">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="grid h-6 w-6 place-items-center rounded-md bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                        <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
+                          Quote Request
+                        </p>
+                        {lead.project_type && (
+                          <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
+                            {lead.project_type.replace(/_/g, ' ')}
+                          </p>
                         )}
-                        disabled={isTranslatingDescription}
-                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                        title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                      </div>
+                    </div>
+                    {requestLeadId && (
+                      <a
+                        href={`/${locale}/leads/${requestLeadId}`}
+                        className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline underline-offset-2 shrink-0"
                       >
-                        {isTranslatingDescription ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : translatedDescription ? (
-                          <RotateCcw className="h-4 w-4" />
-                        ) : (
-                          <Languages className="h-4 w-4" />
-                        )}
-                      </button>
+                        View full request ↗
+                      </a>
                     )}
                   </div>
+                  {/* Description */}
+                  {lead.description && (
+                    <div className="px-5 py-4 flex items-start gap-2">
+                      <p className="text-[13px] text-foreground/65 leading-[1.65] whitespace-pre-wrap break-words flex-1 min-w-0">
+                        {translatedDescription || lead.description}
+                      </p>
+                      {locale === 'es' && (
+                        <button
+                          onClick={() => handleTranslate(
+                            lead.description!,
+                            setTranslatedDescription,
+                            setIsTranslatingDescription,
+                            !!translatedDescription
+                          )}
+                          disabled={isTranslatingDescription}
+                          className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                          title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                        >
+                          {isTranslatingDescription ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : translatedDescription ? (
+                            <RotateCcw className="h-4 w-4" />
+                          ) : (
+                            <Languages className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {translatedDescription && (
-                    <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                    <p className="text-[10px] px-5 pb-3 -mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
                   )}
                 </div>
               )}
@@ -1979,8 +2004,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               />
             )}
 
-            {/* AI Summary from contractor-ai (for consolidated leads) */}
-            {lead.summary_text && (
+            {/* AI Summary from contractor-ai (for consolidated leads).
+                For quote-request leads the summary duplicates the project description below,
+                so only show it when the lead also has call data and the text actually differs. */}
+            {lead.summary_text && (lead as any).contractor_ai_call_lead_id &&
+              lead.summary_text.trim() !== (lead.description || "").trim() && (
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
                   <span className="shrink-0">{tLeads('aiSummary')}</span>
@@ -2100,6 +2128,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 currentLeadId={lead.id}
               />
             )}
+
           </div>
         )}
       </div>
@@ -2108,14 +2137,18 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         open={projectDialogOpen}
         onOpenChange={setProjectDialogOpen}
         defaultClientId={resolvedClientId ?? undefined}
-        fromLead={requestLeadId ? {
-          leadId: Number(requestLeadId),
+        fromLead={(requestLeadId || isCallOrMessagesLead) ? {
+          leadId: requestLeadId ?? undefined,
           name: lead.name,
           email: lead.email,
           phone: lead.phone,
           address: lead.address,
           projectType: lead.project_type || lead.service_type,
-          description: lead.description,
+          // Quote-request description first; for call leads fall back to the call summary,
+          // cleaned so it prefills as a project description rather than a call log.
+          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
+          // Auto-enhance only quote-request text; call summaries are prefilled as-is (no AI).
+          enhanceOnOpen: !!lead.description,
           estimatedValue: lead.estimated_value,
         } : undefined}
         onProjectCreated={(projectId) => {
@@ -2198,6 +2231,15 @@ interface ConversationMessagesProps {
 
 function stripMarkdownBold(text: string): string {
   return text.replace(/\*\*([^*]*)\*\*/g, '$1').replace(/\*\*/g, '')
+}
+
+// Turn a call lead's AI summary into a plain prefill for a project description:
+// strip the "Call Summary" heading and markdown so it doesn't read as a call log.
+function callSummaryToProjectDescription(text?: string): string {
+  if (!text) return ""
+  return stripMarkdownBold(text)
+    .replace(/^\s*call summary\s*:?\s*\n*/i, "")
+    .trim()
 }
 
 function extractUrls(text: string): { cleanText: string; urls: Array<{ href: string; label: string }> } {
