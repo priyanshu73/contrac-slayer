@@ -31,15 +31,13 @@ export default function PublicProposalPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = (await api.getProposalByPublicLink(
-          identifier
-        )) as PublicProposalLookup
+        const response = (await api.getProposalByPublicLink(identifier)) as PublicProposalLookup
         if (!cancelled) {
-          setProposal(response.exists ? (response.proposal ?? null) : null)
+          setProposal(response.proposal ?? null)
         }
       } catch (err: any) {
         if (!cancelled) {
-          setError(err?.message || "Failed to load proposal.")
+          setError(err?.message || "Proposal not found.")
         }
       } finally {
         if (!cancelled) {
@@ -73,34 +71,15 @@ export default function PublicProposalPage() {
     proposal?.linked_quote_public_link
   )
 
-  // Genuine failure loading the proposal (network/server error).
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-xl">
-          <Card className="rounded-3xl p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
-            <p className="mt-3 text-sm text-slate-600">{error}</p>
-            {fallbackQuoteUrl ? (
-              <Button asChild className="mt-6">
-                <a href={fallbackQuoteUrl}>View Quote</a>
-              </Button>
-            ) : null}
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  // No proposal for this link — a calm empty state, not an error.
-  if (!proposal || !proposal.proposal_document) {
+  // No saved proposal for this link — a calm empty state, not an error.
+  if (error || !proposal || !proposal.proposal_document) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl">
           <Card className="rounded-3xl p-8 text-center shadow-sm">
             <h1 className="text-2xl font-semibold text-slate-950">No Proposal</h1>
             <p className="mt-3 text-sm text-slate-600">
-              There’s no proposal to view here yet.
+              There's no proposal to view here yet.
             </p>
             {fallbackQuoteUrl ? (
               <Button asChild className="mt-6">

@@ -183,12 +183,7 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              const href = `/${locale}/proposals/${proposal.public_link}`
-                              if (typeof window !== "undefined") {
-                                window.open(href, "_blank", "noopener,noreferrer")
-                              }
-                            }}
+                            onClick={() => router.push(`/${locale}/projects/${project.id}/proposals/${proposal.id}/preview`)}
                           >
                             <Eye className="w-3.5 h-3.5 mr-2" />
                             Preview

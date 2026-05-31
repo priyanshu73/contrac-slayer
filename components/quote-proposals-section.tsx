@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import type { Job, Proposal } from "@/lib/types"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,27 +74,6 @@ function formatDate(iso?: string | null): string | undefined {
   }
 }
 
-function statusBadgeClass(status?: string): string {
-  switch (status?.toUpperCase()) {
-    case "DRAFT":
-      return "bg-amber-500/15 text-amber-800 border-amber-500/25"
-    case "SENT":
-      return "bg-blue-500/15 text-blue-800 border-blue-500/25"
-    case "VIEWED":
-      return "bg-violet-500/15 text-violet-800 border-violet-500/25"
-    case "ACCEPTED":
-      return "bg-emerald-500/15 text-emerald-800 border-emerald-500/25"
-    case "REJECTED":
-      return "bg-red-500/15 text-red-800 border-red-500/25"
-    default:
-      return "bg-muted text-muted-foreground border-border"
-  }
-}
-
-function formatStatus(status?: string): string {
-  if (!status) return ""
-  return status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
-}
 
 export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposalsSectionProps) {
   const router = useRouter()
@@ -121,9 +99,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
         title: (p as any).title || job.title || `Quote #${job.id} Proposal`,
         status: p.status,
         updatedAt: (p as any).updated_at ?? null,
-        viewHref: p.public_link && p.status !== "DRAFT"
-          ? `/${locale}/proposals/${p.public_link}`
-          : undefined,
+        viewHref: `/${locale}/quotes/${job.id}/proposal/preview`,
         editHref: `/${locale}/quotes/${job.id}/proposal`,
       })
     }
@@ -140,7 +116,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
         projectId: p.project_id,
         proposalId: p.id,
         projectTitle: p.project_title,
-        viewHref: p.public_link ? `/${locale}/proposals/${p.public_link}` : undefined,
+        viewHref: `/${locale}/projects/${p.project_id}/proposals/${p.id}/preview`,
         editHref: `/${locale}/projects/${p.project_id}/proposals/${p.id}`,
       })
     }
@@ -220,25 +196,13 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                       >
                         {row.title}
                       </Link>
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
-                        {row.status ? (
-                          <Badge
-                            variant="outline"
-                            className={`rounded-full px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide ${statusBadgeClass(row.status)}`}
-                          >
-                            {formatStatus(row.status)}
-                          </Badge>
-                        ) : null}
-                        {row.kind === "embedded" ? (
-                          <span className="rounded-full bg-sky-100 px-1.5 py-0 text-[9px] font-medium text-sky-700">
-                            From this quote
-                          </span>
-                        ) : row.projectTitle ? (
+                      {row.projectTitle && row.kind !== "embedded" ? (
+                        <div className="mt-1">
                           <span className="truncate rounded-full bg-emerald-100 px-1.5 py-0 text-[9px] font-medium text-emerald-700" title={row.projectTitle}>
                             {row.projectTitle}
                           </span>
-                        ) : null}
-                      </div>
+                        </div>
+                      ) : null}
                       {updated ? (
                         <p className="mt-1 text-[10px] text-slate-400">Updated {updated}</p>
                       ) : null}
@@ -262,7 +226,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                         {row.viewHref ? (
                           <DropdownMenuItem onSelect={() => router.push(row.viewHref!)}>
                             <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                            View public link
+                            Preview
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuSeparator />
