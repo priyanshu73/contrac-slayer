@@ -2055,43 +2055,64 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
             )}
 
-            {/* Project Description from quote request - card with subtitle */}
-            {lead.description && (
-              <div className="rounded-lg border border-border shadow-sm bg-[#F5F5F5]/50 dark:bg-neutral-800/50 p-4 animate-in fade-in duration-200">
-                <h3 className="text-base font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1">
-                  {tLeads('projectDescription')}
-                </h3>
-                {lead.type === 'request' && (
-                  <p className="text-[11px] text-muted-foreground mb-2">{tLeads('fromQuoteRequest')}</p>
-                )}
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-[#333] dark:text-neutral-200 whitespace-pre-wrap break-words flex-1 min-w-0">
-                    {translatedDescription || lead.description}
-                  </p>
-                  {locale === 'es' && (
-                    <button
-                      onClick={() => handleTranslate(
-                        lead.description!,
-                        setTranslatedDescription,
-                        setIsTranslatingDescription,
-                        !!translatedDescription
+            {/* Quote Request card — all form leads */}
+            {lead.type === 'request' && (lead.description || lead.project_type) && (
+              <div className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-800/40">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="grid h-6 w-6 place-items-center rounded-md bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                      <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
+                        Quote Request
+                      </p>
+                      {lead.project_type && (
+                        <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
+                          {lead.project_type.replace(/_/g, ' ')}
+                        </p>
                       )}
-                      disabled={isTranslatingDescription}
-                      className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                      title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                    </div>
+                  </div>
+                  {requestLeadId && (
+                    <a
+                      href={`/${locale}/leads/${requestLeadId}`}
+                      className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline underline-offset-2 shrink-0"
                     >
-                      {isTranslatingDescription ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : translatedDescription ? (
-                        <RotateCcw className="h-4 w-4" />
-                      ) : (
-                        <Languages className="h-4 w-4" />
-                      )}
-                    </button>
+                      View full request ↗
+                    </a>
                   )}
                 </div>
+                {lead.description && (
+                  <div className="px-5 py-4 flex items-start gap-2">
+                    <p className="text-[13px] text-foreground/65 leading-[1.65] whitespace-pre-wrap break-words flex-1 min-w-0">
+                      {translatedDescription || lead.description}
+                    </p>
+                    {locale === 'es' && (
+                      <button
+                        onClick={() => handleTranslate(
+                          lead.description!,
+                          setTranslatedDescription,
+                          setIsTranslatingDescription,
+                          !!translatedDescription
+                        )}
+                        disabled={isTranslatingDescription}
+                        className="p-1.5 rounded-lg transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                        title={translatedDescription ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
+                      >
+                        {isTranslatingDescription ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : translatedDescription ? (
+                          <RotateCcw className="h-4 w-4" />
+                        ) : (
+                          <Languages className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {translatedDescription && (
-                  <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
+                  <p className="text-[10px] px-5 pb-3 -mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
                 )}
               </div>
             )}
