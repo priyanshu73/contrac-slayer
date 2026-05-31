@@ -8,9 +8,11 @@ import { Card } from "@/components/ui/card"
 import Image from "next/image"
 
 export interface PrefillData {
+  name?: string
+  phone?: string
+  address?: string
   description?: string
   project_type?: string
-  phone?: string
 }
 
 export default function PublicQuoteRequestPage() {
@@ -37,10 +39,12 @@ export default function PublicQuoteRequestPage() {
           setPrefillLoading(true)
           try {
             const summary = await contractorAI.getVoiceSessionProjectSummary(sessionUuid)
-            if (summary.project_summary || summary.caller_name || summary.caller_phone) {
+            if (summary.project_summary || summary.caller_name || summary.caller_phone || summary.caller_address) {
               setPrefillData({
-                description: summary.project_summary || '',
+                name: summary.caller_name || '',
                 phone: summary.caller_phone || '',
+                address: summary.caller_address || '',
+                description: summary.project_summary || '',
               })
             }
           } catch (prefillErr) {

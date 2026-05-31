@@ -1858,6 +1858,12 @@ class ApiClient {
     return response.json()
   }
 
+  async deleteJobMedia(jobId: number, mediaId: number): Promise<void> {
+    await this.request(`/jobs/${jobId}/media/${mediaId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async generateAfterImage(jobId: number, beforeImageUrl: string, options?: {
     afterImageDescription: string
     userPrompt?: string
@@ -2616,6 +2622,7 @@ class ContractorAIClient {
     project_summary: string | null
     caller_name: string | null
     caller_phone: string | null
+    caller_address: string | null
   }> {
     return this.request(`/frontline/voice/calls/${sessionUuid}/project-summary`)
   }

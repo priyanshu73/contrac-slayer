@@ -17,9 +17,11 @@ import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
 
 interface PrefillData {
+  name?: string
+  phone?: string
+  address?: string
   description?: string
   project_type?: string
-  phone?: string
 }
 
 interface CustomerRequestFormProps {
@@ -45,7 +47,9 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
     if (prefillData && !hasPrefilled) {
       setFormData(prev => ({
         ...prev,
+        name: prefillData.name || prev.name,
         phone: prefillData.phone || prev.phone,
+        address: prefillData.address || prev.address,
         project_type: prefillData.project_type || prev.project_type,
         description: prefillData.description || prev.description,
       }))
