@@ -1503,9 +1503,9 @@
     "success": {
       "activating": "Activando Su Suscripción",
       "activatingDescription": "Por favor espere mientras configuramos su cuenta. Esto generalmente toma solo unos segundos...",
-      "welcomeAboard": "¡Bienvenido a Bordo!",
-      "subscriptionActive": "Su suscripción está ahora activa. Tiene acceso completo a todas las funciones.",
-      "trialStarted": "Su prueba gratis de 14 días ha comenzado.",
+      "welcomeAboard": "Bienvenido a ContractorOps AI",
+      "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, cotizaciones, trabajos y facturas desde un panel limpio.",
+      "trialStarted": "Su prueba gratis de 14 días está activa.",
       "goToDashboard": "Ir al Panel de Control",
       "paymentReceived": "Pago Recibido",
       "paymentReceivedDescription": "¡Su pago fue exitoso! Su suscripción debería estar activa en breve. Si no ve acceso en un minuto, actualice la página o contacte a soporte.",

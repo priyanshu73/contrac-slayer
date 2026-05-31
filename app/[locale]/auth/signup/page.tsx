@@ -9,6 +9,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AuthPasswordInput } from "../_components/auth-password-input"
 import { api } from "@/lib/api"
 
 const fadeUp = {
@@ -256,9 +257,8 @@ export default function SignupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</Label>
-                <Input
+                <AuthPasswordInput
                   id="password"
-                  type="password"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -272,9 +272,8 @@ export default function SignupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-sm font-semibold text-slate-700">{t("confirmPassword")}</Label>
-                <Input
+                <AuthPasswordInput
                   id="confirmPassword"
-                  type="password"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}

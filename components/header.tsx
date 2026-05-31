@@ -4,13 +4,17 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  ArrowRight,
+  BadgeDollarSign,
   BriefcaseBusiness,
   Calculator,
   CalendarDays,
   ChevronDown,
+  Home,
   Menu,
   PhoneCall,
   ReceiptText,
+  Sparkles,
   UsersRound,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -440,15 +444,41 @@ export function Header() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="flex w-[min(100vw-2rem,320px)] flex-col bg-[#fffaf7]">
-            <SheetHeader className="text-left">
-              <SheetTitle>ContractorOps AI</SheetTitle>
+          <SheetContent
+            side="right"
+            className={
+              isLandingPage
+                ? "flex w-[min(100vw-1rem,342px)] gap-0 overflow-hidden border-l border-white/70 bg-[#fbfaf8] p-0 shadow-[0_24px_90px_rgba(15,23,42,0.28)] [&>button:last-child]:right-5 [&>button:last-child]:top-5 [&>button:last-child]:rounded-full [&>button:last-child]:bg-slate-950/[0.04] [&>button:last-child]:p-2 [&>button:last-child]:opacity-100 [&>button:last-child]:ring-offset-[#fbfaf8] [&>button:last-child]:hover:bg-slate-950/[0.08]"
+                : "flex w-[min(100vw-2rem,320px)] flex-col bg-[#fffaf7]"
+            }
+          >
+            <SheetHeader className={isLandingPage ? "border-b border-slate-950/[0.06] px-5 pb-4 pt-5 text-left" : "text-left"}>
+              {isLandingPage ? (
+                <SheetTitle className="flex items-center gap-3 pr-10">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
+                    <img src="/logo.png" alt="" className="h-8 w-8 rounded-full object-contain" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-black tracking-tight text-slate-950">
+                      ContractorOps AI
+                    </span>
+                    <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                      Menu
+                    </span>
+                  </span>
+                </SheetTitle>
+              ) : (
+                <SheetTitle>ContractorOps AI</SheetTitle>
+              )}
             </SheetHeader>
-            <nav className="mt-8 grid gap-2">
+            <nav className={isLandingPage ? "grid min-h-0 flex-1 gap-5 overflow-y-auto px-5 py-5" : "mt-8 grid gap-2"}>
               {isLandingPage ? (
                 <>
+                  <div className="grid gap-2">
                   {navLinks.map(({ id, label }) => {
                     const targetId = id === 'home' ? 'hero' : id
+                    const isActive = activeLandingSection === targetId
+                    const Icon = targetId === 'hero' ? Home : BadgeDollarSign
                     return (
                       <button
                         key={id}
@@ -457,34 +487,46 @@ export function Header() {
                           navigateToLandingSection(targetId)
                           setMobileOpen(false)
                         }}
-                        className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
-                          activeLandingSection === targetId
-                            ? 'bg-slate-950/[0.06] text-slate-950'
-                            : 'text-slate-800 hover:bg-slate-950/[0.04]'
+                        className={`flex h-12 items-center gap-3 rounded-2xl px-3 text-left text-sm font-black transition-colors ${
+                          isActive
+                            ? 'bg-slate-950 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]'
+                            : 'bg-white text-slate-700 ring-1 ring-slate-950/[0.07] hover:bg-slate-50'
                         }`}
+                        aria-current={isActive ? 'page' : undefined}
                       >
-                        {label}
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${isActive ? 'bg-white/12 text-white' : 'bg-slate-950/[0.04] text-slate-500'}`}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span>{label}</span>
                       </button>
                     )
                   })}
                   <Link
                     href={`/${locale}/features`}
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-lg px-2 py-3 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-950/[0.04]"
+                    className="flex h-12 items-center gap-3 rounded-2xl bg-white px-3 text-left text-sm font-black text-slate-700 ring-1 ring-slate-950/[0.07] transition-colors hover:bg-slate-50"
                   >
-                    {t('features')}
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950/[0.04] text-slate-500">
+                      <Sparkles className="h-4 w-4" />
+                    </span>
+                    <span>{t('features')}</span>
                   </Link>
-                  <div className="rounded-xl bg-slate-950/[0.03] p-2">
-                    <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
-                    <div className="grid gap-1">
+                  </div>
+                  <div>
+                    <p className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">{t('features')}</p>
+                    <div className="grid gap-2">
                       {featureMenuItems.map((feature) => (
                         <Link
                           key={feature.href}
                           href={feature.href}
                           onClick={() => setMobileOpen(false)}
-                          className="block rounded-lg px-2 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/45"
+                          className="group flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-sm font-bold text-slate-800 ring-1 ring-slate-950/[0.07] transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
                         >
-                          {feature.title}
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white transition-colors group-hover:bg-slate-800">
+                            <feature.icon className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{feature.title}</span>
+                          <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-slate-500" />
                         </Link>
                       ))}
                     </div>
@@ -534,24 +576,24 @@ export function Header() {
                 </>
               )}
             </nav>
-            <div className="mt-6 flex">
+            <div className={isLandingPage ? "px-5" : "mt-6 flex"}>
               <LanguageToggle solid />
             </div>
-            <div className="mt-auto grid gap-3">
-              <Button variant="outline" className="rounded-full hover:bg-slate-950/[0.04]" asChild>
+            <div className={isLandingPage ? "mt-auto grid gap-3 border-t border-slate-950/[0.06] bg-white/70 px-5 py-5 backdrop-blur-xl" : "mt-auto grid gap-3"}>
+              <Button variant="outline" className={isLandingPage ? "h-11 rounded-2xl border-slate-200 bg-white font-black text-slate-800 shadow-none hover:bg-slate-50" : "rounded-full hover:bg-slate-950/[0.04]"} asChild>
                 <Link href={`/${locale}/auth/login`} onClick={() => setMobileOpen(false)}>
                   {t('signIn')}
                 </Link>
               </Button>
               {startTrialHref ? (
-                <Button className="rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74" asChild>
+                <Button className={isLandingPage ? "h-11 rounded-2xl bg-slate-950 font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] hover:bg-slate-800" : "rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74"} asChild>
                   <Link href={startTrialHref} onClick={() => setMobileOpen(false)}>
                     {t('startFreeTrial')}
                   </Link>
                 </Button>
               ) : (
                 <Button
-                  className="rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74"
+                  className={isLandingPage ? "h-11 rounded-2xl bg-slate-950 font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] hover:bg-slate-800" : "rounded-full bg-[#26313d]/88 text-white hover:bg-[#26313d]/74"}
                   type="button"
                   onClick={() => {
                     navigateToLandingSection('cta')
