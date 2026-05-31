@@ -503,7 +503,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
+  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File; mediaId?: number }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -903,6 +903,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           url: media.file_url,
           name: media.file_name || "attachment",
           size: media.file_size || 0,
+          mediaId: media.id,
         })))
       } else {
         // Clear if no media
@@ -2863,7 +2864,17 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
                     <button
                       type="button"
-                      onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                      onClick={async () => {
+                        const img = uploadedImages[i]
+                        if (img.mediaId && quoteId) {
+                          try {
+                            await api.deleteJobMedia(parseInt(quoteId), img.mediaId)
+                          } catch (err) {
+                            console.error("Failed to delete attachment:", err)
+                          }
+                        }
+                        setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))
+                      }}
                       className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                     >
                       <X className="w-3 h-3" />
