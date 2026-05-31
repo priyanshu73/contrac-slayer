@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import {
@@ -126,38 +126,50 @@ export function NewProjectDialog({
         }
     }
 
+    // `fromLead`/`fromQuote` are new object literals on every parent render, so we initialize
+    // (and auto-enhance) only on the closed -> open transition — not on every re-render.
+    // Otherwise the textarea would reset and refine-description would fire repeatedly.
+    const initializedRef = useRef(false)
+
     useEffect(() => {
-        if (open && fromLead) {
-            setTitle(formatProjectType(fromLead.projectType) || `${fromLead.name} Project`)
-            setObjective(fromLead.description || "")
-            setOriginalDescription(fromLead.description || "")
-            setStartDate("")
-            setEndDate("")
-        } else if (open && fromQuote) {
-            setTitle(fromQuote.title || "")
-            setObjective(fromQuote.objective || "")
-            setOriginalDescription(fromQuote.objective || "")
-            setStartDate(fromQuote.startDate || "")
-            setEndDate(fromQuote.endDate || "")
-        } else if (!open) {
+        if (open && !initializedRef.current) {
+            initializedRef.current = true
+
+            if (fromLead) {
+                setTitle(formatProjectType(fromLead.projectType) || `${fromLead.name} Project`)
+                setObjective(fromLead.description || "")
+                setOriginalDescription(fromLead.description || "")
+                setStartDate("")
+                setEndDate("")
+            } else if (fromQuote) {
+                setTitle(fromQuote.title || "")
+                setObjective(fromQuote.objective || "")
+                setOriginalDescription(fromQuote.objective || "")
+                setStartDate(fromQuote.startDate || "")
+                setEndDate(fromQuote.endDate || "")
+            }
+            setEnhancedDescription(null)
+            setShowingEnhanced(false)
+            setEnhancing(false)
+
+            // Quote-request leads: auto-enhance the description once on open (no button click).
+            // Falls back silently to the original text if the request fails.
+            if (fromLead?.enhanceOnOpen && (fromLead.description || "").trim()) {
+                void requestEnhanced(fromLead.description!, { silent: true })
+            }
+        } else if (!open && initializedRef.current) {
+            initializedRef.current = false
             setTitle("")
             setObjective("")
             setOriginalDescription("")
             setStartDate("")
             setEndDate("")
-        }
-        // Reset enhancement state whenever the dialog opens/closes or source changes.
-        setEnhancedDescription(null)
-        setShowingEnhanced(false)
-        setEnhancing(false)
-
-        // Quote-request leads: auto-enhance the description on open (no button click needed).
-        // Falls back silently to the original text if the request fails.
-        if (open && fromLead?.enhanceOnOpen && (fromLead.description || "").trim()) {
-            void requestEnhanced(fromLead.description!, { silent: true })
+            setEnhancedDescription(null)
+            setShowingEnhanced(false)
+            setEnhancing(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, fromQuote, fromLead])
+    }, [open])
 
     const handleToggleEnhanced = async () => {
         if (showingEnhanced) {

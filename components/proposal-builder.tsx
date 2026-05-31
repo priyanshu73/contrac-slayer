@@ -1118,6 +1118,7 @@ export function ProposalBuilder({
   const [optionalNote, setOptionalNote] = useState("")
   const [copiedLink, setCopiedLink] = useState(false)
   const [generatingLink, setGeneratingLink] = useState(false)
+  const [confirmShareOpen, setConfirmShareOpen] = useState(false)
   const [proposalShareUrl, setProposalShareUrl] = useState<string | null>(null)
   const [sendClient, setSendClient] = useState<Client | null>(client ?? null)
   const [imagePairs, setImagePairs] = useState<BeforeAfterImagePair[]>(() =>
@@ -1509,32 +1510,37 @@ export function ProposalBuilder({
   }
 
   const ensureProposalShareLink = async (): Promise<string | null> => {
+    if (!isProposalMode || !proposal) return null
+
+    // A DRAFT proposal is hidden from the client portal even via a direct link,
+    // so sharing the link must promote it to SENT. The public_link itself is
+    // minted at creation, so a non-DRAFT proposal with a cached URL needs no
+    // round-trip.
+    const needsPromotion = proposal.status === "DRAFT"
     const existing = getProposalShareUrl()
-    if (existing) return existing
+    if (existing && !needsPromotion) return existing
 
     try {
       setGeneratingLink(true)
-      if (isProposalMode && proposal) {
-        const updated = (await persistProposal(proposal, {
-          proposal_document: document,
-        })) as Proposal
-        onProposalUpdated?.(updated)
-        if (!updated.public_link) {
-          toast({
-            title: "No share link",
-            description: "Save the proposal first, then try again.",
-            variant: "destructive",
-          })
-          return null
-        }
-        const url =
-          typeof window !== "undefined"
-            ? `${window.location.origin}/${locale}/proposals/${updated.public_link}`
-            : `/${locale}/proposals/${updated.public_link}`
-        setProposalShareUrl(url)
-        return url
+      const updated = (await persistProposal(proposal, {
+        proposal_document: document,
+        ...(needsPromotion ? { status: "SENT" } : {}),
+      })) as Proposal
+      onProposalUpdated?.(updated)
+      if (!updated.public_link) {
+        toast({
+          title: "No share link",
+          description: "Save the proposal first, then try again.",
+          variant: "destructive",
+        })
+        return null
       }
-      // Quote-attached proposals are not shareable — there is no public link.
+      const url =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/${locale}/proposals/${updated.public_link}`
+          : `/${locale}/proposals/${updated.public_link}`
+      setProposalShareUrl(url)
+      return url
     } catch (err: any) {
       toast({
         title: "Error",
@@ -1545,7 +1551,6 @@ export function ProposalBuilder({
     } finally {
       setGeneratingLink(false)
     }
-    return null
   }
 
   const handleSendToClient = async () => {
@@ -1673,11 +1678,11 @@ export function ProposalBuilder({
   }
 
   const handleCopyProposalLink = async () => {
-    let url = getProposalShareUrl()
-    if (!url) {
-      url = (await ensureProposalShareLink()) ?? ""
-      if (!url) return
-    }
+    // Always go through ensureProposalShareLink so a still-DRAFT proposal gets
+    // promoted to SENT (and made visible in the portal) before we hand over the
+    // link. For an already-shared proposal this returns the cached URL.
+    const url = (await ensureProposalShareLink()) ?? ""
+    if (!url) return
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(true)
@@ -1686,6 +1691,17 @@ export function ProposalBuilder({
     } catch {
       toast({ title: "Failed to copy", description: "Please try again or copy manually.", variant: "destructive" })
     }
+  }
+
+  // True once the proposal has been shared (promoted out of DRAFT) and is
+  // therefore live in the client portal. Drives the "Generate link" vs
+  // "Copy proposal link" affordance.
+  const proposalShared = isProposalMode && proposal ? proposal.status !== "DRAFT" : false
+
+  const handleConfirmGenerateLink = async () => {
+    await saveProposal(true)
+    await handleCopyProposalLink()
+    setConfirmShareOpen(false)
   }
 
   const sendViaSmsDisabled =
@@ -1920,7 +1936,13 @@ export function ProposalBuilder({
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                     Save
                   </Button>
-                  <DropdownMenu>
+                  <DropdownMenu
+                    onOpenChange={(menuOpen) => {
+                      // Reset the inline confirmation whenever the menu closes so it
+                      // doesn't reappear pre-expanded next time.
+                      if (!menuOpen) setConfirmShareOpen(false)
+                    }}
+                  >
                     <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
@@ -1932,7 +1954,10 @@ export function ProposalBuilder({
                         Send to Client
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl"
+                    >
                       <DropdownMenuItem
                         onClick={() => void handleSaveAndSend(() => handleSendToClient())}
                         className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
@@ -1954,7 +1979,16 @@ export function ProposalBuilder({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-slate-100" />
                       <DropdownMenuItem
-                        onClick={() => void handleSaveAndSend(() => handleCopyProposalLink())}
+                        onSelect={(e) => {
+                          if (proposalShared) {
+                            void handleSaveAndSend(() => handleCopyProposalLink())
+                          } else {
+                            // Keep the menu open and reveal the inline confirmation
+                            // right below this item instead of closing.
+                            e.preventDefault()
+                            setConfirmShareOpen(true)
+                          }
+                        }}
                         disabled={generatingLink}
                         className="rounded-md px-2 py-2 focus:bg-slate-100 focus:text-slate-900 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 outline-none cursor-pointer"
                       >
@@ -1962,15 +1996,49 @@ export function ProposalBuilder({
                           <Check className="mr-2 h-4 w-4 text-slate-500" />
                         ) : generatingLink ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-500" />
-                        ) : (
+                        ) : proposalShared ? (
                           <Copy className="mr-2 h-4 w-4 text-slate-500" />
+                        ) : (
+                          <ExternalLink className="mr-2 h-4 w-4 text-slate-500" />
                         )}
                         {copiedLink
                           ? "Copied!"
-                          : getProposalShareUrl()
+                          : proposalShared
                             ? "Copy proposal link"
-                            : "Generate & copy proposal link"}
+                            : "Generate Client link"}
                       </DropdownMenuItem>
+                      {!proposalShared && confirmShareOpen ? (
+                        <div
+                          className="mt-1 rounded-md border border-slate-100 bg-slate-50/80 px-2.5 py-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-[11px] leading-relaxed text-slate-500">
+                            This marks the proposal as sent and makes it visible in the client portal. You can copy and re-share it afterwards.
+                          </p>
+                          <div className="mt-2 flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 rounded-lg px-2.5 text-[11px]"
+                              onClick={() => setConfirmShareOpen(false)}
+                              disabled={generatingLink}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 rounded-lg bg-indigo-600 px-2.5 text-[11px] text-white hover:bg-indigo-500"
+                              onClick={() => void handleConfirmGenerateLink()}
+                              disabled={generatingLink}
+                            >
+                              {generatingLink ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                              Generate
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
