@@ -808,14 +808,21 @@ class ApiClient {
   }
 
   frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
+    // Training and demo WebSockets connect directly to contractorAI, not ContractorBackend.
+    // The path is relative (e.g. /frontline-voice/training/stream/{uuid}); resolve it
+    // against NEXT_PUBLIC_CONTRACTOR_AI_URL which is contractorAI's HTTP origin.
+    const contractorAiBase = (CONTRACTOR_AI_API_URL || '')
+      .replace(/\/api\/?$/, '')
+      .replace('https://', 'wss://')
+      .replace('http://', 'ws://')
+      .replace(/\/+$/, '')
     const normalizedPath = path.startsWith('/') ? path : `/${path}`
-    const wsUrl = new URL(normalizedPath, `${this.resolveWebSocketOrigin()}/`)
-    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = new URL(normalizedPath, `${contractorAiBase}/`)
     if (token) {
       wsUrl.searchParams.set('token', token)
     }
     const redacted = wsUrl.toString().replace(/([?&]token=)[^&]+/, '$1[redacted]')
-    console.log(`🔌 Voice WebSocket URL: ${redacted}`)
+    console.log(`🔌 Voice WebSocket URL (contractorAI): ${redacted}`)
     return wsUrl.toString()
   }
 
