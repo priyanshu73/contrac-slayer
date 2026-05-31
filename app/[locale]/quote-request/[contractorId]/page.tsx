@@ -8,9 +8,11 @@ import { Card } from "@/components/ui/card"
 import Image from "next/image"
 
 export interface PrefillData {
+  name?: string
+  phone?: string
+  address?: string
   description?: string
   project_type?: string
-  phone?: string
 }
 
 export default function PublicQuoteRequestPage() {
@@ -18,7 +20,8 @@ export default function PublicQuoteRequestPage() {
   const searchParams = useSearchParams()
   const contractorUuid = params.contractorId as string
   const interactionId = searchParams.get('interaction_id')
-  
+  const sessionUuid = searchParams.get('session_uuid')
+
   const [contractor, setContractor] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
@@ -28,12 +31,28 @@ export default function PublicQuoteRequestPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch contractor profile
         const profile = await api.getContractorProfileByUuid(contractorUuid)
         setContractor(profile)
-        
-        // If interaction_id is present, fetch project summary to pre-fill form
-        if (interactionId) {
+
+        // Pre-fill from Nova voice session (preferred) or legacy call interaction
+        if (sessionUuid) {
+          setPrefillLoading(true)
+          try {
+            const summary = await contractorAI.getVoiceSessionProjectSummary(sessionUuid)
+            if (summary.project_summary || summary.caller_name || summary.caller_phone || summary.caller_address) {
+              setPrefillData({
+                name: summary.caller_name || '',
+                phone: summary.caller_phone || '',
+                address: summary.caller_address || '',
+                description: summary.project_summary || '',
+              })
+            }
+          } catch (prefillErr) {
+            console.warn('Could not fetch voice session summary for pre-fill:', prefillErr)
+          } finally {
+            setPrefillLoading(false)
+          }
+        } else if (interactionId) {
           setPrefillLoading(true)
           try {
             const summary = await contractorAI.getInteractionProjectSummary(interactionId)
@@ -41,12 +60,11 @@ export default function PublicQuoteRequestPage() {
               setPrefillData({
                 description: summary.project_summary,
                 project_type: summary.project_type || '',
-                phone: summary.customer_number || ''
+                phone: summary.customer_number || '',
               })
             }
           } catch (prefillErr) {
             console.warn('Could not fetch interaction summary for pre-fill:', prefillErr)
-            // Non-critical error - just don't prefill
           } finally {
             setPrefillLoading(false)
           }
@@ -61,7 +79,7 @@ export default function PublicQuoteRequestPage() {
     if (contractorUuid) {
       fetchData()
     }
-  }, [contractorUuid, interactionId])
+  }, [contractorUuid, interactionId, sessionUuid])
 
   if (isLoading) {
     return (

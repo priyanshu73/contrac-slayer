@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,16 @@ import { useTranslations, useLocale } from "next-intl"
 import { useLanguage } from "@/hooks/useLanguage"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
+import { saveContractorOpsNumberPrefs } from "@/lib/contractor-ops-number-prefs"
+import {
+  FileText,
+  ClipboardList,
+  Tags,
+  Camera,
+  Upload,
+  Sparkles,
+  Shield,
+} from "lucide-react"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
@@ -41,7 +51,7 @@ export default function ProfileSetupPage() {
   const [step, setStep] = useState(1)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     company_name: "",
     email: "",
     phone_number: "",
@@ -51,13 +61,19 @@ export default function ProfileSetupPage() {
     default_labor_rate_per_hour: "75.00",
     default_sales_tax_rate: "8.25",
     contractor_type: "",
+    service_radius_miles: "",
+    service_area_notes: "",
   })
+
   const [otherContractorType, setOtherContractorType] = useState("")
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
+
+  // True during step-3 submit until redirect (avoids race with profile-exists redirect).
+  const completingSetupRef = useRef(false)
 
   const AI_ESTIMATOR_VIDEO_URL =
     process.env.NEXT_PUBLIC_AI_ESTIMATOR_VIDEO_URL ||
@@ -78,21 +94,25 @@ export default function ProfileSetupPage() {
       return
     }
 
+    if (completingSetupRef.current) {
+      return
+    }
+
     let cancelled = false
-    ;(async () => {
-      try {
-        const profile = await api.getMyProfile()
-        if (!cancelled && profile) {
-          router.replace(`/${locale}/dashboard`)
+      ; (async () => {
+        try {
+          const profile = await api.getMyProfile()
+          if (!cancelled && profile) {
+            router.replace(`/${locale}/dashboard`)
+          }
+        } catch (err: any) {
+          // Expected when profile doesn't exist yet; ignore.
+          const msg = String(err?.message ?? "").toLowerCase()
+          if (msg && !msg.includes("not found") && !msg.includes("contractor profile")) {
+            console.warn("Unexpected error checking contractor profile:", err)
+          }
         }
-      } catch (err: any) {
-        // Expected when profile doesn't exist yet; ignore.
-        const msg = String(err?.message ?? "").toLowerCase()
-        if (msg && !msg.includes("not found") && !msg.includes("contractor profile")) {
-          console.warn("Unexpected error checking contractor profile:", err)
-        }
-      }
-    })()
+      })()
 
     return () => {
       cancelled = true
@@ -132,6 +152,10 @@ export default function ProfileSetupPage() {
         setError(t('opsAiNumber.errors.areaCodeRequired'))
         return
       }
+      saveContractorOpsNumberPrefs({
+        state: selectedState,
+        areaCodes: selectedAreaCodes,
+      })
     }
     setError("")
     setStep(step + 1)
@@ -153,11 +177,25 @@ export default function ProfileSetupPage() {
     setStep(step - 1)
   }
 
+  const profileAlreadyExistsError = (err: unknown): boolean => {
+    const msg = String((err as { message?: string })?.message ?? "").toLowerCase()
+    return msg.includes("already exists")
+  }
+
+  const finishOnboarding = () => {
+    completingSetupRef.current = false
+    setSubmitProgress("")
+    router.push(`/${locale}/dashboard`)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
     setSubmitProgress("Creating profile...")
+
+    // Block dashboard redirect while we finish (see useEffect).
+    completingSetupRef.current = true
 
     try {
       // Persist zipcode so we can derive tax rate after onboarding (single lookup post-redirect)
@@ -177,6 +215,7 @@ export default function ProfileSetupPage() {
             const formattedType = `other - ${otherContractorType.trim()}`
             // Ensure it doesn't exceed 50 characters
             if (formattedType.length > 50) {
+              completingSetupRef.current = false
               setError(t('errors.contractorTypeTooLong'))
               setIsLoading(false)
               setSubmitProgress("")
@@ -191,8 +230,15 @@ export default function ProfileSetupPage() {
         }
       }
 
-      // Step 1: Create profile (required)
-      setSubmitProgress("Creating profile...")
+      // Step 1: Create profile if this is the first attempt (retries skip POST).
+      let profileExists = false
+      try {
+        await api.getMyProfile()
+        profileExists = true
+      } catch {
+        profileExists = false
+      }
+
       const profilePayload: Record<string, any> = {
         company_name: formData.company_name,
         email: formData.email,
@@ -203,11 +249,29 @@ export default function ProfileSetupPage() {
         default_labor_rate_per_hour: parseFloat(formData.default_labor_rate_per_hour),
         default_sales_tax_rate: parseFloat(formData.default_sales_tax_rate),
         contractor_type: contractorType,
+        service_radius_miles: formData.service_radius_miles
+          ? Math.max(1, parseInt(formData.service_radius_miles, 10))
+          : null,
+        service_area_notes: formData.service_area_notes.trim() || null,
+
       }
       if (addressData) {
         profilePayload.address_data = addressData
       }
-      await api.createContractorProfile(profilePayload)
+
+      if (!profileExists) {
+        setSubmitProgress("Creating profile...")
+        try {
+          await api.createContractorProfile(profilePayload)
+        } catch (createErr) {
+          if (!profileAlreadyExistsError(createErr)) {
+            throw createErr
+          }
+          // First submit succeeded; user clicked Complete again — continue.
+        }
+      } else {
+        setSubmitProgress("Profile already saved, continuing...")
+      }
 
       // Step 2: Refresh user to get profile data
       setSubmitProgress("Loading profile data...")
@@ -238,42 +302,26 @@ export default function ProfileSetupPage() {
       }
       // Legacy NeetoCal logic removed. Native Calendar link is generated on Google Calendar OAuth connect.
 
-      // Submit Twilio number request to SheetDB
-      if (selectedState && selectedAreaCodes.length) {
-        const sheetDbUrl = process.env.NEXT_PUBLIC_SHEETDB_TWILIO
-        if (sheetDbUrl) {
-          parallelOperations.push(
-            fetch(sheetDbUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                data: [
-                  {
-                    contractor_name: formData.company_name,
-                    phone_number: formData.phone_number || "",
-                    state: selectedState,
-                    area_code: selectedAreaCodes,
-                    email: formData.email,
-                    created_at: new Date().toISOString(),
-                  },
-                ],
-              }),
-            }).catch(err => {
-              console.error("Failed to submit Twilio number request to SheetDB:", err)
-              return null
-            })
-          )
-        }
-      }
-
-      // Wait for all parallel operations to complete
+      // Wait for any background uploads to settle before opening the picker
       await Promise.allSettled(parallelOperations)
 
-      setSubmitProgress("Finalizing setup...")
-      router.push("/dashboard")
-    } catch (err: any) {
-      setError(t('errors.completeProfileToGetStarted'))
+      finishOnboarding()
+    } catch (err: unknown) {
+      if (profileAlreadyExistsError(err)) {
+        try {
+          await refreshUser()
+          finishOnboarding()
+          setError("")
+          return
+        } catch (recoveryErr) {
+          console.error("Profile setup recovery failed:", recoveryErr)
+        }
+      }
+      completingSetupRef.current = false
+      const msg = String((err as { message?: string })?.message ?? "").trim()
+      setError(msg || t("errors.completeProfileToGetStarted"))
       setSubmitProgress("")
+      console.error("Profile setup failed:", err)
     } finally {
       setIsLoading(false)
     }
@@ -321,13 +369,12 @@ export default function ProfileSetupPage() {
                 return (
                   <div key={s} className="relative z-10 flex flex-col items-center gap-3">
                     <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
-                        isComplete
-                          ? "border-blue-500 bg-blue-500 text-white"
-                          : isActive
-                            ? "border-blue-500 bg-white text-blue-600 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
-                            : "border-slate-200 bg-white text-slate-400"
-                      }`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isComplete
+                        ? "border-blue-500 bg-blue-500 text-white"
+                        : isActive
+                          ? "border-blue-500 bg-white text-blue-600 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
+                          : "border-slate-200 bg-white text-slate-400"
+                        }`}
                     >
                       {isComplete ? (
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -338,9 +385,8 @@ export default function ProfileSetupPage() {
                       )}
                     </div>
                     <span
-                      className={`max-w-[6rem] text-center text-xs font-medium leading-tight sm:text-sm ${
-                        isActive ? "text-slate-900" : isComplete ? "text-blue-600" : "text-slate-400"
-                      }`}
+                      className={`max-w-[6rem] text-center text-xs font-medium leading-tight sm:text-sm ${isActive ? "text-slate-900" : isComplete ? "text-blue-600" : "text-slate-400"
+                        }`}
                     >
                       {s === 1 ? t("step1") : s === 2 ? t("step2") : t("step3")}
                     </span>
@@ -501,7 +547,7 @@ export default function ProfileSetupPage() {
                             setAddressData(data)
                             if (data) {
                               const short = [data.street_line, data.city, data.state].filter(Boolean).join(", ")
-                              setFormData((prev) => ({
+                              setFormData((prev: any) => ({
                                 ...prev,
                                 address: short || data.formatted_address || "",
                                 default_zip_code: data.zip || prev.default_zip_code,
@@ -537,6 +583,77 @@ export default function ProfileSetupPage() {
                         maxLength={10}
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
+                    </div>
+                    <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                      <div>
+                        <Label className="text-gray-700 font-medium">
+                          How far do you travel for jobs?
+                        </Label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This helps the AI answer questions about your service coverage.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {[10, 25, 50, 100].map((miles) => (
+                          <Button
+                            key={miles}
+                            type="button"
+                            variant={formData.service_radius_miles === String(miles) ? "default" : "outline"}
+                            onClick={() =>
+                              setFormData({ ...formData, service_radius_miles: String(miles) })
+                            }
+                            disabled={isLoading}
+                          >
+                            {miles} mi
+                          </Button>
+                        ))}
+
+                        <Button
+                          type="button"
+                          variant={
+                            formData.service_radius_miles &&
+                              !["10", "25", "50", "100"].includes(formData.service_radius_miles)
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setFormData({ ...formData, service_radius_miles: "" })
+                          }
+                          disabled={isLoading}
+                        >
+                          Custom
+                        </Button>
+                      </div>
+
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        placeholder="Custom miles"
+                        value={formData.service_radius_miles}
+                        onChange={(e) =>
+                          setFormData({ ...formData, service_radius_miles: e.target.value })
+                        }
+                        disabled={isLoading}
+                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service_area_notes" className="text-gray-700 font-medium">
+                          Any specific cities or areas? (optional)
+                        </Label>
+                        <Input
+                          id="service_area_notes"
+                          placeholder="e.g. Denver metro, Aurora, Lakewood — not Colorado Springs"
+                          value={formData.service_area_notes}
+                          onChange={(e) =>
+                            setFormData({ ...formData, service_area_notes: e.target.value })
+                          }
+                          disabled={isLoading}
+                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -752,60 +869,112 @@ export default function ProfileSetupPage() {
                 </div>
               )}
 
-              {/* Step 3: AI Estimator — intro in card; video is rendered above (outside card) */}
+              {/*
+                ONBOARDING STEP 3 — Document upload ("personal AI office worker" narrative)
+
+                If you're an AI agent or Johnson working on this: this step is critical product
+                positioning, not a generic file-upload form. The story we sell here is:
+
+                  Meet your personal AI office worker — on 24/7 for calls, texts, and follow-ups,
+                  trained on *their* invoices/proposals so quotes and replies sound like them.
+
+                Do not drift into "AI estimator" spreadsheet jargon alone; keep front-office /
+                always-on teammate language. User-facing strings: profileSetup.aiEstimator in
+                messages/en.json + es.json. Upload API: api.uploadOnboardingAttachments →
+                ContractorBackend /profile/onboarding-attachments (storage today; chunk/embed
+                pipeline may still be project-only — see document_chunks in backend before
+                promising "instant" personalization in copy).
+              */}
               {step === 3 && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div>
+                  <div className="text-center sm:text-left">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 mb-3">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {t('aiEstimator.uploadKicker')}
+                    </span>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('aiEstimator.title')}</h2>
                     <p className="text-gray-600">{t('aiEstimator.description')}</p>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-gray-700 font-medium">{t('aiEstimator.invoiceUploadTitle')}</Label>
-                    <p className="text-sm text-gray-600">{t('aiEstimator.invoiceUploadDescription')}</p>
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-blue-50/40 p-5 space-y-4">
+                    <div>
+                      <Label className="text-gray-800 font-semibold text-base">
+                        {t('aiEstimator.uploadTitle')}
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">{t('aiEstimator.uploadDescription')}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {[
+                        { icon: FileText, label: t('aiEstimator.docTypeInvoices') },
+                        { icon: ClipboardList, label: t('aiEstimator.docTypeProposals') },
+                        { icon: Tags, label: t('aiEstimator.docTypePriceLists') },
+                        { icon: Camera, label: t('aiEstimator.docTypePhotos') },
+                      ].map(({ icon: Icon, label }) => (
+                        <div
+                          key={label}
+                          className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-2 py-3 text-center"
+                        >
+                          <Icon className="h-5 w-5 text-blue-600" strokeWidth={1.75} />
+                          <span className="text-[11px] font-medium leading-tight text-slate-700">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+
                     <input
                       id="invoice-upload"
                       type="file"
-                      accept=".pdf,image/*"
+                      accept=".pdf,image/*,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       multiple
                       onChange={handleInvoiceFilesChange}
                       className="hidden"
                     />
                     <label
                       htmlFor="invoice-upload"
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 py-8 px-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-300/70 bg-white py-10 px-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50/60 transition-colors shadow-sm"
                     >
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <span className="text-sm font-medium text-gray-600">{t('aiEstimator.chooseInvoices')}</span>
-                      <span className="text-xs text-gray-500">{t('aiEstimator.invoiceFormats')}</span>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                        <Upload className="h-6 w-6 text-blue-600" strokeWidth={2} />
+                      </div>
+                      <span className="text-sm font-semibold text-slate-800">{t('aiEstimator.chooseFiles')}</span>
+                      <span className="text-xs text-slate-500">{t('aiEstimator.fileFormats')}</span>
                     </label>
+
                     {invoiceFiles.length > 0 && (
-                      <ul className="space-y-2 mt-3">
-                        {invoiceFiles.map((file, index) => (
-                          <li
-                            key={`${file.name}-${index}`}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white py-2 px-3 text-sm"
-                          >
-                            <span className="truncate text-gray-700">{file.name}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="shrink-0 h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                              onClick={() => removeInvoiceFile(index)}
-                              aria-label={tCommon('delete')}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-blue-800">
+                          {t('aiEstimator.filesSelected', { count: invoiceFiles.length })}
+                        </p>
+                        <ul className="space-y-2">
+                          {invoiceFiles.map((file, index) => (
+                            <li
+                              key={`${file.name}-${index}`}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm"
                             >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
+                              <span className="truncate text-gray-700 font-medium">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="shrink-0 h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                onClick={() => removeInvoiceFile(index)}
+                                aria-label={tCommon('delete')}
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                    <p className="text-xs text-gray-500">{t('aiEstimator.invoiceOptional')}</p>
+
+                    <div className="flex items-start gap-2 rounded-lg bg-slate-100/80 px-3 py-2.5">
+                      <Shield className="h-4 w-4 shrink-0 text-slate-500 mt-0.5" />
+                      <p className="text-xs text-slate-600">{t('aiEstimator.privacyNote')}</p>
+                    </div>
+                    <p className="text-xs text-gray-500">{t('aiEstimator.uploadOptional')}</p>
                   </div>
                 </div>
               )}

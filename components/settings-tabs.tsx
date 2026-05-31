@@ -13,18 +13,19 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 import { CostBookSettings } from "@/components/cost-book-settings"
+import { AutoReplySettings } from "@/components/auto-reply-settings"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book"
+type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply"
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -167,6 +168,8 @@ export function SettingsTabs() {
     address: "",
     website_url: "",
     default_zip_code: "",
+    service_radius_miles: "",
+    service_area_notes: "",
     default_labor_charge_type: LaborChargeType.HOURLY as LaborChargeType,
     default_labor_rate_value: "",
     default_labor_unit_type: "" as UnitType | "",
@@ -196,7 +199,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "billing", "integrations", "language"].includes(tab)) {
+    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -324,6 +327,8 @@ export function SettingsTabs() {
         address: displayAddress,
         website_url: data.website_url || "",
         default_zip_code: data.default_zip_code || "",
+        service_radius_miles: data.service_radius_miles?.toString() || "",
+        service_area_notes: data.service_area_notes || "",
         default_labor_charge_type: data.default_labor_charge_type || LaborChargeType.HOURLY,
         default_labor_rate_value: data.default_labor_rate_value?.toString() || "",
         default_labor_unit_type: (data.default_labor_unit_type || "") as UnitType | "",
@@ -384,6 +389,8 @@ export function SettingsTabs() {
         address: formData.address || null,
         website_url: formData.website_url || null,
         default_zip_code: formData.default_zip_code || null,
+        service_radius_miles: formData.service_radius_miles ? Math.max(1, parseInt(formData.service_radius_miles, 10)) : null,
+        service_area_notes: formData.service_area_notes.trim() || null,
         default_labor_charge_type: formData.default_labor_charge_type,
         default_labor_rate_value: parseFloat(formData.default_labor_rate_value),
         default_labor_unit_type: formData.default_labor_unit_type || null,
@@ -424,6 +431,7 @@ export function SettingsTabs() {
 
   const sidebarItems = [
     { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare },
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
     { id: "billing" as const, label: "Billing", icon: CreditCard },
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
@@ -686,6 +694,64 @@ export function SettingsTabs() {
                             onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
                             disabled={isSaving}
                             className="h-10 border-slate-200"
+                          />
+                        </div>
+
+                        {/* Service area */}
+                        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                          <div>
+                            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              Service area
+                            </Label>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              Helps the AI answer questions about how far you travel.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {[10, 25, 50, 100].map((miles) => (
+                              <button
+                                key={miles}
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => setFormData({ ...formData, service_radius_miles: String(miles) })}
+                                className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition ${
+                                  formData.service_radius_miles === String(miles)
+                                    ? "border-slate-700 bg-slate-800 text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                                }`}
+                              >
+                                {miles} mi
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => setFormData({ ...formData, service_radius_miles: "" })}
+                              className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition ${
+                                formData.service_radius_miles && !["10", "25", "50", "100"].includes(formData.service_radius_miles)
+                                  ? "border-slate-700 bg-slate-800 text-white"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                              }`}
+                            >
+                              Custom
+                            </button>
+                          </div>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            placeholder="Miles from your location"
+                            value={formData.service_radius_miles}
+                            onChange={(e) => setFormData({ ...formData, service_radius_miles: e.target.value })}
+                            disabled={isSaving}
+                            className="h-10 border-slate-200 bg-white"
+                          />
+                          <Input
+                            placeholder="Specific cities or areas, e.g. Denver metro, Aurora — not Colorado Springs"
+                            value={formData.service_area_notes}
+                            onChange={(e) => setFormData({ ...formData, service_area_notes: e.target.value })}
+                            disabled={isSaving}
+                            className="h-10 border-slate-200 bg-white"
                           />
                         </div>
 
@@ -1243,6 +1309,11 @@ export function SettingsTabs() {
             {/* Cost Book Section */}
             {activeSection === "cost-book" && (
               <CostBookSettings />
+            )}
+
+            {/* Auto-reply Section */}
+            {activeSection === "auto-reply" && (
+              <AutoReplySettings />
             )}
 
             {/* Logout Section */}

@@ -5,18 +5,21 @@ import { useParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { api } from "@/lib/api"
 import type { Project, ProjectTask, ProjectTrade } from "@/lib/types"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { motion } from "framer-motion"
+import { GooeyFilter } from "@/components/ui/gooey-filter"
 import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
+import { ProjectProposals } from "@/components/projects/project-proposals"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
-import { ChevronDown, Loader2, User, Search, X } from "lucide-react"
+import { BriefPanel } from "@/components/projects/brief-panel"
+import { ChevronDown, Loader2, User, Search, X, Pencil, Save, Calendar, Bold, Italic, List, ListOrdered } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeProjectBrief } from "@/lib/project-brief"
+import ReactMarkdown from "react-markdown"
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -25,8 +28,41 @@ export default function ProjectDetailPage() {
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
+  const [isEditingHeader, setIsEditingHeader] = useState(false)
+  const [savingHeader, setSavingHeader] = useState(false)
+  const [draftTitle, setDraftTitle] = useState("")
+  const [draftDescription, setDraftDescription] = useState("")
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const DESCRIPTION_TRUNCATE_CHARS = 200
+
+  function insertMarkdown(type: "bold" | "italic" | "ul" | "ol") {
+    const el = descriptionTextareaRef.current
+    if (!el) return
+    const { selectionStart: s, selectionEnd: e, value } = el
+    const sel = value.slice(s, e)
+    let replacement = ""
+    if (type === "bold")   replacement = `**${sel || "bold text"}**`
+    if (type === "italic") replacement = `*${sel || "italic text"}*`
+    if (type === "ul")     replacement = (sel || "item").split("\n").map(l => `- ${l}`).join("\n")
+    if (type === "ol")     replacement = (sel || "item").split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n")
+    const next = value.slice(0, s) + replacement + value.slice(e)
+    setDraftDescription(next)
+    // Restore focus & selection after React re-render
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(s, s + replacement.length)
+    })
+  }
 
   const projectId = Number(params.id)
+  const projectDescription = useMemo(() => {
+    const objective = project?.objective?.trim()
+    if (objective) return objective
+    return ""
+  }, [project?.objective])
 
   useEffect(() => {
     if (!projectId) return
@@ -44,15 +80,30 @@ export default function ProjectDetailPage() {
       }
     }
     run()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [projectId])
+
+  useEffect(() => {
+    if (!project) return
+    setDraftTitle(project.title || "")
+    setDraftDescription(project.objective || "")
+  }, [project?.id, project?.title, project?.objective])
 
   const refreshProject = async () => {
     if (!projectId) return
     const data = await api.getProject(projectId)
     setProject(data as Project)
+  }
+
+  const handleBriefUpdated = (brief: Record<string, any> | null) => {
+    setProject((prev) => {
+      if (!prev) return prev
+      const normalized = normalizeProjectBrief(brief)
+      return {
+        ...prev,
+        brief: normalized,
+      }
+    })
   }
 
   const handleTasksUpdated = (tasks: ProjectTask[]) => {
@@ -85,8 +136,39 @@ export default function ProjectDetailPage() {
       await api.updateProject(project.id, { status: newStatus })
     } catch (err) {
       console.error("Failed to update status", err)
-      setProject({ ...project, status: prevStatus }) // Revert on failure
+      setProject({ ...project, status: prevStatus })
     }
+  }
+
+  const handleSaveHeader = async () => {
+    if (!project) return
+    const nextTitle = draftTitle.trim()
+    if (!nextTitle) {
+      toast({ title: "Project title is required", variant: "destructive" })
+      return
+    }
+    setSavingHeader(true)
+    try {
+      const updated = await api.updateProject(project.id, {
+        title: nextTitle,
+        objective: draftDescription.trim() || undefined,
+      }) as Project
+      setProject(updated)
+      setIsEditingHeader(false)
+      toast({ title: "Project updated" })
+    } catch (err) {
+      console.error("Failed to update project header", err)
+      toast({ title: "Failed to update project", variant: "destructive" })
+    } finally {
+      setSavingHeader(false)
+    }
+  }
+
+  const handleCancelHeaderEdit = () => {
+    if (!project) return
+    setDraftTitle(project.title || "")
+    setDraftDescription(project.objective || "")
+    setIsEditingHeader(false)
   }
 
   if (!project || loading) {
@@ -98,113 +180,270 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Tabs defaultValue="tasks" className="w-full flex-1 flex flex-col">
-        <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4">
-          <div className="w-full max-w-none flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-0.5 lg:flex-1 min-w-0">
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-slate-200">
+          <div className="px-4 sm:px-6 lg:px-10 pt-4 pb-0">
+
+            {/* Row 1: breadcrumb left, Edit + Status right */}
+            <div className="flex items-center justify-between gap-4 mb-2">
               <AppBreadcrumb
                 items={[
                   { label: "Projects", href: `/${locale}/projects` },
-                  { label: project.title },
+                  { label: isEditingHeader ? (draftTitle || project.title) : project.title },
                 ]}
               />
-              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-tight truncate">
-                {project.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-                <div className="flex items-center gap-1 font-medium text-slate-700">
-                  <span className="text-slate-500">From:</span>
-                  <span>{project.scheduled_start_date || "–"}</span>
-                  <span className="text-slate-500 ml-1">To:</span>
-                  <span>{project.scheduled_end_date || "–"}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                {!isEditingHeader && (
+                  <button
+                    onClick={() => setIsEditingHeader(true)}
+                    className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all shadow-sm hover:border-slate-400 hover:text-slate-900"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                )}
+                <StatusDropdown status={project.status} onChange={handleStatusChange} />
+              </div>
+            </div>
+
+            {/* Edit form OR display rows */}
+            {isEditingHeader ? (
+              <div className="max-w-4xl space-y-4 pb-3">
+                <label className="block space-y-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Project Title
+                  </span>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    placeholder="Project title"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-semibold tracking-tight text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
+                  />
+                </label>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      Project Overview
+                    </span>
+                    <span className="text-[11px] text-slate-400">Supports markdown formatting.</span>
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200/70">
+                    {/* Formatting toolbar */}
+                    <div className="flex items-center gap-0.5 border-b border-slate-100 px-2 py-1.5">
+                      {[
+                        { type: "bold"   as const, icon: <Bold className="h-3.5 w-3.5" />,         title: "Bold" },
+                        { type: "italic" as const, icon: <Italic className="h-3.5 w-3.5" />,       title: "Italic" },
+                        { type: "ul"     as const, icon: <List className="h-3.5 w-3.5" />,         title: "Bullet list" },
+                        { type: "ol"     as const, icon: <ListOrdered className="h-3.5 w-3.5" />,  title: "Numbered list" },
+                      ].map(({ type, icon, title }) => (
+                        <button
+                          key={type}
+                          type="button"
+                          title={title}
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdown(type) }}
+                          className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      ref={descriptionTextareaRef}
+                      value={draftDescription}
+                      onChange={(e) => setDraftDescription(e.target.value)}
+                      placeholder="Add a concise summary of the job, goals, or important context. Use **bold**, *italic*, - bullets, or 1. numbered lists."
+                      rows={5}
+                      className="w-full resize-y px-4 py-3 text-sm leading-6 text-slate-700 outline-none font-mono"
+                    />
+                  </div>
                 </div>
 
-                <ClientPicker
-                  projectId={project.id}
-                  currentClientId={project.client_id}
-                  onChange={handleClientChange}
-                />
-
-                {project.objective && (
-                  <span className="line-clamp-1 text-slate-500">
-                    • {project.objective}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-start lg:justify-center overflow-x-auto sm:my-2 lg:my-0 lg:mx-4 shrink-0">
-              <TabsList className="mb-1 flex w-max flex-nowrap rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm lg:mb-0">
-                <TabsTrigger
-                  value="tasks"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.tasks") || "Tasks"}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="financials"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.financials") || "Financials"}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="documents"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger
-                  value="trades"
-                  className="h-10 cursor-pointer rounded-lg px-4 text-[15px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-                >
-                  {t("tabs.trades") || "Team & scopes"}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <div className="flex flex-col lg:items-end gap-2 lg:flex-1 shrink-0 mt-1 lg:mt-0">
-              <div className="flex items-center gap-3">
-                <StatusDropdown status={project.status} onChange={handleStatusChange} />
-                {project.contract_value != null && (
-                  <p className="text-sm font-semibold text-slate-900 border-l border-slate-200 pl-3">
-                    {t("contractValue", { amount: project.contract_value })}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <p className="text-xs text-slate-400">
+                    The brief and other project views will use this context too.
                   </p>
-                )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCancelHeaderEdit}
+                      disabled={savingHeader}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveHeader}
+                      disabled={savingHeader}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {savingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Save changes
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-start justify-between gap-8 mb-1">
+                {/* Left: title + description */}
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight mb-2">
+                    {project.title}
+                  </h1>
+                  {projectDescription && (() => {
+                    const isLong = projectDescription.length > DESCRIPTION_TRUNCATE_CHARS
+                    const displayed = isLong && !descriptionExpanded
+                      ? projectDescription.slice(0, DESCRIPTION_TRUNCATE_CHARS).trimEnd() + "…"
+                      : projectDescription
+                    return (
+                      <div>
+                        <div className="text-sm text-slate-500 leading-relaxed [&>*:last-child]:mb-0">
+                          <ReactMarkdown
+                            components={{
+                              p:      ({ ...props }) => <p className="mb-1.5 text-sm text-slate-500 leading-relaxed" {...props} />,
+                              ul:     ({ ...props }) => <ul className="mb-1.5 list-disc space-y-0.5 pl-5 text-sm text-slate-500" {...props} />,
+                              ol:     ({ ...props }) => <ol className="mb-1.5 list-decimal space-y-0.5 pl-5 text-sm text-slate-500" {...props} />,
+                              li:     ({ ...props }) => <li className="leading-relaxed" {...props} />,
+                              strong: ({ ...props }) => <strong className="font-semibold text-slate-700" {...props} />,
+                              em:     ({ ...props }) => <em className="italic" {...props} />,
+                            }}
+                          >
+                            {displayed}
+                          </ReactMarkdown>
+                        </div>
+                        {isLong && (
+                          <button
+                            type="button"
+                            onClick={() => setDescriptionExpanded(v => !v)}
+                            className="mt-1 text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors"
+                          >
+                            {descriptionExpanded ? "Show less" : "Show more"}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Right: date + client */}
+                <div className="shrink-0 flex flex-col items-end gap-2 pt-1">
+                  {(project.scheduled_start_date || project.scheduled_end_date) && (
+                    <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>
+                        {project.scheduled_start_date
+                          ? new Date(project.scheduled_start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                          : "–"}
+                        {" → "}
+                        {project.scheduled_end_date
+                          ? new Date(project.scheduled_end_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : "–"}
+                      </span>
+                    </div>
+                  )}
+                  <ClientPicker
+                    projectId={project.id}
+                    currentClientId={project.client_id}
+                    onChange={handleClientChange}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Bottom row: gooey tabs */}
+            {(() => {
+              const TABS = [
+                { value: "overview",   label: "Overview" },
+                { value: "scope",      label: "Scope & Tasks" },
+                { value: "financials", label: t("tabs.financials") || "Financials" },
+                { value: "files",      label: "Files" },
+              ]
+              return (
+                <div className="relative flex overflow-x-auto">
+                  <GooeyFilter id="project-tab-goo" strength={6} />
+
+                  {/* Blob layer — filter applied here so text stays crisp */}
+                  <div className="absolute inset-0 flex pointer-events-none" style={{ filter: "url(#project-tab-goo)" }}>
+                    {TABS.map(({ value, label }) => (
+                      <div
+                        key={value}
+                        className="relative h-9 px-4 flex items-center text-sm font-medium invisible"
+                        aria-hidden
+                      >
+                        {label}
+                        {activeTab === value && (
+                          <motion.div
+                            layoutId="project-active-tab"
+                            className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-slate-800"
+                            transition={{ type: "spring", bounce: 0.25, duration: 0.4 }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Text layer — no filter, crisp text */}
+                  {TABS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveTab(value)}
+                      className={`relative h-9 px-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                        activeTab === value ? "text-slate-900" : "text-slate-400 hover:text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
           </div>
         </div>
-      </div>
 
-      <main className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
-        <div className="w-full max-w-none space-y-4">
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
-          <TabsContent value="tasks" className="mt-0">
-            <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
-          </TabsContent>
+            <TabsContent value="overview" className="mt-0 space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProjectQuotes project={project} />
+                <ProjectProposals project={project} />
+              </div>
+              <BriefPanel
+                projectId={project.id}
+                initialBrief={project.brief}
+                initiallyExpanded
+                onBriefUpdated={handleBriefUpdated}
+              />
+            </TabsContent>
 
-          <TabsContent value="financials" className="mt-0">
-            <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
-          </TabsContent>
+            {/* Scope & Tasks */}
+            <TabsContent value="scope" className="mt-0 space-y-8">
+              <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
+              <ProjectTasks project={project} onTasksUpdated={handleTasksUpdated} />
+            </TabsContent>
 
-          <TabsContent value="documents" className="mt-0 space-y-6">
-            <ProjectQuotes project={project} />
-            <ProjectDocuments project={project} />
-          </TabsContent>
+            {/* Financials */}
+            <TabsContent value="financials" className="mt-0">
+              <ProjectFinancials project={project} onProjectUpdated={refreshProject} />
+            </TabsContent>
 
-          <TabsContent value="trades" className="mt-0">
-            <TradesScopes project={project} onTradesUpdated={handleTradesUpdated} />
-          </TabsContent>
+            {/* Files */}
+            <TabsContent value="files" className="mt-0">
+              <ProjectDocuments project={project} onRefresh={refreshProject} />
+            </TabsContent>
+          </main>
         </div>
-      </main>
       </Tabs>
     </div>
   )
 }
 
-function StatusDropdown({ status, onChange }: { status: Project["status"], onChange: (newStatus: string) => void }) {
+// ─── StatusDropdown ───────────────────────────────────────────────────────────
+
+function StatusDropdown({ status, onChange }: { status: Project["status"]; onChange: (newStatus: string) => void }) {
   const t = useTranslations("projects.status")
   let color = "bg-slate-50 text-slate-700 border-slate-200"
   if (status === "COMPLETED") color = "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -219,9 +458,9 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
       <select
         value={status}
         onChange={(e) => onChange(e.target.value)}
-        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10`}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
       >
-        {STATUS_OPTIONS.map(opt => (
+        {STATUS_OPTIONS.map((opt) => (
           <option key={opt} value={opt}>{t(opt.toLowerCase() as any)}</option>
         ))}
       </select>
@@ -233,7 +472,22 @@ function StatusDropdown({ status, onChange }: { status: Project["status"], onCha
   )
 }
 
-interface SimpleClient { id: number; name: string; phone?: string }
+// ─── ClientPicker ─────────────────────────────────────────────────────────────
+
+interface SimpleClient { id: number; name: string; phone?: string; email?: string; address?: string }
+
+const AVATAR_COLORS = [
+  "bg-violet-500", "bg-sky-500", "bg-emerald-500",
+  "bg-orange-500", "bg-pink-500", "bg-indigo-500", "bg-teal-500",
+]
+
+function clientInitials(name: string): string {
+  return name.trim().split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+}
+
+function clientAvatarColor(name: string): string {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+}
 
 function ClientPicker({
   projectId,
@@ -247,8 +501,16 @@ function ClientPicker({
   const [open, setOpen] = useState(false)
   const [clients, setClients] = useState<SimpleClient[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentClient, setCurrentClient] = useState<SimpleClient | null>(null)
   const [search, setSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!currentClientId) { setCurrentClient(null); return }
+    api.getClient(currentClientId)
+      .then((data: any) => setCurrentClient(data))
+      .catch(() => setCurrentClient(null))
+  }, [currentClientId])
 
   useEffect(() => {
     if (!open) return
@@ -269,25 +531,46 @@ function ClientPicker({
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return clients.filter(c => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q))
+    return clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q))
   }, [clients, search])
-
-  const current = clients.find(c => c.id === currentClientId)
 
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-all shadow-sm"
+        onClick={() => setOpen((v) => !v)}
+        className="flex flex-col items-end gap-0.5 py-1 group text-right"
       >
-        <User className="w-3 h-3" />
-        {current ? current.name : <span className="text-slate-400">Assign Client</span>}
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        {currentClient ? (
+          <>
+            <div className="flex items-center gap-2">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${clientAvatarColor(currentClient.name)}`}>
+                {clientInitials(currentClient.name)}
+              </div>
+              <span className="font-semibold text-slate-900 text-sm">{currentClient.name}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </div>
+            {(currentClient.phone || currentClient.email) && (
+              <div className="flex items-center gap-2 text-sm text-slate-400 pl-10">
+                {currentClient.phone && <span>{currentClient.phone}</span>}
+                {currentClient.phone && currentClient.email && <span className="text-slate-300">·</span>}
+                {currentClient.email && <span>{currentClient.email}</span>}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <User className="w-4 h-4" />
+            </div>
+            <span className="text-sm text-slate-400 group-hover:text-slate-600 transition-colors">Assign client</span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </div>
+        )}
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-56 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute top-full mt-1 right-0 z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -296,7 +579,7 @@ function ClientPicker({
                 type="text"
                 placeholder="Search clients..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
@@ -311,21 +594,25 @@ function ClientPicker({
                 {currentClientId && (
                   <button
                     className="w-full px-3 py-2 text-left text-xs text-rose-500 hover:bg-rose-50 flex items-center gap-1.5 border-b border-slate-100"
-                    onClick={() => { onChange(null); setOpen(false) }}
+                    onClick={() => { onChange(null); setOpen(false); setCurrentClient(null) }}
                   >
                     <X className="w-3 h-3" /> Remove client
                   </button>
                 )}
-                {filtered.map(c => (
+                {filtered.map((c) => (
                   <button
                     key={c.id}
-                    className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
-                      c.id === currentClientId ? "bg-slate-50 font-semibold" : ""
+                    className={`w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors ${
+                      c.id === currentClientId ? "bg-slate-50" : ""
                     }`}
-                    onClick={() => { onChange(c.id); setOpen(false); setSearch("") }}
+                    onClick={() => { onChange(c.id); setOpen(false); setSearch(""); setCurrentClient(c) }}
                   >
-                    <span className="text-slate-900">{c.name}</span>
-                    {c.phone && <span className="text-slate-400 ml-1.5">{c.phone}</span>}
+                    <p className={`text-xs ${c.id === currentClientId ? "font-semibold" : ""} text-slate-900`}>{c.name}</p>
+                    {(c.phone || c.email) && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {c.phone}{c.phone && c.email ? " · " : ""}{c.email}
+                      </p>
+                    )}
                   </button>
                 ))}
               </>

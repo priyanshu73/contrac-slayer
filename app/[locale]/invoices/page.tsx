@@ -321,7 +321,7 @@ export default function InvoicesPage() {
                   <SelectContent className="max-h-[280px]">
                     <SelectItem value="all">All Clients</SelectItem>
                     {clients.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)} textValue={`${c.name} ${c.email}`}>
+                      <SelectItem key={c.id} value={String(c.id)} textValue={c.name}>
                         <span className="truncate block">{c.name}</span>
                         <span className="text-muted-foreground text-xs truncate block">{c.email}</span>
                       </SelectItem>

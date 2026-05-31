@@ -60,7 +60,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/proposals/") || // Legacy non-i18n routes
     // Public booking/calendar pages (no auth required)
     pathname?.match(/^\/[a-z]{2}\/book\//) || // Matches /en/book/{slug}, /es/book/{slug}
-    pathname?.startsWith("/book/") // Legacy non-i18n routes
+    pathname?.startsWith("/book/") || // Legacy non-i18n routes
+    // Public client portal (no auth required)
+    pathname?.match(/^\/[a-z]{2}\/client\//) || // Matches /en/client/{token}, /es/client/{token}
+    pathname?.startsWith("/client/") // Legacy non-i18n routes
 
   // Routes accessible without subscription (but require auth)
   const isBillingRoute =

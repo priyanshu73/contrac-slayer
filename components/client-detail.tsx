@@ -48,6 +48,7 @@ import {
 import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pencil, Trash2, FolderOpen, Plus, ChevronRight, Mail } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { ClientPortalLink } from "@/components/projects/client-portal-link"
 import type { ProjectListItem, ProjectStatus } from "@/lib/types"
 
 interface ClientDetailData {
@@ -73,6 +74,7 @@ interface ClientDetailData {
   first_job_date?: string
   last_job_date?: string
   referral_source?: string
+  client_portal_token?: string | null
   created_at: string
   updated_at?: string
   quotes: Array<{
@@ -511,7 +513,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </Button>
             <Button size="sm" variant="outline" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
               <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-              Project
+              Create Project
             </Button>
             {clientData.phone && (
               <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
@@ -850,6 +852,11 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{clientData.notes}</p>
             </Card>
           )}
+
+          <ClientPortalLink
+            clientId={clientData.id}
+            existingToken={clientData.client_portal_token}
+          />
 
           {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
             <PropertyInsightsCard

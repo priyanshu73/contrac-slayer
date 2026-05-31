@@ -6,10 +6,62 @@ import { useLocale } from "next-intl"
 import {
     Bot, X, Send, Loader2, Sparkles, Plus,
     MessageSquare, ChevronLeft, Trash2, Clock,
-    Sun, BellRing, Maximize2, Minimize2
+    Sun, BellRing, Maximize2, Minimize2,
+    ChevronDown, ChevronUp, Zap, CheckCircle2, AlertCircle,
+    FolderKanban, Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
 import ReactMarkdown from "react-markdown"
+import { api } from "@/lib/api"
+import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/lib/api"
+import type { ProjectListItem } from "@/lib/types"
+
+interface QuoteEstimateContext {
+    projectType: string
+    projectTitle?: string | null
+    serviceDescription: string
+    laborRate: number
+    laborChargeType: string
+    projectBrief?: Record<string, any> | null
+    includeProjectBriefInContext?: boolean
+    projectId?: number | null
+    clientId?: number | null
+    clientName?: string | null
+    clientEmail?: string | null
+    clientPhone?: string | null
+}
+
+interface ProposalContext {
+    proposalTitle: string
+    projectTitle: string
+    description: string
+    projectBrief?: Record<string, any> | null
+    includeProjectBriefInContext?: boolean
+    includeLineItemsInContext?: boolean
+    projectId?: number | null
+    proposalId?: number | null
+    clientId?: number | null
+    clientEmail?: string | null
+    clientPhone?: string | null
+    jobId?: number | null
+    lineItems?: Array<{ id: number; title?: string | null; description?: string | null }> | null
+}
+
+interface AIGenerationStatus {
+    kind: "estimate" | "proposal"
+    phase: "running" | "succeeded" | "failed"
+    title: string
+    detail?: string
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
@@ -18,12 +70,287 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 interface PageContext {
     page: string
     entity_id?: string
+    job_id?: number
+    project_id?: number
+    client_id?: number
+    lead_id?: number
+    proposal_id?: number
+    booking_id?: number
+    client_email?: string
+    client_phone?: string
+    locale?: string
+    frontend_origin?: string
+    customer_quote_url?: string
+    route?: string
+}
+
+interface QuotePageContext {
+    job_id: number
+    project_id?: number
+    client_id?: number
+    lead_id?: number
+    client_email?: string
+    quote_public_link?: string
+    customer_quote_url?: string
+    frontend_origin?: string
+}
+
+interface ContextEnvelope {
+    surface: string
+    page: {
+        page_type: string
+        route?: string
+        locale?: string
+        frontend_origin?: string
+    }
+    selection?: {
+        entity_type?: string
+        entity_id?: string | number
+    }
+    related_refs?: {
+        job_id?: number
+        project_id?: number
+        client_id?: number
+        lead_id?: number
+        proposal_id?: number
+        booking_id?: number
+    }
+    ui_hints?: {
+        client_email?: string
+        client_phone?: string
+        customer_quote_url?: string
+    }
+    preloaded_snapshot?: Record<string, unknown>
+}
+
+interface SelectedProjectContext {
+    type: "project"
+    projectId: number
+    projectName: string
+    source: "auto" | "manual"
+}
+
+interface PendingProjectContextSwitch {
+    projectId: number
+    projectName: string
+    source: "auto" | "manual"
+}
+
+function preferProjectScope<T extends { project_id?: number | null; client_id?: number | null }>(value: T): T {
+    if (value.project_id != null) {
+        return {
+            ...value,
+            client_id: undefined,
+        }
+    }
+    return value
+}
+
+function enrichPageContext(
+    base: PageContext,
+    locale: string,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): PageContext {
+    const origin =
+        typeof window !== "undefined" ? window.location.origin : undefined
+    let ctx: PageContext = origin ? { ...base, frontend_origin: origin } : { ...base }
+
+    if (typeof window === "undefined") {
+        return { ...ctx, locale }
+    }
+
+    const win = window as Window & { quotePageContext?: QuotePageContext }
+    if (ctx.page === "quote_detail") {
+        const quoteCtx = win.quotePageContext
+        if (quoteCtx?.job_id) {
+            ctx = {
+                ...ctx,
+                entity_id: String(quoteCtx.job_id),
+                job_id: quoteCtx.job_id,
+                project_id: quoteCtx.project_id,
+                client_id: quoteCtx.client_id,
+                lead_id: quoteCtx.lead_id,
+                client_email: quoteCtx.client_email,
+                locale,
+                frontend_origin: quoteCtx.frontend_origin ?? origin,
+                customer_quote_url: quoteCtx.customer_quote_url,
+            }
+        }
+    }
+
+    if (ctx.page === "proposal_builder") {
+        const proposalId =
+            proposalContext.proposalId != null ? String(proposalContext.proposalId) : ctx.entity_id
+        ctx = preferProjectScope({
+            ...ctx,
+            entity_id: proposalId,
+            proposal_id: proposalContext.proposalId ?? ctx.proposal_id,
+            project_id: proposalContext.projectId ?? ctx.project_id,
+            client_id: proposalContext.clientId ?? ctx.client_id,
+            job_id: proposalContext.jobId ?? ctx.job_id,
+            client_email: proposalContext.clientEmail ?? ctx.client_email,
+            client_phone: proposalContext.clientPhone ?? ctx.client_phone,
+        })
+    }
+
+    if (ctx.page === "unknown") {
+        const hasEstimateContext =
+            !!estimateContext.projectId ||
+            !!estimateContext.projectType?.trim() ||
+            !!estimateContext.serviceDescription?.trim()
+        if (hasEstimateContext) {
+            ctx = preferProjectScope({
+                ...ctx,
+                page: "quote_builder",
+                project_id: estimateContext.projectId ?? ctx.project_id,
+                client_id: estimateContext.clientId ?? ctx.client_id,
+                client_email: estimateContext.clientEmail ?? ctx.client_email,
+                client_phone: estimateContext.clientPhone ?? ctx.client_phone,
+            })
+        }
+    }
+
+    return {
+        ...ctx,
+        locale,
+        route: ctx.route ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
+    }
+}
+
+function pageTypeToEntityType(pageType: string): string | undefined {
+    switch (pageType) {
+        case "quote_detail":
+            return "quote"
+        case "project_detail":
+            return "project"
+        case "client_detail":
+            return "client"
+        case "lead_detail":
+            return "lead"
+        case "booking_detail":
+            return "booking"
+        case "proposal_builder":
+            return "proposal"
+        case "subcontractor_detail":
+            return "subcontractor"
+        case "invoice_detail":
+            return "invoice"
+        default:
+            return undefined
+    }
+}
+
+function buildPreloadedSnapshot(
+    pageContext: PageContext,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): Record<string, unknown> {
+    const snapshot: Record<string, unknown> = {}
+
+    if (pageContext.page === "quote_builder") {
+        snapshot.quote_builder = preferProjectScope({
+            client_name: estimateContext.clientName ?? null,
+            project_title: estimateContext.projectTitle ?? null,
+            project_type: estimateContext.projectType,
+            service_description: estimateContext.serviceDescription,
+            labor_rate: estimateContext.laborRate,
+            labor_charge_type: estimateContext.laborChargeType,
+            include_project_brief: estimateContext.includeProjectBriefInContext ?? true,
+            project_brief: estimateContext.projectBrief ?? null,
+            project_id: estimateContext.projectId ?? null,
+            client_id: estimateContext.clientId ?? null,
+            client_email: estimateContext.clientEmail ?? null,
+            client_phone: estimateContext.clientPhone ?? null,
+        })
+    }
+
+    if (pageContext.page === "proposal_builder") {
+        snapshot.proposal_builder = preferProjectScope({
+            proposal_title: proposalContext.proposalTitle,
+            project_title: proposalContext.projectTitle,
+            description: proposalContext.description,
+            include_project_brief: proposalContext.includeProjectBriefInContext ?? true,
+            project_brief: proposalContext.projectBrief ?? null,
+            project_id: proposalContext.projectId ?? null,
+            proposal_id: proposalContext.proposalId ?? null,
+            client_id: proposalContext.clientId ?? null,
+            client_email: proposalContext.clientEmail ?? null,
+            client_phone: proposalContext.clientPhone ?? null,
+            job_id: proposalContext.jobId ?? null,
+        })
+    }
+
+    return snapshot
+}
+
+function buildContextEnvelope(
+    pageContext: PageContext,
+    pathname: string,
+    locale: string,
+    activeProjectId: number | null,
+    estimateContext: QuoteEstimateContext,
+    proposalContext: ProposalContext,
+): ContextEnvelope {
+    const frontendOrigin =
+        pageContext.frontend_origin ||
+        (typeof window !== "undefined" ? window.location.origin : undefined)
+    const entityType = pageTypeToEntityType(pageContext.page)
+    const relatedRefs = preferProjectScope<NonNullable<ContextEnvelope["related_refs"]>>({
+        job_id: pageContext.job_id,
+        project_id: activeProjectId ?? pageContext.project_id ?? undefined,
+        client_id: pageContext.client_id,
+        lead_id: pageContext.lead_id,
+        proposal_id: pageContext.proposal_id,
+        booking_id: pageContext.booking_id,
+    })
+
+    if (pageContext.page === "project_detail" && pageContext.entity_id && !relatedRefs.project_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.project_id = parsed
+    }
+    if (pageContext.page === "quote_detail" && pageContext.job_id && !relatedRefs.job_id) {
+        relatedRefs.job_id = pageContext.job_id
+    }
+    if (pageContext.page === "proposal_builder" && pageContext.entity_id && !relatedRefs.proposal_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.proposal_id = parsed
+    }
+    if (pageContext.page === "booking_detail" && pageContext.entity_id && !relatedRefs.booking_id) {
+        const parsed = Number(pageContext.entity_id)
+        if (Number.isFinite(parsed)) relatedRefs.booking_id = parsed
+    }
+
+    return {
+        surface: "chat_panel",
+        page: {
+            page_type: pageContext.page,
+            route: pathname,
+            locale,
+            frontend_origin: frontendOrigin,
+        },
+        selection: entityType
+            ? {
+                  entity_type: entityType,
+                  entity_id: pageContext.entity_id,
+              }
+            : undefined,
+        related_refs: relatedRefs,
+        ui_hints: {
+            client_email: pageContext.client_email,
+            client_phone: pageContext.client_phone,
+            customer_quote_url: pageContext.customer_quote_url,
+        },
+        preloaded_snapshot: buildPreloadedSnapshot(pageContext, estimateContext, proposalContext),
+    }
 }
 
 const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
     { pattern: /\/crew\/([^/]+)/, page: "subcontractor_detail" },
     { pattern: /\/clients\/([^/]+)/, page: "client_detail" },
     { pattern: /\/leads\/([^/]+)/, page: "lead_detail" },
+    { pattern: /\/projects\/\d+\/proposals\/([^/]+)/, page: "proposal_builder" },
+    { pattern: /\/quotes\/(\d+)\/proposal/, page: "proposal_builder" },
     { pattern: /\/projects\/([^/]+)/, page: "project_detail" },
     { pattern: /\/quotes\/([^/]+)/, page: "quote_detail" },
     { pattern: /\/calendar\/([^/]+)/, page: "booking_detail" },
@@ -63,6 +390,14 @@ function parsePageContext(pathname: string): PageContext {
     return { page: "unknown" }
 }
 
+function parseProjectRouteId(pathname: string): number | null {
+    const stripped = pathname.replace(/^\/[a-z]{2}/, "")
+    const match = stripped.match(/^\/projects\/(\d+)(?:\/|$)/)
+    if (!match) return null
+    const parsed = Number(match[1])
+    return Number.isFinite(parsed) ? parsed : null
+}
+
 // ─── Contextual suggestions per page type ──────────────────────
 
 const SUGGESTIONS: Record<string, string[]> = {
@@ -83,6 +418,12 @@ const SUGGESTIONS: Record<string, string[]> = {
         "Show project tasks",
         "What's the status?",
         "Any blockers?",
+    ],
+    proposal_builder: [
+        "Summarize this proposal",
+        "What sections are in this proposal?",
+        "Help me write the scope summary",
+        "What's the project overview?",
     ],
     quote_detail: [
         "Summarize this quote",
@@ -119,7 +460,14 @@ const SUGGESTIONS: Record<string, string[]> = {
         "Create a new quote",
         "Dashboard summary",
     ],
+    calendar: [
+        "What's my public booking link?",
+        "What's on my calendar this week?",
+        "Show upcoming appointments",
+        "Dashboard summary",
+    ],
     default: [
+        "What's my booking link?",
         "How many leads do I have?",
         "Show my active projects",
         "What's on my calendar?",
@@ -134,11 +482,27 @@ interface ProcessStep {
     tool?: string
 }
 
+interface ActionCardOption {
+    id: string
+    label: string
+    prompt: string
+    style?: "primary" | "secondary" | "ghost" | string
+}
+
+interface ActionCard {
+    action?: string
+    title: string
+    description?: string
+    options: ActionCardOption[]
+    entity?: Record<string, unknown>
+}
+
 interface Message {
     id: string
     role: "user" | "assistant"
     content: string
     processSteps?: ProcessStep[]
+    actionCard?: ActionCard
 }
 
 interface Conversation {
@@ -150,7 +514,8 @@ interface Conversation {
 }
 
 // ─── View type ─────────────────────────────────────────────────
-type PanelView = "chat" | "conversations"
+type PanelView = "chat" | "conversations" | "scope"
+type ChatLaunchMode = "general" | "quote_estimate" | "proposal"
 
 // ─── Status color map (value → color class) ─────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -212,8 +577,16 @@ export function AgentChatPanel() {
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isExpanded, setIsExpanded] = useState(false)
+    const [selectedContext, setSelectedContext] = useState<SelectedProjectContext | null>(null)
+    const [pendingProjectSwitch, setPendingProjectSwitch] = useState<PendingProjectContextSwitch | null>(null)
+    const [projectPickerOpen, setProjectPickerOpen] = useState(false)
+    const [availableProjects, setAvailableProjects] = useState<ProjectListItem[]>([])
+    const [projectsLoading, setProjectsLoading] = useState(false)
+    const [projectsLoaded, setProjectsLoaded] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
+    const dismissedAutoProjectIdRef = useRef<number | null>(null)
+    const keptProjectRouteIdRef = useRef<number | null>(null)
 
     // Multi-chat state
     const [conversations, setConversations] = useState<Conversation[]>([])
@@ -221,9 +594,136 @@ export function AgentChatPanel() {
     const [panelView, setPanelView] = useState<PanelView>("chat")
     const [isLoadingConversations, setIsLoadingConversations] = useState(false)
 
-    // Parse page context from current route
-    const pageContext = useMemo(() => parsePageContext(pathname ?? ""), [pathname])
+    // Quote estimate context (populated when on quote pages)
+    const [estimateContext, setEstimateContext] = useState<QuoteEstimateContext>({
+        projectType: "",
+        projectTitle: "",
+        serviceDescription: "",
+        laborRate: 75,
+        laborChargeType: "HOURLY",
+        includeProjectBriefInContext: true,
+        clientName: "",
+    })
+    const [contextExpanded, setContextExpanded] = useState(false)
+    const [estimateLoading, setEstimateLoading] = useState(false)
+    const [chatLaunchMode, setChatLaunchMode] = useState<ChatLaunchMode>("general")
+
+    // Proposal context (populated when on proposal builder pages)
+    const [proposalContext, setProposalContext] = useState<ProposalContext>({
+        proposalTitle: "",
+        projectTitle: "",
+        description: "",
+        includeProjectBriefInContext: true,
+        includeLineItemsInContext: true,
+    })
+    const [proposalContextExpanded, setProposalContextExpanded] = useState(false)
+    const [proposalLoading, setProposalLoading] = useState(false)
+    const [generationStatus, setGenerationStatus] = useState<AIGenerationStatus | null>(null)
+
+    // Scope clarification inline view
+    const [scopeQuestions, setScopeQuestions] = useState<ScopeQuestion[]>([])
+    const [scopeAnswers, setScopeAnswers] = useState<Record<string, ScopeQuestionAnswer>>({})
+    const [scopeLoading, setScopeLoading] = useState(false)
+    const [scopeSubmitting, setScopeSubmitting] = useState(false)
+    const [scopeTrigger, setScopeTrigger] = useState<"estimate" | "proposal">("estimate")
+    const [scopeStep, setScopeStep] = useState(0)
+
+    const [quotePageCtxTick, setQuotePageCtxTick] = useState(0)
+    useEffect(() => {
+        const onUpdate = () => setQuotePageCtxTick((t) => t + 1)
+        window.addEventListener("quote-page-context-updated", onUpdate)
+        return () => window.removeEventListener("quote-page-context-updated", onUpdate)
+    }, [])
+
+    const routeProjectId = useMemo(
+        () => parseProjectRouteId(pathname ?? ""),
+        [pathname]
+    )
+
+    useEffect(() => {
+        if (keptProjectRouteIdRef.current != null && keptProjectRouteIdRef.current !== routeProjectId) {
+            keptProjectRouteIdRef.current = null
+        }
+        if (dismissedAutoProjectIdRef.current != null && dismissedAutoProjectIdRef.current !== routeProjectId) {
+            dismissedAutoProjectIdRef.current = null
+        }
+        if (pendingProjectSwitch && pendingProjectSwitch.projectId !== routeProjectId) {
+            setPendingProjectSwitch(null)
+        }
+    }, [pendingProjectSwitch, routeProjectId])
+
+    // Parse page context from current route; quote detail enriches from loaded job on the page
+    const pageContext = useMemo(
+        () => enrichPageContext(parsePageContext(pathname ?? ""), locale, estimateContext, proposalContext),
+        [pathname, locale, quotePageCtxTick, estimateContext, proposalContext]
+    )
+    const fallbackProjectContext = useMemo(() => {
+        if (proposalContext.projectId) {
+            return {
+                projectId: proposalContext.projectId,
+                projectName: proposalContext.projectTitle?.trim() || "Current project",
+            }
+        }
+        if (estimateContext.projectId) {
+            return {
+                projectId: estimateContext.projectId,
+                projectName:
+                    estimateContext.projectTitle?.trim()
+                    || estimateContext.projectType?.trim()
+                    || "Current project",
+            }
+        }
+        return null
+    }, [
+        estimateContext.projectId,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+        proposalContext.projectId,
+        proposalContext.projectTitle,
+    ])
+    const activeProjectId = useMemo(() => {
+        if (selectedContext?.projectId) return selectedContext.projectId
+        if (
+            routeProjectId
+            && dismissedAutoProjectIdRef.current !== routeProjectId
+            && keptProjectRouteIdRef.current !== routeProjectId
+        ) {
+            return routeProjectId
+        }
+        if (fallbackProjectContext?.projectId) return fallbackProjectContext.projectId
+        return null
+    }, [fallbackProjectContext?.projectId, routeProjectId, selectedContext?.projectId])
+    const contextEnvelope = useMemo(
+        () => buildContextEnvelope(
+            pageContext,
+            pathname ?? "",
+            locale,
+            activeProjectId,
+            estimateContext,
+            proposalContext,
+        ),
+        [activeProjectId, estimateContext, locale, pageContext, pathname, proposalContext]
+    )
     const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
+    const selectedProjectLabel = selectedContext
+        ? `project: ${selectedContext.projectName}`
+        : null
+
+    // Detect if we're on a quote create/edit page
+    const isOnQuotePage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return stripped === "/quotes/new" || /^\/quotes\/\d+\/edit$/.test(stripped)
+    }, [pathname])
+
+    // Detect if we're on a proposal builder page
+    const isOnProposalPage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return /^\/projects\/\d+\/proposals\/\d+$/.test(stripped) || /^\/quotes\/\d+\/proposal$/.test(stripped)
+    }, [pathname])
+    const isOnQuoteProposalPage = useMemo(() => {
+        const stripped = (pathname ?? "").replace(/^\/[a-z]{2}/, "")
+        return /^\/quotes\/\d+\/proposal$/.test(stripped)
+    }, [pathname])
 
     // Entity color mapping
     const getEntityColorClass = useCallback((toolNameOrPath: string): string => {
@@ -251,6 +751,185 @@ export function AgentChatPanel() {
             inputRef.current.focus()
         }
     }, [isOpen, panelView])
+
+    useEffect(() => {
+        if (!projectPickerOpen || projectsLoaded || projectsLoading) return
+        let cancelled = false
+        const run = async () => {
+            try {
+                setProjectsLoading(true)
+                const data = await api.getProjectContextOptions({ limit: 200, skip: 0 })
+                if (cancelled) return
+                const normalizedProjects = Array.isArray(data)
+                    ? data as ProjectListItem[]
+                    : Array.isArray((data as { projects?: unknown })?.projects)
+                        ? ((data as { projects: ProjectListItem[] }).projects)
+                        : []
+                setAvailableProjects(normalizedProjects)
+                setProjectsLoaded(true)
+            } catch (err) {
+                console.error("Failed to load projects for chat context:", err)
+                if (!cancelled) setProjectsLoaded(true)
+            } finally {
+                if (!cancelled) setProjectsLoading(false)
+            }
+        }
+        void run()
+        return () => {
+            cancelled = true
+        }
+    }, [projectPickerOpen, projectsLoaded]) // projectsLoading intentionally excluded: including it causes the effect to cancel itself mid-flight
+
+    useEffect(() => {
+        if (!routeProjectId) return
+        if (dismissedAutoProjectIdRef.current === routeProjectId) return
+        if (keptProjectRouteIdRef.current === routeProjectId) return
+
+        let cancelled = false
+        const run = async () => {
+            try {
+                const project = await api.getProject(routeProjectId) as { id: number; title?: string | null }
+                if (cancelled || !project?.id) return
+                const nextContext: SelectedProjectContext = {
+                    type: "project",
+                    projectId: project.id,
+                    projectName: project.title?.trim() || `Project #${project.id}`,
+                    source: "auto",
+                }
+
+                setSelectedContext((current) => {
+                    if (!current) {
+                        setPendingProjectSwitch(null)
+                        return nextContext
+                    }
+                    if (current.source === "manual" && current.projectId !== nextContext.projectId) {
+                        return current
+                    }
+                    if (current.projectId === nextContext.projectId) {
+                        if (current.projectName !== nextContext.projectName || current.source !== "auto") {
+                            return { ...current, projectName: nextContext.projectName, source: "auto" }
+                        }
+                        return current
+                    }
+                    if (messages.length === 0) {
+                        setPendingProjectSwitch(null)
+                        return nextContext
+                    }
+                    setPendingProjectSwitch((existing) => {
+                        if (
+                            existing?.projectId === nextContext.projectId
+                            && existing.projectName === nextContext.projectName
+                        ) {
+                            return existing
+                        }
+                        return {
+                            projectId: nextContext.projectId,
+                            projectName: nextContext.projectName,
+                            source: "auto",
+                        }
+                    })
+                    return current
+                })
+            } catch (err) {
+                console.error("Failed to load project context:", err)
+            }
+        }
+
+        void run()
+        return () => {
+            cancelled = true
+        }
+    }, [messages.length, routeProjectId])
+
+    const estimateContextSummary = useMemo(() => {
+        const client = estimateContext.clientName?.trim()
+        const project = estimateContext.projectTitle?.trim()
+        const projectType = estimateContext.projectType?.trim()
+
+        if (client && project) return `${client} • ${project}`
+        if (client && projectType) return `${client} • ${projectType}`
+        if (project) return project
+        if (projectType) return projectType
+        if (client) return client
+        return ""
+    }, [
+        estimateContext.clientName,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+    ])
+
+    const estimateClientPrompt = useMemo(() => {
+        const client = estimateContext.clientName?.trim()
+        return client ? `Create an estimate for ${client}.` : "Create an estimate for this client."
+    }, [estimateContext.clientName])
+
+    const estimateProjectPrompt = useMemo(() => {
+        const project = estimateContext.projectTitle?.trim() || estimateContext.projectType?.trim()
+        if (project && estimateContext.projectBrief) return `${project} brief loaded.`
+        if (project) return project
+        if (estimateContext.projectBrief) return "Project brief loaded."
+        return ""
+    }, [
+        estimateContext.projectBrief,
+        estimateContext.projectTitle,
+        estimateContext.projectType,
+    ])
+
+    const proposalClientPrompt = useMemo(() => {
+        const proposal = proposalContext.proposalTitle?.trim()
+        const project = proposalContext.projectTitle?.trim()
+
+        if (proposal) return `Create a proposal for ${proposal}.`
+        if (isOnQuoteProposalPage) return "Create a proposal for this quote."
+        if (project) return `Create a proposal for ${project}.`
+        return "Create a proposal for this project."
+    }, [isOnQuoteProposalPage, proposalContext.projectTitle, proposalContext.proposalTitle])
+
+    const proposalProjectPrompt = useMemo(() => {
+        const project = proposalContext.projectTitle?.trim() || proposalContext.proposalTitle?.trim()
+        if (project && proposalContext.projectBrief) return `${project} brief loaded.`
+        if (project && proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
+            return `${project} line items loaded.`
+        }
+        if (project && !isOnQuoteProposalPage) return project
+        if (proposalContext.projectBrief) return "Project brief loaded."
+        if (proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
+            return "Quote line items loaded."
+        }
+        return ""
+    }, [
+        isOnQuoteProposalPage,
+        proposalContext.includeLineItemsInContext,
+        proposalContext.lineItems,
+        proposalContext.projectBrief,
+        proposalContext.projectTitle,
+        proposalContext.proposalTitle,
+    ])
+
+    const quoteEstimateReady = useMemo(() => {
+        const desc = estimateContext.serviceDescription?.trim() ?? ""
+        const wordCount = desc ? desc.split(/\s+/).length : 0
+        return desc.length >= 30 && wordCount >= 6
+    }, [estimateContext.serviceDescription])
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<AIGenerationStatus>).detail
+            if (!detail) return
+            setGenerationStatus(detail)
+            setPanelView("chat")
+            setIsOpen(true)
+            if (detail.kind === "estimate") {
+                setEstimateLoading(detail.phase === "running")
+            }
+            if (detail.kind === "proposal") {
+                setProposalLoading(detail.phase === "running")
+            }
+        }
+
+        window.addEventListener("ai-generation-status", handler)
+        return () => window.removeEventListener("ai-generation-status", handler)
+    }, [])
 
     // ─── Conversation API helpers ───────────────────────────────
 
@@ -286,6 +965,7 @@ export function AgentChatPanel() {
                 setMessages(loadedMessages)
                 setActiveConversationId(conversationId)
                 setPanelView("chat")
+                setChatLaunchMode("general")
             }
         } catch (err) {
             console.error("Failed to load conversation:", err)
@@ -315,133 +995,262 @@ export function AgentChatPanel() {
         }
     }, [isOpen, fetchConversations])
 
+    // Sync estimate context from Quote-creator via window events
+    useEffect(() => {
+        const syncFromWindow = () => {
+            const ctx = (window as any).quoteEstimateContext as QuoteEstimateContext | undefined
+            if (ctx) setEstimateContext({ ...ctx, includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true })
+        }
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as QuoteEstimateContext
+            setEstimateContext({ ...detail, includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true })
+        }
+        syncFromWindow()
+        window.addEventListener("quote-context-updated", handler)
+        return () => window.removeEventListener("quote-context-updated", handler)
+    }, [])
+
+    // Listen for header button → open panel in estimate mode
+    useEffect(() => {
+        const handler = () => {
+            // Read latest context from window
+            const ctx = (window as any).quoteEstimateContext as QuoteEstimateContext | undefined
+            if (ctx) setEstimateContext(ctx)
+            // Auto-expand context if both fields are empty
+            const isEmpty = !ctx?.projectType?.trim() && !ctx?.serviceDescription?.trim()
+            setContextExpanded(isEmpty)
+            setIsOpen(true)
+            setPanelView("chat")
+            setChatLaunchMode("quote_estimate")
+        }
+        window.addEventListener("open-ai-panel-for-estimate", handler)
+        return () => window.removeEventListener("open-ai-panel-for-estimate", handler)
+    }, [])
+
+    // Sync proposal context from ProposalBuilder via window events
+    useEffect(() => {
+        const syncFromWindow = () => {
+            const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
+            if (ctx) {
+                setProposalContext({
+                    ...ctx,
+                    includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true,
+                    includeLineItemsInContext: ctx.includeLineItemsInContext ?? true,
+                })
+            }
+        }
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as ProposalContext
+            setProposalContext({
+                ...detail,
+                includeProjectBriefInContext: detail.includeProjectBriefInContext ?? true,
+                includeLineItemsInContext: detail.includeLineItemsInContext ?? true,
+            })
+        }
+        syncFromWindow()
+        window.addEventListener("proposal-context-updated", handler)
+        return () => window.removeEventListener("proposal-context-updated", handler)
+    }, [])
+
+    // Listen for header button → open panel in proposal mode
+    useEffect(() => {
+        const handler = () => {
+            const ctx = (window as any).proposalBuilderContext as ProposalContext | undefined
+            if (ctx) {
+                setProposalContext({
+                    ...ctx,
+                    includeProjectBriefInContext: ctx.includeProjectBriefInContext ?? true,
+                    includeLineItemsInContext: ctx.includeLineItemsInContext ?? true,
+                })
+            }
+            const isEmpty = !ctx?.proposalTitle?.trim() && !ctx?.description?.trim()
+            setProposalContextExpanded(isEmpty)
+            setIsOpen(true)
+            setPanelView("chat")
+            setChatLaunchMode("proposal")
+        }
+        window.addEventListener("open-ai-panel-for-proposal", handler)
+        return () => window.removeEventListener("open-ai-panel-for-proposal", handler)
+    }, [])
+
     // ─── Chat handlers ──────────────────────────────────────────
 
     const handleNewChat = useCallback(() => {
         setActiveConversationId(null)
         setMessages([])
+        setPendingProjectSwitch(null)
         setPanelView("chat")
+        setChatLaunchMode("general")
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [])
 
-    const handleQuickAction = useCallback((message: string) => {
-        setInput(message)
-        // Use a micro-delay so setInput triggers the state update, then send
-        setTimeout(() => {
-            // Directly invoke send logic
-            const userMessage: Message = {
-                id: Date.now().toString(),
-                role: "user",
-                content: message,
-            }
-            setMessages((prev) => [...prev, userMessage])
-            setInput("")
-            setIsLoading(true)
+    const applyProjectContext = useCallback((context: SelectedProjectContext | null) => {
+        setSelectedContext(context)
+        setPendingProjectSwitch(null)
+        if (context) {
+            dismissedAutoProjectIdRef.current = null
+            keptProjectRouteIdRef.current = null
+        }
+    }, [])
 
-            const history = [userMessage].map((m) => ({ role: m.role, content: m.content }))
-            const assistantId = (Date.now() + 1).toString()
-            setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }])
+    const handleDismissSelectedContext = useCallback(() => {
+        if (routeProjectId && selectedContext?.projectId === routeProjectId) {
+            dismissedAutoProjectIdRef.current = routeProjectId
+        }
+        setPendingProjectSwitch(null)
+        setSelectedContext(null)
+    }, [routeProjectId, selectedContext?.projectId])
 
-            fetch(`${API_URL}/agent/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    messages: history,
-                    page_context: pageContext.page !== "unknown" ? pageContext : undefined,
-                    conversation_id: activeConversationId || undefined,
-                }),
-            })
-                .then(async (res) => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                    const reader = res.body?.getReader()
-                    const decoder = new TextDecoder()
-                    if (!reader) throw new Error("No response body")
+    const handleKeepCurrentProjectContext = useCallback(() => {
+        if (routeProjectId) {
+            keptProjectRouteIdRef.current = routeProjectId
+        }
+        setPendingProjectSwitch(null)
+    }, [routeProjectId])
 
-                    let buffer = ""
-                    while (true) {
-                        const { done, value } = await reader.read()
-                        if (done) break
-                        buffer += decoder.decode(value, { stream: true })
-                        const lines = buffer.split("\n")
-                        buffer = lines.pop() || ""
-                        for (const line of lines) {
-                            const trimmed = line.trim()
-                            if (!trimmed.startsWith("data: ")) continue
-                            const data = trimmed.slice(6)
-                            if (data === "[DONE]") break
-                            try {
-                                const parsed = JSON.parse(data)
-                                if (parsed.conversation_id && !activeConversationId) {
-                                    setActiveConversationId(parsed.conversation_id)
-                                }
-                                if (parsed.process_step) {
-                                    setMessages((prev) =>
-                                        prev.map((m) => {
-                                            if (m.id === assistantId) {
-                                                const currentSteps = m.processSteps || []
-                                                return {
-                                                    ...m,
-                                                    processSteps: [...currentSteps, { step: parsed.process_step, tool: parsed.tool }]
-                                                }
-                                            }
-                                            return m
-                                        })
-                                    )
-                                }
-                                if (parsed.content) {
-                                    setMessages((prev) =>
-                                        prev.map((m) =>
-                                            m.id === assistantId
-                                                ? { ...m, content: m.content + parsed.content }
-                                                : m
-                                        )
-                                    )
-                                }
-                            } catch {}
-                        }
-                    }
-                    fetchConversations()
-                })
-                .catch((err) => {
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === assistantId
-                                ? { ...m, content: "Sorry, I encountered an error. Please try again." }
-                                : m
-                        )
-                    )
-                    console.error("Quick action error:", err)
-                })
-                .finally(() => setIsLoading(false))
-        }, 0)
-    }, [pageContext, activeConversationId, fetchConversations])
+    const handleSwitchProjectContext = useCallback(() => {
+        if (!pendingProjectSwitch) return
+        applyProjectContext({
+            type: "project",
+            projectId: pendingProjectSwitch.projectId,
+            projectName: pendingProjectSwitch.projectName,
+            source: pendingProjectSwitch.source,
+        })
+        handleNewChat()
+    }, [applyProjectContext, handleNewChat, pendingProjectSwitch])
 
-    const handleSend = async () => {
-        const text = input.trim()
-        if (!text || isLoading) return
+    const queueProjectContextSelection = useCallback((context: SelectedProjectContext) => {
+        setProjectPickerOpen(false)
+        applyProjectContext(context)
+    }, [applyProjectContext])
+
+    const _fireEstimate = useCallback((scope: ScopeClarifiedScope | null) => {
+        setEstimateLoading(true)
+        setChatLaunchMode("quote_estimate")
+        setGenerationStatus({
+            kind: "estimate",
+            phase: "running",
+            title: "Generating AI estimate",
+            detail: "Handing the scope to the quote builder now.",
+        })
+        setPanelView("chat")
+        setIsOpen(true)
+        window.dispatchEvent(new CustomEvent("trigger-ai-estimate", {
+            detail: {
+                projectType: estimateContext.projectType,
+                serviceDescription: estimateContext.serviceDescription,
+                laborRate: estimateContext.laborRate,
+                laborChargeType: estimateContext.laborChargeType,
+                projectBrief: estimateContext.projectBrief,
+                includeProjectBriefInContext: estimateContext.includeProjectBriefInContext ?? true,
+                clarifiedScope: scope,
+            },
+        }))
+    }, [estimateContext])
+
+    const _fireProposal = useCallback((scope: ScopeClarifiedScope | null) => {
+        setProposalLoading(true)
+        setGenerationStatus({
+            kind: "proposal",
+            phase: "running",
+            title: "Generating AI proposal",
+            detail: "Handing the scope to the proposal builder now.",
+        })
+        setPanelView("chat")
+        setIsOpen(true)
+        window.dispatchEvent(new CustomEvent("trigger-ai-proposal", {
+            detail: {
+                clarifiedScope: scope,
+                proposalTitle: proposalContext.proposalTitle,
+                projectTitle: proposalContext.projectTitle,
+                description: proposalContext.description,
+                includeProjectBriefInContext: proposalContext.includeProjectBriefInContext ?? true,
+                includeLineItemsInContext: proposalContext.includeLineItemsInContext ?? true,
+                selectedItemIds:
+                    proposalContext.includeLineItemsInContext === false
+                        ? []
+                        : (proposalContext.lineItems ?? []).map((item) => item.id),
+            },
+        }))
+    }, [proposalContext])
+
+    const handleGenerateEstimate = useCallback(() => {
+        const pid = estimateContext.projectId
+        if (pid) {
+            setScopeTrigger("estimate")
+            setScopeLoading(true)
+            setScopeQuestions([])
+            setScopeAnswers({})
+            setScopeStep(0)
+            setPanelView("scope")
+            api.getScopeQuestions(pid).then((res) => {
+                if (res.existing_scope && !res.is_stale) {
+                    setPanelView("chat")
+                    _fireEstimate(res.existing_scope)
+                } else {
+                    setScopeQuestions(res.questions ?? [])
+                    setScopeAnswers({})
+                    setScopeStep(0)
+                }
+            }).catch(() => {
+                setPanelView("chat")
+                _fireEstimate(null)
+            }).finally(() => setScopeLoading(false))
+        } else {
+            _fireEstimate(null)
+        }
+    }, [estimateContext.projectId, _fireEstimate])
+
+    const handleGenerateProposal = useCallback(() => {
+        const pid = proposalContext.projectId
+        if (pid) {
+            setScopeTrigger("proposal")
+            setScopeLoading(true)
+            setScopeQuestions([])
+            setScopeAnswers({})
+            setScopeStep(0)
+            setPanelView("scope")
+            api.getScopeQuestions(pid).then((res) => {
+                if (res.existing_scope && !res.is_stale) {
+                    setPanelView("chat")
+                    _fireProposal(res.existing_scope)
+                } else {
+                    setScopeQuestions(res.questions ?? [])
+                    setScopeAnswers({})
+                    setScopeStep(0)
+                }
+            }).catch(() => {
+                setPanelView("chat")
+                _fireProposal(null)
+            }).finally(() => setScopeLoading(false))
+        } else {
+            _fireProposal(null)
+        }
+    }, [proposalContext.projectId, _fireProposal])
+
+    const sendChatMessage = useCallback(async (text: string) => {
+        const trimmed = text.trim()
+        if (!trimmed || isLoading) return
 
         const userMessage: Message = {
             id: Date.now().toString(),
             role: "user",
-            content: text,
+            content: trimmed,
         }
 
-        setMessages((prev) => [...prev, userMessage])
-        setInput("")
-        setIsLoading(true)
-
-        // Build message history for the API
-        const history = [...messages, userMessage].map((m) => ({
+        const nextHistory = [...messages, userMessage].map((m) => ({
             role: m.role,
             content: m.content,
         }))
-
         const assistantId = (Date.now() + 1).toString()
+
         setMessages((prev) => [
             ...prev,
+            userMessage,
             { id: assistantId, role: "assistant", content: "" },
         ])
+        setInput("")
+        setIsLoading(true)
 
         try {
             const res = await fetch(`${API_URL}/agent/chat`, {
@@ -449,9 +1258,11 @@ export function AgentChatPanel() {
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({
-                    messages: history,
-                    page_context: pageContext.page !== "unknown" ? pageContext : undefined,
+                    messages: nextHistory,
+                    page_context: pageContext,
+                    context_envelope: contextEnvelope,
                     conversation_id: activeConversationId || undefined,
+                    project_id: activeProjectId || undefined,
                 }),
             })
 
@@ -462,11 +1273,9 @@ export function AgentChatPanel() {
 
             const reader = res.body?.getReader()
             const decoder = new TextDecoder()
-
             if (!reader) throw new Error("No response body")
 
             let buffer = ""
-
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
@@ -476,21 +1285,19 @@ export function AgentChatPanel() {
                 buffer = lines.pop() || ""
 
                 for (const line of lines) {
-                    const trimmed = line.trim()
-                    if (!trimmed.startsWith("data: ")) continue
+                    const trimmedLine = line.trim()
+                    if (!trimmedLine.startsWith("data: ")) continue
 
-                    const data = trimmed.slice(6)
+                    const data = trimmedLine.slice(6)
                     if (data === "[DONE]") break
 
                     try {
                         const parsed = JSON.parse(data)
 
-                        // Handle conversation_id metadata event
                         if (parsed.conversation_id && !activeConversationId) {
                             setActiveConversationId(parsed.conversation_id)
                         }
 
-                        // Handle process_step event
                         if (parsed.process_step) {
                             setMessages((prev) =>
                                 prev.map((m) => {
@@ -503,6 +1310,16 @@ export function AgentChatPanel() {
                                     }
                                     return m
                                 })
+                            )
+                        }
+
+                        if (parsed.action_card) {
+                            setMessages((prev) =>
+                                prev.map((m) =>
+                                    m.id === assistantId
+                                        ? { ...m, actionCard: parsed.action_card as ActionCard }
+                                        : m
+                                )
                             )
                         }
 
@@ -521,17 +1338,14 @@ export function AgentChatPanel() {
                 }
             }
 
-            // Refresh conversation list after sending
             fetchConversations()
-
         } catch (err: any) {
             setMessages((prev) =>
                 prev.map((m) =>
                     m.id === assistantId
                         ? {
                             ...m,
-                            content:
-                                "Sorry, I encountered an error. Please try again.",
+                            content: "Sorry, I encountered an error. Please try again.",
                         }
                         : m
                 )
@@ -540,6 +1354,22 @@ export function AgentChatPanel() {
         } finally {
             setIsLoading(false)
         }
+    }, [
+        activeConversationId,
+        activeProjectId,
+        contextEnvelope,
+        fetchConversations,
+        isLoading,
+        messages,
+        pageContext,
+    ])
+
+    const handleQuickAction = useCallback((message: string) => {
+        void sendChatMessage(message)
+    }, [sendChatMessage])
+
+    const handleSend = async () => {
+        await sendChatMessage(input)
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -575,9 +1405,9 @@ export function AgentChatPanel() {
                 className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-50
                    flex h-14 w-14 items-center justify-center gap-2 rounded-2xl md:h-auto md:w-auto md:rounded-full
                    bg-gradient-to-r from-sky-500 to-blue-600
-                   text-white shadow-lg shadow-sky-500/25 md:px-4 md:py-3
+                   text-white shadow-[0_18px_45px_rgba(2,132,199,0.34)] ring-1 ring-white/35 md:px-4 md:py-3
                    transition-all duration-300
-                   hover:shadow-xl hover:shadow-sky-500/30 hover:scale-105
+                   hover:scale-105 hover:shadow-[0_22px_54px_rgba(2,132,199,0.42)]
                    active:scale-95"
                 title="Open AI Assistant"
             >
@@ -604,8 +1434,8 @@ export function AgentChatPanel() {
                  }`}
         >
             {/* ── Header ── */}
-            <div className="flex items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
-                <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-between gap-2 overflow-hidden border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     {panelView === "conversations" ? (
                         <button
                             onClick={() => setPanelView("chat")}
@@ -615,15 +1445,15 @@ export function AgentChatPanel() {
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
                     ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
                             <Bot className="h-5 w-5 text-white md:h-4 md:w-4" />
                         </div>
                     )}
-                    <div>
+                    <div className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
                             {panelView === "conversations" ? "Conversations" : "AI Assistant"}
                         </h3>
-                        <p className="mt-0.5 max-w-[210px] truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:max-w-none md:text-[11px]">
+                        <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:text-[11px]">
                             {panelView === "conversations"
                                 ? `${conversations.length} chat${conversations.length !== 1 ? "s" : ""}`
                                 : activeConversationId
@@ -633,7 +1463,7 @@ export function AgentChatPanel() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                     {panelView === "chat" && (
                         <>
                             <Button
@@ -754,11 +1584,515 @@ export function AgentChatPanel() {
                 </div>
             )}
 
+            {/* ── Scope Clarification Inline View ── */}
+            {panelView === "scope" && (() => {
+                const q = scopeQuestions[scopeStep]
+                const isLast = scopeStep === scopeQuestions.length - 1
+                const fireSkipAll = async () => {
+                    try { await api.skipScopeSession(
+                        (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
+                    ) } catch { /* non-critical */ }
+                    setPanelView("chat")
+                    if (scopeTrigger === "estimate") _fireEstimate(null)
+                    else _fireProposal(null)
+                }
+                const fireSubmit = async () => {
+                    const pid = (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
+                    setScopeSubmitting(true)
+                    try {
+                        const answerList = scopeQuestions.map((sq) => ({
+                            ...(scopeAnswers[sq.id] ?? {}),
+                            question_id: sq.id,
+                        }))
+                        const scope = await api.submitScopeAnswers(pid, {
+                            answers: answerList,
+                            questions: scopeQuestions,
+                            trigger: scopeTrigger,
+                        })
+                        setPanelView("chat")
+                        if (scopeTrigger === "estimate") _fireEstimate(scope)
+                        else _fireProposal(scope)
+                    } catch {
+                        setPanelView("chat")
+                        if (scopeTrigger === "estimate") _fireEstimate(null)
+                        else _fireProposal(null)
+                    } finally {
+                        setScopeSubmitting(false)
+                    }
+                }
+                return (
+                    <div className="flex flex-col flex-1 overflow-hidden">
+                        {/* Header: title + progress dots */}
+                        <div className="px-4 pt-4 pb-3 border-b border-border">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-semibold text-foreground">Clarify Scope</p>
+                                {scopeQuestions.length > 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {scopeStep + 1} / {scopeQuestions.length}
+                                    </span>
+                                )}
+                            </div>
+                            {/* Progress bar */}
+                            {scopeQuestions.length > 0 && (
+                                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                                    <div
+                                        className="h-full bg-sky-500 rounded-full transition-all duration-300"
+                                        style={{ width: `${((scopeStep + 1) / scopeQuestions.length) * 100}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Question body */}
+                        <div className="flex-1 overflow-y-auto px-4 py-5">
+                            {scopeLoading && (
+                                <div className="flex items-center justify-center h-full text-muted-foreground">
+                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                    <span className="text-sm">Analyzing project context…</span>
+                                </div>
+                            )}
+                            {!scopeLoading && q && (
+                                <div className="space-y-3">
+                                    <p className="text-sm font-medium leading-snug text-foreground">
+                                        {q.text}
+                                        {q.type === "multi_select" && (
+                                            <span className="text-muted-foreground font-normal"> (select all that apply)</span>
+                                        )}
+                                    </p>
+                                    {q.type === "multi_select" && q.options && (
+                                        <div className="space-y-3">
+                                            {q.options.map((opt, oi) => {
+                                                const selected = scopeAnswers[q.id]?.selected_options?.includes(opt.id) ?? false
+                                                return (
+                                                    <button
+                                                        key={opt.id}
+                                                        type="button"
+                                                        onClick={() => setScopeAnswers((prev) => {
+                                                            const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
+                                                            const sel = existing.selected_options ?? []
+                                                            const next = sel.includes(opt.id) ? sel.filter((id) => id !== opt.id) : [...sel, opt.id]
+                                                            return { ...prev, [q.id]: { ...existing, selected_options: next } }
+                                                        })}
+                                                        className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                                                            selected
+                                                                ? "border-sky-500 bg-sky-500/8"
+                                                                : "border-border bg-card hover:bg-muted/50"
+                                                        }`}
+                                                    >
+                                                        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${
+                                                            selected ? "bg-sky-500 text-white" : "bg-muted text-muted-foreground"
+                                                        }`}>
+                                                            {["A","B","C","D"][oi] ?? oi + 1}
+                                                        </span>
+                                                        <span className="text-sm text-foreground">{opt.label}</span>
+                                                    </button>
+                                                )
+                                            })}
+                                            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3">
+                                                <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                                                    Something else?
+                                                </p>
+                                                <textarea
+                                                    placeholder="Add anything not covered by the options above…"
+                                                    rows={3}
+                                                    value={scopeAnswers[q.id]?.free_text ?? ""}
+                                                    onChange={(e) => setScopeAnswers((prev) => {
+                                                        const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
+                                                        return {
+                                                            ...prev,
+                                                            [q.id]: { ...existing, free_text: e.target.value },
+                                                        }
+                                                    })}
+                                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    {q.type === "free_text" && (
+                                        <textarea
+                                            placeholder="Type your answer…"
+                                            rows={3}
+                                            value={scopeAnswers[q.id]?.free_text ?? ""}
+                                            onChange={(e) => setScopeAnswers((prev) => ({
+                                                ...prev,
+                                                [q.id]: { question_id: q.id, free_text: e.target.value },
+                                            }))}
+                                            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer: back / skip-question / next-or-submit */}
+                        <div className="px-4 py-3 border-t border-border bg-card flex items-center justify-between gap-2">
+                            {/* Left: Back (hidden on first) or skip-all */}
+                            <div className="flex items-center gap-3">
+                                {scopeStep > 0 ? (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => setScopeStep((s) => s - 1)}
+                                        disabled={scopeSubmitting}
+                                    >
+                                        Back
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                                        disabled={scopeSubmitting}
+                                        onClick={fireSkipAll}
+                                    >
+                                        Skip all
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Right: skip-this / next-or-submit */}
+                            <div className="flex items-center gap-2">
+                                {!isLast && (
+                                    <button
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                                        disabled={scopeSubmitting || scopeLoading}
+                                        onClick={() => setScopeStep((s) => s + 1)}
+                                    >
+                                        Skip
+                                    </button>
+                                )}
+                                <button
+                                    disabled={scopeLoading || scopeSubmitting || scopeQuestions.length === 0}
+                                    onClick={isLast ? fireSubmit : () => setScopeStep((s) => s + 1)}
+                                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600
+                                               px-4 py-2 text-sm font-semibold text-white shadow-sm
+                                               hover:shadow-md transition-all disabled:opacity-40 disabled:shadow-none"
+                                >
+                                    {scopeSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                    {isLast ? "Submit & Generate" : "Next →"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
+
+            {/* ── Quote Estimate Context (shown on quote pages) ── */}
+            {panelView === "chat" && isOnQuotePage && (() => {
+                const isStandaloneQuote = !estimateContext.projectId
+                return (
+                <div className="border-b border-border bg-muted/30">
+                    <button
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+                        onClick={() => setContextExpanded((v) => !v)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-sky-500" />
+                            <span className="text-xs font-semibold text-foreground">{isStandaloneQuote ? "Quote Context" : "Project Context"}</span>
+                            {estimateContextSummary && (
+                                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
+                                    {estimateContextSummary}
+                                </span>
+                            )}
+                        </div>
+                        {contextExpanded
+                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        }
+                    </button>
+                    {contextExpanded && (
+                        <div className="px-4 pb-3 space-y-2">
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    {isStandaloneQuote ? "Quote Type (Optional)" : "Project Type (Optional)"}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={estimateContext.projectType}
+                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, projectType: e.target.value }))}
+                                    placeholder="e.g., Patio Installation, Deck Construction"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    {isStandaloneQuote ? "Quote Description" : "Project Description"}
+                                </label>
+                                <textarea
+                                    value={estimateContext.serviceDescription}
+                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, serviceDescription: e.target.value }))}
+                                    placeholder="Describe the project (materials, labor, installation, etc.)"
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                                />
+                            </div>
+                            {!isStandaloneQuote && (
+                                <>
+                                    <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={estimateContext.includeProjectBriefInContext ?? true}
+                                            onChange={(e) => setEstimateContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
+                                            className="h-3.5 w-3.5 rounded border-gray-300 accent-sky-600"
+                                        />
+                                        Include project brief in context
+                                    </label>
+                                    {!estimateContext.projectBrief && (
+                                        <p className="text-[11px] text-muted-foreground/80">
+                                            No project brief loaded yet for this quote.
+                                        </p>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+                )
+            })()}
+
+            {/* ── Proposal Context (shown on proposal builder pages) ── */}
+            {panelView === "chat" && isOnProposalPage && (
+                <div className="border-b border-border bg-muted/30">
+                    <button
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+                        onClick={() => setProposalContextExpanded((v) => !v)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="text-xs font-semibold text-foreground">Proposal Context</span>
+                            {(proposalContext.proposalTitle || proposalContext.projectTitle || proposalContext.description) && (
+                                <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
+                                    filled
+                                </span>
+                            )}
+                        </div>
+                        {proposalContextExpanded
+                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        }
+                    </button>
+                    {proposalContextExpanded && (
+                        <div className="px-4 pb-3 space-y-2">
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Proposal Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={proposalContext.proposalTitle}
+                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, proposalTitle: e.target.value }))}
+                                    placeholder="e.g., Backyard Renovation Proposal"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                />
+                            </div>
+                            {!isOnQuoteProposalPage && (
+                                <div>
+                                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                        Project
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={proposalContext.projectTitle}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, projectTitle: e.target.value }))}
+                                        placeholder="Project name"
+                                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                    />
+                                </div>
+                            )}
+                            <div>
+                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={proposalContext.description}
+                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Describe the scope, goals, and approach"
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                                />
+                            </div>
+                            {(proposalContext.lineItems?.length ?? 0) > 0 && (
+                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={proposalContext.includeLineItemsInContext ?? true}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeLineItemsInContext: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
+                                    />
+                                    Include quote line items in context
+                                </label>
+                            )}
+                            {proposalContext.projectBrief && (
+                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={proposalContext.includeProjectBriefInContext ?? true}
+                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
+                                    />
+                                    Include project brief in context
+                                </label>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {panelView === "chat" && pendingProjectSwitch && (
+                <div className="border-b border-border bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.92))] px-4 py-3">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 shadow-sm">
+                            <p className="text-sm font-semibold text-amber-950">
+                                Switch project context?
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-amber-900/80">
+                                {pendingProjectSwitch.source === "auto"
+                                    ? (
+                                        <>
+                                            You navigated to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>.
+                                            Switching will start a new chat so the assistant stays scoped to the right project files.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Switch context to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>?
+                                            This will start a new chat so the assistant stays scoped to the right project files.
+                                        </>
+                                    )}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSwitchProjectContext}
+                                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                                >
+                                    Switch and start new chat
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleKeepCurrentProjectContext}
+                                    className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-3.5 py-2 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+                                >
+                                    Keep current project
+                                </button>
+                            </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── Messages (Chat View) ── */}
             {panelView === "chat" && (
                 <>
                     <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-4 md:py-3">
-                        {messages.length === 0 && (
+                        {generationStatus && (
+                            <div className={`rounded-2xl border px-4 py-3 shadow-sm ${
+                                generationStatus.phase === "failed"
+                                    ? "border-red-200 bg-red-50/90"
+                                    : generationStatus.phase === "succeeded"
+                                        ? "border-emerald-200 bg-emerald-50/90"
+                                        : "border-sky-200 bg-sky-50/90"
+                            }`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                            {generationStatus.phase === "running" ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                                            ) : generationStatus.phase === "succeeded" ? (
+                                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                            ) : (
+                                                <AlertCircle className="h-4 w-4 text-red-600" />
+                                            )}
+                                            {generationStatus.title}
+                                        </div>
+                                        {generationStatus.detail ? (
+                                            <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                {generationStatus.detail}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setGenerationStatus(null)}
+                                        className="rounded-full p-1 text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
+                                        aria-label="Dismiss generation status"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {isOnQuotePage &&
+                            chatLaunchMode === "quote_estimate" &&
+                            messages.length === 0 &&
+                            !(generationStatus?.kind === "estimate" && generationStatus.phase !== "failed") && (
+                            <div className="rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,rgba(240,249,255,0.98),rgba(255,255,255,0.98),rgba(239,246,255,0.98))] p-4 shadow-sm">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900">{estimateClientPrompt}</p>
+                                    {estimateProjectPrompt ? (
+                                        <p className="mt-1 text-sm text-slate-600">{estimateProjectPrompt}</p>
+                                    ) : null}
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => handleGenerateEstimate()}
+                                            disabled={isLoading || estimateLoading || !quoteEstimateReady}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {estimateLoading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4" />
+                                            )}
+                                            Generate Estimate
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setContextExpanded(true)}
+                                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                                        >
+                                            Edit Context
+                                        </button>
+                                    </div>
+                                    {!quoteEstimateReady ? (
+                                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                                            Add at least a short project description before generating.
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
+
+                        {isOnProposalPage &&
+                            chatLaunchMode === "proposal" &&
+                            messages.length === 0 &&
+                            !(generationStatus?.kind === "proposal" && generationStatus.phase !== "failed") && (
+                            <div className="rounded-[1.5rem] border border-violet-200 bg-[linear-gradient(135deg,rgba(250,245,255,0.98),rgba(255,255,255,0.98),rgba(245,243,255,0.98))] p-4 shadow-sm">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900">{proposalClientPrompt}</p>
+                                    {proposalProjectPrompt ? (
+                                        <p className="mt-1 text-sm text-slate-600">{proposalProjectPrompt}</p>
+                                    ) : null}
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => handleGenerateProposal()}
+                                            disabled={isLoading || proposalLoading}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {proposalLoading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4" />
+                                            )}
+                                            Generate Proposal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProposalContextExpanded(true)}
+                                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                                        >
+                                            Edit Context
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {messages.length === 0 && chatLaunchMode === "general" && (
                             <div className="flex flex-col items-center justify-center h-full text-center px-6">
                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-sky-500/15 to-blue-600/15 md:h-14 md:w-14 md:rounded-2xl">
                                     <Sparkles className="h-8 w-8 text-sky-600 md:h-7 md:w-7" />
@@ -771,40 +2105,94 @@ export function AgentChatPanel() {
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
-                                <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
-                                    <button
-                                        onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
-                                        disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-1.5
-                                            rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
-                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
-                                            transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            disabled:opacity-50 disabled:pointer-events-none"
-                                    >
-                                        <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                        Morning Briefing
-                                    </button>
-                                    <button
-                                        onClick={() => handleQuickAction("What should I follow up on today?")}
-                                        disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-1.5
-                                            rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
-                                            min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
-                                            transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            disabled:opacity-50 disabled:pointer-events-none"
-                                    >
-                                        <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                        Follow-Ups
-                                    </button>
-                                </div>
+                                {isOnQuotePage && chatLaunchMode === "general" ? (
+                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
+                                        <button
+                                            onClick={() => {
+                                                const hasContext = estimateContext.projectType?.trim() || estimateContext.serviceDescription?.trim()
+                                                if (hasContext) {
+                                                    handleGenerateEstimate()
+                                                } else {
+                                                    setContextExpanded(true)
+                                                }
+                                            }}
+                                            disabled={isLoading || estimateLoading}
+                                            className="flex w-full items-center justify-center gap-2
+                                                rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-blue-600/15
+                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/50
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            {estimateLoading ? (
+                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            )}
+                                            Generate AI Estimate
+                                        </button>
+                                    </div>
+                                ) : isOnProposalPage ? (
+                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
+                                        <button
+                                            onClick={() => {
+                                                const hasContext = proposalContext.proposalTitle?.trim() || proposalContext.description?.trim()
+                                                setChatLaunchMode("proposal")
+                                                if (!hasContext) setProposalContextExpanded(true)
+                                            }}
+                                            disabled={isLoading || proposalLoading}
+                                            className="flex w-full items-center justify-center gap-2
+                                                rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-fuchsia-600/15
+                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-violet-700 dark:text-violet-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-violet-500/10 hover:border-violet-500/50
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            {proposalLoading ? (
+                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
+                                            ) : (
+                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            )}
+                                            Generate AI Proposal
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
+                                        <button
+                                            onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
+                                            disabled={isLoading}
+                                            className="flex-1 flex items-center justify-center gap-1.5
+                                                rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
+                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Morning Briefing
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickAction("What should I follow up on today?")}
+                                            disabled={isLoading}
+                                            className="flex-1 flex items-center justify-center gap-1.5
+                                                rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
+                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
+                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
+                                                hover:scale-[1.02] active:scale-[0.98]
+                                                disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                                            Follow-Ups
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="flex max-w-[340px] flex-wrap justify-center gap-2 md:max-w-none md:gap-1.5">
                                     {suggestions.map((suggestion) => (
                                         <button
                                             key={suggestion}
                                             onClick={() => {
+                                                setChatLaunchMode("general")
                                                 setInput(suggestion)
                                                 setTimeout(() => inputRef.current?.focus(), 50)
                                             }}
@@ -980,6 +2368,38 @@ export function AgentChatPanel() {
                                                     </ReactMarkdown>
                                                 </div>
                                             )}
+
+                                            {msg.actionCard && msg.actionCard.options.length > 0 && (
+                                                <div className="mt-3 rounded-2xl border border-sky-200/70 bg-white/80 p-3 text-slate-900 shadow-sm">
+                                                    <p className="text-sm font-semibold leading-5">
+                                                        {msg.actionCard.title}
+                                                    </p>
+                                                    {msg.actionCard.description ? (
+                                                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                            {msg.actionCard.description}
+                                                        </p>
+                                                    ) : null}
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {msg.actionCard.options.map((option) => {
+                                                            const isPrimary = option.style === "primary"
+                                                            return (
+                                                                <button
+                                                                    key={option.id}
+                                                                    type="button"
+                                                                    disabled={isLoading}
+                                                                    onClick={() => void sendChatMessage(option.prompt)}
+                                                                    className={isPrimary
+                                                                        ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                                                        : "inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                    }
+                                                                >
+                                                                    {option.label}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                     {msg.role === "user" && (
@@ -992,7 +2412,83 @@ export function AgentChatPanel() {
                     </div>
 
                     {/* ── Input ── */}
-                    <div className="border-t border-border bg-card px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:py-2.5">
+                    <div className="bg-card px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:py-2.5">
+                        <div className="mb-2 flex items-center justify-end gap-1.5">
+                            {selectedContext && (
+                                <div className="inline-flex max-w-[200px] items-center gap-1.5 rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                    <span className="truncate">{selectedProjectLabel}</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleDismissSelectedContext}
+                                        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/80 transition hover:text-foreground"
+                                        aria-label="Remove project context"
+                                        title="Remove project context"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            )}
+                            <Popover open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
+                                <PopoverTrigger asChild>
+                                    {selectedContext ? (
+                                        <button
+                                            type="button"
+                                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition hover:border-border hover:text-foreground"
+                                            title="Switch context"
+                                        >
+                                            <FolderKanban className="h-3 w-3" />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+                                        >
+                                            <FolderKanban className="h-3 w-3" />
+                                            <span>Select context</span>
+                                            <ChevronDown className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-72 p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search context..." className="h-9" />
+                                        <CommandList>
+                                            {projectsLoading ? (
+                                                <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    Loading context...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <CommandEmpty>No context found.</CommandEmpty>
+                                                    <CommandGroup heading="Projects">
+                                                        {availableProjects.map((project) => {
+                                                            const isSelected = selectedContext?.projectId === project.id
+                                                            return (
+                                                                <CommandItem
+                                                                    key={project.id}
+                                                                    value={`${project.title} ${project.id}`}
+                                                                    onSelect={() => queueProjectContextSelection({
+                                                                        type: "project",
+                                                                        projectId: project.id,
+                                                                        projectName: project.title,
+                                                                        source: "manual",
+                                                                    })}
+                                                                    className="flex items-center justify-between gap-2"
+                                                                >
+                                                                    <span className="truncate">{project.title}</span>
+                                                                    {isSelected ? <Check className="h-3.5 w-3.5 text-sky-500" /> : null}
+                                                                </CommandItem>
+                                                            )
+                                                        })}
+                                                    </CommandGroup>
+                                                </>
+                                            )}
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                         <div className="flex items-end gap-2">
                             <textarea
                                 ref={inputRef}
@@ -1030,6 +2526,8 @@ export function AgentChatPanel() {
                     </div>
                 </>
             )}
+
         </div>
+
     )
 }

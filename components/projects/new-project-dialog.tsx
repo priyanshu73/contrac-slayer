@@ -15,45 +15,73 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar, Loader2 } from "lucide-react"
+import { Calendar, Loader2, FileText, User } from "lucide-react"
+import { buildInitialProjectBrief } from "@/lib/project-brief"
+export interface FromQuoteProps {
+    jobId: number
+    title?: string
+    objective?: string
+    startDate?: string
+    endDate?: string
+    clientId?: number
+    contractValue?: number
+}
 
-interface Client {
-    id: number
+export interface FromLeadProps {
+    leadId: number
     name: string
-    phone?: string
     email?: string
+    phone?: string
+    address?: string
+    projectType?: string
+    description?: string
+    estimatedValue?: number
 }
 
 interface NewProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onProjectCreated: (projectId: number) => void
+    fromQuote?: FromQuoteProps
+    fromLead?: FromLeadProps
+    defaultClientId?: number
 }
 
 export function NewProjectDialog({
     open,
     onOpenChange,
     onProjectCreated,
+    fromQuote,
+    fromLead,
+    defaultClientId,
 }: NewProjectDialogProps) {
     const t = useTranslations("projects.newProjectDialog")
     const { toast } = useToast()
 
-    // Form state
     const [title, setTitle] = useState("")
     const [objective, setObjective] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
 
-    // Reset form when dialog closes
     useEffect(() => {
-        if (!open) {
+        if (open && fromLead) {
+            setTitle(fromLead.projectType || `${fromLead.name} Project`)
+            setObjective(fromLead.description || "")
+            setStartDate("")
+            setEndDate("")
+        } else if (open && fromQuote) {
+            setTitle(fromQuote.title || "")
+            setObjective(fromQuote.objective || "")
+            setStartDate(fromQuote.startDate || "")
+            setEndDate(fromQuote.endDate || "")
+        } else if (!open) {
             setTitle("")
             setObjective("")
             setStartDate("")
             setEndDate("")
         }
-    }, [open])
+    }, [open, fromQuote, fromLead])
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -63,15 +91,61 @@ export function NewProjectDialog({
             })
             return
         }
+        if (fromLead && !defaultClientId) {
+            toast({
+                title: "Save the client first",
+                description: "Create the client record before starting the project.",
+                variant: "destructive",
+            })
+            return
+        }
+
         setSubmitting(true)
         try {
+            const clientId: number | undefined = defaultClientId
+
             const payload: Record<string, any> = { title: title.trim() }
             if (objective.trim()) payload.objective = objective.trim()
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
+            if (clientId) payload.client_id = clientId
+
+            if (fromLead) {
+                if (fromLead.estimatedValue != null) payload.contract_value = fromLead.estimatedValue
+                payload.lead_id = fromLead.leadId
+            }
+
+            if (fromQuote) {
+                if (fromQuote.clientId) payload.client_id = fromQuote.clientId
+                if (fromQuote.contractValue != null) payload.contract_value = fromQuote.contractValue
+                if (fromQuote.jobId) payload.job_id = fromQuote.jobId
+            }
 
             const created = (await api.createProject(payload)) as any
             if (created?.id) {
+                const initialBrief = buildInitialProjectBrief({
+                    title: title.trim(),
+                    objective: objective.trim(),
+                    startDate,
+                    endDate,
+                    source: fromLead ? "lead" : fromQuote ? "quote" : "manual",
+                })
+
+                try {
+                    await api.updateProject(created.id, { brief: initialBrief })
+                } catch {
+                    // Keep creation successful even if the initial brief seed fails.
+                }
+
+                if (fromLead) {
+                    try {
+                        await api.updateLead(fromLead.leadId, {
+                            converted_to_project_id: created.id,
+                        })
+                    } catch {
+                        // project created — lead update is best-effort
+                    }
+                }
                 toast({ title: t("successTitle"), description: t("successDesc") })
                 onProjectCreated(created.id)
                 onOpenChange(false)
@@ -94,13 +168,34 @@ export function NewProjectDialog({
                     <DialogTitle className="text-lg font-semibold text-slate-900">
                         {t("title")}
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-slate-500">
-                        {t("description")}
-                    </DialogDescription>
+                    {fromLead ? (
+                        <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
+                            <User className="h-3.5 w-3.5 shrink-0" />
+                            Creating project from lead — linked to client {fromLead.name}.
+                        </DialogDescription>
+                    ) : fromQuote ? (
+                        <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            Pre-filled from accepted quote — review and adjust before creating.
+                        </DialogDescription>
+                    ) : (
+                        <DialogDescription className="text-sm text-slate-500">
+                            {t("description")}
+                        </DialogDescription>
+                    )}
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
-                    {/* Title */}
+                    {fromLead && (
+                        <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-1">
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Linked client</p>
+                            <p className="text-sm font-medium text-blue-900">{fromLead.name}</p>
+                            {fromLead.email && <p className="text-xs text-blue-700">{fromLead.email}</p>}
+                            {fromLead.phone && <p className="text-xs text-blue-700">{fromLead.phone}</p>}
+                            {fromLead.address && <p className="text-xs text-blue-600">{fromLead.address}</p>}
+                        </div>
+                    )}
+
                     <div className="space-y-1.5">
                         <Label htmlFor="project-title" className="text-sm font-medium text-slate-700">
                             {t("fields.title")} <span className="text-rose-500">*</span>
@@ -114,7 +209,6 @@ export function NewProjectDialog({
                         />
                     </div>
 
-                    {/* Objective / Description */}
                     <div className="space-y-1.5">
                         <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
                             {t("fields.objective")}
@@ -129,7 +223,6 @@ export function NewProjectDialog({
                         />
                     </div>
 
-                    {/* Date pickers */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label

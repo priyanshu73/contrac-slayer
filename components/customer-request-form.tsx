@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,9 +17,11 @@ import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
 
 interface PrefillData {
+  name?: string
+  phone?: string
+  address?: string
   description?: string
   project_type?: string
-  phone?: string
 }
 
 interface CustomerRequestFormProps {
@@ -45,7 +47,9 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
     if (prefillData && !hasPrefilled) {
       setFormData(prev => ({
         ...prev,
+        name: prefillData.name || prev.name,
         phone: prefillData.phone || prev.phone,
+        address: prefillData.address || prev.address,
         project_type: prefillData.project_type || prev.project_type,
         description: prefillData.description || prev.description,
       }))
@@ -58,6 +62,16 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState("")
   const [addressData, setAddressData] = useState<AddressData | null>(null)
+
+  // Build the full booking URL from the calendar_link slug
+  const bookingUrl = useMemo(() => {
+    const slug = contractor?.calendar_link
+    if (!slug) return undefined
+    const base =
+      process.env.NEXT_PUBLIC_FRONTEND_URL ??
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+    return `${base}/book/${slug}`
+  }, [contractor?.calendar_link])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -184,7 +198,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
             </div>
 
             {/* Right: Schedule CTA (Desktop) */}
-            {contractor?.calendar_link && (
+            {bookingUrl && (
               <div className="hidden sm:block flex-shrink-0">
                 <Dialog>
                   <DialogTrigger asChild>
@@ -199,8 +213,8 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                     </DialogHeader>
                     <div className="p-4 pt-2">
                       <iframe
-                        src={contractor.calendar_link}
-                        title="NeetoCal scheduling"
+                        src={bookingUrl}
+                        title="Schedule a call"
                         className="w-full h-[70vh] rounded-md border"
                         style={{ border: "none" }}
                       />
@@ -227,7 +241,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         </div>
 
         {/* Schedule CTA Footer (Mobile + alternative desktop view if calendar exists) */}
-        {contractor?.calendar_link && (
+        {bookingUrl && (
           <div className="sm:hidden px-6 py-4 bg-blue-50 border-t border-blue-100">
             <Dialog>
               <DialogTrigger asChild>
@@ -242,8 +256,8 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                 </DialogHeader>
                 <div className="p-4 pt-2">
                   <iframe
-                    src={contractor.calendar_link}
-                    title="NeetoCal scheduling"
+                    src={bookingUrl}
+                    title="Schedule a call"
                     className="w-full h-[70vh] rounded-md border"
                     style={{ border: "none" }}
                   />
@@ -508,7 +522,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         {/* Submit */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
           <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {contractor?.calendar_link ? (
+            {bookingUrl ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button type="button" variant="outline" className="w-full sm:w-auto border-slate-200">
@@ -522,8 +536,8 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                   </DialogHeader>
                   <div className="p-4 pt-2">
                     <iframe
-                      src={contractor.calendar_link}
-                      title="NeetoCal scheduling"
+                      src={bookingUrl}
+                      title="Schedule a call"
                       className="w-full h-[70vh] rounded-md border"
                       style={{ border: "none" }}
                     />

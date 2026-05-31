@@ -23,7 +23,7 @@ export function LandingFooter() {
         <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:gap-6">
           <p>© {new Date().getFullYear()} ContractorOps AI</p>
           <Link href={`/${locale}/privacy`} className="transition-colors hover:text-slate-950">
-            Privacy Policy
+            {t("footerPrivacy")}
           </Link>
         </div>
       </div>

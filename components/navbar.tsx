@@ -7,7 +7,6 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   FileText,
-  Receipt,
   MessageSquare,
   Calendar,
   Bot,
@@ -19,9 +18,36 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
   Zap,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import type { LucideProps } from "lucide-react";
+import { forwardRef, useState, useEffect } from "react";
+
+const PhoneAIIcon = forwardRef<SVGSVGElement, LucideProps>(
+  ({ className, ...props }, ref) => (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="2" y="5" width="12" height="17" rx="2" />
+      <path d="M8 18.5h.01" />
+      <path d="M19 2l1.5 3.5L24 7l-3.5 1.5L19 12l-1.5-3.5L14 7l3.5-1.5z" />
+    </svg>
+  ),
+);
+PhoneAIIcon.displayName = "PhoneAIIcon";
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +56,7 @@ import {
 } from "@/components/ui/tooltip";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
+const SIDEBAR_GROUPS_KEY = "sidebar_groups_open";
 
 function getLocalizedRoute(pathname: string | null | undefined): string {
   return pathname?.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
@@ -45,14 +72,36 @@ export function Navbar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    sales: true,
+    work: true,
+    "ai-agents": true,
+  });
 
   useEffect(() => {
     setMounted(true);
     try {
       const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
       if (stored === "true") setCollapsed(true);
+      const groupsStored = localStorage.getItem(SIDEBAR_GROUPS_KEY);
+      if (groupsStored) {
+        const parsed = JSON.parse(groupsStored);
+        if (parsed && typeof parsed === "object") {
+          setOpenGroups((prev) => ({ ...prev, ...parsed }));
+        }
+      }
     } catch {}
   }, []);
+
+  const toggleGroup = (id: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -90,34 +139,56 @@ export function Navbar() {
     return null;
   }
 
-  const navLinks = [
+  const dashboardLink = {
+    href: `/${locale}/dashboard`,
+    label: t("dashboard"),
+    icon: LayoutDashboard,
+  };
+
+  const navGroups = [
     {
-      href: `/${locale}/dashboard`,
-      label: t("dashboard"),
-      icon: LayoutDashboard,
+      id: "sales",
+      label: "Sales",
+      links: [
+        { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
+        { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
+        { href: `/${locale}/clients`, label: t("clients"), icon: Users },
+      ],
     },
-    { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
-    { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
-    { href: `/${locale}/invoices`, label: t("invoices"), icon: Receipt },
-    { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
-    { href: `/${locale}/clients`, label: t("clients"), icon: Users },
     {
-      href: `/${locale}/lead-generator-agent`,
-      label: t("leadGeneratorAgent"),
-      icon: Zap,
+      id: "work",
+      label: "Work",
+      links: [
+        { href: `/${locale}/projects`, label: t("projects"), icon: FolderKanban },
+        { href: `/${locale}/tasks`, label: t("tasks"), icon: ListTodo },
+        { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
+        { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
+      ],
     },
-    { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
-    { href: `/${locale}/projects`, label: t("projects"), icon: FolderKanban },
-    { href: `/${locale}/tasks`, label: t("tasks"), icon: ListTodo },
+    {
+      id: "ai-agents",
+      label: "AI Agents",
+      links: [
+        {
+          href: `/${locale}/lead-generator-agent`,
+          label: t("leadGeneratorAgent"),
+          icon: Zap,
+        },
+        {
+          href: `/${locale}/frontline`,
+          label: t("yourFrontline"),
+          icon: PhoneAIIcon,
+        },
+        {
+          href: `/${locale}/actions/scheduling`,
+          label: t("scheduling"),
+          icon: Bot,
+        },
+      ],
+    },
   ];
 
-  const actionLinks = [
-    {
-      href: `/${locale}/actions/scheduling`,
-      label: t("scheduling"),
-      icon: Bot,
-    },
-  ];
+  const allNavLinks = [dashboardLink, ...navGroups.flatMap((g) => g.links)];
 
   const settingsLink = {
     href: `/${locale}/settings`,
@@ -148,6 +219,7 @@ export function Navbar() {
     if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
     if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
     if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
+    if (currentRoute === "/frontline") return t("yourFrontline");
     if (currentRoute.startsWith("/crew/")) return "Crew Details";
     if (currentRoute === "/crew") return "Crew";
     if (currentRoute.startsWith("/projects/trade/")) return "Trade Scope";
@@ -179,17 +251,19 @@ export function Navbar() {
   };
 
   const mobilePrimaryLinks = uniqueLinksByHref([
-    navLinks.find((link) => link.href === `/${locale}/dashboard`),
-    navLinks.find((link) => link.href === `/${locale}/quotes`),
-    navLinks.find((link) => link.href === `/${locale}/calendar`),
-    navLinks.find((link) => link.href === `/${locale}/clients`),
-    navLinks.find((link) => link.href === `/${locale}/leads`),
-    navLinks.find((link) => link.href === `/${locale}/tasks`),
-    navLinks.find((link) => link.href === `/${locale}/crew`),
-    navLinks.find((link) => link.href === `/${locale}/invoices`),
-    navLinks.find((link) => link.href === `/${locale}/projects`),
+    allNavLinks.find((link) => link.href === `/${locale}/dashboard`),
+    allNavLinks.find((link) => link.href === `/${locale}/leads`),
+    allNavLinks.find((link) => link.href === `/${locale}/quotes`),
+    allNavLinks.find((link) => link.href === `/${locale}/clients`),
+    allNavLinks.find((link) => link.href === `/${locale}/projects`),
+    allNavLinks.find((link) => link.href === `/${locale}/tasks`),
+    allNavLinks.find((link) => link.href === `/${locale}/calendar`),
+    allNavLinks.find((link) => link.href === `/${locale}/crew`),
   ]);
-  const mobileMenuLinks = uniqueLinksByHref([...mobilePrimaryLinks, ...actionLinks]);
+  const mobileMenuLinks = uniqueLinksByHref([
+    ...mobilePrimaryLinks,
+    allNavLinks.find((link) => link.href === `/${locale}/actions/scheduling`),
+  ]);
 
   if (loading) {
     return (
@@ -378,90 +452,92 @@ export function Navbar() {
 
         {/* Nav Links */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          {navLinks.map((link) => {
-            let isActive = false;
-            if (link.href === `/${locale}/dashboard`) {
-              isActive = pathname === link.href;
-            } else {
-              isActive = pathname?.startsWith(link.href) || false;
-            }
-            const Icon = link.icon;
+          {(() => {
+            const renderLink = (link: {
+              href: string;
+              label: string;
+              icon: typeof LayoutDashboard;
+            }) => {
+              let isActive = false;
+              if (link.href === `/${locale}/dashboard`) {
+                isActive = pathname === link.href;
+              } else {
+                isActive = pathname?.startsWith(link.href) || false;
+              }
+              const Icon = link.icon;
 
-            const linkContent = (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
-                  collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-                } ${
-                  isActive
-                    ? "bg-sky-500/10 text-sky-700"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" />
-                {!collapsed && <span className="truncate">{link.label}</span>}
-              </Link>
-            );
-
-            if (collapsed) {
-              return (
-                <Tooltip key={link.href}>
-                  <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {link.label}
-                  </TooltipContent>
-                </Tooltip>
+              const linkContent = (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
+                    collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+                  } ${
+                    isActive
+                      ? "bg-sky-500/10 text-sky-700"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span className="truncate">{link.label}</span>}
+                </Link>
               );
-            }
 
-            return linkContent;
-          })}
+              if (collapsed) {
+                return (
+                  <Tooltip key={link.href}>
+                    <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={8}>
+                      {link.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
 
-          {/* Actions section */}
-          {!collapsed && (
-            <div className="pt-3 mt-3 border-t border-border">
-              <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/60">
-                {t("actions")}
-              </p>
-            </div>
-          )}
-          {collapsed && <div className="pt-2 mt-2 border-t border-border" />}
+              return linkContent;
+            };
 
-          {actionLinks.map((link) => {
-            const isActive = pathname?.startsWith(link.href);
-            const Icon = link.icon;
+            return (
+              <>
+                {renderLink(dashboardLink)}
 
-            const linkContent = (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-lg text-[13.5px] font-semibold leading-none tracking-[0] transition-colors ${
-                  collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-                } ${
-                  isActive
-                    ? "bg-sky-500/10 text-sky-700"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" />
-                {!collapsed && <span className="truncate">{link.label}</span>}
-              </Link>
+                {navGroups.map((group) => {
+                  const isOpen = openGroups[group.id] ?? true;
+
+                  if (collapsed) {
+                    return (
+                      <div key={group.id} className="pt-2 mt-2 border-t border-border space-y-1">
+                        {group.links.map(renderLink)}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={group.id} className="pt-3 mt-3 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.id)}
+                        aria-expanded={isOpen}
+                        className="flex w-full items-center justify-between px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/60 hover:text-foreground transition-colors"
+                      >
+                        <span>{group.label}</span>
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+                            isOpen ? "" : "-rotate-90"
+                          }`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-1">
+                          {group.links.map(renderLink)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
             );
-
-            if (collapsed) {
-              return (
-                <Tooltip key={link.href}>
-                  <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {link.label}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return linkContent;
-          })}
+          })()}
         </nav>
 
         {/* Bottom section: user info, settings, collapse toggle */}

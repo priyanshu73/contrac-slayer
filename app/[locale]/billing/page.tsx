@@ -7,24 +7,39 @@ import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Check, Sparkles, Zap, Shield, Clock } from "lucide-react"
+import { Check, Sparkles, Zap, Shield, Clock, Star } from "lucide-react"
 
 export default function BillingPage() {
   const locale = useLocale()
   const router = useRouter()
   const t = useTranslations("billing")
+  const tLanding = useTranslations("landing")
   const { user, loading } = useAuth()
   const [isLoading, setIsLoading] = useState<"monthly" | "yearly" | null>(null)
   const [error, setError] = useState("")
 
-  // Redirect to dashboard if user already has access
+  const includedInBoth = [
+    tLanding("pricingBasic1"),
+    tLanding("pricingBasic2"),
+    tLanding("pricingBasic3"),
+    tLanding("pricingBasic4"),
+    tLanding("pricingBasic5"),
+    tLanding("pricingWebsite"),
+  ]
+
+  const yearlyExclusive = [
+    tLanding("pricingPremium6"),
+    tLanding("pricingPremium7"),
+    tLanding("pricingPremium8"),
+    tLanding("pricingPremium9"),
+  ]
+
   useEffect(() => {
     if (!loading && user?.has_access) {
       router.push(`/${locale}/dashboard`)
     }
   }, [user, loading, router, locale])
 
-  // Show loading while checking access
   if (loading || user?.has_access) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -45,29 +60,35 @@ export default function BillingPage() {
         cancel_url: `${baseUrl}/${locale}/billing`,
       })
 
-      // Redirect to Stripe Checkout
       window.location.href = result.url
-    } catch (err: any) {
-      setError(err.message || "Failed to start checkout")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to start checkout"
+      setError(message)
       setIsLoading(null)
     }
   }
 
-  const features = [
-    t("features.aiQuoteGeneration"),
-    t("features.realtimePricing"),
-    t("features.unlimitedQuotes"),
-    t("features.clientManagement"),
-    t("features.leadTracking"),
-    t("features.calendarIntegration"),
-    t("features.emailNotifications"),
-    t("features.mobileFriendly"),
-  ]
+  const FeatureList = ({
+    items,
+    checkClass = "text-primary",
+  }: {
+    items: string[]
+    checkClass?: string
+  }) => (
+    <ul className="space-y-2.5">
+      {items.map((feature) => (
+        <li key={feature} className="flex items-start gap-2.5 text-sm">
+          <Check className={`h-4 w-4 shrink-0 mt-0.5 ${checkClass}`} strokeWidth={2.5} />
+          <span>{feature}</span>
+        </li>
+      ))}
+    </ul>
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-24 md:pb-6">
       <main className="container mx-auto px-4 py-6 md:py-12">
-        <div className="text-center mb-8 md:mb-16">
+        <div className="text-center mb-8 md:mb-12">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
             {t("freeTrial")}
@@ -80,26 +101,21 @@ export default function BillingPage() {
           </p>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="max-w-3xl mx-auto mb-6">
+          <div className="max-w-4xl mx-auto mb-6">
             <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm text-center">
               {error}
             </div>
           </div>
         )}
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
-          {/* Monthly Plan */}
-          <Card className="p-6 md:p-8 relative">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto items-start">
+          <Card className="p-6 md:p-8">
             <div className="mb-6">
               <h2 className="text-xl font-semibold mb-2">{t("monthly")}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t("monthlyDescription")}
-              </p>
+              <p className="text-muted-foreground text-sm">{t("monthlyDescription")}</p>
             </div>
-            
+
             <div className="mb-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold">$139</span>
@@ -107,8 +123,8 @@ export default function BillingPage() {
               </div>
             </div>
 
-            <Button 
-              className="w-full mb-6" 
+            <Button
+              className="w-full mb-6"
               size="lg"
               variant="outline"
               onClick={() => handleSubscribe("monthly")}
@@ -124,19 +140,15 @@ export default function BillingPage() {
               )}
             </Button>
 
-            <ul className="space-y-3">
-              {features.slice(0, 4).map((feature) => (
-                <li key={feature} className="flex items-center gap-3 text-sm">
-                  <Check className="h-4 w-4 text-primary shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+            <div className="pt-6 border-t">
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase mb-3">
+                {t("includedInBoth")}
+              </p>
+              <FeatureList items={includedInBoth} />
+            </div>
           </Card>
 
-          {/* Yearly Plan */}
           <Card className="p-6 md:p-8 relative border-primary bg-primary/5">
-            {/* Best Value Badge */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
               <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium whitespace-nowrap">
                 {t("bestValue")}
@@ -145,23 +157,19 @@ export default function BillingPage() {
 
             <div className="mb-6 pt-2">
               <h2 className="text-xl font-semibold mb-2">{t("yearly")}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t("yearlyDescription")}
-              </p>
+              <p className="text-muted-foreground text-sm">{t("yearlyDescription")}</p>
             </div>
-            
+
             <div className="mb-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold">$99</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("billedAnnually")}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">{t("billedAnnually")}</p>
             </div>
 
-            <Button 
-              className="w-full mb-6" 
+            <Button
+              className="w-full mb-6"
               size="lg"
               onClick={() => handleSubscribe("yearly")}
               disabled={isLoading !== null}
@@ -176,19 +184,31 @@ export default function BillingPage() {
               )}
             </Button>
 
-            <ul className="space-y-3">
-              {features.map((feature) => (
-                <li key={feature} className="flex items-center gap-3 text-sm">
-                  <Check className="h-4 w-4 text-primary shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4 pt-6 border-t">
+              <div>
+                <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase mb-3">
+                  {t("includedInBoth")}
+                </p>
+                <FeatureList items={includedInBoth} />
+              </div>
+              <div className="rounded-lg bg-emerald-50/80 border border-emerald-100 px-4 py-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Star className="h-3 w-3 text-emerald-700" strokeWidth={2.5} />
+                  <p className="text-[10px] font-semibold tracking-wide text-emerald-800 uppercase">
+                    {t("yearlyExclusive")}
+                  </p>
+                </div>
+                <FeatureList items={yearlyExclusive} checkClass="text-emerald-700" />
+              </div>
+            </div>
           </Card>
         </div>
 
-        {/* Trust Badges */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto text-center">
+        <p className="text-center text-sm text-muted-foreground mt-6 max-w-2xl mx-auto">
+          {t("trialFooter")}
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto text-center mt-10">
           <div className="flex flex-col items-center gap-2">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Clock className="h-6 w-6 text-primary" />

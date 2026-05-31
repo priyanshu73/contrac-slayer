@@ -53,10 +53,7 @@ export function LinkQuoteDialog({ projectId, open, onOpenChange, onLinked }: Lin
     if (!selectedQuoteId) return
     try {
       setLinking(true)
-      await api.request(`/jobs/${selectedQuoteId}`, {
-        method: "PUT",
-        body: JSON.stringify({ project_id: projectId }),
-      })
+      await api.updateJob(Number(selectedQuoteId), { project_id: projectId })
       onLinked()
       onOpenChange(false)
     } catch (err) {

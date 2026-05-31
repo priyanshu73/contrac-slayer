@@ -18,6 +18,8 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -32,7 +34,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { FileText, Plus, Search, Trash2, ChevronRight, ChevronDown } from "lucide-react"
+import { FileText, Plus, Search, Trash2, ChevronDown, FolderOpen, Unlink } from "lucide-react"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
 interface ClientInfo {
   id: number
@@ -52,6 +55,9 @@ interface Quote {
   updated_at?: string
   title?: string | null
   created_from_job_id?: number | null
+  project_id?: number | null
+  project_title?: string | null
+  has_proposal?: boolean
 }
 
 const ITEMS_PER_PAGE = 10
@@ -143,13 +149,18 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [activeStatuses, setActiveStatuses] = useState<string[]>([])
+  const [hasProposalFilter, setHasProposalFilter] = useState(false)
   const [clientFilterId, setClientFilterId] = useState<number | undefined>(undefined)
+  const [projectFilterId, setProjectFilterId] = useState<number | undefined>(undefined)
   const [searchInput, setSearchInput] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [clients, setClients] = useState<ClientInfo[]>([])
+  const [projects, setProjects] = useState<{ id: number; title: string }[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [quoteForProject, setQuoteForProject] = useState<Quote | null>(null)
+  const [createProjectForQuote, setCreateProjectForQuote] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
@@ -184,12 +195,34 @@ export default function QuotesPage() {
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getProjects({ limit: 500 })
+      .then((raw) => {
+        if (cancelled) return
+        const arr = Array.isArray(raw) ? raw : []
+        const mapped = arr
+          .map((p: { id: number; title: string }) => ({ id: p.id, title: p.title }))
+          .sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }))
+        setProjects(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const loadPage = useCallback(
     async (page: number) => {
       try {
         setLoading(true)
         const skip = (page - 1) * ITEMS_PER_PAGE
         const selectedStatuses = STATUS_ORDER.filter((code) => activeStatuses.includes(code))
+
+        const proposalParam = hasProposalFilter ? true : undefined
 
         if (selectedStatuses.length <= 1) {
           const statusFilter = selectedStatuses[0]
@@ -198,7 +231,9 @@ export default function QuotesPage() {
             skip,
             ITEMS_PER_PAGE + 1,
             clientFilterId,
-            debouncedSearch || undefined
+            debouncedSearch || undefined,
+            projectFilterId,
+            proposalParam
           )) as Quote[]
 
           if (data.length > ITEMS_PER_PAGE) {
@@ -222,7 +257,9 @@ export default function QuotesPage() {
             cursor,
             batchSize,
             clientFilterId,
-            debouncedSearch || undefined
+            debouncedSearch || undefined,
+            projectFilterId,
+            proposalParam
           )) as Quote[]
           allJobs = allJobs.concat(chunk)
           if (chunk.length < batchSize) break
@@ -240,13 +277,13 @@ export default function QuotesPage() {
         setLoading(false)
       }
     },
-    [activeStatuses, debouncedSearch, clientFilterId]
+    [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, hasProposalFilter]
   )
 
   useEffect(() => {
     setCurrentPage(1)
     loadPage(1)
-  }, [activeStatuses, debouncedSearch, clientFilterId, loadPage])
+  }, [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, hasProposalFilter, loadPage])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -254,11 +291,13 @@ export default function QuotesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const hasActiveFilters = activeStatuses.length > 0 || clientFilterId !== undefined || debouncedSearch.length > 0
+  const hasActiveFilters = activeStatuses.length > 0 || hasProposalFilter || clientFilterId !== undefined || projectFilterId !== undefined || debouncedSearch.length > 0
 
   const clearFilters = () => {
     setActiveStatuses([])
+    setHasProposalFilter(false)
     setClientFilterId(undefined)
+    setProjectFilterId(undefined)
     setSearchInput("")
     setDebouncedSearch("")
   }
@@ -287,10 +326,13 @@ export default function QuotesPage() {
   }, [tFilters])
 
   const statusFilterLabel = useMemo(() => {
-    if (activeStatuses.length === 0) return tFilters("all")
-    if (activeStatuses.length === 1) return statusLabel(activeStatuses[0])
-    return `${activeStatuses.length} statuses`
-  }, [activeStatuses, statusLabel, tFilters])
+    const parts: string[] = []
+    if (activeStatuses.length === 1) parts.push(statusLabel(activeStatuses[0]))
+    else if (activeStatuses.length > 1) parts.push(`${activeStatuses.length} statuses`)
+    if (hasProposalFilter) parts.push("Has proposal")
+    if (parts.length === 0) return tFilters("all")
+    return parts.join(" · ")
+  }, [activeStatuses, hasProposalFilter, statusLabel, tFilters])
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
     e.preventDefault()
@@ -327,6 +369,31 @@ export default function QuotesPage() {
       })
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleLinkQuoteToProject = async (quote: Quote, projectId: number, projectTitle: string) => {
+    try {
+      await api.updateJob(quote.id, { project_id: projectId })
+      setQuotes((prev) =>
+        prev.map((q) => q.id === quote.id ? { ...q, project_id: projectId, project_title: projectTitle } : q)
+      )
+      toast({ title: "Quote linked to project" })
+    } catch {
+      toast({ title: "Failed to link quote to project", variant: "destructive" })
+    }
+  }
+
+  const handleUnlinkQuoteFromProject = async (quote: Quote) => {
+    if (!quote.project_id) return
+    try {
+      await api.unlinkProjectQuote(quote.project_id, quote.id)
+      setQuotes((prev) =>
+        prev.map((q) => q.id === quote.id ? { ...q, project_id: null, project_title: null } : q)
+      )
+      toast({ title: "Quote unlinked from project" })
+    } catch {
+      toast({ title: "Failed to unlink quote from project", variant: "destructive" })
     }
   }
 
@@ -430,6 +497,17 @@ export default function QuotesPage() {
                         </span>
                       </DropdownMenuCheckboxItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={hasProposalFilter}
+                      onCheckedChange={(checked) => setHasProposalFilter(checked === true)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        Has proposal
+                      </span>
+                    </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -444,9 +522,27 @@ export default function QuotesPage() {
                   <SelectContent className="max-h-[280px]">
                     <SelectItem value="all">{tQuotes("allClients")}</SelectItem>
                     {clients.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)} textValue={`${c.name} ${c.email}`}>
+                      <SelectItem key={c.id} value={String(c.id)} textValue={c.name}>
                         <span className="truncate block">{c.name}</span>
                         <span className="text-muted-foreground text-xs truncate block">{c.email}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[180px] flex-1 md:flex-none">
+                <Select
+                  value={projectFilterId != null ? String(projectFilterId) : "all"}
+                  onValueChange={(v) => setProjectFilterId(v === "all" ? undefined : parseInt(v, 10))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)} textValue={p.title}>
+                        <span className="truncate block">{p.title}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -497,23 +593,92 @@ export default function QuotesPage() {
             {quotes.map((quote) => (
               <div key={quote.id} className="group relative">
                 <Card
-                  className={`rounded-2xl border-l-4 border-border/80 bg-card/95 p-4 shadow-sm transition-all active:scale-[0.99] hover:border-primary/30 hover:shadow-md md:rounded-xl md:p-5 md:active:scale-100 ${statusAccentClass(quote.status)}`}
+                  className={`rounded-2xl border-l-4 border-border/80 bg-card/95 px-3 py-2.5 shadow-sm transition-all active:scale-[0.99] hover:border-primary/30 hover:shadow-md md:rounded-xl md:px-4 md:py-3 md:active:scale-100 ${statusAccentClass(quote.status)}`}
                   onClick={() => router.push(`${basePath}/${quote.id}`)}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-                    <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-3 justify-between">
+                    <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                          {quote.created_from_job_id
-                            ? `Change order · #${quote.id}`
-                            : tQuotes("quoteNumber", { id: quote.id })}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] uppercase tracking-wide font-semibold border ${statusBadgeClass(quote.status)}`}
-                        >
-                          {statusLabel(String(quote.status))}
-                        </Badge>
+                        {quote.project_id ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 hover:bg-sky-100 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <FolderOpen className="h-2.5 w-2.5" />
+                                {quote.project_title || "Project"}
+                                <ChevronDown className="h-2 w-2 opacity-70" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  router.push(`/${locale}/projects/${quote.project_id}`)
+                                }}
+                              >
+                                <FolderOpen className="mr-2 h-3.5 w-3.5" />
+                                View Project
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleUnlinkQuoteFromProject(quote)
+                                }}
+                              >
+                                <Unlink className="mr-2 h-3.5 w-3.5" />
+                                Unlink
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/30 bg-transparent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/50 hover:border-muted-foreground/50 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                                Project
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56" onClick={(e) => e.stopPropagation()}>
+                              {projects.length > 0 && (
+                                <>
+                                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">Link to existing project</div>
+                                  <div className="max-h-48 overflow-y-auto">
+                                    {projects.map((p) => (
+                                      <DropdownMenuItem
+                                        key={p.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleLinkQuoteToProject(quote, p.id, p.title)
+                                        }}
+                                      >
+                                        <FolderOpen className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate">{p.title}</span>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </div>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setQuoteForProject(quote)
+                                  setCreateProjectForQuote(true)
+                                }}
+                              >
+                                <Plus className="mr-2 h-3.5 w-3.5" />
+                                Create New Project
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                       <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                         {quote.client?.name || "Unknown client"}
@@ -533,33 +698,30 @@ export default function QuotesPage() {
                         {quote.updated_at && ` · Updated ${formatDate(quote.updated_at)}`}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between rounded-xl bg-muted/45 px-3 py-2 sm:flex-col sm:items-end sm:bg-transparent sm:p-0 gap-3 shrink-0">
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                        {quote.created_from_job_id
+                          ? `Change order · #${quote.id}`
+                          : tQuotes("quoteNumber", { id: quote.id })}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] uppercase tracking-wide font-semibold border ${statusBadgeClass(quote.status)}`}
+                      >
+                        {statusLabel(String(quote.status))}
+                      </Badge>
                       <span className="text-xl font-bold text-primary tabular-nums">{formatCurrency(quote.total_amount)}</span>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 w-11 rounded-xl p-0 opacity-100 sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`${basePath}/${quote.id}`)
-                          }}
-                          title="Open"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 w-11 rounded-xl p-0 text-destructive opacity-100 hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8 sm:rounded-md sm:opacity-0 sm:group-hover:opacity-100"
-                          onClick={(e) => handleDeleteClick(e, quote)}
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute -top-[5.6px] -right-[5.6px] h-5 w-5 rounded-full z-10 p-0 opacity-0 group-hover:opacity-100 group-hover:bg-background group-hover:text-muted-foreground group-hover:shadow-sm hover:bg-destructive hover:text-white transition-all"
+                    onClick={(e) => handleDeleteClick(e, quote)}
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </Card>
               </div>
             ))}
@@ -590,6 +752,37 @@ export default function QuotesPage() {
           </div>
         )}
       </main>
+
+      {quoteForProject && (
+        <NewProjectDialog
+          open={createProjectForQuote}
+          onOpenChange={(open) => {
+            setCreateProjectForQuote(open)
+            if (!open) setQuoteForProject(null)
+          }}
+          fromQuote={{
+            jobId: quoteForProject.id,
+            title: quoteForProject.title || "",
+            clientId: quoteForProject.client_id,
+            contractValue: quoteForProject.total_amount,
+          }}
+          onProjectCreated={(projectId) => {
+            setQuotes((prev) =>
+              prev.map((q) =>
+                q.id === quoteForProject.id
+                  ? { ...q, project_id: projectId }
+                  : q
+              )
+            )
+            setCreateProjectForQuote(false)
+            setQuoteForProject(null)
+            api.getProjects({ limit: 500 }).then((raw) => {
+              const arr = Array.isArray(raw) ? raw : []
+              setProjects(arr.map((p: { id: number; title: string }) => ({ id: p.id, title: p.title })).sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" })))
+            }).catch(() => {})
+          }}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

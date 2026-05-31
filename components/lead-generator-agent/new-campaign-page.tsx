@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
-import { ArrowLeft, Bot, CheckCircle2, LoaderCircle, MapPin, MessageSquare, Rocket, Sparkles, User } from "lucide-react"
+import { ArrowLeft, Bot, CheckCircle2, LoaderCircle, MapPin, MessageSquare, Rocket, Search, Sparkles, User } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -151,6 +151,28 @@ export function NewCampaignPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (saving) {
+    return (
+      <div className="min-h-screen bg-[linear-gradient(180deg,_#f7fbff_0%,_#ffffff_36%,_#f8fafc_100%)] pb-16">
+        <main className="container mx-auto flex min-h-screen max-w-3xl items-center px-4 py-6">
+          <Card className="w-full border-sky-200 bg-sky-50/70">
+            <CardContent className="flex items-center gap-4 py-6">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-100">
+                <Search className="h-7 w-7 animate-pulse text-sky-600" />
+              </div>
+              <div>
+                <div className="text-lg font-semibold text-sky-900">Finding target businesses…</div>
+                <div className="mt-1 text-sm text-sky-700">
+                  Starting the campaign and opening the live discovery workspace.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
   }
 
   return (

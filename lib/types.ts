@@ -74,11 +74,14 @@ export interface PropertyInsightsResponse {
 
 export interface Attachment {
   id: number
-  file_url: string
+  file_name: string
+  file_path: string
+  file_size?: number
   file_type: string
-  original_filename: string
-  file_size: number
-  created_at: string
+  mime_type?: string
+  context: string
+  public_url?: string
+  thumbnail_url?: string
 }
 
 export interface AttachmentCreate {
@@ -235,6 +238,7 @@ export interface Lead {
   estimated_value?: number
   converted_to_job_id?: number
   converted_to_client_id?: number
+  converted_to_project_id?: number
   last_contacted_at?: string
   created_at: string
   updated_at?: string
@@ -285,6 +289,7 @@ export interface Client {
   phone: string
   address?: string
   notes?: string
+  client_portal_token?: string | null
   created_at: string
   updated_at?: string
 }
@@ -426,11 +431,56 @@ export interface ProposalOverviewResponse {
   source: 'ai' | 'fallback'
 }
 
+export type ProposalStatus = 'DRAFT' | 'SENT' | 'VIEWED'
+
+export interface ProposalQuoteReference {
+  id: number
+  proposal_id: number
+  project_id: number
+  job_id: number
+  selected_tier?: string | null
+  snapshot_total?: number | null
+  created_at: string
+}
+
+export interface Proposal {
+  id: number
+  uuid: string
+  project_id?: number | null
+  contractor_id: number
+  client_id?: number | null
+  title?: string | null
+  status: ProposalStatus
+  proposal_document?: ProposalDocument | null
+  public_link?: string | null
+  customer_viewed_at?: string | null
+  customer_view_count: number
+  sent_at?: string | null
+  created_at: string
+  updated_at?: string | null
+  quote_references: ProposalQuoteReference[]
+  client_portal_token?: string | null
+  /** Public quote link for client sidebar navigation (from API public proposal endpoint). */
+  linked_quote_public_link?: string | null
+  portal_quotes?: ClientPortalQuoteItem[]
+  portal_proposals?: ClientPortalProposalItem[]
+}
+
+/**
+ * Result of the public proposal lookup endpoint. `exists` is false (HTTP 200)
+ * when no proposal is associated with the link — not an error.
+ */
+export interface PublicProposalLookup {
+  exists: boolean
+  proposal?: Proposal | null
+}
+
 export interface Job {
   id: number
   uuid: string
   contractor_id: number
   client_id?: number
+  lead_id?: number
   project_id?: number
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
@@ -461,8 +511,6 @@ export interface Job {
   quote_pdf_url?: string
   /** Public link for customer quote view; set when generated via generateQuotePublicLink */
   quote_public_link?: string
-  /** Public link for customer proposal view; generated once a proposal is saved */
-  proposal_public_link?: string
   // Additional fields from API (JobResponse)
   quote_expiration_date?: string
   project_type?: string
@@ -470,7 +518,6 @@ export interface Job {
   job_description?: string
   payment_terms?: string
   customer_notes?: string
-  proposal_document?: ProposalDocument
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
@@ -478,6 +525,11 @@ export interface Job {
   qbo_invoice_id?: string
   qbo_invoice_url?: string
   qbo_synced_at?: string
+  client_portal_token?: string | null
+  /** Public proposal link for client sidebar navigation (from API public quote endpoint). */
+  linked_proposal_public_link?: string | null
+  portal_quotes?: ClientPortalQuoteItem[]
+  portal_proposals?: ClientPortalProposalItem[]
 }
 
 export interface QBOInvoiceLineItem {
@@ -596,6 +648,7 @@ export interface Project {
   scheduled_end_date?: string
   actual_start_date?: string
   actual_completion_date?: string
+  brief?: Record<string, any> | null
   tasks?: ProjectTask[]
   trades?: ProjectTrade[]
   media?: ProjectMedia[]
@@ -603,6 +656,7 @@ export interface Project {
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
+  proposals?: Proposal[]
 }
 
 export interface ProjectListItem {
@@ -611,12 +665,83 @@ export interface ProjectListItem {
   title: string
   status: ProjectStatus
   client_id?: number
+  client_name?: string | null
   contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
+}
+
+export interface ClientPortalQuoteItem {
+  id: number
+  title?: string | null
+  status: string
+  estimated_total?: number | null
+  quote_public_link?: string | null
+  project_id?: number | null
+  project_title?: string | null
+}
+
+export interface ClientPortalProposalItem {
+  id: number
+  title?: string | null
+  status: string
+  public_link?: string | null
+  updated_at?: string | null
+  project_id?: number | null
+  project_title?: string | null
+}
+
+export interface ClientPortalClientInfo {
+  id: number
+  name: string
+  email?: string | null
+  phone?: string | null
+  company_name?: string | null
+  address?: string | null
+}
+
+export interface ClientPortalQuoteRequest {
+  id: number
+  project_type?: string | null
+  description?: string | null
+  status: string
+  created_at: string
+}
+
+export interface ClientPortalBooking {
+  id: number
+  booking_type: string
+  status: string
+  start_time: string
+  end_time: string
+  location?: string | null
+  google_meet_link?: string | null
+}
+
+export interface ClientPortalInvoice {
+  id: number
+  invoice_number: string
+  title?: string | null
+  total_amount: number
+  balance_due: number
+  status: string
+  due_date?: string | null
+}
+
+export interface ClientPortalData {
+  project_title: string
+  project_description?: string | null
+  contractor_name: string
+  contractor_logo_url?: string | null
+  client?: ClientPortalClientInfo | null
+  proposals: ClientPortalProposalItem[]
+  quotes: ClientPortalQuoteItem[]
+  quote_requests: ClientPortalQuoteRequest[]
+  bookings: ClientPortalBooking[]
+  invoices: ClientPortalInvoice[]
 }
 
 export interface ProjectTask {

@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,14 +17,20 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
-import { api, contractorAI } from "@/lib/api"
+import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
 import Image from "next/image"
-import { Check, ChevronsUpDown, Image as ImageIcon, Loader2, X } from "lucide-react"
+import { Check, ChevronsUpDown, FolderOpen, Image as ImageIcon, Loader2, Plus, X } from "lucide-react"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { cn } from "@/lib/utils"
+import {
+  AI_ESTIMATE_LOADING_HINT,
+  AI_ESTIMATE_LOADING_INTERVAL_MS,
+  AI_ESTIMATE_LOADING_MESSAGES,
+} from "@/lib/ai-estimate-loading"
 
 interface LineItem {
   title?: string
@@ -172,6 +178,12 @@ function getRateNumber(rate: LineItem["rate"]): number {
   return Number.isFinite(n) ? n : 0
 }
 
+const quoteInputSurfaceClass =
+  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 disabled:bg-slate-100/70"
+
+const quoteTextareaSurfaceClass =
+  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+
 // Unit Selector Component
 function UnitSelector({ value, onChange, description }: { value: string; onChange: (value: string) => void; description: string }) {
   const [isCustom, setIsCustom] = useState(false)
@@ -254,7 +266,7 @@ function UnitSelector({ value, onChange, description }: { value: string; onChang
             value={customValue}
             onChange={(e) => handleCustomChange(e.target.value)}
             placeholder="Custom unit..."
-            className="flex-1 min-w-0"
+            className={cn(quoteInputSurfaceClass, "flex-1 min-w-0")}
           />
           <Button
             variant="ghost"
@@ -413,13 +425,15 @@ function MaterialThumbnail({ src, alt, className, category, index }: {
 interface QuoteCreatorProps {
   leadId?: string | null
   clientId?: string | null
+  projectId?: string | null
   callLeadId?: string | null
   phone?: string | null
   quoteId?: string | null
   initialData?: any // Job/Quote data for editing
+  onProjectContextChange?: (context: { projectId: number | null; clientId: number | null }) => void
 }
 
-export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, initialData }: QuoteCreatorProps) {
+export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData, onProjectContextChange }: QuoteCreatorProps) {
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
@@ -427,34 +441,40 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [projectTitle, setProjectTitle] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiLoadingStage, setAiLoadingStage] = useState(0)
+  const [aiLoadingProgress, setAiLoadingProgress] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
   const [descriptionEditorsOpen, setDescriptionEditorsOpen] = useState<number[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [isMobileAiOpen, setIsMobileAiOpen] = useState(false)
+  const [useBriefAsContext, setUseBriefAsContext] = useState(true)
+  const [projectBrief, setProjectBrief] = useState<any>(null)
 
-  // AI loading stage messages
-  const aiLoadingMessages = [
-    "Analyzing project description...",
-    "Identifying required materials...",
-    "Calculating quantities...",
-    "Estimating labor costs...",
-    "Finalizing line items...",
-  ]
+  const aiLoadingMessages = AI_ESTIMATE_LOADING_MESSAGES
 
-  // Progress through loading stages
+  // Rotate fun loading copy + slow progress bar while estimate runs (up to ~3 min)
   useEffect(() => {
-    if (aiLoading) {
+    if (!aiLoading) {
       setAiLoadingStage(0)
-      const interval = setInterval(() => {
-        setAiLoadingStage(prev => (prev + 1) % aiLoadingMessages.length)
-      }, 5000) // Change every 5 seconds
-      return () => clearInterval(interval)
-    } else {
-      setAiLoadingStage(0)
+      setAiLoadingProgress(0)
+      return
     }
-  }, [aiLoading])
+    setAiLoadingStage(0)
+    setAiLoadingProgress(6)
+    const started = Date.now()
+    const rotate = setInterval(() => {
+      setAiLoadingStage((prev) => (prev + 1) % aiLoadingMessages.length)
+    }, AI_ESTIMATE_LOADING_INTERVAL_MS)
+    const progress = setInterval(() => {
+      const elapsed = Date.now() - started
+      setAiLoadingProgress(Math.min(94, 6 + (elapsed / 240_000) * 88))
+    }, 400)
+    return () => {
+      clearInterval(rotate)
+      clearInterval(progress)
+    }
+  }, [aiLoading, aiLoadingMessages.length])
 
   // Client information states
   const [clientName, setClientName] = useState("")
@@ -462,6 +482,11 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   const [clientPhone, setClientPhone] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [loadingLead, setLoadingLead] = useState(false)
+
+  // Project linking states
+  const [allProjects, setAllProjects] = useState<any[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false)
 
   // Client matching states
   const [allClients, setAllClients] = useState<Client[]>([])
@@ -478,7 +503,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File }[]>([])
+  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; file?: File; mediaId?: number }[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -588,6 +613,24 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     fetchClients()
   }, [])
 
+  // Load projects on mount
+  useEffect(() => {
+    let cancelled = false
+    const loadProjects = async () => {
+      try {
+        const data = await api.getProjects({ limit: 500 })
+        if (!cancelled) {
+          setAllProjects(Array.isArray(data) ? data : [])
+        }
+      } catch (err) {
+        console.error("Failed to load projects:", err)
+        if (!cancelled) setAllProjects([])
+      }
+    }
+    loadProjects()
+    return () => { cancelled = true }
+  }, [])
+
   // Fetch templates on mount
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -691,6 +734,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
   }, [clientId])
 
+  useEffect(() => {
+    if (projectId && !initialData) {
+      fetchProjectData()
+    }
+  }, [projectId, initialData])
+
   // Fetch call lead data if callLeadId is provided
   // Also handle phone parameter if provided without callLeadId (fallback)
   useEffect(() => {
@@ -787,8 +836,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
   // Load initial quote data if editing or copying
   useEffect(() => {
     if (initialData && !hasLoadedInitialData) {
-      // Reset selected client when loading existing quote
-      setSelectedClientId(null)
+      setSelectedClientId(initialData.client_id || initialData.client?.id || null)
 
       // Set client information - handle both nested client object and flat structure
       const client = initialData.client
@@ -855,6 +903,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           url: media.file_url,
           name: media.file_name || "attachment",
           size: media.file_size || 0,
+          mediaId: media.id,
         })))
       } else {
         // Clear if no media
@@ -864,6 +913,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       // Mark as loaded and ensure loadingMarkup is false for editing
       setHasLoadedInitialData(true)
       setLoadingMarkup(false)
+
+      // Restore project link when editing
+      if (initialData.project_id) {
+        setSelectedProjectId(initialData.project_id)
+        api.getProject(initialData.project_id)
+          .then((p: any) => {
+            if (p?.brief) setProjectBrief(p.brief)
+            if (p?.title) setProjectTitle(p.title)
+          })
+          .catch(() => {})
+      }
     }
   }, [initialData, quoteId, hasLoadedInitialData])
 
@@ -1057,6 +1117,34 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
   }
 
+  const fetchProjectData = async () => {
+    if (!projectId || isNaN(Number(projectId))) return
+    try {
+      const data = await api.getProject(parseInt(projectId, 10)) as any
+      setSelectedProjectId(data.id)
+      setProjectBrief(data?.brief || null)
+      setProjectTitle(data?.title || "")
+
+      if (data?.client_id) {
+        const client = await api.getClientDetails(data.client_id) as {
+          id: number
+          name: string
+          email: string
+          phone?: string
+          address?: string
+          billing_address?: string
+        }
+        setSelectedClientId(client.id)
+        setClientName(client.name || "")
+        setClientEmail(client.email || "")
+        setClientPhone(client.phone || "")
+        setClientAddress(client.address || client.billing_address || "")
+      }
+    } catch (error) {
+      console.error("Failed to fetch project data:", error)
+    }
+  }
+
   const extractZipCode = (address: string): string | undefined => {
     // Extract 5-digit ZIP code from address
     const zipMatch = address.match(/\b\d{5}\b/)
@@ -1153,6 +1241,122 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     })
   }
 
+  // Keep project brief in sync with selected project for AI context
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectBrief(null)
+      return
+    }
+    let cancelled = false
+    api.getProject(selectedProjectId)
+      .then((p: any) => {
+        if (cancelled) return
+        setProjectBrief(p?.brief || null)
+        if (p?.title) setProjectTitle(p.title)
+        if (p?.title) setProjectType((prev) => prev || p.title)
+        if (p?.objective) setServiceDescription((prev) => prev || p.objective)
+        if (p?.client_id && p.client_id !== selectedClientId) {
+          setSelectedClientId(p.client_id)
+          api.getClientDetails(p.client_id)
+            .then((client: any) => {
+              if (cancelled) return
+              setClientName(client?.name || "")
+              setClientEmail(client?.email || "")
+              setClientPhone(client?.phone || "")
+              setClientAddress(client?.address || client?.billing_address || "")
+            })
+            .catch(() => {
+              if (cancelled) return
+            })
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        setProjectBrief(null)
+      })
+    return () => { cancelled = true }
+  }, [selectedProjectId, selectedClientId])
+
+  // Ref to hold clarified scope passed from AgentChatPanel via trigger event
+  const clarifiedScopeRef = useRef<ScopeClarifiedScope | null>(null)
+
+  // Sync quote context to window so AgentChatPanel can read it
+  useEffect(() => {
+    const ctx = {
+      clientName: clientName || null,
+      projectTitle: projectTitle || null,
+      projectType,
+      serviceDescription,
+      laborRate: laborRateValue,
+      laborChargeType,
+      projectBrief,
+      includeProjectBriefInContext: useBriefAsContext,
+      projectId: selectedProjectId ? Number(selectedProjectId) : null,
+      clientId: selectedClientId ?? null,
+      clientEmail: clientEmail || null,
+      clientPhone: clientPhone || null,
+    }
+    ;(window as any).quoteEstimateContext = ctx
+    window.dispatchEvent(new CustomEvent("quote-context-updated", { detail: ctx }))
+  }, [
+    projectType,
+    serviceDescription,
+    laborRateValue,
+    laborChargeType,
+    projectBrief,
+    useBriefAsContext,
+    selectedProjectId,
+    selectedClientId,
+    clientName,
+    clientEmail,
+    clientPhone,
+    projectTitle,
+  ])
+
+  useEffect(() => {
+    onProjectContextChange?.({
+      projectId: selectedProjectId ?? null,
+      clientId: selectedClientId ?? null,
+    })
+  }, [onProjectContextChange, selectedClientId, selectedProjectId])
+
+  // Listen for trigger from AI panel to run the estimate
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        projectType?: string
+        serviceDescription?: string
+        laborRate?: number
+        laborChargeType?: string
+        includeProjectBriefInContext?: boolean
+        projectBrief?: any
+        clarifiedScope?: ScopeClarifiedScope | null
+      }
+      if (detail.projectType !== undefined) setProjectType(detail.projectType)
+      if (detail.serviceDescription !== undefined) setServiceDescription(detail.serviceDescription)
+      if (detail.laborRate !== undefined) setLaborRateValue(detail.laborRate)
+      if (detail.includeProjectBriefInContext !== undefined) setUseBriefAsContext(detail.includeProjectBriefInContext)
+      if (detail.projectBrief !== undefined) setProjectBrief(detail.projectBrief)
+      clarifiedScopeRef.current = detail.clarifiedScope ?? null
+      setTimeout(() => {
+        const ctx = (window as any).quoteEstimateContext || {}
+        const desc = detail.serviceDescription ?? ctx.serviceDescription ?? ""
+        if (!desc.trim()) return
+        window.dispatchEvent(new CustomEvent("_run-ai-estimate-internal"))
+      }, 50)
+    }
+    window.addEventListener("trigger-ai-estimate", handler)
+    return () => window.removeEventListener("trigger-ai-estimate", handler)
+  }, [])
+
+  // Internal listener that fires fetchAiEstimate after state has settled
+  useEffect(() => {
+    const handler = () => { fetchAiEstimate() }
+    window.addEventListener("_run-ai-estimate-internal", handler)
+    return () => window.removeEventListener("_run-ai-estimate-internal", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceDescription, projectType, laborRateValue, laborChargeType, measurements, leadId, clientAddress, useBriefAsContext, projectBrief])
+
   const fetchAiEstimate = async () => {
     if (!serviceDescription.trim()) {
       toast({
@@ -1164,6 +1368,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
     }
 
     setAiLoading(true)
+    window.dispatchEvent(new CustomEvent("ai-generation-status", {
+      detail: {
+        kind: "estimate",
+        phase: "running",
+        title: "Generating AI estimate",
+        detail: "Reviewing the project scope, measurements, and pricing context.",
+      },
+    }))
     try {
       const zipCode = clientAddress ? extractZipCode(clientAddress) : undefined
       // Send measurements if available (either from lead or manually entered)
@@ -1173,10 +1385,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         project_type: projectType || undefined,
         measurements: measurements.items.length > 0 ? measurements : undefined,
         lead_id: leadId ? parseInt(leadId, 10) : undefined,
+        project_id: selectedProjectId ?? undefined,
         location_zip_code: zipCode,
-        labor_charge_type: laborChargeType, // Send labor charge type from form
-        labor_rate_value: laborRateValue, // Send unified labor rate from form
-        labor_unit_type: laborUnitType, // Send labor unit type from form when PER_UNIT
+        labor_charge_type: laborChargeType,
+        labor_rate_value: laborRateValue,
+        labor_unit_type: laborUnitType,
+        project_brief: useBriefAsContext && projectBrief ? projectBrief : undefined,
+        clarified_scope: clarifiedScopeRef.current,
       }) as any
 
       // Validate response structure to prevent crashes
@@ -1226,6 +1441,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
         title: "Estimate generated",
         description: `Generated ${newItems.length} line items with AI`,
       })
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "estimate",
+          phase: "succeeded",
+          title: "Estimate ready",
+          detail: `Generated ${newItems.length} line items with AI.`,
+        },
+      }))
 
       // Auto-save when editing an existing quote so line items are not lost (pass newItems so we save the just-generated items)
       if (quoteId) {
@@ -1233,6 +1456,14 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       }
     } catch (error: any) {
       console.error("Failed to generate estimate:", error)
+      window.dispatchEvent(new CustomEvent("ai-generation-status", {
+        detail: {
+          kind: "estimate",
+          phase: "failed",
+          title: "Estimate generation failed",
+          detail: error?.message || "Failed to generate estimate. Please try again.",
+        },
+      }))
       toast({
         title: "Estimate generation failed",
         description: error.message || "Failed to generate estimate. Please try again.",
@@ -1387,7 +1618,9 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
 
       // Prepare job data
       const jobData = {
-        lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null, // Link to original lead if creating from lead
+        lead_id: leadId && !isNaN(Number(leadId)) ? parseInt(leadId, 10) : null,
+        project_id: selectedProjectId ?? null,
+        client_id: selectedClientId ?? null,
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim() || null,
@@ -1534,77 +1767,126 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
       <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 pt-6">
         {/* Left Column - Main Content */}
         <div className="flex-1 min-w-0 space-y-6 lg:basis-0">
-          {/* Client Information */}
-          <Card className="p-6" id="material-search">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Client Information</h2>
-              <div className="flex items-center gap-2">
-                {selectedClientId && (
-                  <button
-                    onClick={() => {
-                      setSelectedClientId(null)
-                      toast({
-                        title: "Client selection cleared",
-                        description: "You can now enter new client information",
-                      })
-                    }}
-                    className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1"
-                  >
-                    <span>Using Existing Client</span>
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-                {leadId && (
-                  <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
-                    Auto-filled from Lead
-                  </span>
-                )}
+          {/* Quote Details */}
+          <Card className="p-4 sm:p-5" id="material-search">
+            <div className="mb-4 space-y-1">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold">Quote Details</h2>
+                  {leadId && (
+                    <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
+                      Auto-filled from Lead
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Link the quote to a project and confirm the client information.
+                </p>
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="client-name">Client Name *</Label>
-                <Input
-                  id="client-name"
-                  placeholder="John Smith"
-                  value={clientName}
-                  onChange={(e) => handleClientFieldChange('name', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-email">Email *</Label>
-                <Input
-                  id="client-email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={clientEmail}
-                  onChange={(e) => handleClientFieldChange('email', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-phone">Phone</Label>
-                <Input
-                  id="client-phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={clientPhone}
-                  onChange={(e) => handleClientFieldChange('phone', e.target.value)}
-                  disabled={loadingLead}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="client-address">Address</Label>
-                <Input
-                  id="client-address"
-                  placeholder="123 Oak Street, Springfield, IL"
-                  value={clientAddress}
-                  onChange={(e) => handleClientFieldChange('address', e.target.value)}
-                  disabled={loadingLead}
-                />
+
+            <div className="grid items-start gap-5">
+              <div className="p-1">
+                <div className="mb-4 space-y-1.5">
+                  <Label htmlFor="quote-project">Project</Label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Select
+                      value={selectedProjectId ? String(selectedProjectId) : "__none__"}
+                      onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
+                    >
+                      <SelectTrigger id="quote-project" className={cn(quoteInputSurfaceClass, "min-h-10 flex-1 bg-slate-50/80")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No project (standalone quote)</SelectItem>
+                        {allProjects.length > 0 && <div className="my-1 border-t" />}
+                        {allProjects.map((p: any) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.title || `Project #${p.id}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 items-center gap-1.5 whitespace-nowrap"
+                      onClick={() => setShowNewProjectDialog(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      New Project
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="client-name">Client Name *</Label>
+                      {selectedClientId && (
+                        <button
+                          onClick={() => {
+                            setSelectedClientId(null)
+                            toast({
+                              title: "Client selection cleared",
+                              description: "You can now enter new client information",
+                            })
+                          }}
+                          className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
+                        >
+                          <span>Using Existing Client</span>
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="client-name"
+                      placeholder="John Smith"
+                      value={clientName}
+                      onChange={(e) => handleClientFieldChange('name', e.target.value)}
+                      className={quoteInputSurfaceClass}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-email">Email *</Label>
+                    <Input
+                      id="client-email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={clientEmail}
+                      onChange={(e) => handleClientFieldChange('email', e.target.value)}
+                      className={quoteInputSurfaceClass}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-phone">Phone</Label>
+                    <Input
+                      id="client-phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={clientPhone}
+                      onChange={(e) => handleClientFieldChange('phone', e.target.value)}
+                      className={quoteInputSurfaceClass}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client-address">Address</Label>
+                    <Input
+                      id="client-address"
+                      placeholder="123 Oak Street, Springfield, IL"
+                      value={clientAddress}
+                      onChange={(e) => handleClientFieldChange('address', e.target.value)}
+                      className={quoteInputSurfaceClass}
+                      disabled={loadingLead}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1649,6 +1931,20 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             )}
           </Card>
 
+          <NewProjectDialog
+            open={showNewProjectDialog}
+            onOpenChange={setShowNewProjectDialog}
+            onProjectCreated={async (projectId) => {
+              setSelectedProjectId(projectId)
+              try {
+                const data = await api.getProjects({ limit: 500 })
+                setAllProjects(Array.isArray(data) ? data : [])
+              } catch {
+                // project was created — list refresh is best-effort
+              }
+            }}
+          />
+
           {/* Material Search */}
           <div className="space-y-3">
             <MaterialSearchWidget
@@ -1677,8 +1973,8 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             />
           </div>
 
-          {/* Mobile AI Assistant - Collapsible */}
-          <div className="lg:hidden">
+          {/* Mobile AI Assistant - Collapsible - REMOVED: moved to AI chat panel */}
+          {false && <div className="lg:hidden">
             <Collapsible open={isMobileAiOpen} onOpenChange={setIsMobileAiOpen}>
               <div className="border rounded-lg overflow-hidden">
                 <CollapsibleTrigger asChild>
@@ -1866,6 +2162,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         const tooShort = desc.length < 30 || wordCount < 6
                         return (
                           <div className="flex flex-col gap-2 w-full">
+                            {projectBrief && (
+                              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={useBriefAsContext}
+                                  onChange={(e) => setUseBriefAsContext(e.target.checked)}
+                                  className="h-4 w-4 rounded border-gray-300 accent-primary"
+                                />
+                                Include project brief in context
+                              </label>
+                            )}
                             <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                               {aiLoading ? (
                                 <span className="inline-flex items-center gap-2">
@@ -1885,12 +2192,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                               <div className="w-full space-y-2">
                                 <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-primary transition-all duration-1000 ease-out"
-                                    style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                                    className="h-full bg-primary transition-all duration-500 ease-out"
+                                    style={{ width: `${aiLoadingProgress}%` }}
                                   />
                                 </div>
                                 <p className="text-xs text-muted-foreground text-center">
-                                  This usually takes 15-30 seconds
+                                  {AI_ESTIMATE_LOADING_HINT}
                                 </p>
                               </div>
                             )}
@@ -1983,7 +2290,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </div>
             </Collapsible>
 
-          </div>
+          </div>}
 
           {/* Line Items */}
           <Card className="p-3 sm:p-4 rounded-lg border border-border">
@@ -1996,6 +2303,34 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 Add Item
               </Button>
             </div>
+
+            {aiLoading && (
+              <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50/80 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
+                      <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                      Generating your AI estimate
+                    </div>
+                    <p className="mt-1 text-sm text-sky-800/80">
+                      {aiLoadingMessages[aiLoadingStage]}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">
+                    Pricing scope in progress
+                  </span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sky-100">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#0ea5e9,#2563eb)] transition-all duration-500 ease-out"
+                    style={{ width: `${aiLoadingProgress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-sky-800/70">
+                  {AI_ESTIMATE_LOADING_HINT}
+                </p>
+              </div>
+            )}
 
             {/* Table Header - Desktop */}
             <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
@@ -2025,7 +2360,16 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     </div>
                   ))}
                   <p className="text-sm text-center text-muted-foreground py-2">
-                    AI is generating line items...
+                    {aiLoadingMessages[aiLoadingStage]}
+                  </p>
+                </div>
+              )}
+
+              {!aiLoading && items.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-7 text-center shadow-inner shadow-slate-200/50">
+                  <p className="text-sm font-semibold text-slate-700">No line items yet</p>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+                    Add your first item or generate an AI estimate to start building the quote.
                   </p>
                 </div>
               )}
@@ -2072,7 +2416,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         value={item.title || ""}
                         onChange={(e) => updateItem(index, "title", e.target.value)}
                         placeholder="Item title (optional)"
-                        className="h-10 text-sm"
+                        className={cn(quoteInputSurfaceClass, "h-10 text-sm")}
                       />
                     </div>
                     {/* Description */}
@@ -2085,7 +2429,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                         value={item.description}
                         onChange={(e) => updateItem(index, "description", e.target.value)}
                         placeholder="Enter item description (e.g., materials, labor, services, etc.)"
-                        className="min-h-[44px] py-2 px-3 text-sm resize-none"
+                        className={cn(quoteTextareaSurfaceClass, "min-h-[44px] resize-none px-3 py-2 text-sm")}
                         rows={2}
                       />
                       {item.brand && (
@@ -2136,7 +2480,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                             updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                           }}
                           placeholder="0"
-                          className="h-9 text-center text-sm"
+                          className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                         />
                       </div>
                       <div>
@@ -2161,7 +2505,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                             updateItem(index, "rate", Math.round(n * 100) / 100)
                           }}
                           placeholder="0.00"
-                          className="h-9 text-sm"
+                          className={cn(quoteInputSurfaceClass, "h-9 text-sm")}
                         />
                       </div>
                       <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
@@ -2211,6 +2555,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                               }
                             }}
                             placeholder="Item name"
+                            className={quoteTextareaSurfaceClass}
                           />
                         </div>
                         {!isDescriptionEditorVisible(index, item) && (
@@ -2259,7 +2604,10 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                               e.target.style.height = e.target.scrollHeight + 'px'
                             }}
                             placeholder="Enter item description"
-                            className="min-h-[36px] py-2 px-3 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors flex-1 min-w-0 resize-none overflow-hidden"
+                            className={cn(
+                              quoteTextareaSurfaceClass,
+                              "min-h-[36px] flex-1 min-w-0 resize-none overflow-hidden px-3 py-2 text-sm hover:border-slate-300"
+                            )}
                             rows={1}
                             ref={(el) => {
                               if (el) {
@@ -2299,7 +2647,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
                         }}
                         placeholder="0"
-                        className="h-9 text-center text-sm"
+                        className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                       />
                     </div>
 
@@ -2323,7 +2671,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           updateItem(index, "rate", Math.round(n * 100) / 100)
                         }}
                         placeholder="0.00"
-                        className="h-9 w-full min-w-0 text-sm text-right tabular-nums"
+                        className={cn(quoteInputSurfaceClass, "h-9 w-full min-w-0 text-right text-sm tabular-nums")}
                       />
                     </div>
 
@@ -2397,7 +2745,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       }
                     }}
                     placeholder="0"
-                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -2449,7 +2797,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                       }
                     }}
                     placeholder="0.00"
-                    className="w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -2458,26 +2806,28 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </div>
 
             {/* Totals */}
-            <div className="mt-6 space-y-2 border-t border-border pt-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal (before markup)</span>
-                <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
-                <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-border pt-2">
-                <span className="text-muted-foreground font-medium">Subtotal (with markup)</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
-                <span className="font-medium">${tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
-                <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+            <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/90 p-4 shadow-inner shadow-slate-200/60">
+              <div className="space-y-2 sm:ml-auto sm:max-w-md">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal (before markup)</span>
+                  <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Markup ({markupPercentage}%)</span>
+                  <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-2 text-sm">
+                  <span className="font-medium text-muted-foreground">Subtotal (with markup)</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tax ({taxRate.toFixed(2)}%)</span>
+                  <span className="font-medium">${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
+                  <span>Total</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </Card>
@@ -2514,7 +2864,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
                     <button
                       type="button"
-                      onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                      onClick={async () => {
+                        const img = uploadedImages[i]
+                        if (img.mediaId && quoteId) {
+                          try {
+                            await api.deleteJobMedia(parseInt(quoteId), img.mediaId)
+                          } catch (err) {
+                            console.error("Failed to delete attachment:", err)
+                          }
+                        }
+                        setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))
+                      }}
                       className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                     >
                       <X className="w-3 h-3" />
@@ -2530,7 +2890,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                 <Textarea
                   id="notes"
                   placeholder="Add any additional notes or terms..."
-                  className="min-h-[100px]"
+                  className={cn(quoteTextareaSurfaceClass, "min-h-[100px]")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -2543,6 +2903,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
+                    className={quoteInputSurfaceClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -2552,6 +2913,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     placeholder="Net 30"
                     value={paymentTerms}
                     onChange={(e) => setPaymentTerms(e.target.value)}
+                    className={quoteInputSurfaceClass}
                   />
                 </div>
               </div>
@@ -2588,11 +2950,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
           )}
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-3">
+          <div className="sticky bottom-0 z-30 -mx-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-14px_40px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6">
             <Button
               size="lg"
               onClick={handleCreateQuote}
               disabled={isCreatingQuote}
+              className="shadow-sm"
             >
               {isCreatingQuote ? (
                 <>
@@ -2632,13 +2995,13 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
               </Button>
             )}
             <Button size="lg" variant="outline" asChild>
-              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel          </a>
+              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel</a>
             </Button>
           </div>
         </div>
 
-        {/* Right Column - AI Assistant */}
-        <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
+        {/* Right Column - AI Assistant - REMOVED: moved to AI chat panel */}
+        {false && <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
           <div className="sticky top-6 space-y-6">
             {/* AI Line Items Assistant */}
             <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 rounded-xl">
@@ -2899,6 +3262,17 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                     const tooShort = desc.length < 30 || wordCount < 6
                     return (
                       <div className="flex flex-col gap-2 w-full">
+                        {projectBrief && (
+                          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={useBriefAsContext}
+                              onChange={(e) => setUseBriefAsContext(e.target.checked)}
+                              className="h-4 w-4 rounded border-gray-300 accent-primary"
+                            />
+                            Include project brief in context
+                          </label>
+                        )}
                         <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
                           {aiLoading ? (
                             <span className="inline-flex items-center gap-2">
@@ -2918,12 +3292,12 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
                           <div className="w-full space-y-2">
                             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-primary transition-all duration-1000 ease-out"
-                                style={{ width: `${Math.min(95, (aiLoadingStage + 1) * 20)}%` }}
+                                className="h-full bg-primary transition-all duration-500 ease-out"
+                                style={{ width: `${aiLoadingProgress}%` }}
                               />
                             </div>
                             <p className="text-xs text-muted-foreground text-center">
-                              This usually takes 15-30 seconds
+                              {AI_ESTIMATE_LOADING_HINT}
                             </p>
                           </div>
                         )}
@@ -3015,7 +3389,7 @@ export function QuoteCreator({ leadId, clientId, callLeadId, phone, quoteId, ini
             </Card>
           </div>
 
-        </div>
+        </div>}
       </div>
 
       {/* Substitute Modal */}

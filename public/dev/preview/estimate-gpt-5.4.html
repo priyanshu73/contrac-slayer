@@ -1,0 +1,1740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Estimate · gpt-5.4</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent-soft: #f1f5f9;
+    --green: #047857;
+    --amber: #b45309;
+    --red: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+
+  /* Model banner across the top */
+  .model-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0f172a; color: #fff;
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+  .model-banner-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .model-banner-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 999px; }
+  .model-banner-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .model-banner-right { display: flex; gap: 18px; font-size: 12px; color: #cbd5e1; }
+  .model-banner-right b { color: #fff; font-weight: 600; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 22px;
+    margin-bottom: 12px;
+  }
+
+  /* Header */
+  .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .header-left h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .header-left .subtle { color: var(--muted); font-size: 13px; }
+  .header-right { text-align: right; min-width: 200px; }
+  .header-right .total-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .header-right .total { font-size: 30px; font-weight: 700; margin-top: 2px; letter-spacing: -0.02em; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px;
+    margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border);
+  }
+  .meta-grid .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .meta-grid .value { font-weight: 600; font-size: 14px; }
+
+  /* Section */
+  details.section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  details.section > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section[open] > summary { border-bottom: 1px solid var(--border); }
+  .section-dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .section-title { font-weight: 600; font-size: 15px; }
+  .section-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .section-total { margin-left: auto; font-weight: 700; font-size: 15px; }
+
+  /* Rows */
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: grid;
+    grid-template-columns: 42px 1fr 70px 90px 110px 130px 80px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .row:first-child { border-top: none; }
+  .row-thumb { width: 40px; height: 40px; }
+  .row-thumb svg { display: block; width: 100%; height: 100%; }
+  .row-main { min-width: 0; }
+  .row-title { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; line-height: 1.3; }
+  .row-desc { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.35; }
+  .row-cell { font-size: 12px; }
+  .cell-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .cell-value { font-weight: 500; font-size: 13px; }
+  .cell-total { font-weight: 700; }
+  .row-cell-rate, .row-cell-total { text-align: right; }
+  .row-conf { text-align: right; }
+
+  .conf { display: inline-block; text-transform: lowercase; font-weight: 500; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .conf-high { color: var(--green); background: #d1fae5; }
+  .conf-medium { color: var(--amber); background: #fef3c7; }
+  .conf-low { color: var(--red); background: #fee2e2; }
+  .conf- { color: var(--muted); background: var(--accent-soft); }
+
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-review { color: var(--amber); background: #fef3c7; }
+
+  .aside { background: var(--accent-soft); border: 1px dashed var(--border); }
+  .aside-head { font-weight: 600; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .aside ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+  .aside-warn { background: #fff7ed; border-color: #fed7aa; color: #7c2d12; }
+
+  /* Sticky total bar at the bottom */
+  .sticky-total {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; justify-content: center;
+  }
+  .sticky-total-inner {
+    max-width: 1080px; width: 100%;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .sticky-total-inner .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sticky-total-inner .value { font-weight: 700; font-size: 18px; margin-left: auto; }
+  .sticky-total-inner .badge-line { font-size: 12px; color: var(--muted); }
+
+  /* Responsive: collapse table grid on small screens */
+  @media (max-width: 760px) {
+    .row {
+      grid-template-columns: 36px 1fr;
+      grid-template-areas:
+        "thumb main"
+        ".     cells";
+      gap: 6px 10px;
+    }
+    .row-thumb { grid-area: thumb; }
+    .row-main { grid-area: main; }
+    .row-cell, .row-conf { grid-area: cells; display: inline-flex; gap: 6px; margin-right: 10px; }
+    .row-cell .cell-label { display: none; }
+    .row-cell-rate, .row-cell-total { text-align: left; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="model-banner">
+      <div class="model-banner-left">
+        <span class="model-banner-tag">Model</span>
+        <span class="model-banner-name">gpt-5.4</span>
+      </div>
+      <div class="model-banner-right">
+        <span><b>69.0s</b> wall clock</span>
+        <span><b>6268</b> output tokens</span>
+        <span><b>60</b> line items</span>
+      </div>
+    </div>
+
+    <div class="card header">
+      <div class="header-left">
+        <h1>Landscape and irrigation subcontract bid for parking lot expansion</h1>
+        <div class="subtle">Auto-generated estimate · May 17, 2026 · 18:36 UTC</div>
+        <div class="subtle" style="margin-top:6px">Vendor: Top Score Landscape &amp; Hardscape LLC, 11660 Maha Loop Rd, Austin TX, (737) 802-4676, info@topscorelandscaping.com. Fully insured. Project: ACC Round Rock Campus Parking Lot Expansion, 4400 College Park Dr, Round Rock TX 78665. Scope limited to CSI 32 84 00 / 32 92 00 / 32 93 00. Sub to Prime Contractor (TBD). Bid valid 60 days.</div>
+      </div>
+      <div class="header-right">
+        <div class="total-label">Estimated total</div>
+        <div class="total">$267,670.00</div>
+      </div>
+      <div class="meta-grid" style="width: 100%;">
+        <div><div class="label">Complexity</div><div class="value">medium</div></div>
+        <div><div class="label">Line items</div><div class="value">60</div></div>
+        <div><div class="label">In tokens</div><div class="value">2064</div></div>
+        <div><div class="label">Out tokens</div><div class="value">6268</div></div>
+      </div>
+    </div>
+
+    
+            <details class="section" open>
+              <summary class="section-head">
+                <span class="section-dot" style="background:#4f46e5"></span>
+                <span class="section-title">Labor</span>
+                <span class="section-chip" style="background:#eef2ff;color:#3730a3">19</span>
+                <span class="section-total">$56,975.00</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Project Management / Submittals / CAD As-Builts</div>
+                    <div class="row-desc">Administrative management, coordination, submittal preparation, and CAD record drawings.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$3,200.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,200.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Soil Testing</div>
+                    <div class="row-desc">Testing allowance for landscape soil conditions.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">4</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$285.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,140.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Plant Photo Submittals</div>
+                    <div class="row-desc">Preparation and submission of plant photographs for approval.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$650.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$650.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#4f46e5"/><circle cx="24" cy="20" r="4" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Existing Tree Protection<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Protection measures for trees to remain during construction.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$3,500.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,500.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#4f46e5"/><rect x="13" y="22" width="9" height="3" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Coordination with Existing Irrigation<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Field coordination and tie-in planning around existing irrigation systems.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$1,400.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,400.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Concrete Maintenance Band 9 in. x 6 in.<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Install concrete mowing/maintenance band at planting areas.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">650</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$18.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$12,025.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Concrete Sidewalk Connectors (P1), 4 in. Reinforced<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Install reinforced concrete sidewalk connector sections identified as P1.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">6</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$850.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,100.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Shovel Cut Edge</div>
+                    <div class="row-desc">Hand-cut landscape bed edge.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">400</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$2.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,000.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#4f46e5"/><circle cx="24" cy="20" r="4" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Subgrade Preparation / Fine Grading</div>
+                    <div class="row-desc">Prepare subgrade and fine grade for sod installation.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">22000</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Square Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$0.18</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,960.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#4f46e5"/><rect x="13" y="22" width="9" height="3" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Initial Sod Watering / Rolling</div>
+                    <div class="row-desc">Initial watering and rolling after sod placement.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$950.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$950.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Coverage Testing / Programming / Walk-Through</div>
+                    <div class="row-desc">Irrigation testing, controller programming, and owner walk-through.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$1,450.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,450.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Round Rock Irrigation Permit / TCEQ<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Permit procurement and regulatory compliance for irrigation work.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$850.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$850.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Initial Maintenance to Substantial Completion<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Landscape maintenance during construction through substantial completion.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$6,800.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$6,800.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#4f46e5"/><circle cx="24" cy="20" r="4" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">60-Day Post-Acceptance Maintenance<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Maintenance period following acceptance.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$4,400.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,400.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#4f46e5"/><rect x="13" y="22" width="9" height="3" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">12-Month Plant Warranty<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Warranty obligation for plant material survival/replacement.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$5,500.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,500.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">1-Year Irrigation Guaranty<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Guarantee coverage for irrigation system performance/corrections.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$2,400.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$2,400.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Closeout Deliverables / As-Builts</div>
+                    <div class="row-desc">Final closeout documents and record drawings.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$1,600.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,600.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#4f46e5"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - COR Arborist Review / Permit Coordination<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Coordinate arborist review and permit requirements with City of Round Rock.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$650.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$650.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#4f46e5" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#4f46e5"/><circle cx="24" cy="20" r="4" fill="#4f46e5" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - ISA-Certified Arborist On-Site</div>
+                    <div class="row-desc">Provide ISA-certified arborist site presence for removal operations.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$400.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$400.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                </div>
+            </details>
+            
+            <details class="section" open>
+              <summary class="section-head">
+                <span class="section-dot" style="background:#10b981"></span>
+                <span class="section-title">Materials</span>
+                <span class="section-chip" style="background:#ecfdf5;color:#047857">35</span>
+                <span class="section-total">$196,945.00</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Monterey Oak, 100 GAL 4 in.</div>
+                    <div class="row-desc">Furnish and install container tree.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">14</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$950.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$13,300.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Southern Live Oak, 100 GAL 4 in.</div>
+                    <div class="row-desc">Furnish and install container tree.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">8</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$985.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$7,880.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Cedar Elm, 100 GAL 4 in.</div>
+                    <div class="row-desc">Furnish and install container tree.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">15</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$875.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$13,125.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Texas Redbud, 65 GAL 2 in.</div>
+                    <div class="row-desc">Furnish and install ornamental tree.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">3</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$525.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,575.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Tree Yaupon, 65 GAL 2 in.</div>
+                    <div class="row-desc">Furnish and install ornamental tree.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">10</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$465.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,650.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Big Muhly, 5 GAL</div>
+                    <div class="row-desc">Furnish and install shrub/ornamental grass.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">35</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$42.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,470.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Don&#x27;s Dwarf Waxmyrtle, 5 GAL</div>
+                    <div class="row-desc">Furnish and install shrub.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">41</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$44.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,804.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Schillings Dwarf Yaupon, 3 GAL</div>
+                    <div class="row-desc">Furnish and install shrub.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">55</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$28.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,540.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Green Cloud Sage, 5 GAL</div>
+                    <div class="row-desc">Furnish and install shrub/perennial.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">60</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$42.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$2,520.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Gulf Muhly, 3 GAL</div>
+                    <div class="row-desc">Furnish and install ornamental grass.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">122</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$28.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,416.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Pride of Barbados, 5 GAL</div>
+                    <div class="row-desc">Furnish and install shrub/perennial.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">18</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$48.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$864.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Red Yucca, 5 GAL</div>
+                    <div class="row-desc">Furnish and install accent plant.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">79</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$38.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,002.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Lantana &#x27;Dallas Red&#x27;, 1 GAL</div>
+                    <div class="row-desc">Furnish and install flowering groundcover/perennial.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">351</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$14.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,089.50</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Lantana &#x27;New Gold&#x27;, 1 GAL</div>
+                    <div class="row-desc">Furnish and install flowering groundcover/perennial.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">263</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$14.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,813.50</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Coleman Shrub Mix Bed Mix</div>
+                    <div class="row-desc">Imported planting bed soil mix.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">310</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Cubic Yards</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$78.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$24,180.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Hardwood Mulch</div>
+                    <div class="row-desc">Mulch for planting beds.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">82</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Cubic Yards</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$65.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,330.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Lady Bug 8-2-4 Fertilizer for Beds</div>
+                    <div class="row-desc">Bed fertilizer application material.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$1,850.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,850.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Steel Edging COL-MET</div>
+                    <div class="row-desc">Furnish and install steel landscape edging.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">180</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$11.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,980.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Decomposed Granite Beds<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Furnish and install decomposed granite surfacing in designated beds.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">600</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Square Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$4.25</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$2,550.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Filter Fabric</div>
+                    <div class="row-desc">Geotextile fabric below decomposed granite areas.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">600</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Square Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$0.45</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$270.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Pre/Post-Emergent Herbicide</div>
+                    <div class="row-desc">Herbicide treatment for landscape areas.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$950.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$950.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">TIF 419 Bermuda Solid Sod</div>
+                    <div class="row-desc">Furnish and install solid sod turf.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">22000</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Square Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$0.95</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$20,900.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Coleman Turf Mix Topsoil 6 in.</div>
+                    <div class="row-desc">Imported turf topsoil at 6-inch depth.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">408</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Cubic Yards</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$72.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$29,376.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Lady Bug Fertilizer for Turf</div>
+                    <div class="row-desc">Fertilizer application material for turf establishment.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$1,250.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,250.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Water Connection / Tap / Backflow Assembly<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Provide irrigation water service connection, tap, and backflow prevention assembly.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$6,800.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$6,800.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Hunter 2-Wire Controller / Sensor / Wiring</div>
+                    <div class="row-desc">Irrigation controller package including sensor and associated wiring.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$5,400.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,400.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Mainline Schedule 40 PVC</div>
+                    <div class="row-desc">Irrigation pressure mainline piping.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">750</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$6.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,875.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Lateral Class 200 PVC</div>
+                    <div class="row-desc">Irrigation lateral piping.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1800</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$4.25</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$7,650.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Sleeves Under Paving<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Pipe sleeves installed beneath paving crossings.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">150</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Linear Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$9.50</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,425.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Hunter ICV-G Control Valves</div>
+                    <div class="row-desc">Irrigation control valves.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">12</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$285.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,420.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Quick-Coupler Valves</div>
+                    <div class="row-desc">Quick-coupler valves for irrigation system access.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">4</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$165.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$660.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Pop-Up Sprays / Rotators</div>
+                    <div class="row-desc">Spray heads and rotator nozzles for irrigation coverage.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">85</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$48.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,080.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#10b981"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Drip Irrigation for Shrub / Groundcover Beds</div>
+                    <div class="row-desc">Drip irrigation tubing and components for planting beds.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">8000</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Square Feet</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$0.65</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$5,200.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#10b981"/><circle cx="24" cy="20" r="4" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Tree Bubblers (2 per Tree)</div>
+                    <div class="row-desc">Bubbler assemblies for tree irrigation.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">100</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$38.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$3,800.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#10b981" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#10b981"/><rect x="13" y="22" width="9" height="3" fill="#10b981" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Splices / Valve Tags / Expansion Curls</div>
+                    <div class="row-desc">Miscellaneous irrigation wiring and identification accessories.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$950.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$950.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                </div>
+            </details>
+            
+            <details class="section" open>
+              <summary class="section-head">
+                <span class="section-dot" style="background:#f59e0b"></span>
+                <span class="section-title">Equipment</span>
+                <span class="section-chip" style="background:#fef3c7;color:#92400e">1</span>
+                <span class="section-total">$4,800.00</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#f59e0b" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#f59e0b"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Mobilization / Setup / Staking / Demobilization</div>
+                    <div class="row-desc">Project startup, layout, temporary setup, field staking, and closeout demobilization.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$4,800.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,800.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                </div>
+            </details>
+            
+            <details class="section" open>
+              <summary class="section-head">
+                <span class="section-dot" style="background:#ec4899"></span>
+                <span class="section-title">Disposal &amp; Other</span>
+                <span class="section-chip" style="background:#fce7f3;color:#9d174d">5</span>
+                <span class="section-total">$8,950.00</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#ec4899" opacity="0.15"/><circle cx="20" cy="20" r="6" fill="#ec4899"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Construction Waste Disposal</div>
+                    <div class="row-desc">Haul-off and disposal of landscape construction debris.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$2,200.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$2,200.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#ec4899" opacity="0.15"/><rect x="14" y="14" width="12" height="12" rx="2" fill="#ec4899"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - Live Oak Removal 8 in. DBH<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Remove one live oak approximately 8-inch DBH.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$550.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$550.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#ec4899" opacity="0.15"/><path d="M14 26 L20 14 L26 26 Z" fill="#ec4899"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - Live Oak Removal 11-12 in. DBH<span class="badge badge-review">review</span></div>
+                    <div class="row-desc">Remove live oaks approximately 11- to 12-inch DBH.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">5</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$800.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$4,000.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-medium">medium</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#ec4899" opacity="0.15"/><circle cx="16" cy="20" r="4" fill="#ec4899"/><circle cx="24" cy="20" r="4" fill="#ec4899" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - Stump Grinding 6 in. Below Grade with Backfill</div>
+                    <div class="row-desc">Grind stumps below grade and backfill resulting depressions.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">6</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$225.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$1,350.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                
+                <div class="row">
+                  <div class="row-thumb"><svg viewBox="0 0 40 40"><rect x="6" y="6" width="28" height="28" rx="6" fill="#ec4899" opacity="0.15"/><rect x="13" y="17" width="14" height="3" fill="#ec4899"/><rect x="13" y="22" width="9" height="3" fill="#ec4899" opacity="0.6"/></svg></div>
+                  <div class="row-main">
+                    <div class="row-title">Alternate #1 - Hardwood Debris Haul-Off</div>
+                    <div class="row-desc">Haul off and dispose of tree removal debris.</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Qty</div>
+                    <div class="cell-value">1</div>
+                  </div>
+                  <div class="row-cell">
+                    <div class="cell-label">Unit</div>
+                    <div class="cell-value">Each</div>
+                  </div>
+                  <div class="row-cell row-cell-rate">
+                    <div class="cell-label">Rate</div>
+                    <div class="cell-value">$850.00</div>
+                  </div>
+                  <div class="row-cell row-cell-total">
+                    <div class="cell-label">Total</div>
+                    <div class="cell-value cell-total">$850.00</div>
+                  </div>
+                  <div class="row-conf"><span class="conf conf-high">high</span></div>
+                </div>
+                </div>
+            </details>
+            
+
+    <div class="card aside"><div class="aside-head">Assumptions</div><ul><li>User-provided quantities and unit prices are treated as the bid basis.</li><li>Lump sum items are represented with unit &#x27;Each&#x27; and quantity 1 where schema does not include LS.</li><li>Plant unit pricing is assumed to include furnishing, planting, staking/soil amendments incidental to installation unless separately listed.</li><li>Concrete maintenance band and sidewalk connectors are included as landscape-related scope per user description; exact reinforcing/detailing should be verified against plans.</li><li>Water connection/tap/backflow assembly assumes point of connection and permitting conditions as described by project documents; exact utility requirements may affect final pricing.</li><li>Initial maintenance, post-acceptance maintenance, warranty, and guaranty are included as separate contractual line items, not direct construction quantities.</li><li>Texas sales tax is excluded from pricing per user note.</li><li>Alternate #1 is priced separately and should not be combined with base bid unless accepted.</li></ul></div>
+    <div class="card aside aside-warn"><div class="aside-head">Warnings</div><ul><li>This response is structured as an estimate plan in JSON, not a formatted proposal document.</li><li>Several lump-sum and allowance-style items may combine labor, materials, equipment, and fees in practice; they are categorized by dominant cost type for estimating purposes.</li><li>Sales tax is excluded per user note; if billed as lump-sum subcontract, approximately $11,000 tax may be added at invoicing.</li><li>Exclusions noted by user: site demo, asphalt paving, structural concrete, earthwork, and storm drainage.</li><li>Prime contractor is listed as TBD; subcontract terms, bonds, retainage, and schedule impacts are not defined here.</li><li>P1 sidewalk connectors are included per note, but exact dimensions/details should be confirmed against plan sheets.</li></ul></div>
+  </div>
+
+  <div class="sticky-total">
+    <div class="sticky-total-inner">
+      <span class="label">Total</span>
+      <span class="badge-line">gpt-5.4 · 69.0s</span>
+      <span class="value">$267,670.00</span>
+    </div>
+  </div>
+</body>
+</html>

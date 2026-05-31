@@ -8,13 +8,14 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
 import { api } from "@/lib/api"
-import type { ContractorProfile, Job } from "@/lib/types"
+import type { ContractorProfile, Job, Proposal } from "@/lib/types"
 
 export default function QuoteProposalPage() {
   const params = useParams()
   const locale = (params.locale as string) || "en"
   const identifier = params.id as string
   const [job, setJob] = useState<Job | null>(null)
+  const [proposal, setProposal] = useState<Proposal | null>(null)
   const [contractorName, setContractorName] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,13 +25,29 @@ export default function QuoteProposalPage() {
       try {
         setLoading(true)
         setError(null)
+        const jobId = Number(identifier)
         const [jobResponse, profileResponse] = await Promise.all([
-          api.getJob(Number(identifier)),
+          api.getJob(jobId),
           api.getMyProfile().catch(() => null),
         ])
 
-        setJob(jobResponse as Job)
-        setContractorName((profileResponse as ContractorProfile | null)?.company_name || (jobResponse as Job)?.contractor?.company_name || "")
+        const loadedJob = jobResponse as Job
+        setJob(loadedJob)
+        setContractorName(
+          (profileResponse as ContractorProfile | null)?.company_name ||
+          loadedJob?.contractor?.company_name || ""
+        )
+
+        // Load or create the proposal linked to this job
+        const proposals = (await api.getJobProposals(jobId)) as Proposal[]
+        if (proposals.length > 0) {
+          setProposal(proposals[0])
+        } else {
+          const created = (await api.createJobProposal(jobId, {
+            title: loadedJob.title || `Proposal for ${loadedJob.client?.name || "Client"}`,
+          })) as Proposal
+          setProposal(created)
+        }
       } catch (err: any) {
         setError(err?.message || "Failed to load quote proposal.")
       } finally {
@@ -60,7 +77,7 @@ export default function QuoteProposalPage() {
     )
   }
 
-  if (error || !job) {
+  if (error || !job || !proposal) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
@@ -88,7 +105,14 @@ export default function QuoteProposalPage() {
           { label: "Proposal" },
         ]}
       />
-      <ProposalBuilder job={job} contractorName={contractorName} locale={locale} onJobUpdated={setJob} />
+      <ProposalBuilder
+        proposal={proposal}
+        job={job}
+        client={job.client ?? undefined}
+        contractorName={contractorName}
+        locale={locale}
+        onProposalUpdated={setProposal}
+      />
     </AuthGuard>
   )
 }

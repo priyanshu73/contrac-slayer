@@ -35,6 +35,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TERMINAL_STATUSES } from "@/hooks/use-campaign-stream"
 import { sentenceCase, getLocationSummary, getSegmentSummary, formatDateTime } from "@/components/lead-generator-agent/shared"
+import { EmailStageLoader } from "@/components/lead-generator-agent/email-stage-loader"
 
 // ─── Status → display mapping ──────────────────────────────────────────────────
 
@@ -168,6 +169,19 @@ function getSourceContext(lead: CampaignDetail["leads"][number]) {
     rating: typeof source?.rating === "number" ? source.rating : null,
     reviews: typeof source?.reviews === "number" ? source.reviews : null,
   }
+}
+
+function getLeadContactForms(lead: { meta_context?: Record<string, any> | null }) {
+  const forms = lead.meta_context?.contact_extraction?.contact_forms_found
+  return Array.isArray(forms)
+    ? forms.filter((form): form is Record<string, any> => !!form && typeof form === "object")
+    : []
+}
+
+function getPrimaryContactFormUrl(lead: { meta_context?: Record<string, any> | null }) {
+  const [form] = getLeadContactForms(lead)
+  const url = form?.page_url || form?.form_action
+  return typeof url === "string" && url ? url : null
 }
 
 function OutreachReferenceSection({ campaign }: { campaign: CampaignDetail }) {
@@ -355,6 +369,7 @@ type PendingAction =
   | "launch"
   | "approve-leads" | "reject-leads"
   | "approve-messaging" | "resume" | "pause" | "send"
+  | "finish-discovery"
   | null
 
 export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
@@ -368,6 +383,8 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Synchronous guard so double-clicks cannot fire two approve-leads requests before React re-renders. */
+  const approveLeadsInFlightRef = useRef(false)
 
   // Derive display state directly from loaded campaign (no SSE)
   const effectiveStatus = campaign?.status ?? null
@@ -424,20 +441,70 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   async function runAction(action: PendingAction) {
     if (!campaign || !action) return
+    if (action === "approve-leads") {
+      if (approveLeadsInFlightRef.current) return
+      approveLeadsInFlightRef.current = true
+    }
+    const campaignBeforeAction = campaign
+    let actionCompleted = false
     try {
       setPendingAction(action)
       setError(null)
-      if (action === "launch") await api.launchCampaign(campaign.uuid)
-      if (action === "approve-leads") await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
+      if (action === "launch") {
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "DISCOVERING",
+          awaiting_checkpoint: null,
+          last_error: null,
+          job_progress: {
+            ...(prev.job_progress ?? {}),
+            phase: "starting",
+            leads_found: prev.job_progress?.leads_found ?? 0,
+          },
+        } : prev)
+        await api.launchCampaign(campaign.uuid)
+        actionCompleted = true
+      }
+      if (action === "approve-leads") {
+        // Optimistically flip to GENERATING so the loader appears instantly.
+        // Backend now spawns the drafting in a background thread and returns fast,
+        // but the request may still take a second or two in flight — don't sit on it.
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "GENERATING",
+          awaiting_checkpoint: null,
+          last_error: null,
+          job_progress: {
+            ...(prev.job_progress ?? {}),
+            phase: "drafting",
+            emails_total: selectedLeadIds.length,
+            drafts_generated: 0,
+          },
+        } : prev)
+        await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
+      }
       if (action === "reject-leads") await api.rejectCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "approve-messaging") await api.approveCampaignMessaging(campaign.uuid)
       if (action === "resume") await api.resumeCampaign(campaign.uuid)
       if (action === "pause") await api.pauseCampaign(campaign.uuid)
       if (action === "send") await api.sendCampaignBatch(campaign.uuid)
+      if (action === "finish-discovery") {
+        // Optimistic flip to AWAITING_REVIEW(discovery) so the staged-leads card
+        // surfaces immediately while the backend acknowledges and the discovery
+        // loop honors the stop signal between iterations.
+        setCampaign((prev) => prev ? {
+          ...prev,
+          status: "AWAITING_REVIEW",
+          awaiting_checkpoint: "discovery",
+        } : prev)
+        await api.finishDiscoveryEarly(campaign.uuid)
+      }
       await loadCampaign(false)
     } catch (err) {
+      if (action === "launch" && !actionCompleted) setCampaign(campaignBeforeAction)
       setError(err instanceof Error ? err.message : "Action failed.")
     } finally {
+      if (action === "approve-leads") approveLeadsInFlightRef.current = false
       setPendingAction(null)
     }
   }
@@ -584,51 +651,87 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         {/* ── Phase progress cards ──────────────────────────────────────── */}
 
         {(effectiveStatus === "DISCOVERING" || effectiveStatus === "BRIEFING") && (
-          <Card className="border-sky-200 bg-sky-50/60">
-            <CardContent className="flex items-center gap-4 py-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100">
-                <Search className="h-6 w-6 text-sky-600 animate-pulse" />
-              </div>
-              <div>
-                <div className="font-semibold text-sky-800">
-                  {effectiveStatus === "BRIEFING" ? "Generating campaign brief…" : "Finding target businesses…"}
+          <Card className="border-sky-200 bg-sky-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="discovery"
+                title={effectiveStatus === "BRIEFING" ? "Generating campaign brief" : "Finding target businesses"}
+                steps={
+                  effectiveStatus === "BRIEFING"
+                    ? [
+                        "Reading your goal and segments",
+                        "Drafting target geography",
+                        "Picking outreach angles",
+                      ]
+                    : [
+                        "Querying local search",
+                        "Scanning company websites",
+                        "Extracting contacts",
+                        "Filtering low-fit results",
+                      ]
+                }
+                progress={
+                  effectiveStatus === "DISCOVERING"
+                    ? { current: leadsFound, total: Math.max(leadsFound, 1), label: "found" }
+                    : undefined
+                }
+              />
+              {effectiveStatus === "DISCOVERING" && leadsFound >= 10 && (
+                <div className="flex flex-col items-center gap-1 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl border-sky-300 bg-white text-sky-700 hover:bg-sky-100"
+                    disabled={!!pendingAction}
+                    onClick={() => runAction("finish-discovery")}
+                  >
+                    {pendingAction === "finish-discovery" ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    Proceed with these {leadsFound} lead{leadsFound !== 1 ? "s" : ""}
+                  </Button>
+                  <div className="text-xs text-slate-500">Stops the search and surfaces what we already have.</div>
                 </div>
-                <div className="text-sm text-sky-600">
-                  {effectiveStatus === "DISCOVERING"
-                    ? `${leadsFound} business${leadsFound !== 1 ? "es" : ""} found so far`
-                    : "Agent is preparing your campaign plan"}
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {effectiveStatus === "GENERATING" && (
-          <Card className="border-violet-200 bg-violet-50/60">
-            <CardContent className="py-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
-                <div>
-                  <div className="font-semibold text-violet-800">Drafting outreach emails…</div>
-                  <div className="text-sm text-violet-600">AI is writing personalised emails for each lead</div>
-                </div>
-              </div>
+          <Card className="border-violet-200 bg-violet-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="drafting"
+                title="Drafting outreach emails"
+                steps={[
+                  "Reading lead profile",
+                  "Matching tone and angle",
+                  "Writing the draft",
+                  "Polishing subject line",
+                ]}
+                progress={{ current: draftsGenerated, total: emailsTotal || 1, label: "drafts" }}
+              />
               <ProgressBar value={draftsGenerated} max={emailsTotal || 1} label="Drafts ready" />
             </CardContent>
           </Card>
         )}
 
         {(effectiveStatus === "SENDING" || effectiveStatus === "ACTIVE") && (
-          <Card className="border-emerald-200 bg-emerald-50/60">
-            <CardContent className="py-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <Send className="h-5 w-5 text-emerald-600" />
-                <div>
-                  <div className="font-semibold text-emerald-800">Sending outreach</div>
-                  <div className="text-sm text-emerald-600">Up to 10 emails per day, spread over a 7-day window</div>
-                </div>
-              </div>
+          <Card className="border-emerald-200 bg-emerald-50/40">
+            <CardContent className="py-6 space-y-4">
+              <EmailStageLoader
+                tone="sending"
+                title="Sending outreach"
+                steps={[
+                  "Picking next queued draft",
+                  "Authenticating with Gmail",
+                  "Delivering to inbox",
+                  "Logging the send",
+                ]}
+                progress={{ current: emailsSent, total: emailsTotal || 1, label: "sent" }}
+              />
               <ProgressBar value={emailsSent} max={emailsTotal || 1} label="Emails sent" />
+              <div className="text-center text-xs text-emerald-700">Up to 10 emails per day, spread over a 7-day window.</div>
             </CardContent>
           </Card>
         )}
@@ -652,7 +755,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           <Card className="border-amber-200 bg-amber-50/60">
             <CardHeader>
               <CardTitle className="text-base">Review staged leads</CardTitle>
-              <CardDescription>{stagedLeads.length} businesses found. Select the ones to reach out to.</CardDescription>
+              <CardDescription>{stagedLeads.length} businesses found. Select the ones to reach by email or contact form.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
@@ -697,29 +800,45 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                     <TableRow className="bg-slate-50/80">
                       <TableHead className="w-8" />
                       <TableHead>Business</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Contact</TableHead>
                       <TableHead>Score</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stagedLeads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-slate-50/50">
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="rounded"
-                            checked={selectedLeadIds.includes(lead.id)}
-                            onChange={(e) => toggleLead(lead.id, e.target.checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
-                          <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600">{lead.email || "—"}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{lead.score ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
+                    {stagedLeads.map((lead) => {
+                      const contactFormUrl = getPrimaryContactFormUrl(lead)
+                      const contactFormCount = getLeadContactForms(lead).length
+                      return (
+                        <TableRow key={lead.id} className="hover:bg-slate-50/50">
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              className="rounded"
+                              checked={selectedLeadIds.includes(lead.id)}
+                              onChange={(e) => toggleLead(lead.id, e.target.checked)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
+                            <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            <div>{lead.email || "No email found"}</div>
+                            {contactFormUrl && (
+                              <a
+                                href={contactFormUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:text-sky-900"
+                              >
+                                Contact form{contactFormCount > 1 ? `s (${contactFormCount})` : ""}
+                              </a>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">{lead.score ?? "—"}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

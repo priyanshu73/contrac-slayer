@@ -19,13 +19,78 @@ import type {
   StagedLeadActionResponse,
   User,
 } from './types'
+import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
+import type {
+  FrontlineActivityEvent,
+  FrontlineKnowledgeDoc,
+  FrontlineKnowledgeIntakeResponse,
+  FrontlineReplyApproval,
+  FrontlineSandboxAnswer,
+  FrontlineSettings,
+  FrontlineSetupContextResponse,
+  FrontlineSetupGenerateResponse,
+  FrontlineSetupPreview,
+  FrontlineStats,
+  FrontlineTeachNote,
+  FrontlineVoiceDevStatus,
+  FrontlineVoiceDemoSessionStart,
+  FrontlineVoiceTrainingEligibility,
+  FrontlineVoiceTrainingSession,
+  FrontlineVoiceTrainingSessionStart,
+} from './types/frontline'
+import { AI_ESTIMATE_REQUEST_TIMEOUT_MS } from './ai-estimate-loading'
+
+// ─── Scope Clarification types ─────────────────────────────────────────────
+
+export interface ScopeQuestionOption {
+  id: string
+  label: string
+}
+
+export interface ScopeQuestion {
+  id: string
+  text: string
+  type: 'multi_select' | 'free_text'
+  options?: ScopeQuestionOption[]
+}
+
+export interface ScopeQuestionAnswer {
+  question_id: string
+  selected_options?: string[]
+  free_text?: string
+}
+
+export interface ScopeClarifiedScope {
+  version: number
+  status: 'finalized' | 'stale' | 'skipped'
+  finalized_at: string
+  trigger: string
+  scope_narrative: string
+  scope_inclusions: string[]
+  scope_exclusions: string[]
+  client_priorities: string
+  client_concerns: string
+  known_risks: string[]
+  timeline_notes: string
+  open_items: string[]
+  brief_hash: string
+}
 
 const DEFAULT_API_URL = 'http://localhost:4000/api'
-const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
-const CONTRACTOR_AI_API_URL = process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL
+
+function normalizeEnvUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmed = value.trim().replace(/^['"]+|['"]+$/g, '')
+  return trimmed || undefined
+}
+
+const API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_API_URL) || DEFAULT_API_URL
+const BACKEND_WS_ORIGIN = normalizeEnvUrl(process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN)?.replace(/\/+$/, '')
+const CONTRACTOR_AI_API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL)
 
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
+console.log(`  Backend WS origin: ${BACKEND_WS_ORIGIN || '(derived from API URL)'}`)
 console.log(`  Contractor AI URL: ${CONTRACTOR_AI_API_URL}`)
 
 class ApiClient {
@@ -41,6 +106,11 @@ class ApiClient {
 
   private getBaseURL(): string {
     if (typeof window === 'undefined') {
+      return this.configuredBaseURL
+    }
+
+    // Vercel staging/prod: NEXT_PUBLIC_API_URL=/api — same-origin rewrites to backend.
+    if (this.configuredBaseURL.startsWith('/')) {
       return this.configuredBaseURL
     }
 
@@ -100,26 +170,57 @@ class ApiClient {
     return msg
   }
 
-  private async request<T>(
+  /** Unauthenticated fetch for public client/quote/proposal endpoints (no session cookie). */
+  private async fetchPublic<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const baseURL = this.getBaseURL()
-    const url = `${baseURL}${endpoint}`
-
-    // Create AbortController for timeout handling
-    const controller = new AbortController()
-    // Set timeout to 90 seconds (longer than backend timeout to get proper error)
-    const timeoutId = setTimeout(() => controller.abort(), 90000)
-
-    const config: RequestInit = {
-      ...options,
+    const url = `${this.getBaseURL()}${endpoint}`
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      body: options.body,
+    })
+    if (!response.ok) {
+      let parsed: any = null
+      try {
+        parsed = await response.json()
+      } catch {
+        // ignore
+      }
+      const detail = parsed?.detail ?? parsed?.message ?? parsed?.error
+      throw new Error(this.formatApiErrorDetail(detail))
+    }
+    if (response.status === 204) {
+      return undefined as T
+    }
+    return response.json()
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit & { timeoutMs?: number } = {}
+  ): Promise<T> {
+    const baseURL = this.getBaseURL()
+    const url = `${baseURL}${endpoint}`
+
+    const { timeoutMs = 90_000, ...fetchOptions } = options
+
+    // Create AbortController for timeout handling
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+    const config: RequestInit = {
+      ...fetchOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...fetchOptions.headers,
+      },
       credentials: 'include',
-      signal: controller.signal,
+      signal: fetchOptions.signal ?? controller.signal,
     }
 
     try {
@@ -147,7 +248,10 @@ class ApiClient {
       // Handle timeout/abort errors
       if (error instanceof Error) {
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
-          throw new Error('Request timed out. The server took too long to respond. Please try again.')
+          const seconds = Math.round(timeoutMs / 1000)
+          throw new Error(
+            `Request timed out after ${seconds} seconds. Large AI estimates can take a few minutes — try again or use a shorter description.`
+          )
         }
         if (error.message.includes('Failed to fetch')) {
           const configuredLocally = this.configuredBaseURL.includes('localhost:4000') || this.configuredBaseURL.includes('127.0.0.1:4000')
@@ -451,6 +555,274 @@ class ApiClient {
     return this.request<{ twilio_number: string | null }>('/contractors/profile/contractor-ops-ai-number')
   }
 
+  /** Search Twilio inventory for purchasable numbers in `areaCode` (read-only). */
+  async getAvailableTwilioNumbers(
+    areaCode: string,
+    limit = 5,
+  ): Promise<TwilioAvailableNumber[]> {
+    const params = new URLSearchParams({ area_code: areaCode, limit: String(limit) })
+    const res = await this.request<{ numbers: TwilioAvailableNumber[] }>(
+      `/contractors/profile/twilio-available?${params.toString()}`,
+    )
+    return res?.numbers ?? []
+  }
+
+  /** Provision the selected Twilio number for the current contractor. */
+  async provisionTwilioNumber(input: {
+    phoneNumber: string
+    areaCode: string
+    state?: string | null
+  }): Promise<TwilioProvisionResult> {
+    return this.request<TwilioProvisionResult>(
+      '/contractors/profile/twilio-provision',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          phone_number: input.phoneNumber,
+          area_code: input.areaCode,
+          state: input.state ?? null,
+        }),
+      },
+    )
+  }
+
+  /** Read the contractor's SMS auto-reply template (or the platform default). */
+  async getAutoReply(): Promise<AutoReplySettings> {
+    return this.request<AutoReplySettings>('/contractors/profile/auto-reply')
+  }
+
+  /** Update the auto-reply template. Pass null to reset to the platform default. */
+  async updateAutoReply(message: string | null): Promise<AutoReplySettings> {
+    return this.request<AutoReplySettings>('/contractors/profile/auto-reply', {
+      method: 'PUT',
+      body: JSON.stringify({ message }),
+    })
+  }
+
+  // ─── Your Frontline ───────────────────────────────────────────────────────
+
+  async getFrontlineSettings(): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/settings')
+  }
+
+  async getFrontlineSetupContext(): Promise<FrontlineSetupContextResponse> {
+    return this.request('/contractors/profile/frontline/setup/context')
+  }
+
+  async prefillFrontlineCoreFields(): Promise<{ core_fields: Record<string, any> }> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/setup/prefill', {
+      method: 'POST',
+      body: JSON.stringify({ frontend_origin }),
+    })
+  }
+
+  async getFrontlineCoreFields(): Promise<{ core_fields: Record<string, any>; initial_setup_done: boolean }> {
+    return this.request('/contractors/profile/frontline/core-fields')
+  }
+
+  async saveFrontlineCoreFields(core_fields: Record<string, any>): Promise<FrontlineSettings> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/core-fields', {
+      method: 'PUT',
+      body: JSON.stringify({ core_fields, frontend_origin }),
+    })
+  }
+
+  async generateFrontlineSetup(operator?: {
+    operator_display_name?: string
+    operator_voice_id?: string
+  }): Promise<FrontlineSetupGenerateResponse> {
+    const frontend_origin =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_FRONTEND_URL || undefined
+    return this.request('/contractors/profile/frontline/setup/generate', {
+      method: 'POST',
+      body: JSON.stringify({ frontend_origin, ...operator }),
+    })
+  }
+
+  async confirmFrontlineSetup(
+    preview: FrontlineSetupPreview,
+  ): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/setup/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ preview }),
+    })
+  }
+
+  async updateFrontlineSettings(
+    payload: Partial<FrontlineSettings>,
+  ): Promise<FrontlineSettings> {
+    return this.request('/contractors/profile/frontline/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getFrontlineKnowledge(): Promise<FrontlineKnowledgeDoc> {
+    return this.request('/contractors/profile/frontline/knowledge')
+  }
+
+  async updateFrontlineKnowledge(
+    markdown_text: string,
+    reindex = true,
+  ): Promise<FrontlineKnowledgeDoc> {
+    return this.request('/contractors/profile/frontline/knowledge', {
+      method: 'PUT',
+      body: JSON.stringify({ markdown_text, reindex }),
+    })
+  }
+
+  async submitFrontlineKnowledgeIntake(
+    intake_text: string,
+    source = 'text_intake',
+  ): Promise<FrontlineKnowledgeIntakeResponse> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/knowledge/intake', {
+      method: 'POST',
+      body: JSON.stringify({ intake_text, source, frontend_origin }),
+    })
+  }
+
+  async reindexFrontlineKnowledge(): Promise<{ profile_uuid: string; chunks_indexed: number }> {
+    return this.request('/contractors/profile/frontline/knowledge/reindex', {
+      method: 'POST',
+    })
+  }
+
+  async frontlineSandboxAsk(
+    question: string,
+    contractor_name?: string,
+  ): Promise<FrontlineSandboxAnswer> {
+    const frontend_origin =
+      typeof window !== 'undefined' ? window.location.origin : undefined
+    return this.request('/contractors/profile/frontline/sandbox/ask', {
+      method: 'POST',
+      body: JSON.stringify({ question, contractor_name, frontend_origin }),
+    })
+  }
+
+  async frontlineTeach(payload: {
+    corrected_answer: string
+    question?: string
+    bad_answer?: string
+    source?: string
+  }): Promise<FrontlineTeachNote> {
+    return this.request('/contractors/profile/frontline/teach', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getFrontlineActivity(limit = 50): Promise<{ events: FrontlineActivityEvent[] }> {
+    return this.request(`/contractors/profile/frontline/activity?limit=${limit}`)
+  }
+
+  async getFrontlineStats(timezone?: string): Promise<FrontlineStats> {
+    const tz =
+      timezone?.trim() ||
+      (typeof Intl !== 'undefined'
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : '')
+    const query = tz ? `?timezone=${encodeURIComponent(tz)}` : ''
+    return this.request(`/contractors/profile/frontline/stats${query}`)
+  }
+
+  async getFrontlineApprovals(status = 'pending'): Promise<{
+    approvals: FrontlineReplyApproval[]
+  }> {
+    return this.request(
+      `/contractors/profile/frontline/approvals?status=${encodeURIComponent(status)}`,
+    )
+  }
+
+  async getFrontlineVoiceDevStatus(): Promise<FrontlineVoiceDevStatus> {
+    return this.request('/contractors/profile/frontline/voice/dev/status')
+  }
+
+  async getFrontlineVoiceTrainingEligibility(): Promise<FrontlineVoiceTrainingEligibility> {
+    return this.request('/contractors/profile/frontline/voice/training/eligibility')
+  }
+
+  async startFrontlineVoiceTrainingSession(): Promise<FrontlineVoiceTrainingSessionStart> {
+    return this.request('/contractors/profile/frontline/voice/training/session', {
+      method: 'POST',
+    })
+  }
+
+  async getFrontlineVoiceTrainingSession(
+    sessionUuid: string,
+  ): Promise<FrontlineVoiceTrainingSession> {
+    return this.request(`/contractors/profile/frontline/voice/training/session/${sessionUuid}`)
+  }
+
+  async startFrontlineVoiceDemoSession(): Promise<FrontlineVoiceDemoSessionStart> {
+    return this.request('/contractors/frontline/voice/demo/session', {
+      method: 'POST',
+      timeoutMs: 30_000,
+    })
+  }
+
+  private resolveWebSocketOrigin(): string {
+    const configured = BACKEND_WS_ORIGIN
+    if (configured) {
+      try {
+        const origin = new URL(configured).origin
+        console.log(`🔌 Voice WS origin (NEXT_PUBLIC_BACKEND_WS_ORIGIN): ${origin}`)
+        return origin
+      } catch {
+        console.warn(`Invalid NEXT_PUBLIC_BACKEND_WS_ORIGIN: ${configured}`)
+      }
+    }
+
+    // Same-origin /api (Vercel rewrites) — only use frontend origin when
+    // NEXT_PUBLIC_BACKEND_WS_ORIGIN is unset. Prefer setting that env to the
+    // deployed ContractorBackend host (e.g. https://contractorbackend-h0ax.onrender.com).
+    if (typeof window !== 'undefined' && this.getBaseURL().startsWith('/')) {
+      console.warn(
+        'NEXT_PUBLIC_BACKEND_WS_ORIGIN is not set; voice WebSocket will use the frontend origin. ' +
+          'Set it to your ContractorBackend URL for reliable Nova Sonic on staging/prod.',
+      )
+      console.log(`🔌 Voice WS origin (frontend fallback): ${window.location.origin}`)
+      return window.location.origin
+    }
+
+    const apiBase = this.baseURL
+    try {
+      const origin = new URL(apiBase).origin
+      console.log(`🔌 Voice WS origin (derived from API URL): ${origin}`)
+      return origin
+    } catch {
+      if (typeof window !== 'undefined') {
+        console.log(`🔌 Voice WS origin (browser fallback): ${window.location.origin}`)
+        return window.location.origin
+      }
+      console.log('🔌 Voice WS origin (default): http://localhost:4000')
+      return 'http://localhost:4000'
+    }
+  }
+
+  frontlineVoiceTrainingWebSocketUrl(path: string, token?: string): string {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    const wsUrl = new URL(normalizedPath, `${this.resolveWebSocketOrigin()}/`)
+    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    if (token) {
+      wsUrl.searchParams.set('token', token)
+    }
+    const redacted = wsUrl.toString().replace(/([?&]token=)[^&]+/, '$1[redacted]')
+    console.log(`🔌 Voice WebSocket URL: ${redacted}`)
+    return wsUrl.toString()
+  }
+
+  frontlineVoiceDemoWebSocketUrl(path: string, token?: string): string {
+    return this.frontlineVoiceTrainingWebSocketUrl(path, token)
+  }
+
   async submitQuoteRequest(contractorUuid: string, data: any, files?: File[], measurements?: { items: any[] }) {
     const formData = new FormData()
     formData.append('name', data.name)
@@ -531,7 +903,9 @@ class ApiClient {
     skip = 0,
     limit = 20,
     clientId?: number,
-    search?: string
+    search?: string,
+    projectId?: number,
+    hasProposal?: boolean
   ) {
     const params = new URLSearchParams()
     if (Array.isArray(status)) {
@@ -542,8 +916,10 @@ class ApiClient {
       params.append('status', status)
     }
     if (clientId != null) params.append('client_id', String(clientId))
+    if (projectId != null) params.append('project_id', String(projectId))
     const q = search?.trim()
     if (q) params.append('search', q)
+    if (hasProposal != null) params.append('has_proposal', String(hasProposal))
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
 
@@ -587,7 +963,17 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/proposal-overview`)
   }
 
-  async generateAIProposal(jobId: number, description?: string, selectedItemIds?: number[]): Promise<{
+  async generateAIProposal(
+    jobId: number,
+    description?: string,
+    selectedItemIds?: number[],
+    opts?: {
+      proposal_title?: string
+      project_title?: string
+      include_project_brief?: boolean
+      include_line_items?: boolean
+    }
+  ): Promise<{
     scope_summary_html: string
     project_overview_title: string
     project_overview_html: string
@@ -603,64 +989,121 @@ class ApiClient {
       body: JSON.stringify({
         description: description ?? null,
         selected_item_ids: selectedItemIds ?? null,
+        proposal_title: opts?.proposal_title ?? null,
+        project_title: opts?.project_title ?? null,
+        include_project_brief: opts?.include_project_brief ?? true,
+        include_line_items: opts?.include_line_items ?? true,
       }),
     })
   }
 
   async getJobByPublicLink(publicLink: string) {
-    // Public endpoint - don't require authentication
-    const url = `${this.baseURL}/jobs/public/${publicLink}`
-
-    const config: RequestInit = {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Don't include credentials for public endpoint
-    }
-
-    try {
-      const response = await fetch(url, config)
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(this.formatApiErrorDetail(error?.detail))
-      }
-
-      return response.json()
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error
-      }
-      throw new Error('Network error')
-    }
+    return this.fetchPublic(`/jobs/public/${publicLink}`)
   }
 
   async getProposalByPublicLink(publicLink: string) {
-    const url = `${this.baseURL}/jobs/public/proposal/${publicLink}`
+    return this.fetchPublic(`/proposals/public/${publicLink}`)
+  }
 
-    const config: RequestInit = {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  // ── Proposal CRUD (project-centric) ──────────────────────────────────────
+
+  async getProjectProposals(projectId: number) {
+    return this.request(`/projects/${projectId}/proposals`)
+  }
+
+  async createStandaloneProposal(data: { title?: string; client_id?: number }) {
+    return this.request(`/proposals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getStandaloneProposal(proposalId: number) {
+    return this.request(`/proposals/${proposalId}`)
+  }
+
+  async updateStandaloneProposal(proposalId: number, data: {
+    title?: string
+    status?: string
+    proposal_document?: any
+  }) {
+    return this.request(`/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listStandaloneProposals() {
+    return this.request(`/proposals/standalone`)
+  }
+
+  async createProposal(projectId: number, data: { title?: string; quote_references?: Array<{ job_id: number }> }) {
+    return this.request(`/projects/${projectId}/proposals`, {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, ...data }),
+    })
+  }
+
+  async getProposal(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`)
+  }
+
+  async updateProposal(projectId: number, proposalId: number, data: {
+    title?: string
+    status?: string
+    proposal_document?: any
+    quote_references?: Array<{ job_id: number; selected_tier?: string; snapshot_total?: number }>
+  }) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProposal(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getProposalOverviewForProject(projectId: number, proposalId: number) {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/proposal-overview`)
+  }
+
+  async generateAIProposalForProject(
+    projectId: number,
+    proposalId: number,
+    opts?: {
+      description?: string
+      job_id?: number
+      selected_item_ids?: number[]
+      clarified_scope?: ScopeClarifiedScope | null
+      proposal_title?: string
+      project_title?: string
+      include_project_brief?: boolean
+      include_line_items?: boolean
     }
-
-    try {
-      const response = await fetch(url, config)
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(this.formatApiErrorDetail(error?.detail))
-      }
-
-      return response.json()
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error
-      }
-      throw new Error('Network error')
-    }
+  ): Promise<{
+    scope_summary_html: string
+    project_overview_title: string
+    project_overview_html: string
+    suggested_theme?: string | null
+    before_after_pairs: Array<{ index: number; before_url: string; after_url: string }>
+    pages: Array<{ title: string; blocks: Array<{ type: string; content_html?: string }> }>
+  }> {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/generate-ai-proposal`, {
+      method: 'POST',
+      body: JSON.stringify({
+        description: opts?.description ?? null,
+        job_id: opts?.job_id ?? null,
+        selected_item_ids: opts?.selected_item_ids ?? null,
+        clarified_scope: opts?.clarified_scope ?? null,
+        proposal_title: opts?.proposal_title ?? null,
+        project_title: opts?.project_title ?? null,
+        include_project_brief: opts?.include_project_brief ?? true,
+        include_line_items: opts?.include_line_items ?? true,
+      }),
+    })
   }
 
   async createJob(data: any) {
@@ -675,6 +1118,28 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async getJobProposals(jobId: number) {
+    return this.request(`/jobs/${jobId}/proposals`)
+  }
+
+  async createJobProposal(jobId: number, data: { title?: string; proposal_document?: any }) {
+    return this.request(`/jobs/${jobId}/proposals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateJobProposal(jobId: number, proposalId: number, data: { title?: string; status?: string; proposal_document?: any }) {
+    return this.request(`/jobs/${jobId}/proposals/${proposalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteJobProposal(jobId: number, proposalId: number) {
+    return this.request(`/jobs/${jobId}/proposals/${proposalId}`, { method: 'DELETE' })
   }
 
   async uploadQuoteMedia(jobId: number, files: File[]) {
@@ -808,10 +1273,13 @@ class ApiClient {
     project_type?: string
     measurements?: any
     lead_id?: number
+    project_id?: number | null
     location_zip_code?: string
     labor_charge_type?: string
     labor_rate_value?: number
     labor_unit_type?: string
+    project_brief?: any
+    clarified_scope?: ScopeClarifiedScope | null
   }) {
     console.log(`🤖 API Client: Generating AI estimate`)
     const startTime = Date.now()
@@ -820,6 +1288,7 @@ class ApiClient {
       const result = await this.request('/generate-estimate', {
         method: 'POST',
         body: JSON.stringify(data),
+        timeoutMs: AI_ESTIMATE_REQUEST_TIMEOUT_MS,
       })
       const duration = Date.now() - startTime
       console.log(`🤖 API Client: Estimate generated in ${duration}ms`)
@@ -853,8 +1322,7 @@ class ApiClient {
     accepted_total_amount?: string
     additional_notes?: string
   }) {
-    // Public endpoint but safe to use standard request helper (credentials included)
-    return this.request(`/jobs/${jobId}/sign/customer`, {
+    return this.fetchPublic(`/jobs/${jobId}/sign/customer`, {
       method: 'POST',
       body: JSON.stringify(signatureData),
     })
@@ -869,6 +1337,14 @@ class ApiClient {
       method: 'POST',
     })
     return response.public_link
+  }
+
+  /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected. */
+  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string): Promise<{ message: string }> {
+    return this.request(`/projects/${projectId}/proposals/${proposalId}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify({ to, proposal_url: proposalUrl }),
+    })
   }
 
   /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected. */
@@ -1248,6 +1724,14 @@ class ApiClient {
     return this.request(`/projects${qs ? `?${qs}` : ''}`)
   }
 
+  async getProjectContextOptions(params?: { skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (typeof params?.skip === 'number') searchParams.append('skip', params.skip.toString())
+    if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
+    const qs = searchParams.toString()
+    return this.request(`/projects/context-options${qs ? `?${qs}` : ''}`)
+  }
+
   async getProject(projectId: number) {
     return this.request(`/projects/${projectId}`)
   }
@@ -1396,6 +1880,12 @@ class ApiClient {
     }
 
     return response.json()
+  }
+
+  async deleteJobMedia(jobId: number, mediaId: number): Promise<void> {
+    await this.request(`/jobs/${jobId}/media/${mediaId}`, {
+      method: 'DELETE',
+    })
   }
 
   async generateAfterImage(jobId: number, beforeImageUrl: string, options?: {
@@ -1599,6 +2089,16 @@ class ApiClient {
     await this.request(`/projects/${projectId}/attachments/${attachmentId}`, {
       method: 'DELETE',
     })
+  }
+
+  async getAttachmentAccessUrl(attachmentId: number) {
+    return this.request<{
+      attachment_id: number
+      public_url: string
+      thumbnail_url?: string
+      expires_in_seconds: number
+      expires_at: string
+    }>(`/attachments/${attachmentId}/access-url`)
   }
 
   async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {
@@ -1895,6 +2395,13 @@ class ApiClient {
       method: 'POST',
     })
   }
+
+  async finishDiscoveryEarly(campaignUuid: string): Promise<Campaign> {
+    return this.request<Campaign>(`/campaigns/${campaignUuid}/finish-discovery`, {
+      method: 'POST',
+    })
+  }
+
   async updateCampaignDraft(draftUuid: string, data: { subject?: string; body?: string }): Promise<any> {
     return this.request(`/campaigns/drafts/${draftUuid}`, {
       method: 'PATCH',
@@ -1913,6 +2420,44 @@ class ApiClient {
     await this.request<void>(`/campaigns/${campaignUuid}`, {
       method: 'DELETE',
     })
+  }
+
+  // ─── Scope Clarification ───────────────────────────────────────────────────
+
+  async getScopeQuestions(projectId: number): Promise<{
+    existing_scope: ScopeClarifiedScope | null
+    questions: ScopeQuestion[] | null
+    is_stale: boolean
+  }> {
+    return this.request(`/projects/${projectId}/scope-clarification`)
+  }
+
+  async submitScopeAnswers(projectId: number, payload: {
+    answers: ScopeQuestionAnswer[]
+    questions: ScopeQuestion[]
+    trigger: string
+  }): Promise<ScopeClarifiedScope> {
+    return this.request(`/projects/${projectId}/scope-clarification/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async skipScopeSession(projectId: number): Promise<{ ok: boolean }> {
+    return this.request(`/projects/${projectId}/scope-clarification/skip`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async generateClientPortal(clientId: number): Promise<{ token: string; url: string }> {
+    return this.request(`/clients/${clientId}/generate-portal`, {
+      method: 'POST',
+    })
+  }
+
+  async getClientPortal(token: string) {
+    return this.fetchPublic(`/projects/client/${token}`)
   }
 }
 
@@ -2094,6 +2639,16 @@ class ContractorAIClient {
     message?: string
   }> {
     return this.request(`/interactions/${interactionId}/project-summary`)
+  }
+
+  async getVoiceSessionProjectSummary(sessionUuid: string): Promise<{
+    session_uuid: string
+    project_summary: string | null
+    caller_name: string | null
+    caller_phone: string | null
+    caller_address: string | null
+  }> {
+    return this.request(`/frontline/voice/calls/${sessionUuid}/project-summary`)
   }
 
   async getCampaigns(): Promise<Campaign[]> {
@@ -2306,6 +2861,7 @@ class ContractorAIClient {
       body: JSON.stringify(data),
     })
   }
+
 
 }
 
