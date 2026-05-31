@@ -849,6 +849,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             address: lead.address,
             projectType: lead.project_type,
             description: lead.description,
+            enhanceOnOpen: !!lead.description,
             estimatedValue: lead.estimated_value,
           } satisfies FromLeadProps}
           onProjectCreated={(projectId) => {

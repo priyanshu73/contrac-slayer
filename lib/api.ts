@@ -1747,6 +1747,19 @@ class ApiClient {
     return this.request(`/projects/${projectId}/quotes`)
   }
 
+  async refineProjectDescription(description: string, projectType?: string): Promise<{
+    refined_description: string
+    original_description: string
+  }> {
+    return this.request('/projects/refine-description', {
+      method: 'POST',
+      body: JSON.stringify({
+        description,
+        project_type: projectType,
+      }),
+    })
+  }
+
   async createProject(data: any) {
     return this.request('/projects', {
       method: 'POST',

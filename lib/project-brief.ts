@@ -151,7 +151,7 @@ export function normalizeProjectBrief(rawBrief: Record<string, any> | null | und
   const normalized: Record<string, any> = {}
 
   const basicInfo: Record<string, string> = {}
-  ;["title", "description", "scheduled_start_date", "scheduled_end_date", "source"].forEach((key) => {
+  ;["title", "description", "raw_request", "scheduled_start_date", "scheduled_end_date", "source"].forEach((key) => {
     const value = cleanText(basicInfoRaw[key])
     if (value) basicInfo[key] = value
   })
@@ -207,17 +207,20 @@ export function normalizeProjectBrief(rawBrief: Record<string, any> | null | und
 export function buildInitialProjectBrief(params: {
   title: string
   objective?: string
+  rawRequest?: string
   startDate?: string
   endDate?: string
   source?: "lead" | "quote" | "manual"
 }) {
   const title = params.title.trim()
   const objective = params.objective?.trim() || ""
+  const rawRequest = params.rawRequest?.trim() || ""
 
   return normalizeProjectBrief({
     basic_info: {
       title: title || null,
       description: objective || null,
+      raw_request: rawRequest || null,
       scheduled_start_date: params.startDate || null,
       scheduled_end_date: params.endDate || null,
       source: params.source || "manual",

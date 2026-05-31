@@ -1979,8 +1979,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               />
             )}
 
-            {/* AI Summary from contractor-ai (for consolidated leads) */}
-            {lead.summary_text && (
+            {/* AI Summary from contractor-ai (for consolidated leads).
+                For quote-request leads the summary duplicates the project description below,
+                so only show it when the lead also has call data and the text actually differs. */}
+            {lead.summary_text && (lead as any).contractor_ai_call_lead_id &&
+              lead.summary_text.trim() !== (lead.description || "").trim() && (
               <div>
                 <h3 className="font-semibold mb-2 md:mb-3 text-xs md:text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2 flex-wrap">
                   <span className="shrink-0">{tLeads('aiSummary')}</span>
@@ -2108,14 +2111,18 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         open={projectDialogOpen}
         onOpenChange={setProjectDialogOpen}
         defaultClientId={resolvedClientId ?? undefined}
-        fromLead={requestLeadId ? {
-          leadId: Number(requestLeadId),
+        fromLead={(requestLeadId || isCallOrMessagesLead) ? {
+          leadId: requestLeadId ?? undefined,
           name: lead.name,
           email: lead.email,
           phone: lead.phone,
           address: lead.address,
           projectType: lead.project_type || lead.service_type,
-          description: lead.description,
+          // Quote-request description first; for call leads fall back to the call summary,
+          // cleaned so it prefills as a project description rather than a call log.
+          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
+          // Auto-enhance only quote-request text; call summaries are prefilled as-is (no AI).
+          enhanceOnOpen: !!lead.description,
           estimatedValue: lead.estimated_value,
         } : undefined}
         onProjectCreated={(projectId) => {
@@ -2198,6 +2205,15 @@ interface ConversationMessagesProps {
 
 function stripMarkdownBold(text: string): string {
   return text.replace(/\*\*([^*]*)\*\*/g, '$1').replace(/\*\*/g, '')
+}
+
+// Turn a call lead's AI summary into a plain prefill for a project description:
+// strip the "Call Summary" heading and markdown so it doesn't read as a call log.
+function callSummaryToProjectDescription(text?: string): string {
+  if (!text) return ""
+  return stripMarkdownBold(text)
+    .replace(/^\s*call summary\s*:?\s*\n*/i, "")
+    .trim()
 }
 
 function extractUrls(text: string): { cleanText: string; urls: Array<{ href: string; label: string }> } {
