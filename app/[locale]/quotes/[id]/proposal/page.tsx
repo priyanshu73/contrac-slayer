@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
@@ -19,6 +19,9 @@ export default function QuoteProposalPage() {
   const [contractorName, setContractorName] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Guards against the effect running twice (React Strict Mode in dev) and
+  // auto-creating a duplicate proposal because both runs see an empty list.
+  const initialisedFor = useRef<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,6 +59,8 @@ export default function QuoteProposalPage() {
     }
 
     if (/^\d+$/.test(identifier)) {
+      if (initialisedFor.current === identifier) return
+      initialisedFor.current = identifier
       void fetchData()
     } else {
       setLoading(false)
