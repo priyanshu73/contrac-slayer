@@ -1520,9 +1520,9 @@
     "success": {
       "activating": "Activating Your Subscription",
       "activatingDescription": "Please wait while we set up your account. This usually takes just a few seconds...",
-      "welcomeAboard": "Welcome Aboard!",
-      "subscriptionActive": "Your subscription is now active. You have full access to all features.",
-      "trialStarted": "Your 14-day free trial has started.",
+      "welcomeAboard": "Welcome to ContractorOps AI",
+      "subscriptionActive": "Your workspace is ready. Start managing leads, quotes, jobs, and invoices from one clean dashboard.",
+      "trialStarted": "Your 14-day free trial is active.",
       "goToDashboard": "Go to Dashboard",
       "paymentReceived": "Payment Received",
       "paymentReceivedDescription": "Your payment was successful! Your subscription should be active shortly. If you don't see access in a minute, please refresh the page or contact support.",

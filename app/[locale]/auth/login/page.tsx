@@ -9,6 +9,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AuthPasswordInput } from "../_components/auth-password-input"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -201,9 +202,8 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-slate-700">{t("password")}</Label>
-                <Input
+                <AuthPasswordInput
                   id="password"
-                  type="password"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
