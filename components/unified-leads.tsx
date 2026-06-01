@@ -210,6 +210,16 @@ interface UnifiedLead {
   is_frontline_ai?: boolean
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
 
+  // Multiple form submissions for same phone
+  quote_requests?: Array<{
+    id: number
+    project_type?: string
+    description?: string
+    created_at?: string
+    quote_public_url?: string
+    converted_to_job_id?: number
+  }>
+
   source?: string
 }
 
@@ -439,6 +449,7 @@ export function UnifiedLeads() {
           interaction_type: lead.interaction_type,
           is_frontline_ai: isFrontlineVoice,
           source: lead.source,
+          quote_requests: lead.quote_requests || [],
           // Enrichment flags
           _needsCallDataLoad: isBoth || isCallOnly,
           _needsFullLoad: isCallOnly && !isFrontlineVoice // Frontline calls arrive with transcript/summary data already
@@ -2116,6 +2127,44 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 )}
               </div>
             )}
+
+            {/* Additional quote requests from the same phone */}
+            {lead.quote_requests && lead.quote_requests.length > 0 && lead.quote_requests.map((qr) => (
+              <div key={qr.id} className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm opacity-80">
+                <div className="flex items-center justify-between gap-3 px-5 py-3 bg-amber-50/40 dark:bg-amber-950/15 border-b border-amber-100 dark:border-amber-800/40">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="grid h-6 w-6 place-items-center rounded-md bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                      <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
+                        Previous Quote Request {qr.created_at ? `· ${new Date(qr.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                      </p>
+                      {qr.project_type && (
+                        <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
+                          {qr.project_type.replace(/_/g, ' ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {qr.id && (
+                    <a
+                      href={`/${locale}/leads/${qr.id}`}
+                      className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline underline-offset-2 shrink-0"
+                    >
+                      View ↗
+                    </a>
+                  )}
+                </div>
+                {qr.description && (
+                  <div className="px-5 py-3">
+                    <p className="text-[13px] text-foreground/60 leading-[1.6] whitespace-pre-wrap break-words">
+                      {qr.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
 
             {/* Request-specific content */}
             {lead.estimated_value && (
