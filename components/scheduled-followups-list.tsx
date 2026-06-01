@@ -34,6 +34,7 @@ import {
   FilterIcon,
   Loader2Icon,
   InfoIcon,
+  Link2Icon,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -47,6 +48,32 @@ import { useTranslations } from "next-intl"
 import type { ScheduledFollowup, FollowupStatus, FollowupType } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
+
+/**
+ * Pull URLs out of a message and label them by what they link to, so the preview
+ * can render compact chips (e.g. "View Proposal →") instead of long raw links.
+ * Mirrors the link-chip pattern used in the leads conversation view.
+ */
+function extractUrls(text: string): {
+  cleanText: string
+  urls: Array<{ href: string; label: string }>
+} {
+  const urlRegex = /https?:\/\/[^\s)>\]"']+/g
+  const urls: Array<{ href: string; label: string }> = []
+  const cleanText = text
+    .replace(urlRegex, (url) => {
+      let label = "View Link"
+      if (/\/proposals?\//i.test(url)) label = "View Proposal"
+      else if (/\/quote-request\//i.test(url) || /\/request\//i.test(url)) label = "Quote Request"
+      else if (/\/quotes?\//i.test(url)) label = "View Quote"
+      else if (/\/book(ing)?\//i.test(url)) label = "Book Appointment"
+      urls.push({ href: url, label })
+      return ""
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim()
+  return { cleanText, urls }
+}
 
 /** Normalize phone to E.164 (+1XXXXXXXXXX) for lookup against ContractorBackend response. */
 function normalizePhoneToE164(phone: string): string {
@@ -351,9 +378,35 @@ export function ScheduledFollowupsList({
                         {followup.customer_name || formatPhoneForDisplay(followup.customer_number) || "—"}
                       </span>
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                      {followup.message_text}
-                    </p>
+                    {(() => {
+                      const { cleanText, urls } = extractUrls(followup.message_text)
+                      return (
+                        <>
+                          {cleanText && (
+                            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                              {cleanText}
+                            </p>
+                          )}
+                          {urls.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {urls.map((u, i) => (
+                                <a
+                                  key={i}
+                                  href={u.href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary no-underline transition-colors hover:bg-primary/20"
+                                >
+                                  <Link2Icon className="h-3 w-3 shrink-0" />
+                                  {u.label} →
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
                       {followup.followup_type !== "custom" && (
