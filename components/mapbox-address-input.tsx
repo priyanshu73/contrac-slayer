@@ -88,7 +88,7 @@ export function MapboxAddressInput({
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
           query
-        )}.json?access_token=${accessToken}&autocomplete=true&types=address&country=us&limit=5`
+        )}.json?access_token=${accessToken}&autocomplete=true&types=address&country=us&limit=5&proximity=ip`
       );
       
       if (!response.ok) {
