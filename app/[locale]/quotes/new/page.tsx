@@ -112,15 +112,17 @@ export default function NewQuotePage() {
               <p className="text-sm text-muted-foreground md:mt-0">{subtitle}</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openAiPanelForEstimate}
-            className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Estimate with AI
-          </Button>
+          <div className="relative">
+            <span className="pointer-events-none absolute -inset-1 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 opacity-60 blur-md animate-pulse" />
+            <Button
+              size="sm"
+              onClick={openAiPanelForEstimate}
+              className="relative flex items-center gap-1.5 rounded-full border-0 bg-gradient-to-r from-sky-500 to-blue-600 px-4 font-semibold text-white shadow-lg shadow-sky-500/30 transition-transform hover:scale-105 hover:from-sky-400 hover:to-blue-500"
+            >
+              <Sparkles className="h-4 w-4 animate-pulse" />
+              Estimate with AI
+            </Button>
+          </div>
         </div>
       </header>
 

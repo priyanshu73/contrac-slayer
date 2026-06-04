@@ -12,6 +12,8 @@ import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { Languages, Loader2, RotateCcw, FolderOpen, User as UserIcon } from "lucide-react"
 import { NewProjectDialog, FromLeadProps } from "@/components/projects/new-project-dialog"
+import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
+import { setQuotePrefill } from "@/lib/quote-prefill"
 import { SaveClientFromLeadDialog } from "@/components/clients/save-client-from-lead-dialog"
 import { useToast } from "@/hooks/use-toast"
 
@@ -92,8 +94,10 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [error, setError] = useState("")
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
   const [showCreateProject, setShowCreateProject] = useState(false)
+  const [showCreateQuote, setShowCreateQuote] = useState(false)
   const [showSaveClient, setShowSaveClient] = useState(false)
   const [projectClientId, setProjectClientId] = useState<number | undefined>(undefined)
+  const [quoteClientId, setQuoteClientId] = useState<number | null>(null)
   const { toast } = useToast()
 
   // Translation states
@@ -827,7 +831,8 @@ export function LeadDetail({ leadId }: { leadId: string }) {
               return
             }
             if (action === "quote") {
-              router.push(`/${locale}/quotes/new?clientId=${clientId}`)
+              setQuoteClientId(clientId)
+              setShowCreateQuote(true)
               return
             }
             setShowCreateProject(true)
@@ -854,6 +859,36 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           } satisfies FromLeadProps}
           onProjectCreated={(projectId) => {
             router.push(`/${locale}/projects/${projectId}`)
+          }}
+        />
+      )}
+
+      {/* Create Quote Dialog (context modal before the quote builder) */}
+      {lead && (
+        <NewQuoteDialog
+          open={showCreateQuote}
+          onOpenChange={setShowCreateQuote}
+          fromLead={{
+            leadId: lead.id,
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            address: lead.address,
+            projectType: lead.project_type,
+            description: lead.description,
+            measurements: lead.measurements,
+            enhanceOnOpen: !!lead.description,
+          }}
+          onConfirm={(ctx) => {
+            if (quoteClientId == null) return
+            setQuotePrefill({
+              clientId: quoteClientId,
+              title: ctx.title,
+              description: ctx.description,
+              projectType: ctx.projectType,
+              measurements: ctx.measurements,
+            })
+            router.push(`/${locale}/quotes/new?clientId=${quoteClientId}`)
           }}
         />
       )}

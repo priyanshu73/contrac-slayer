@@ -19,6 +19,8 @@ import { useTranslations, useLocale } from "next-intl"
 import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Menu, Bot, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
+import { setQuotePrefill } from "@/lib/quote-prefill"
 import { SaveClientFromLeadDialog, type SaveClientAction } from "@/components/clients/save-client-from-lead-dialog"
 
 // ============================================
@@ -1136,6 +1138,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const [summaryCardExpanded, setSummaryCardExpanded] = useState(false)
   const [phoneClock, setPhoneClock] = useState("")
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
+  const [quoteClientId, setQuoteClientId] = useState<number | null>(null)
   const [resolvedClientId, setResolvedClientId] = useState<number | null>(lead.converted_to_client_id ?? null)
   const [saveAction, setSaveAction] = useState<"client" | "quote" | "project" | null>(null)
   const [saveClientOpen, setSaveClientOpen] = useState(false)
@@ -1151,6 +1155,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     setSummaryCardExpanded(false)
     setResolvedClientId(lead.converted_to_client_id ?? null)
     setProjectDialogOpen(false)
+    setQuoteDialogOpen(false)
+    setQuoteClientId(null)
     setSaveAction(null)
     setSaveClientOpen(false)
     setOpenPortalAfterSave(false)
@@ -1255,7 +1261,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       return
     }
     if (action === "quote") {
-      router.push(`/${locale}/quotes/new?clientId=${clientId}`)
+      // Open the context modal (mirrors the project flow) instead of dropping into a
+      // blank builder; the dialog hands the reviewed scope off to /quotes/new.
+      setQuoteClientId(clientId)
+      setQuoteDialogOpen(true)
       return
     }
     setProjectDialogOpen(true)
@@ -1380,7 +1389,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         setProjectDialogOpen(true)
         break
       case "create-quote":
-        router.push(`/${locale}/quotes/new?clientId=${convertedClientId}`)
+        setQuoteClientId(convertedClientId)
+        setQuoteDialogOpen(true)
         break
     }
   }
@@ -2253,11 +2263,39 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           // cleaned so it prefills as a project description rather than a call log.
           description: lead.description || callSummaryToProjectDescription(lead.summary_text),
           // Auto-enhance only quote-request text; call summaries are prefilled as-is (no AI).
-          enhanceOnOpen: !!lead.description,
+          enhanceOnOpen: !!(lead.description || lead.summary_text),
           estimatedValue: lead.estimated_value,
         } : undefined}
         onProjectCreated={(projectId) => {
           router.push(`/${locale}/projects/${projectId}`)
+        }}
+      />
+
+      <NewQuoteDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        fromLead={{
+          leadId: requestLeadId ?? undefined,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          address: lead.address,
+          projectType: lead.project_type || lead.service_type,
+          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
+          measurements: lead.measurements,
+          // Auto-enhance only quote-request text; call summaries are prefilled as-is.
+          enhanceOnOpen: !!(lead.description || lead.summary_text),
+        }}
+        onConfirm={(ctx) => {
+          if (quoteClientId == null) return
+          setQuotePrefill({
+            clientId: quoteClientId,
+            title: ctx.title,
+            description: ctx.description,
+            projectType: ctx.projectType,
+            measurements: ctx.measurements,
+          })
+          router.push(`/${locale}/quotes/new?clientId=${quoteClientId}`)
         }}
       />
 

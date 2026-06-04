@@ -1747,16 +1747,16 @@ class ApiClient {
     return this.request(`/projects/${projectId}/quotes`)
   }
 
-  async refineProjectDescription(description: string, projectType?: string): Promise<{
-    refined_description: string
-    original_description: string
+  // Generic text refinement. `target` selects the prompt (e.g. "project_description",
+  // "quote_description"); `context` carries optional hints like { project_type }.
+  async refine(text: string, target: string, context?: Record<string, any>): Promise<{
+    refined_text: string
+    original_text: string
+    target: string
   }> {
-    return this.request('/projects/refine-description', {
+    return this.request('/refine', {
       method: 'POST',
-      body: JSON.stringify({
-        description,
-        project_type: projectType,
-      }),
+      body: JSON.stringify({ text, target, context }),
     })
   }
 

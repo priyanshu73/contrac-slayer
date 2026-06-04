@@ -339,22 +339,19 @@ export function NewCampaignPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="text-sm font-medium text-slate-700">Choose an outreach angle</div>
-                        <div className="text-xs text-slate-500">Generate five compact strategy options from your guidance and contractor profile.</div>
+                        <div className="text-xs text-slate-500">Generate five compact strategy options from your contractor profile. Add message guidance above to tailor them further (optional).</div>
                       </div>
                       <Button
                         type="button"
                         variant="outline"
                         className="rounded-xl border-slate-200"
-                        disabled={guidanceTrimmed.length === 0 || generatingStrategies}
+                        disabled={generatingStrategies}
                         onClick={generateStrategies}
                       >
                         {generatingStrategies ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                         {strategyOptions.length > 0 ? "Regenerate strategies" : "Generate strategies"}
                       </Button>
                     </div>
-                    {guidanceTrimmed.length === 0 && (
-                      <p className="text-xs text-slate-400">Add message guidance first, then generate strategies.</p>
-                    )}
                     {strategyError && (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                         {strategyError}

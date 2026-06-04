@@ -15,7 +15,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar, Loader2, FileText, User, Sparkles, RotateCcw } from "lucide-react"
+import { Calendar, Loader2, FileText, User } from "lucide-react"
+import { AiCapturedDescription } from "@/components/shared/ai-captured-description"
+import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 import { buildInitialProjectBrief } from "@/lib/project-brief"
 export interface FromQuoteProps {
     jobId: number
@@ -40,33 +42,6 @@ export interface FromLeadProps {
     // When true (quote-request leads), auto-enhance the description on open instead of
     // waiting for the "View enhanced" button. Call leads leave this false (plain prefill).
     enhanceOnOpen?: boolean
-}
-
-// Quote-request forms store project_type as a snake_case slug (e.g. "bathroom_renovation").
-// Map the known slugs to their proper labels, falling back to title-casing for anything else.
-const PROJECT_TYPE_LABELS: Record<string, string> = {
-    bathroom_renovation: "Bathroom Renovation",
-    kitchen_renovation: "Kitchen Renovation",
-    flooring: "Flooring Installation",
-    painting: "Painting",
-    roofing: "Roofing",
-    plumbing: "Plumbing",
-    electrical: "Electrical Work",
-    hvac: "HVAC",
-    landscaping: "Landscaping",
-    general_construction: "General Construction",
-    other: "Other",
-}
-
-function formatProjectType(value?: string): string {
-    if (!value) return ""
-    const key = value.trim().toLowerCase()
-    if (PROJECT_TYPE_LABELS[key]) return PROJECT_TYPE_LABELS[key]
-    return value
-        .trim()
-        .replace(/[_-]+/g, " ")
-        .replace(/\s+/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 interface NewProjectDialogProps {
@@ -95,34 +70,27 @@ export function NewProjectDialog({
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
 
-    // Original (raw) customer request, cached AI-enhanced version, and which one is shown.
+    // Raw customer request, kept to seed the project brief's rawRequest.
     const [originalDescription, setOriginalDescription] = useState("")
-    const [enhancedDescription, setEnhancedDescription] = useState<string | null>(null)
-    const [showingEnhanced, setShowingEnhanced] = useState(false)
-    const [enhancing, setEnhancing] = useState(false)
+    // AI-captured description reported by the panel; used as a fallback when the user
+    // leaves their own description blank.
+    const [aiDescription, setAiDescription] = useState("")
 
-    const projectType = fromLead?.projectType ?? fromQuote?.title
+    const rawProjectType = fromLead?.projectType ?? fromQuote?.title
+    // Only feed a real work type into the AI as context — not call placeholders.
+    const projectType = isUsableProjectType(rawProjectType) ? rawProjectType : undefined
+    // Raw text the AI-captured-description panel refines (lead request / quote objective).
+    const aiSource = fromLead?.description ?? fromQuote?.objective ?? ""
 
-    // Fetch the AI-enhanced description and switch the textarea to it.
-    // `silent` suppresses the error toast (used for the automatic on-open enhancement).
-    const requestEnhanced = async (source: string, opts: { silent?: boolean } = {}) => {
+    // Derive a relevant title from the raw request when the lead has no usable project
+    // type (e.g. call leads). Best-effort and silent — keeps the fallback title on failure.
+    const requestTitle = async (source: string) => {
         if (!source.trim()) return
-        setEnhancing(true)
         try {
-            const { refined_description } = await api.refineProjectDescription(source.trim(), projectType)
-            setEnhancedDescription(refined_description)
-            setObjective(refined_description)
-            setShowingEnhanced(true)
-        } catch (err: any) {
-            if (!opts.silent) {
-                toast({
-                    title: "Couldn't enhance description",
-                    description: err?.message || "Please try again.",
-                    variant: "destructive",
-                })
-            }
-        } finally {
-            setEnhancing(false)
+            const { refined_text } = await api.refine(source.trim(), "project_title", { project_type: projectType })
+            if (refined_text.trim()) setTitle(refined_text.trim())
+        } catch {
+            // Keep the fallback title.
         }
     }
 
@@ -135,12 +103,22 @@ export function NewProjectDialog({
         if (open && !initializedRef.current) {
             initializedRef.current = true
 
+            setAiDescription("")
             if (fromLead) {
-                setTitle(formatProjectType(fromLead.projectType) || `${fromLead.name} Project`)
-                setObjective(fromLead.description || "")
+                const usableType = isUsableProjectType(fromLead.projectType)
+                setTitle(usableType ? formatProjectType(fromLead.projectType) : `${fromLead.name} Project`)
+                // Leave the objective empty for the user to write; the AI-captured version
+                // lives in its own panel below.
+                setObjective("")
                 setOriginalDescription(fromLead.description || "")
                 setStartDate("")
                 setEndDate("")
+
+                // No usable project type (e.g. call leads, where it's "AI Operator Call") →
+                // derive a relevant title from the request text instead of the generic fallback.
+                if (fromLead.enhanceOnOpen && (fromLead.description || "").trim() && !usableType) {
+                    void requestTitle(fromLead.description!)
+                }
             } else if (fromQuote) {
                 setTitle(fromQuote.title || "")
                 setObjective(fromQuote.objective || "")
@@ -148,45 +126,17 @@ export function NewProjectDialog({
                 setStartDate(fromQuote.startDate || "")
                 setEndDate(fromQuote.endDate || "")
             }
-            setEnhancedDescription(null)
-            setShowingEnhanced(false)
-            setEnhancing(false)
-
-            // Quote-request leads: auto-enhance the description once on open (no button click).
-            // Falls back silently to the original text if the request fails.
-            if (fromLead?.enhanceOnOpen && (fromLead.description || "").trim()) {
-                void requestEnhanced(fromLead.description!, { silent: true })
-            }
         } else if (!open && initializedRef.current) {
             initializedRef.current = false
             setTitle("")
             setObjective("")
             setOriginalDescription("")
+            setAiDescription("")
             setStartDate("")
             setEndDate("")
-            setEnhancedDescription(null)
-            setShowingEnhanced(false)
-            setEnhancing(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
-
-    const handleToggleEnhanced = async () => {
-        if (showingEnhanced) {
-            // Revert to the original raw request.
-            setObjective(originalDescription)
-            setShowingEnhanced(false)
-            return
-        }
-
-        if (enhancedDescription !== null) {
-            setObjective(enhancedDescription)
-            setShowingEnhanced(true)
-            return
-        }
-
-        await requestEnhanced(objective.trim() || originalDescription.trim())
-    }
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -209,8 +159,11 @@ export function NewProjectDialog({
         try {
             const clientId: number | undefined = defaultClientId
 
+            // Fall back to the AI-captured description when the user left their own blank.
+            const finalObjective = objective.trim() || aiDescription.trim()
+
             const payload: Record<string, any> = { title: title.trim() }
-            if (objective.trim()) payload.objective = objective.trim()
+            if (finalObjective) payload.objective = finalObjective
             if (startDate) payload.scheduled_start_date = startDate
             if (endDate) payload.scheduled_end_date = endDate
             if (clientId) payload.client_id = clientId
@@ -230,7 +183,7 @@ export function NewProjectDialog({
             if (created?.id) {
                 const initialBrief = buildInitialProjectBrief({
                     title: title.trim(),
-                    objective: objective.trim(),
+                    objective: finalObjective,
                     rawRequest: originalDescription.trim(),
                     startDate,
                     endDate,
@@ -271,34 +224,53 @@ export function NewProjectDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-lg font-semibold text-slate-900">
-                        {t("title")}
-                    </DialogTitle>
                     {fromLead ? (
-                        <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
-                            <User className="h-3.5 w-3.5 shrink-0" />
-                            Creating project from lead — linked to client {fromLead.name}.
-                        </DialogDescription>
-                    ) : fromQuote ? (
+                        <DialogTitle className="text-lg font-semibold text-slate-900">
+                            {t("title")} from lead
+                            <span className="font-normal text-slate-500"> — linked to client {fromLead.name}</span>
+                        </DialogTitle>
+                    ) : (
+                        <DialogTitle className="text-lg font-semibold text-slate-900">
+                            {t("title")}
+                        </DialogTitle>
+                    )}
+                    {fromQuote ? (
                         <DialogDescription className="flex items-center gap-1.5 text-sm text-slate-500">
                             <FileText className="h-3.5 w-3.5 shrink-0" />
                             Pre-filled from accepted quote — review and adjust before creating.
                         </DialogDescription>
-                    ) : (
+                    ) : !fromLead ? (
                         <DialogDescription className="text-sm text-slate-500">
                             {t("description")}
                         </DialogDescription>
-                    )}
+                    ) : null}
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
                     {fromLead && (
-                        <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-1">
-                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Linked client</p>
-                            <p className="text-sm font-medium text-blue-900">{fromLead.name}</p>
-                            {fromLead.email && <p className="text-xs text-blue-700">{fromLead.email}</p>}
-                            {fromLead.phone && <p className="text-xs text-blue-700">{fromLead.phone}</p>}
-                            {fromLead.address && <p className="text-xs text-blue-600">{fromLead.address}</p>}
+                        <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                                <User className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <p className="text-sm font-semibold text-blue-900 truncate">{fromLead.name}</p>
+                                    <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide shrink-0">
+                                        Linked client
+                                    </span>
+                                </div>
+                                {(fromLead.email || fromLead.phone || fromLead.address) && (
+                                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-blue-700">
+                                        {fromLead.email && <span className="truncate">{fromLead.email}</span>}
+                                        {fromLead.email && fromLead.phone && <span className="text-blue-300">·</span>}
+                                        {fromLead.phone && <span>{fromLead.phone}</span>}
+                                        {(fromLead.email || fromLead.phone) && fromLead.address && (
+                                            <span className="text-blue-300">·</span>
+                                        )}
+                                        {fromLead.address && <span className="truncate">{fromLead.address}</span>}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -316,36 +288,9 @@ export function NewProjectDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                            <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
-                                {t("fields.objective")}
-                            </Label>
-                            {originalDescription.trim() && (
-                                <button
-                                    type="button"
-                                    onClick={handleToggleEnhanced}
-                                    disabled={enhancing || submitting}
-                                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50 transition-colors"
-                                >
-                                    {enhancing ? (
-                                        <>
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            Enhancing…
-                                        </>
-                                    ) : showingEnhanced ? (
-                                        <>
-                                            <RotateCcw className="h-3.5 w-3.5" />
-                                            Revert to original
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="h-3.5 w-3.5" />
-                                            Enhance description
-                                        </>
-                                    )}
-                                </button>
-                            )}
-                        </div>
+                        <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
+                            {t("fields.objective")}
+                        </Label>
                         <textarea
                             id="project-objective"
                             rows={3}
@@ -354,12 +299,14 @@ export function NewProjectDialog({
                             onChange={(e) => setObjective(e.target.value)}
                             className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
                         />
-                        {showingEnhanced && (
-                            <p className="text-[11px] text-blue-600 flex items-center gap-1">
-                                <Sparkles className="h-3 w-3" />
-                                AI-enhanced — original request is saved for reference.
-                            </p>
-                        )}
+                        <AiCapturedDescription
+                            source={aiSource}
+                            target="project_description"
+                            projectType={projectType}
+                            autoGenerate={!!fromLead?.enhanceOnOpen}
+                            onUse={setObjective}
+                            onCapture={setAiDescription}
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

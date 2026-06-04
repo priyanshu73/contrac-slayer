@@ -25,6 +25,7 @@ import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchRe
 import Image from "next/image"
 import { Check, ChevronsUpDown, FolderOpen, Image as ImageIcon, Loader2, Plus, X } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { consumeQuotePrefill } from "@/lib/quote-prefill"
 import { cn } from "@/lib/utils"
 import {
   AI_ESTIMATE_LOADING_HINT,
@@ -488,6 +489,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false)
 
+  // When the builder opens with a pre-determined client context (from a lead,
+  // client, project, or an existing quote), the client is already decided.
+  // Lock the project/client controls so changing the project can't silently
+  // swap the client out and break the lead -> quote linkage. Captured once on
+  // mount because onProjectContextChange rewrites the clientId/projectId params.
+  const [clientContextLocked] = useState<boolean>(
+    () => Boolean(leadId || clientId || projectId || initialData?.client_id)
+  )
+
   // Client matching states
   const [allClients, setAllClients] = useState<Client[]>([])
   const [matchingClients, setMatchingClients] = useState<Client[]>([])
@@ -733,6 +743,21 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       fetchClientData()
     }
   }, [clientId])
+
+  // Apply reviewed context handed off from the "Create Quote from lead" modal.
+  // We route here with clientId only (no leadId), so this is the source of the
+  // title/scope the user reviewed/AI-enhanced — fetchClientData only touches client
+  // fields, so there's no clobber. Runs once on mount; skipped when editing/copying.
+  useEffect(() => {
+    if (initialData) return
+    const prefill = consumeQuotePrefill()
+    if (!prefill) return
+    if (prefill.title) setProjectTitle(prefill.title)
+    if (prefill.description) setServiceDescription(prefill.description)
+    if (prefill.projectType) setProjectType(prefill.projectType)
+    if (prefill.measurements) setMeasurements(prefill.measurements)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (projectId && !initialData) {
@@ -1793,6 +1818,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     <Select
                       value={selectedProjectId ? String(selectedProjectId) : "__none__"}
                       onValueChange={(val) => setSelectedProjectId(val === "__none__" ? null : Number(val))}
+                      disabled={clientContextLocked}
                     >
                       <SelectTrigger id="quote-project" className={cn(quoteInputSurfaceClass, "min-h-10 flex-1 bg-slate-50/80")}>
                         <SelectValue />
@@ -1813,11 +1839,17 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       size="sm"
                       className="h-10 items-center gap-1.5 whitespace-nowrap"
                       onClick={() => setShowNewProjectDialog(true)}
+                      disabled={clientContextLocked}
                     >
                       <Plus className="h-3.5 w-3.5" />
                       New Project
                     </Button>
                   </div>
+                  {clientContextLocked && (
+                    <p className="text-xs text-muted-foreground">
+                      Project is locked because this quote is tied to an existing client.
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1825,21 +1857,27 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="client-name">Client Name *</Label>
                       {selectedClientId && (
-                        <button
-                          onClick={() => {
-                            setSelectedClientId(null)
-                            toast({
-                              title: "Client selection cleared",
-                              description: "You can now enter new client information",
-                            })
-                          }}
-                          className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
-                        >
-                          <span>Using Existing Client</span>
-                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                        clientContextLocked ? (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center gap-1 shrink-0">
+                            Using Existing Client
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedClientId(null)
+                              toast({
+                                title: "Client selection cleared",
+                                description: "You can now enter new client information",
+                              })
+                            }}
+                            className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
+                          >
+                            <span>Using Existing Client</span>
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )
                       )}
                     </div>
                     <Input
@@ -1848,7 +1886,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       value={clientName}
                       onChange={(e) => handleClientFieldChange('name', e.target.value)}
                       className={quoteInputSurfaceClass}
-                      disabled={loadingLead}
+                      disabled={loadingLead || clientContextLocked}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1860,7 +1898,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       value={clientEmail}
                       onChange={(e) => handleClientFieldChange('email', e.target.value)}
                       className={quoteInputSurfaceClass}
-                      disabled={loadingLead}
+                      disabled={loadingLead || clientContextLocked}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1872,7 +1910,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       value={clientPhone}
                       onChange={(e) => handleClientFieldChange('phone', e.target.value)}
                       className={quoteInputSurfaceClass}
-                      disabled={loadingLead}
+                      disabled={loadingLead || clientContextLocked}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1883,7 +1921,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       value={clientAddress}
                       onChange={(e) => handleClientFieldChange('address', e.target.value)}
                       className={quoteInputSurfaceClass}
-                      disabled={loadingLead}
+                      disabled={loadingLead || clientContextLocked}
                     />
                   </div>
                 </div>
