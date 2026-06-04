@@ -511,16 +511,50 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
           {/* Right: Create Quote + Create Project + Edit + Delete on same line */}
           <div className="grid grid-cols-2 gap-2 min-w-0 shrink-0 pt-2 sm:mt-0 sm:flex sm:flex-wrap sm:items-center sm:border-t-0 sm:pt-0">
-            <Button size="sm" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" asChild>
-              <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
-                <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                {tClients("createQuote")}
-              </a>
-            </Button>
-            <Button size="sm" variant="outline" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
-              <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-              Create Project
-            </Button>
+            <div className="flex flex-col gap-2 sm:min-w-[140px]">
+              <Button size="sm" className="h-11 w-full rounded-lg sm:h-9 touch-manipulation" asChild>
+                <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
+                  <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                  {tClients("createQuote")}
+                </a>
+              </Button>
+              <ClientPortalLink
+                clientId={clientData.id}
+                existingToken={clientData.client_portal_token}
+                className="h-11 w-full rounded-lg sm:h-9 touch-manipulation"
+              />
+            </div>
+            <div className="flex flex-col gap-2 sm:min-w-[140px]">
+              <Button size="sm" variant="outline" className="h-11 w-full rounded-lg sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                Create Project
+              </Button>
+              <div className="flex gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-11 w-full flex-1 rounded-lg sm:h-9 touch-manipulation" onClick={() => setEditOpen(true)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="ml-1.5 sm:hidden">{tCommon("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tCommon("edit")}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-full flex-1 rounded-lg text-destructive hover:text-destructive sm:h-9 touch-manipulation"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="ml-1.5 sm:hidden">{tCommon("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tCommon("delete")}</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
             {clientData.phone && (
               <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
                 <a href={`tel:${clientData.phone}`}>
@@ -537,29 +571,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 </a>
               </Button>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-11 w-full rounded-lg sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation" onClick={() => setEditOpen(true)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                  <span className="ml-1.5 sm:hidden">{tCommon("edit")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{tCommon("edit")}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-full rounded-lg text-destructive hover:text-destructive sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span className="ml-1.5 sm:hidden">{tCommon("delete")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{tCommon("delete")}</TooltipContent>
-            </Tooltip>
           </div>
         </div>
         </div>
@@ -858,11 +869,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{clientData.notes}</p>
             </Card>
           )}
-
-          <ClientPortalLink
-            clientId={clientData.id}
-            existingToken={clientData.client_portal_token}
-          />
 
           {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
             <PropertyInsightsCard
