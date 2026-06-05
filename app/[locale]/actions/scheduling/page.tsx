@@ -1,23 +1,47 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { PlusIcon } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { CalendarPlusIcon, Loader2Icon } from "lucide-react"
 import { FollowupSettings } from "@/components/followup-settings"
-import { ScheduledFollowupsList } from "@/components/scheduled-followups-list"
+import {
+  ScheduledFollowupsList,
+  type FollowupStats,
+} from "@/components/scheduled-followups-list"
 import { ScheduleFollowupDialog } from "@/components/schedule-followup-dialog"
 import { api } from "@/lib/api"
 import { ContractorProfile } from "@/lib/types"
 import { AuthGuard } from "@/components/auth-guard"
-import { Loader2Icon } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
+
+const EMPTY_STATS: FollowupStats = { total: 0, pending: 0, sent: 0, failed: 0 }
+
+function StatCard({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string
+  value: number
+  valueClassName?: string
+}) {
+  return (
+    <Card className="gap-0 p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-2xl font-bold tabular-nums", valueClassName)}>{value}</div>
+    </Card>
+  )
+}
 
 export default function SchedulingPage() {
   const t = useTranslations("scheduling")
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
+  const [stats, setStats] = useState<FollowupStats>(EMPTY_STATS)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -33,79 +57,67 @@ export default function SchedulingPage() {
     load()
   }, [])
 
+  const handleStatsChange = useCallback((next: FollowupStats) => setStats(next), [])
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background pb-24 md:pb-6">
         <main className="container mx-auto px-4 py-6">
-          <div className="space-y-6">
-            <div>
-              <h1 className="hidden text-2xl font-bold md:block">{t("pageTitle")}</h1>
-              <p className="rounded-2xl border border-border/70 bg-card/90 p-4 text-sm text-muted-foreground shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:text-base md:shadow-none">
-                {t("pageDescription")}
-              </p>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2Icon className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2Icon className="h-8 w-8 animate-spin text-muted-foreground" />
+          ) : (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
+                  <p className="text-sm text-muted-foreground md:text-base">{t("subtitle")}</p>
+                </div>
+                <Button onClick={() => setShowScheduleDialog(true)}>
+                  <CalendarPlusIcon className="mr-2 h-4 w-4" />
+                  {t("scheduleShort")}
+                </Button>
               </div>
-            ) : (
-              <>
-                <Tabs defaultValue="scheduled" className="space-y-6">
-                  <TabsList>
-                    <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
-                    <TabsTrigger value="scheduled">{t("tabs.scheduled")}</TabsTrigger>
-                    <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
-                  </TabsList>
 
-                  <TabsContent value="settings">
-                    <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
-                  </TabsContent>
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard label={t("list.total")} value={stats.total} />
+                <StatCard label={t("list.pending")} value={stats.pending} valueClassName="text-blue-500" />
+                <StatCard label={t("list.sent")} value={stats.sent} valueClassName="text-green-500" />
+                <StatCard label={t("list.failed")} value={stats.failed} valueClassName="text-red-500" />
+              </div>
 
-                  <TabsContent value="scheduled">
-                    <div className="space-y-4">
-                      <div>
-                        <h2 className="text-2xl font-bold">{t("scheduledTitle")}</h2>
-                        <p className="text-muted-foreground">
-                          {t("scheduledDescription")}
-                        </p>
-                      </div>
-                      <ScheduledFollowupsList
-                        contractorId={profile?.contractor_ai_sp_id}
-                        statusFilter="pending"
-                        headerAction={
-                          <Button onClick={() => setShowScheduleDialog(true)}>
-                            <PlusIcon className="mr-2 h-4 w-4" />
-                            {t("scheduleFollowup")}
-                          </Button>
-                        }
-                      />
-                    </div>
-                  </TabsContent>
+              {/* Automations + Activity */}
+              <div className="grid gap-6 lg:grid-cols-5">
+                <section className="space-y-3 lg:col-span-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("automations")}
+                  </h2>
+                  <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
+                </section>
 
-                  <TabsContent value="history">
-                    <div className="space-y-4">
-                      <div>
-                        <h2 className="text-2xl font-bold">{t("historyTitle")}</h2>
-                        <p className="text-muted-foreground">{t("historyDescription")}</p>
-                      </div>
-                      <ScheduledFollowupsList
-                        contractorId={profile?.contractor_ai_sp_id}
-                        statusFilter="all"
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                <section className="space-y-3 lg:col-span-3">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("activity")}
+                  </h2>
+                  <ScheduledFollowupsList
+                    contractorId={profile?.contractor_ai_sp_id}
+                    refreshKey={refreshKey}
+                    onStatsChange={handleStatsChange}
+                  />
+                </section>
+              </div>
+            </div>
+          )}
 
-                <ScheduleFollowupDialog
-                  contractorId={profile?.contractor_ai_sp_id}
-                  open={showScheduleDialog}
-                  onOpenChange={setShowScheduleDialog}
-                  onScheduled={() => {}}
-                />
-              </>
-            )}
-          </div>
+          <ScheduleFollowupDialog
+            contractorId={profile?.contractor_ai_sp_id}
+            open={showScheduleDialog}
+            onOpenChange={setShowScheduleDialog}
+            onScheduled={() => setRefreshKey((k) => k + 1)}
+          />
         </main>
       </div>
     </AuthGuard>

@@ -19,6 +19,8 @@ import { useTranslations, useLocale } from "next-intl"
 import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Menu, Bot, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
+import { setQuotePrefill } from "@/lib/quote-prefill"
 import { SaveClientFromLeadDialog, type SaveClientAction } from "@/components/clients/save-client-from-lead-dialog"
 
 // ============================================
@@ -209,6 +211,16 @@ interface UnifiedLead {
   interaction_type?: 'phone_call' | 'frontline_voice' | string
   is_frontline_ai?: boolean
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
+
+  // Multiple form submissions for same phone
+  quote_requests?: Array<{
+    id: number
+    project_type?: string
+    description?: string
+    created_at?: string
+    quote_public_url?: string
+    converted_to_job_id?: number
+  }>
 
   source?: string
 }
@@ -439,6 +451,7 @@ export function UnifiedLeads() {
           interaction_type: lead.interaction_type,
           is_frontline_ai: isFrontlineVoice,
           source: lead.source,
+          quote_requests: lead.quote_requests || [],
           // Enrichment flags
           _needsCallDataLoad: isBoth || isCallOnly,
           _needsFullLoad: isCallOnly && !isFrontlineVoice // Frontline calls arrive with transcript/summary data already
@@ -1125,6 +1138,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const [summaryCardExpanded, setSummaryCardExpanded] = useState(false)
   const [phoneClock, setPhoneClock] = useState("")
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
+  const [quoteClientId, setQuoteClientId] = useState<number | null>(null)
   const [resolvedClientId, setResolvedClientId] = useState<number | null>(lead.converted_to_client_id ?? null)
   const [saveAction, setSaveAction] = useState<"client" | "quote" | "project" | null>(null)
   const [saveClientOpen, setSaveClientOpen] = useState(false)
@@ -1140,6 +1155,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     setSummaryCardExpanded(false)
     setResolvedClientId(lead.converted_to_client_id ?? null)
     setProjectDialogOpen(false)
+    setQuoteDialogOpen(false)
+    setQuoteClientId(null)
     setSaveAction(null)
     setSaveClientOpen(false)
     setOpenPortalAfterSave(false)
@@ -1244,7 +1261,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       return
     }
     if (action === "quote") {
-      router.push(`/${locale}/quotes/new?clientId=${clientId}`)
+      // Open the context modal (mirrors the project flow) instead of dropping into a
+      // blank builder; the dialog hands the reviewed scope off to /quotes/new.
+      setQuoteClientId(clientId)
+      setQuoteDialogOpen(true)
       return
     }
     setProjectDialogOpen(true)
@@ -1369,7 +1389,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         setProjectDialogOpen(true)
         break
       case "create-quote":
-        router.push(`/${locale}/quotes/new?clientId=${convertedClientId}`)
+        setQuoteClientId(convertedClientId)
+        setQuoteDialogOpen(true)
         break
     }
   }
@@ -1714,6 +1735,41 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   )}
                 </div>
               )}
+
+              {/* Additional quote requests (same phone, multiple form submissions) */}
+              {lead.quote_requests && lead.quote_requests.length > 0 && lead.quote_requests.map((qr) => (
+                <div key={qr.id} className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm opacity-80">
+                  <div className="flex items-center justify-between gap-3 px-5 py-3 bg-amber-50/40 dark:bg-amber-950/15 border-b border-amber-100 dark:border-amber-800/40">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="grid h-6 w-6 place-items-center rounded-md bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                        <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
+                          Previous Quote Request {qr.created_at ? `· ${new Date(qr.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                        </p>
+                        {qr.project_type && (
+                          <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
+                            {qr.project_type.replace(/_/g, ' ')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {qr.id && (
+                      <a href={`/${locale}/leads/${qr.id}`} className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline underline-offset-2 shrink-0">
+                        View ↗
+                      </a>
+                    )}
+                  </div>
+                  {qr.description && (
+                    <div className="px-5 py-3">
+                      <p className="text-[13px] text-foreground/60 leading-[1.6] whitespace-pre-wrap break-words">
+                        {qr.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
 
               {/* Project Description for call-only leads (fallback) */}
               {lead.description && lead.type === 'call' && !lead.summary_text && (
@@ -2117,6 +2173,44 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               </div>
             )}
 
+            {/* Additional quote requests from the same phone */}
+            {lead.quote_requests && lead.quote_requests.length > 0 && lead.quote_requests.map((qr) => (
+              <div key={qr.id} className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm opacity-80">
+                <div className="flex items-center justify-between gap-3 px-5 py-3 bg-amber-50/40 dark:bg-amber-950/15 border-b border-amber-100 dark:border-amber-800/40">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="grid h-6 w-6 place-items-center rounded-md bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                      <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
+                        Previous Quote Request {qr.created_at ? `· ${new Date(qr.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                      </p>
+                      {qr.project_type && (
+                        <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
+                          {qr.project_type.replace(/_/g, ' ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {qr.id && (
+                    <a
+                      href={`/${locale}/leads/${qr.id}`}
+                      className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline underline-offset-2 shrink-0"
+                    >
+                      View ↗
+                    </a>
+                  )}
+                </div>
+                {qr.description && (
+                  <div className="px-5 py-3">
+                    <p className="text-[13px] text-foreground/60 leading-[1.6] whitespace-pre-wrap break-words">
+                      {qr.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+
             {/* Request-specific content */}
             {lead.estimated_value && (
               <div>
@@ -2169,11 +2263,39 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           // cleaned so it prefills as a project description rather than a call log.
           description: lead.description || callSummaryToProjectDescription(lead.summary_text),
           // Auto-enhance only quote-request text; call summaries are prefilled as-is (no AI).
-          enhanceOnOpen: !!lead.description,
+          enhanceOnOpen: !!(lead.description || lead.summary_text),
           estimatedValue: lead.estimated_value,
         } : undefined}
         onProjectCreated={(projectId) => {
           router.push(`/${locale}/projects/${projectId}`)
+        }}
+      />
+
+      <NewQuoteDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        fromLead={{
+          leadId: requestLeadId ?? undefined,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          address: lead.address,
+          projectType: lead.project_type || lead.service_type,
+          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
+          measurements: lead.measurements,
+          // Auto-enhance only quote-request text; call summaries are prefilled as-is.
+          enhanceOnOpen: !!(lead.description || lead.summary_text),
+        }}
+        onConfirm={(ctx) => {
+          if (quoteClientId == null) return
+          setQuotePrefill({
+            clientId: quoteClientId,
+            title: ctx.title,
+            description: ctx.description,
+            projectType: ctx.projectType,
+            measurements: ctx.measurements,
+          })
+          router.push(`/${locale}/quotes/new?clientId=${quoteClientId}`)
         }}
       />
 

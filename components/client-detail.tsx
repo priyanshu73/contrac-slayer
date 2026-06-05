@@ -49,6 +49,7 @@ import { Phone, MapPin, Calendar, FileText, MessageSquare, Briefcase, Clock, Pen
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { ClientPortalLink } from "@/components/projects/client-portal-link"
+import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import type { ProjectListItem, ProjectStatus } from "@/lib/types"
 
 interface ClientDetailData {
@@ -124,6 +125,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [editAddressData, setEditAddressData] = useState<any>(null)
+  const [showMoreFields, setShowMoreFields] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [deleteDeleting, setDeleteDeleting] = useState(false)
@@ -172,10 +175,12 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
   useEffect(() => {
     if (clientData && editOpen) {
-      const billing = clientData.billing_address ?? ""
-      const address = clientData.address ?? ""
+      const billing = clientData.billing_address_data?.formatted_address?.trim() || clientData.billing_address?.trim() || ""
+      const address = clientData.address_data?.formatted_address?.trim() || clientData.address?.trim() || ""
       const sameAs = !billing.trim() || billing === address
       setBillingSameAsAddress(sameAs)
+      setEditAddressData(null)
+      setShowMoreFields(false)
       setEditForm({
         name: clientData.name ?? "",
         email: clientData.email ?? "",
@@ -225,6 +230,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       }
       if (editForm.phone.trim()) payload.phone = editForm.phone.trim()
       if (editForm.address.trim()) payload.address = editForm.address.trim()
+      if (editAddressData) payload.address_data = editAddressData
       if (editForm.company_name.trim()) payload.company_name = editForm.company_name.trim()
       if (billingSameAsAddress) {
         payload.billing_same_as_address = true
@@ -505,16 +511,50 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
           {/* Right: Create Quote + Create Project + Edit + Delete on same line */}
           <div className="grid grid-cols-2 gap-2 min-w-0 shrink-0 pt-2 sm:mt-0 sm:flex sm:flex-wrap sm:items-center sm:border-t-0 sm:pt-0">
-            <Button size="sm" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" asChild>
-              <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
-                <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                {tClients("createQuote")}
-              </a>
-            </Button>
-            <Button size="sm" variant="outline" className="h-11 rounded-lg sm:min-w-[140px] sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
-              <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-              Create Project
-            </Button>
+            <div className="flex flex-col gap-2 sm:min-w-[140px]">
+              <Button size="sm" className="h-11 w-full rounded-lg sm:h-9 touch-manipulation" asChild>
+                <a href={`/${locale}/quotes/new?clientId=${clientData.id}`}>
+                  <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                  {tClients("createQuote")}
+                </a>
+              </Button>
+              <ClientPortalLink
+                clientId={clientData.id}
+                existingToken={clientData.client_portal_token}
+                className="h-11 w-full rounded-lg sm:h-9 touch-manipulation"
+              />
+            </div>
+            <div className="flex flex-col gap-2 sm:min-w-[140px]">
+              <Button size="sm" variant="outline" className="h-11 w-full rounded-lg sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                Create Project
+              </Button>
+              <div className="flex gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-11 w-full flex-1 rounded-lg sm:h-9 touch-manipulation" onClick={() => setEditOpen(true)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="ml-1.5 sm:hidden">{tCommon("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tCommon("edit")}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-full flex-1 rounded-lg text-destructive hover:text-destructive sm:h-9 touch-manipulation"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="ml-1.5 sm:hidden">{tCommon("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tCommon("delete")}</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
             {clientData.phone && (
               <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
                 <a href={`tel:${clientData.phone}`}>
@@ -531,29 +571,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 </a>
               </Button>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-11 w-full rounded-lg sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation" onClick={() => setEditOpen(true)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                  <span className="ml-1.5 sm:hidden">{tCommon("edit")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{tCommon("edit")}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-full rounded-lg text-destructive hover:text-destructive sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 touch-manipulation"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span className="ml-1.5 sm:hidden">{tCommon("delete")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{tCommon("delete")}</TooltipContent>
-            </Tooltip>
           </div>
         </div>
         </div>
@@ -853,11 +870,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </Card>
           )}
 
-          <ClientPortalLink
-            clientId={clientData.id}
-            existingToken={clientData.client_portal_token}
-          />
-
           {(clientData.address_data?.id ?? clientData.billing_address_data?.id) != null && (
             <PropertyInsightsCard
               addressId={(clientData.address_data?.id ?? clientData.billing_address_data?.id)!}
@@ -909,165 +921,118 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
       {/* Edit Client Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{tClients("editClient")}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+          <form onSubmit={handleEditSubmit} className="space-y-4 pt-1">
+
+            {/* Core fields */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="edit-name">Name *</Label>
-                <Input
-                  id="edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                  required
-                />
+                <Input id="edit-name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="edit-email">{tClients("email")} *</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                  required
-                />
+                <Input id="edit-email" type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="edit-phone">Phone</Label>
-                <Input
-                  id="edit-phone"
-                  type="tel"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                />
+                <Input id="edit-phone" type="tel" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="edit-status">{tClients("status")}</Label>
                 <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}>
-                  <SelectTrigger id="edit-status">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CLIENT_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    {CLIENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-address">{tClients("address")}</Label>
-              <Textarea
-                id="edit-address"
-                value={editForm.address}
-                onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
-                className="min-h-[80px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-company_name">Company name</Label>
-              <Input
-                id="edit-company_name"
-                value={editForm.company_name}
-                onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
+
+            {/* Address — Mapbox search */}
+            <MapboxAddressInput
+              label={tClients("address")}
+              placeholder="Start typing an address…"
+              defaultValue={editForm.address}
+              onAddressSelect={(data) => {
+                setEditAddressData(data)
+                setEditForm((f) => ({ ...f, address: data?.formatted_address || f.address }))
+              }}
+              className="space-y-1.5"
+            />
+
+            {/* Billing address */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="edit-billing_address">{tClients("billingAddressLabel")}</Label>
+                <Label>{tClients("billingAddressLabel")}</Label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
-                  <Checkbox
-                    id="edit-billing-same-as"
-                    checked={billingSameAsAddress}
-                    onCheckedChange={(checked) => {
-                      setBillingSameAsAddress(checked === true)
-                      if (checked === true) setEditForm((f) => ({ ...f, billing_address: "" }))
-                    }}
-                  />
+                  <Checkbox checked={billingSameAsAddress} onCheckedChange={(c) => { setBillingSameAsAddress(c === true); if (c === true) setEditForm((f) => ({ ...f, billing_address: "" })) }} />
                   <span>{tClients("sameAsAbove")}</span>
                 </label>
               </div>
               {billingSameAsAddress ? (
-                <p className="text-sm text-muted-foreground py-2">{tClients("usingPrimaryAddress")}</p>
+                <p className="text-sm text-muted-foreground py-1.5">{tClients("usingPrimaryAddress")}</p>
               ) : (
-                <Textarea
-                  id="edit-billing_address"
-                  value={editForm.billing_address}
-                  onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))}
-                  placeholder={tClients("billingAddressPlaceholder")}
-                  className="min-h-[80px]"
-                />
+                <Textarea value={editForm.billing_address} onChange={(e) => setEditForm((f) => ({ ...f, billing_address: e.target.value }))} placeholder={tClients("billingAddressPlaceholder")} className="min-h-[64px] resize-none" />
               )}
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="edit-tax_id">Tax ID</Label>
-                <Input
-                  id="edit-tax_id"
-                  value={editForm.tax_id}
-                  onChange={(e) => setEditForm((f) => ({ ...f, tax_id: e.target.value }))}
-                />
+
+            {/* More details toggle */}
+            <button
+              type="button"
+              onClick={() => setShowMoreFields((v) => !v)}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
+              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showMoreFields ? 'rotate-90' : ''}`} />
+              {showMoreFields ? 'Hide details' : 'More details'}
+            </button>
+
+            {showMoreFields && (
+              <div className="space-y-3 pt-1">
+                <div className="space-y-1.5">
+                  <Label>Company name</Label>
+                  <Input value={editForm.company_name} onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Tax ID</Label>
+                    <Input value={editForm.tax_id} onChange={(e) => setEditForm((f) => ({ ...f, tax_id: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{tClients("discountPercent")}</Label>
+                    <Input type="number" min={0} max={100} step={0.01} value={editForm.discount_percentage} onChange={(e) => setEditForm((f) => ({ ...f, discount_percentage: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Preferred contact</Label>
+                    <Input value={editForm.preferred_contact_method} onChange={(e) => setEditForm((f) => ({ ...f, preferred_contact_method: e.target.value }))} placeholder="e.g. email, phone" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{tClients("paymentTerms")}</Label>
+                    <Input value={editForm.payment_terms} onChange={(e) => setEditForm((f) => ({ ...f, payment_terms: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Referral source</Label>
+                  <Input value={editForm.referral_source} onChange={(e) => setEditForm((f) => ({ ...f, referral_source: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{tClients("notes")}</Label>
+                  <Textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} className="min-h-[72px] resize-none" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-discount_percentage">{tClients("discountPercent")}</Label>
-                <Input
-                  id="edit-discount_percentage"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  value={editForm.discount_percentage}
-                  onChange={(e) => setEditForm((f) => ({ ...f, discount_percentage: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="edit-preferred_contact_method">Preferred contact</Label>
-                <Input
-                  id="edit-preferred_contact_method"
-                  value={editForm.preferred_contact_method}
-                  onChange={(e) => setEditForm((f) => ({ ...f, preferred_contact_method: e.target.value }))}
-                  placeholder="e.g. email, phone"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-payment_terms">{tClients("paymentTerms")}</Label>
-                <Input
-                  id="edit-payment_terms"
-                  value={editForm.payment_terms}
-                  onChange={(e) => setEditForm((f) => ({ ...f, payment_terms: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-referral_source">Referral source</Label>
-              <Input
-                id="edit-referral_source"
-                value={editForm.referral_source}
-                onChange={(e) => setEditForm((f) => ({ ...f, referral_source: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">{tClients("notes")}</Label>
-              <Textarea
-                id="edit-notes"
-                value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                className="min-h-[80px]"
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={editSaving}>
-                {editSaving ? "Saving…" : "Save changes"}
-              </Button>
+            )}
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
+              <Button type="submit" disabled={editSaving}>{editSaving ? "Saving…" : "Save changes"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -9,7 +9,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { InfoIcon, SaveIcon, Loader2Icon } from "lucide-react"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
+  InfoIcon,
+  SaveIcon,
+  Loader2Icon,
+  CalendarClockIcon,
+  FileTextIcon,
+  ChevronDownIcon,
+  MessageSquareIcon,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
 import {
@@ -28,6 +42,8 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [spNotFound, setSpNotFound] = useState(false)
+  const [appointmentTemplatesOpen, setAppointmentTemplatesOpen] = useState(false)
+  const [quoteTemplateOpen, setQuoteTemplateOpen] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -70,9 +86,9 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
 
   const handleSave = async () => {
     if (!contractorId || !settings) return
-    
+
     setIsSaving(true)
-    
+
     try {
       await contractorAI.updateFollowupSettings(contractorId.toString(), settings)
       toast({
@@ -125,142 +141,193 @@ export function FollowupSettings({ contractorId }: FollowupSettingsProps) {
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <Alert>
-        <InfoIcon className="h-4 w-4" />
-        <AlertDescription>{t("intro")}</AlertDescription>
-      </Alert>
+  const enabled = settings.automatic_followup_enabled
+  const variablesHint = (vars: string[]) => (
+    <p className="text-xs text-muted-foreground">
+      {t("availableVariables")}{" "}
+      {vars.map((v, i) => (
+        <span key={v}>
+          {i > 0 && ", "}
+          <code className="text-xs">{`{${v}}`}</code>
+        </span>
+      ))}
+    </p>
+  )
 
-      {/* Master Toggle */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
+  return (
+    <div className="space-y-4">
+      {/* Master switch */}
+      <Card className="gap-0 p-5">
+        <div className="flex items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <Label className="text-base font-semibold">{t("enableAutomatic")}</Label>
-            <p className="text-sm text-muted-foreground">{t("enableAutomaticDesc")}</p>
+            <Label className="text-base font-semibold">{t("autoFollowups")}</Label>
+            <p className="text-sm text-muted-foreground">{t("autoFollowupsDesc")}</p>
           </div>
           <Switch
-            checked={settings.automatic_followup_enabled}
-            onCheckedChange={(checked) => updateSetting('automatic_followup_enabled', checked)}
+            checked={enabled}
+            onCheckedChange={(checked) => updateSetting("automatic_followup_enabled", checked)}
           />
         </div>
       </Card>
 
-      {/* Appointment Reminders */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">{t("appointmentReminders")}</h2>
-        <p className="text-sm text-muted-foreground mb-6">{t("appointmentRemindersDesc")}</p>
-
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="days-before">{t("daysBefore")}</Label>
-              <Input
-                id="days-before"
-                type="number"
-                min="0"
-                max="30"
-                value={settings.followup_days_before_appointment}
-                onChange={(e) => updateSetting('followup_days_before_appointment', parseInt(e.target.value) || 0)}
-                disabled={!settings.automatic_followup_enabled}
-              />
-              <p className="text-xs text-muted-foreground">{t("daysBeforeHint")}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="hours-before">{t("hoursBefore")}</Label>
-              <Input
-                id="hours-before"
-                type="number"
-                min="0"
-                max="72"
-                value={settings.followup_hours_before_appointment}
-                onChange={(e) => updateSetting('followup_hours_before_appointment', parseInt(e.target.value) || 0)}
-                disabled={!settings.automatic_followup_enabled}
-              />
-              <p className="text-xs text-muted-foreground">{t("hoursBeforeHint")}</p>
-            </div>
+      {/* Appointment reminders */}
+      <Card className={cn("gap-0 p-5 transition-opacity", !enabled && "opacity-60")}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarClockIcon className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-base font-semibold">{t("appointmentReminders")}</Label>
           </div>
+          {/* Per-card toggle mirrors the master switch */}
+          <Switch
+            checked={enabled}
+            onCheckedChange={(checked) => updateSetting("automatic_followup_enabled", checked)}
+          />
+        </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="template-1day">{t("template1day")}</Label>
-            <Textarea
-              id="template-1day"
-              rows={3}
-              value={settings.reminder_1day_template}
-              onChange={(e) => updateSetting('reminder_1day_template', e.target.value)}
-              disabled={!settings.automatic_followup_enabled}
-              placeholder={t("template1dayPlaceholder")}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="days-before" className="text-xs text-muted-foreground">
+              {t("daysBeforeShort")}
+            </Label>
+            <Input
+              id="days-before"
+              type="number"
+              min="0"
+              max="30"
+              value={settings.followup_days_before_appointment}
+              onChange={(e) => updateSetting("followup_days_before_appointment", parseInt(e.target.value) || 0)}
+              disabled={!enabled}
             />
-            <p className="text-xs text-muted-foreground">
-              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
-              <code className="text-xs">{"{time}"}</code>,{" "}
-              <code className="text-xs">{"{date}"}</code>,{" "}
-              <code className="text-xs">{"{datetime}"}</code>
-            </p>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="template-1hour">{t("template1hour")}</Label>
-            <Textarea
-              id="template-1hour"
-              rows={3}
-              value={settings.reminder_1hour_template}
-              onChange={(e) => updateSetting('reminder_1hour_template', e.target.value)}
-              disabled={!settings.automatic_followup_enabled}
-              placeholder={t("template1hourPlaceholder")}
+          <div className="space-y-1.5">
+            <Label htmlFor="hours-before" className="text-xs text-muted-foreground">
+              {t("hoursBeforeShort")}
+            </Label>
+            <Input
+              id="hours-before"
+              type="number"
+              min="0"
+              max="72"
+              value={settings.followup_hours_before_appointment}
+              onChange={(e) => updateSetting("followup_hours_before_appointment", parseInt(e.target.value) || 0)}
+              disabled={!enabled}
             />
-            <p className="text-xs text-muted-foreground">
-              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
-              <code className="text-xs">{"{time}"}</code>
-            </p>
           </div>
         </div>
+
+        <Collapsible
+          open={appointmentTemplatesOpen}
+          onOpenChange={setAppointmentTemplatesOpen}
+          className="mt-4"
+        >
+          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50">
+            <span className="flex items-center gap-2">
+              <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
+              {t("messageTemplates", { count: 2 })}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                appointmentTemplatesOpen && "rotate-180"
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-1day">{t("template1day")}</Label>
+              <Textarea
+                id="template-1day"
+                rows={3}
+                value={settings.reminder_1day_template}
+                onChange={(e) => updateSetting("reminder_1day_template", e.target.value)}
+                disabled={!enabled}
+                placeholder={t("template1dayPlaceholder")}
+              />
+              {variablesHint(["customer_name", "time", "date", "datetime"])}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-1hour">{t("template1hour")}</Label>
+              <Textarea
+                id="template-1hour"
+                rows={3}
+                value={settings.reminder_1hour_template}
+                onChange={(e) => updateSetting("reminder_1hour_template", e.target.value)}
+                disabled={!enabled}
+                placeholder={t("template1hourPlaceholder")}
+              />
+              {variablesHint(["customer_name", "time"])}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
-      {/* Quote Follow-ups */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">{t("quoteFollowups")}</h2>
-        <p className="text-sm text-muted-foreground mb-6">{t("quoteFollowupsDesc")}</p>
+      {/* Quote follow-ups */}
+      <Card className={cn("gap-0 p-5 transition-opacity", !enabled && "opacity-60")}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FileTextIcon className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-base font-semibold">{t("quoteFollowups")}</Label>
+          </div>
+          {/* Per-card toggle mirrors the master switch */}
+          <Switch
+            checked={enabled}
+            onCheckedChange={(checked) => updateSetting("automatic_followup_enabled", checked)}
+          />
+        </div>
 
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="days-after-quote">{t("daysAfterQuote")}</Label>
+        <div className="mt-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="days-after-quote" className="text-xs text-muted-foreground">
+              {t("daysAfterShort")}
+            </Label>
             <Input
               id="days-after-quote"
               type="number"
               min="0"
               max="90"
               value={settings.followup_days_after_quote || 3}
-              onChange={(e) => updateSetting('followup_days_after_quote', parseInt(e.target.value) || 0)}
-              disabled={!settings.automatic_followup_enabled}
+              onChange={(e) => updateSetting("followup_days_after_quote", parseInt(e.target.value) || 0)}
+              disabled={!enabled}
             />
-            <p className="text-xs text-muted-foreground">{t("daysAfterQuoteHint")}</p>
           </div>
+        </div>
 
-          <div className="space-y-2">
+        <Collapsible
+          open={quoteTemplateOpen}
+          onOpenChange={setQuoteTemplateOpen}
+          className="mt-4"
+        >
+          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50">
+            <span className="flex items-center gap-2">
+              <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
+              {t("messageTemplates", { count: 1 })}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                quoteTemplateOpen && "rotate-180"
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 pt-4">
             <Label htmlFor="template-quote">{t("quoteTemplate")}</Label>
             <Textarea
               id="template-quote"
               rows={3}
               value={settings.quote_followup_template}
-              onChange={(e) => updateSetting('quote_followup_template', e.target.value)}
-              disabled={!settings.automatic_followup_enabled}
+              onChange={(e) => updateSetting("quote_followup_template", e.target.value)}
+              disabled={!enabled}
               placeholder={t("quoteTemplatePlaceholder")}
             />
-            <p className="text-xs text-muted-foreground">
-              {t("availableVariables")} <code className="text-xs">{"{customer_name}"}</code>,{" "}
-              <code className="text-xs">{"{quote_link}"}</code>,{" "}
-              <code className="text-xs">{"{quote_amount}"}</code>
-            </p>
-          </div>
-        </div>
+            {variablesHint(["customer_name", "quote_link", "quote_amount"])}
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
-      {/* Save Button */}
-      <div className="flex gap-2 sticky bottom-0 bg-background pt-4 pb-4">
+      <Separator />
+
+      {/* Save actions */}
+      <div className="flex flex-wrap gap-2">
         <Button onClick={handleSave} disabled={isSaving}>
           <SaveIcon className="mr-2 h-4 w-4" />
           {isSaving ? t("saving") : t("saveChanges")}

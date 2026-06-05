@@ -1,15 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { format } from "date-fns"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,18 +23,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  CalendarIcon, 
-  ClockIcon, 
-  MailIcon, 
-  FileTextIcon, 
-  DollarSignIcon,
+import {
+  CalendarIcon,
+  ClockIcon,
+  MailIcon,
+  FileTextIcon,
   MoreHorizontalIcon,
   TrashIcon,
   SearchIcon,
   FilterIcon,
   Loader2Icon,
-  InfoIcon
+  InfoIcon,
+  Link2Icon,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -50,11 +42,38 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
 import type { ScheduledFollowup, FollowupStatus, FollowupType } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
+
+/**
+ * Pull URLs out of a message and label them by what they link to, so the preview
+ * can render compact chips (e.g. "View Proposal →") instead of long raw links.
+ * Mirrors the link-chip pattern used in the leads conversation view.
+ */
+function extractUrls(text: string): {
+  cleanText: string
+  urls: Array<{ href: string; label: string }>
+} {
+  const urlRegex = /https?:\/\/[^\s)>\]"']+/g
+  const urls: Array<{ href: string; label: string }> = []
+  const cleanText = text
+    .replace(urlRegex, (url) => {
+      let label = "View Link"
+      if (/\/proposals?\//i.test(url)) label = "View Proposal"
+      else if (/\/quote-request\//i.test(url) || /\/request\//i.test(url)) label = "Quote Request"
+      else if (/\/quotes?\//i.test(url)) label = "View Quote"
+      else if (/\/book(ing)?\//i.test(url)) label = "Book Appointment"
+      urls.push({ href: url, label })
+      return ""
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim()
+  return { cleanText, urls }
+}
 
 /** Normalize phone to E.164 (+1XXXXXXXXXX) for lookup against ContractorBackend response. */
 function normalizePhoneToE164(phone: string): string {
@@ -65,11 +84,19 @@ function normalizePhoneToE164(phone: string): string {
   return phone
 }
 
+export interface FollowupStats {
+  total: number
+  pending: number
+  sent: number
+  failed: number
+}
+
 interface ScheduledFollowupsListProps {
   contractorId?: number
-  statusFilter?: FollowupStatus | "all"
-  /** Optional action (e.g. "Schedule Follow-up" button) shown to the right of the filters row */
-  headerAction?: React.ReactNode
+  /** Bump to force a refetch (e.g. after scheduling a new follow-up). */
+  refreshKey?: number
+  /** Reports stats for the full (unfiltered) set so a parent can render them. */
+  onStatsChange?: (stats: FollowupStats) => void
 }
 
 const followupTypeIcons: Record<FollowupType, React.ReactNode> = {
@@ -95,35 +122,56 @@ const statusColors: Record<FollowupStatus, string> = {
   cancelled: "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20",
 }
 
-export function ScheduledFollowupsList({ contractorId, statusFilter = "all", headerAction }: ScheduledFollowupsListProps) {
+/** Status pills shown in the Activity panel header. */
+const STATUS_PILLS: Array<FollowupStatus | "all"> = ["all", "pending", "sent"]
+
+export function ScheduledFollowupsList({
+  contractorId,
+  refreshKey = 0,
+  onStatsChange,
+}: ScheduledFollowupsListProps) {
   const t = useTranslations("scheduling")
   const [followups, setFollowups] = useState<ScheduledFollowup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [spNotFound, setSpNotFound] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<FollowupType | "all">("all")
-  const [selectedStatus, setSelectedStatus] = useState<FollowupStatus | "all">(statusFilter)
+  const [selectedStatus, setSelectedStatus] = useState<FollowupStatus | "all">("all")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [followupToDelete, setFollowupToDelete] = useState<number | null>(null)
   const { toast } = useToast()
   const followupTypeLabels = getFollowupTypeLabels((key) => t(key))
+
+  const onStatsChangeRef = useRef(onStatsChange)
+  onStatsChangeRef.current = onStatsChange
+
+  const reportStats = useCallback((items: ScheduledFollowup[]) => {
+    onStatsChangeRef.current?.({
+      total: items.length,
+      pending: items.filter((f) => f.status === "pending").length,
+      sent: items.filter((f) => f.status === "sent").length,
+      failed: items.filter((f) => f.status === "failed").length,
+    })
+  }, [])
 
   useEffect(() => {
     const fetchFollowups = async () => {
       if (!contractorId) {
         setIsLoading(false)
         setSpNotFound(false)
+        setFollowups([])
+        reportStats([])
         return
       }
 
       try {
         setIsLoading(true)
         setSpNotFound(false)
-        const data = await contractorAI.getScheduledFollowups(contractorId.toString(), {
-          status: selectedStatus !== "all" ? selectedStatus : undefined,
-          type: typeFilter !== "all" ? typeFilter : undefined,
-        })
-        const raw = (data.followups || data || []) as ScheduledFollowup[]
+        // Fetch the full set (no server-side status/type filter) so the stats and
+        // pills stay stable; all filtering happens client-side below.
+        const data = await contractorAI.getScheduledFollowups(contractorId.toString()) as
+          { followups?: ScheduledFollowup[] } | ScheduledFollowup[]
+        const raw = (Array.isArray(data) ? data : data.followups || []) as ScheduledFollowup[]
         const phones = [...new Set(raw.map((f) => f.customer_number).filter(Boolean))]
         let phoneToName: Record<string, string> = {}
         try {
@@ -136,10 +184,12 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
           customer_name: phoneToName[normalizePhoneToE164(f.customer_number)] ?? f.customer_name ?? "",
         }))
         setFollowups(merged)
+        reportStats(merged)
       } catch (error) {
         const message = error instanceof Error ? error.message : ""
         if (message.toLowerCase().includes("service provider not found")) {
           setFollowups([])
+          reportStats([])
           setSpNotFound(true)
         } else {
           toast({
@@ -154,16 +204,12 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
     }
 
     fetchFollowups()
-  }, [contractorId, selectedStatus, typeFilter, toast])
+  }, [contractorId, refreshKey, reportStats, toast])
 
-  const filteredFollowups = followups.filter(followup => {
-    // Status filter
+  const filteredFollowups = followups.filter((followup) => {
     if (selectedStatus !== "all" && followup.status !== selectedStatus) return false
-    
-    // Type filter
     if (typeFilter !== "all" && followup.followup_type !== typeFilter) return false
-    
-    // Search filter
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
@@ -172,7 +218,7 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
         followup.customer_number.includes(query)
       )
     }
-    
+
     return true
   })
 
@@ -183,10 +229,14 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
 
   const handleDeleteConfirm = async () => {
     if (!followupToDelete) return
-    
+
     try {
       await contractorAI.cancelFollowup(followupToDelete.toString())
-      setFollowups(prev => prev.filter(f => f.id !== followupToDelete))
+      setFollowups((prev) => {
+        const next = prev.filter((f) => f.id !== followupToDelete)
+        reportStats(next)
+        return next
+      })
       toast({
         title: t("list.cancelConfirmTitle"),
         description: t("list.cancelledSuccess"),
@@ -203,36 +253,19 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
     }
   }
 
-  const formatDateTime = (dateString: string) => {
-    try {
-      // API returns UTC; ensure we parse as UTC if no timezone suffix
-      const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
-      const date = new Date(utcString)
-      const timeZoneName = typeof Intl !== "undefined"
-        ? new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
-            .formatToParts(date)
-            .find((p) => p.type === "timeZoneName")?.value ?? ""
-        : ""
-      const formatted = format(date, "MMM d, yyyy 'at' h:mm a")
-      return timeZoneName ? `${formatted} ${timeZoneName}` : formatted
-    } catch {
-      return dateString
-    }
-  }
-
   const getRelativeTime = (dateString: string) => {
     try {
       const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
       const date = new Date(utcString)
       const now = new Date()
       const diffInHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60))
-      
+
       if (diffInHours < 0) {
         const absDiff = Math.abs(diffInHours)
         if (absDiff < 24) return `${absDiff}h ago`
         return `${Math.floor(absDiff / 24)}d ago`
       }
-      
+
       if (diffInHours < 24) return `in ${diffInHours}h`
       return `in ${Math.floor(diffInHours / 24)}d`
     } catch {
@@ -249,6 +282,9 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
       return dateString
     }
   }
+
+  const pillLabel = (status: FollowupStatus | "all") =>
+    status === "all" ? t("list.filterAll") : t(`list.${status}` as "list.pending" | "list.sent")
 
   if (isLoading) {
     return (
@@ -271,8 +307,8 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
 
   return (
     <div className="space-y-4">
-      {/* Filters: search, type filter, and optional action (e.g. Schedule Follow-up) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Search + type filter */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -282,51 +318,41 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
             className="pl-8"
           />
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as FollowupType | "all")}>
-            <SelectTrigger className="w-[180px]">
-              <FilterIcon className="mr-2 h-4 w-4" />
-              <SelectValue placeholder={t("list.filterByType")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("list.allTypes")}</SelectItem>
-              <SelectItem value="appointment_1day">{t("list.typeAppointment1day")}</SelectItem>
-              <SelectItem value="appointment_1hour">{t("list.typeAppointment1hour")}</SelectItem>
-              <SelectItem value="quote">{t("list.typeQuote")}</SelectItem>
-              <SelectItem value="custom">{t("list.typeCustom")}</SelectItem>
-            </SelectContent>
-          </Select>
-          {headerAction}
-        </div>
+        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as FollowupType | "all")}>
+          <SelectTrigger className="w-full sm:w-[170px]">
+            <FilterIcon className="mr-2 h-4 w-4" />
+            <SelectValue placeholder={t("list.filterByType")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("list.allTypes")}</SelectItem>
+            <SelectItem value="appointment_1day">{t("list.typeAppointment1day")}</SelectItem>
+            <SelectItem value="appointment_1hour">{t("list.typeAppointment1hour")}</SelectItem>
+            <SelectItem value="quote">{t("list.typeQuote")}</SelectItem>
+            <SelectItem value="custom">{t("list.typeCustom")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Stats - single compact row */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="rounded-lg border px-2 py-2 text-center min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{t("list.total")}</div>
-          <div className="text-lg font-bold tabular-nums">{followups.length}</div>
-        </div>
-        <div className="rounded-lg border px-2 py-2 text-center min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{t("list.pending")}</div>
-          <div className="text-lg font-bold text-blue-500 tabular-nums">
-            {followups.filter(f => f.status === "pending").length}
-          </div>
-        </div>
-        <div className="rounded-lg border px-2 py-2 text-center min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{t("list.sent")}</div>
-          <div className="text-lg font-bold text-green-500 tabular-nums">
-            {followups.filter(f => f.status === "sent").length}
-          </div>
-        </div>
-        <div className="rounded-lg border px-2 py-2 text-center min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{t("list.failed")}</div>
-          <div className="text-lg font-bold text-red-500 tabular-nums">
-            {followups.filter(f => f.status === "failed").length}
-          </div>
-        </div>
+      {/* Status pills */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_PILLS.map((status) => (
+          <button
+            key={status}
+            type="button"
+            onClick={() => setSelectedStatus(status)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+              selectedStatus === status
+                ? "border-transparent bg-foreground text-background"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {pillLabel(status)}
+          </button>
+        ))}
       </div>
 
-      {/* Content */}
+      {/* Activity feed */}
       {filteredFollowups.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <MailIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
@@ -338,131 +364,87 @@ export function ScheduledFollowupsList({ contractorId, statusFilter = "all", hea
           </p>
         </div>
       ) : (
-        <>
-          {/* Mobile: card list (no horizontal scroll) */}
-          <div className="space-y-2 md:hidden">
-            {filteredFollowups.map((followup) => (
-              <div
-                key={followup.id}
-                className="rounded-lg border bg-card p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="shrink-0 text-muted-foreground">
-                      {followupTypeIcons[followup.followup_type]}
-                    </span>
-                    <span className="truncate text-sm font-medium">
-                      {followupTypeLabels[followup.followup_type]}
-                    </span>
+        <div className="space-y-2">
+          {filteredFollowups.map((followup) => (
+            <div key={followup.id} className="rounded-lg border bg-card p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className="mt-0.5 shrink-0 text-muted-foreground">
+                    {followupTypeIcons[followup.followup_type]}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold">
+                        {followup.customer_name || formatPhoneForDisplay(followup.customer_number) || "—"}
+                      </span>
+                    </div>
+                    {(() => {
+                      const { cleanText, urls } = extractUrls(followup.message_text)
+                      return (
+                        <>
+                          {cleanText && (
+                            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                              {cleanText}
+                            </p>
+                          )}
+                          {urls.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {urls.map((u, i) => (
+                                <a
+                                  key={i}
+                                  href={u.href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary no-underline transition-colors hover:bg-primary/20"
+                                >
+                                  <Link2Icon className="h-3 w-3 shrink-0" />
+                                  {u.label} →
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
+                      {followup.followup_type !== "custom" && (
+                        <> · {followupTypeLabels[followup.followup_type]}</>
+                      )}
+                    </p>
+                    {followup.status === "failed" && followup.error_message && (
+                      <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
+                    )}
                   </div>
-                  <Badge className={`shrink-0 ${statusColors[followup.status]}`} variant="secondary">
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Badge className={statusColors[followup.status]} variant="secondary">
                     {t(`list.${followup.status}` as "list.pending" | "list.sent" | "list.failed" | "list.cancelled")}
                   </Badge>
-                </div>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {followup.customer_name || "—"} · {formatPhoneForDisplay(followup.customer_number)}
-                </p>
-                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                  {followup.message_text}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
-                  </span>
                   {followup.status === "pending" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-destructive"
-                      onClick={() => handleDeleteClick(followup.id)}
-                    >
-                      <TrashIcon className="mr-1 h-3 w-3" />
-                      {t("list.cancelFollowup")}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontalIcon className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleDeleteClick(followup.id)}
+                        >
+                          <TrashIcon className="mr-2 h-4 w-4" />
+                          {t("list.cancelFollowup")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
-                {followup.status === "failed" && followup.error_message && (
-                  <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
-                )}
               </div>
-            ))}
-          </div>
-
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("list.type")}</TableHead>
-                  <TableHead>{t("list.customerName")}</TableHead>
-                  <TableHead>{t("list.message")}</TableHead>
-                  <TableHead>{t("list.scheduledFor")}</TableHead>
-                  <TableHead>{t("list.status")}</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFollowups.map((followup) => (
-                  <TableRow key={followup.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {followupTypeIcons[followup.followup_type]}
-                        <span className="text-sm font-medium">
-                          {followupTypeLabels[followup.followup_type]}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{followup.customer_name || "—"}</div>
-                        <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(followup.customer_number)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-md">
-                        <p className="text-sm line-clamp-2">{followup.message_text}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-sm font-medium">{formatDateTime(followup.scheduled_for)}</div>
-                        <div className="text-xs text-muted-foreground">{getRelativeTime(followup.scheduled_for)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[followup.status]} variant="secondary">
-                        {t(`list.${followup.status}` as "list.pending" | "list.sent" | "list.failed" | "list.cancelled")}
-                      </Badge>
-                      {followup.status === "failed" && followup.error_message && (
-                        <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {followup.status === "pending" && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontalIcon className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleDeleteClick(followup.id)}
-                            >
-                              <TrashIcon className="mr-2 h-4 w-4" />
-                              {t("list.cancelFollowup")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Delete Confirmation Dialog */}
