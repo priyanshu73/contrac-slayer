@@ -125,6 +125,9 @@ const statusColors: Record<FollowupStatus, string> = {
 /** Status pills shown in the Activity panel header. */
 const STATUS_PILLS: Array<FollowupStatus | "all"> = ["all", "pending", "sent"]
 
+/** How many activity items to render per "page" before requiring "Load More". */
+const PAGE_SIZE = 10
+
 export function ScheduledFollowupsList({
   contractorId,
   refreshKey = 0,
@@ -139,6 +142,7 @@ export function ScheduledFollowupsList({
   const [selectedStatus, setSelectedStatus] = useState<FollowupStatus | "all">("all")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [followupToDelete, setFollowupToDelete] = useState<number | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const { toast } = useToast()
   const followupTypeLabels = getFollowupTypeLabels((key) => t(key))
 
@@ -221,6 +225,14 @@ export function ScheduledFollowupsList({
 
     return true
   })
+
+  // Reset pagination whenever the filtered set changes (new filter, search, or data).
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [searchQuery, typeFilter, selectedStatus, followups])
+
+  const visibleFollowups = filteredFollowups.slice(0, visibleCount)
+  const hasMore = filteredFollowups.length > visibleCount
 
   const handleDeleteClick = (followupId: number) => {
     setFollowupToDelete(followupId)
@@ -365,7 +377,7 @@ export function ScheduledFollowupsList({
         </div>
       ) : (
         <div className="space-y-2">
-          {filteredFollowups.map((followup) => (
+          {visibleFollowups.map((followup) => (
             <div key={followup.id} className="rounded-lg border bg-card p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -444,6 +456,16 @@ export function ScheduledFollowupsList({
               </div>
             </div>
           ))}
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              >
+                {t("list.loadMore")}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
