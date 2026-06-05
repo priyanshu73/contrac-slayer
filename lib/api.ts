@@ -22,7 +22,7 @@ import type {
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type {
   FrontlineActivityEvent,
-  FrontlineKnowledgeDoc,
+  FrontlineKnowledgeResponse,
   FrontlineKnowledgeIntakeResponse,
   FrontlineReplyApproval,
   FrontlineSandboxAnswer,
@@ -663,18 +663,8 @@ class ApiClient {
     })
   }
 
-  async getFrontlineKnowledge(): Promise<FrontlineKnowledgeDoc> {
+  async getFrontlineKnowledge(): Promise<FrontlineKnowledgeResponse> {
     return this.request('/contractors/profile/frontline/knowledge')
-  }
-
-  async updateFrontlineKnowledge(
-    markdown_text: string,
-    reindex = true,
-  ): Promise<FrontlineKnowledgeDoc> {
-    return this.request('/contractors/profile/frontline/knowledge', {
-      method: 'PUT',
-      body: JSON.stringify({ markdown_text, reindex }),
-    })
   }
 
   async submitFrontlineKnowledgeIntake(
@@ -686,12 +676,6 @@ class ApiClient {
     return this.request('/contractors/profile/frontline/knowledge/intake', {
       method: 'POST',
       body: JSON.stringify({ intake_text, source, frontend_origin }),
-    })
-  }
-
-  async reindexFrontlineKnowledge(): Promise<{ profile_uuid: string; chunks_indexed: number }> {
-    return this.request('/contractors/profile/frontline/knowledge/reindex', {
-      method: 'POST',
     })
   }
 

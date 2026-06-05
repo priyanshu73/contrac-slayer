@@ -60,6 +60,7 @@ import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-vo
 import { FrontlineInitialSetupCard } from "@/components/frontline/frontline-initial-setup-card";
 import type {
   FrontlineActivityEvent,
+  FrontlineKnowledgeChunkItem,
   FrontlineKnowledgeIntakeResponse,
   FrontlineMode,
   FrontlineReplyApproval,
@@ -69,13 +70,6 @@ import type {
 } from "@/lib/types/frontline";
 
 type ViewKey = "dashboard" | "train" | "test" | "settings";
-
-type KnowledgeSection = {
-  title: string;
-  content: string;
-  words: number;
-};
-
 
 type VoiceState = "idle" | "connecting" | "recording" | "saving" | "completed" | "failed";
 
@@ -159,6 +153,17 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function summarizeIntake(result: FrontlineKnowledgeIntakeResponse) {
+  const added = result.facts_inserted ?? result.facts_saved ?? 0;
+  const updated = result.facts_updated ?? 0;
+  const skipped = result.facts_skipped ?? 0;
+  const parts: string[] = [];
+  if (added) parts.push(`${added} fact${added === 1 ? "" : "s"} added`);
+  if (updated) parts.push(`${updated} updated`);
+  if (skipped) parts.push(`${skipped} already known`);
+  return parts.length ? parts.join(", ") + "." : "Training notes turned into operator knowledge.";
+}
+
 function toneClasses(tone: string) {
   switch (tone) {
     case "success":
@@ -172,35 +177,6 @@ function toneClasses(tone: string) {
   }
 }
 
-function parseKnowledgeSections(markdown: string): KnowledgeSection[] {
-  const lines = markdown.split("\n");
-  const sections: KnowledgeSection[] = [];
-  let currentTitle = "Business basics";
-  let current: string[] = [];
-
-  const flush = () => {
-    const content = current.join("\n").trim();
-    if (!content) return;
-    sections.push({
-      title: currentTitle.replace(/^#+\s*/, "").trim() || "Business basics",
-      content,
-      words: content.split(/\s+/).filter(Boolean).length,
-    });
-  };
-
-  for (const line of lines) {
-    if (/^#{1,3}\s+/.test(line)) {
-      flush();
-      currentTitle = line;
-      current = [];
-    } else {
-      current.push(line);
-    }
-  }
-
-  flush();
-  return sections;
-}
 
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
@@ -956,7 +932,7 @@ function FrontlinePageSkeleton() {
 export function FrontlinePage() {
   const [view, setView] = useState<ViewKey>("dashboard");
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
-  const [markdown, setMarkdown] = useState("");
+  const [chunks, setChunks] = useState<FrontlineKnowledgeChunkItem[]>([]);
   const [trainingIntake, setTrainingIntake] = useState("");
   const [intakeResult, setIntakeResult] = useState<FrontlineKnowledgeIntakeResponse | null>(null);
   const [sandboxQ, setSandboxQ] = useState("");
@@ -974,7 +950,6 @@ export function FrontlinePage() {
   const [operatorEditing, setOperatorEditing] = useState(false);
   const [operatorDraftVoiceId, setOperatorDraftVoiceId] = useState("matthew");
 
-  const sections = useMemo(() => parseKnowledgeSections(markdown), [markdown]);
   const activeMode: FrontlineMode = settings?.enabled ? settings.mode : "off";
 
   const load = useCallback(async () => {
@@ -991,7 +966,7 @@ export function FrontlinePage() {
         ]);
 
       setSettings(settingsResponse);
-      setMarkdown(knowledgeResponse.markdown_text || "");
+      setChunks(knowledgeResponse.chunks || []);
       setEvents(activityResponse.events || []);
       setApprovals(approvalResponse.approvals || []);
       setStats(statsResponse);
@@ -1050,10 +1025,15 @@ export function FrontlinePage() {
       setError(null);
       const result = await api.submitFrontlineKnowledgeIntake(trainingIntake.trim(), "text_intake");
       setIntakeResult(result);
-      setMarkdown(result.markdown_text || "");
       setTrainingIntake("");
-      setView("test");
-      flashSuccess("Training notes turned into operator knowledge.");
+      if (result.intake_skipped) {
+        flashSuccess(result.intake_skip_reason || "Nothing new was added — looks like we already knew that.");
+      } else {
+        const knowledgeResponse = await api.getFrontlineKnowledge();
+        setChunks(knowledgeResponse.chunks || []);
+        setView("test");
+        flashSuccess(summarizeIntake(result));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to process training notes.");
     } finally {
@@ -1218,9 +1198,12 @@ export function FrontlinePage() {
 
             <div className="space-y-6">
               <FrontlineVoiceTrainingPanel
-                onKnowledgeSaved={(nextMarkdown, summary) => {
-                  setMarkdown(nextMarkdown)
-                  if (summary) setIntakeResult({ markdown_text: nextMarkdown, intake_summary: summary } as FrontlineKnowledgeIntakeResponse)
+                onKnowledgeSaved={(summary) => {
+                  if (summary) setIntakeResult({ intake_skipped: false, intake_summary: summary })
+                  void api
+                    .getFrontlineKnowledge()
+                    .then((res) => setChunks(res.chunks || []))
+                    .catch(() => undefined)
                   setView("test")
                   flashSuccess("Voice training saved to operator knowledge.")
                 }}
@@ -1235,8 +1218,8 @@ export function FrontlinePage() {
                   <div>
                     <h2 className="text-sm font-semibold text-slate-950">Current knowledge</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      {sections.length
-                        ? `${sections.length} sections are ready for retrieval.`
+                      {chunks.length
+                        ? `${chunks.length} fact${chunks.length === 1 ? "" : "s"} ready for retrieval.`
                         : "No knowledge has been added yet."}
                     </p>
                   </div>
@@ -1245,6 +1228,23 @@ export function FrontlinePage() {
                   <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
                     {intakeResult.intake_summary}
                   </div>
+                )}
+                {chunks.length > 0 && (
+                  <ul className="mt-4 space-y-2">
+                    {chunks.map((chunk) => (
+                      <li
+                        key={chunk.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge className="border-slate-200 bg-slate-100 text-[11px] font-medium text-slate-600 hover:bg-slate-100">
+                            {chunk.source_type === "teach_note" ? "correction" : chunk.section_title || "training"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 whitespace-pre-line">{chunk.content}</p>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </Surface>
             </div>
