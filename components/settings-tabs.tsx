@@ -150,6 +150,10 @@ export function SettingsTabs() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("business")
   const searchParams = useSearchParams()
 
+  // When Your Frontline is enabled it owns all caller follow-up (voice + post-call
+  // SMS), so the legacy Auto-reply tab is hidden. See docs/frontline_followup.md.
+  const [frontlineEnabled, setFrontlineEnabled] = useState(false)
+
   // Gmail integration state
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email: string | null } | null>(null)
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false)
@@ -203,6 +207,23 @@ export function SettingsTabs() {
       setActiveSection(tab)
     }
   }, [searchParams])
+
+  // Load Frontline status to decide whether the Auto-reply tab is shown.
+  useEffect(() => {
+    let cancelled = false
+    api.getFrontlineSettings()
+      .then((s) => { if (!cancelled) setFrontlineEnabled(!!s?.enabled) })
+      .catch(() => { if (!cancelled) setFrontlineEnabled(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  // If Frontline turns out to be on, bounce off the (now hidden) Auto-reply tab
+  // — covers deep links like ?tab=auto-reply.
+  useEffect(() => {
+    if (frontlineEnabled && activeSection === "auto-reply") {
+      setActiveSection("business")
+    }
+  }, [frontlineEnabled, activeSection])
 
   const loadGmailStatus = async () => {
     setGmailStatusLoading(true)
@@ -431,7 +452,10 @@ export function SettingsTabs() {
 
   const sidebarItems = [
     { id: "business" as const, label: t('business'), icon: Building2 },
-    { id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare },
+    // Hidden when Frontline is enabled — it owns caller follow-up then.
+    ...(frontlineEnabled
+      ? []
+      : [{ id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare }]),
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
     { id: "billing" as const, label: "Billing", icon: CreditCard },
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
@@ -1311,8 +1335,8 @@ export function SettingsTabs() {
               <CostBookSettings />
             )}
 
-            {/* Auto-reply Section */}
-            {activeSection === "auto-reply" && (
+            {/* Auto-reply Section — hidden entirely when Frontline is enabled */}
+            {activeSection === "auto-reply" && !frontlineEnabled && (
               <AutoReplySettings />
             )}
 
