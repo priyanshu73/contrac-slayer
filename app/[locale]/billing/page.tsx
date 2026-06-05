@@ -117,8 +117,9 @@ export default function BillingPage() {
             </div>
 
             <div className="mb-6">
+              {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">$139</span>
+                <span className="text-4xl font-bold">$180</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
             </div>
@@ -161,8 +162,9 @@ export default function BillingPage() {
             </div>
 
             <div className="mb-6">
+              {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($1,800/yr = $150/mo) */}
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">$99</span>
+                <span className="text-4xl font-bold">$150</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">{t("billedAnnually")}</p>
