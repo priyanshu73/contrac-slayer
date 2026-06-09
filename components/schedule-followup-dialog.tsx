@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import {
   Dialog,
@@ -31,7 +31,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown } from "lucide-react"
+import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown, PlusIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -40,17 +40,30 @@ import type { ScheduleFollowupRequest } from "@/lib/types/followup"
 import { contractorAI, api } from "@/lib/api"
 import type { Client } from "@/lib/types"
 
+/** Minimal shape needed to edit an existing pending follow-up. */
+export interface EditFollowup {
+  id: number
+  customer_number: string
+  customer_name?: string
+  message_text: string
+  scheduled_for: string
+}
+
 interface ScheduleFollowupDialogProps {
   contractorId?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   onScheduled?: () => void
+  /** When set, the dialog edits this pending follow-up instead of creating a new one. */
+  editFollowup?: EditFollowup | null
+  /** Called after a successful edit (parent should refetch). */
+  onUpdated?: () => void
 }
 
 const TEMPLATE_IDS = ["appointment", "quote", "custom"] as const
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
-  appointment: "Hi {client_name}! This is a reminder about your appointment tomorrow at {time}. Looking forward to seeing you!",
+  appointment: "Hi {client_name}! This is a friendly reminder about your upcoming appointment. Looking forward to seeing you!",
   quote: "Hi {client_name}, just following up on the quote we sent. Do you have any questions?",
   custom: "",
 }
@@ -62,11 +75,34 @@ function getTimeOneHourFromNow(): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
+/** Parse a backend UTC datetime string into a local Date for the date/time inputs. */
+function parseScheduledToLocal(s: string): Date {
+  const utc = /[Z+-]\d{2}:?\d{2}$/.test(s) ? s : `${s.replace(/Z$/, "")}Z`
+  return new Date(utc)
+}
+
+/**
+ * Fill {placeholders} in a message with the client's name and the scheduled time.
+ * Used for BOTH the live preview and the actual send, so what the user sees is
+ * exactly what gets delivered.
+ */
+function fillTemplate(raw: string, clientName: string, dateTime?: Date): string {
+  const timeStr = dateTime ? format(dateTime, "h:mm a") : ""
+  const dateStr = dateTime ? format(dateTime, "MMMM d, yyyy") : ""
+  return raw
+    .replace(/\{client_name\}/g, clientName || "there")
+    .replace(/\{time\}/g, timeStr)
+    .replace(/\{date\}/g, dateStr)
+    .replace(/\{datetime\}/g, dateStr && timeStr ? `${dateStr} at ${timeStr}` : "")
+}
+
 export function ScheduleFollowupDialog({
   contractorId,
   open,
   onOpenChange,
   onScheduled,
+  editFollowup,
+  onUpdated,
 }: ScheduleFollowupDialogProps) {
   const t = useTranslations("scheduling.dialog")
   const [clients, setClients] = useState<Client[]>([])
@@ -79,6 +115,7 @@ export function ScheduleFollowupDialog({
   const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const messageRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
 
   const templateNames: Record<string, string> = {
@@ -88,29 +125,48 @@ export function ScheduleFollowupDialog({
   }
 
   useEffect(() => {
-    if (open) {
-      const fetchClients = async () => {
-        setClientsLoading(true)
-        try {
-          const data = await api.getClients(0, 500) as Client[] | { items?: Client[] }
-          const list = Array.isArray(data) ? data : (data?.items ?? [])
-          setClients(list)
-        } catch {
-          setClients([])
-        } finally {
-          setClientsLoading(false)
-        }
-      }
-      fetchClients()
-      // Default date to today and time to 1 hour from now when dialog opens
-      setSelectedDate((prev) => prev ?? new Date())
-      setSelectedTime(getTimeOneHourFromNow())
+    if (!open) return
+
+    if (editFollowup) {
+      // Edit mode: prefill from the existing follow-up; the client is locked so
+      // there's no need to load the client list.
+      setMessageText(editFollowup.message_text ?? "")
+      const dt = parseScheduledToLocal(editFollowup.scheduled_for)
+      setSelectedDate(dt)
+      setSelectedTime(`${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`)
+      setSelectedTemplate("")
+      return
     }
-  }, [open])
+
+    // Create mode: start from a clean slate (avoids state bleeding in from a
+    // prior edit session that was closed without saving).
+    setMessageText("")
+    setSelectedTemplate("")
+    setSelectedClient("")
+    setSelectedDate(new Date())
+    setSelectedTime(getTimeOneHourFromNow())
+
+    const fetchClients = async () => {
+      setClientsLoading(true)
+      try {
+        const data = await api.getClients(0, 500) as Client[] | { items?: Client[] }
+        const list = Array.isArray(data) ? data : (data?.items ?? [])
+        setClients(list)
+      } catch {
+        setClients([])
+      } finally {
+        setClientsLoading(false)
+      }
+    }
+    fetchClients()
+  }, [open, editFollowup])
 
   // Only show clients with a phone number (required for SMS follow-up)
   const clientsWithPhone = clients.filter((c) => c.phone && c.phone.trim() !== "")
   const selectedClientData = clientsWithPhone.find((c) => c.id.toString() === selectedClient)
+  const isEditing = !!editFollowup
+  // Name used for the preview + placeholder resolution (locked recipient when editing).
+  const recipientName = isEditing ? (editFollowup?.customer_name || "") : (selectedClientData?.name || "")
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId)
@@ -118,12 +174,34 @@ export function ScheduleFollowupDialog({
     if (text !== undefined) setMessageText(text)
   }
 
-  const isAppointmentReminder = selectedTemplate === "appointment"
+  // The scheduled send time, derived from the date + time inputs (browser local).
+  // Drives both the preview and the actual send so they can never diverge.
+  const previewDateTime = (() => {
+    if (!selectedDate) return undefined
+    const [h, mm] = selectedTime.split(":").map(Number)
+    return new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, mm, 0, 0)
+  })()
+
+  /** Insert a {placeholder} token at the textarea cursor (or append if unfocused). */
+  const insertToken = (token: string) => {
+    const el = messageRef.current
+    if (!el) {
+      setMessageText((prev) => prev + token)
+      return
+    }
+    const start = el.selectionStart ?? messageText.length
+    const end = el.selectionEnd ?? messageText.length
+    setMessageText(messageText.slice(0, start) + token + messageText.slice(end))
+    requestAnimationFrame(() => {
+      el.focus()
+      const pos = start + token.length
+      el.setSelectionRange(pos, pos)
+    })
+  }
 
   const handleSubmit = async () => {
-    const requiredForAppointment = contractorId && selectedClient && selectedDate && selectedTime
-    const requiredForCustom = requiredForAppointment && messageText
-    if (!(isAppointmentReminder ? requiredForAppointment : requiredForCustom)) {
+    const baseValid = contractorId && selectedDate && selectedTime && messageText.trim()
+    if (!(isEditing ? baseValid : baseValid && selectedClient)) {
       toast({
         title: t("missingInfo"),
         description: t("fillRequired"),
@@ -132,8 +210,11 @@ export function ScheduleFollowupDialog({
       return
     }
 
+    // Resolve the recipient: locked when editing, picked from the list otherwise.
     const client = clientsWithPhone.find((c) => c.id.toString() === selectedClient)
-    if (!client?.phone) {
+    const recipientPhone = isEditing ? editFollowup?.customer_number : client?.phone
+    const nameForTemplate = isEditing ? (editFollowup?.customer_name ?? "") : (client?.name ?? "")
+    if (!recipientPhone) {
       toast({
         title: t("invalidClient"),
         description: t("noPhone"),
@@ -148,10 +229,7 @@ export function ScheduleFollowupDialog({
     try {
       // Treat date and time as browser local time; send UTC to API
       const [hours, minutes] = selectedTime.split(":").map(Number)
-      const y = selectedDate.getFullYear()
-      const m = selectedDate.getMonth()
-      const d = selectedDate.getDate()
-      const dateTime = new Date(y, m, d, hours, minutes, 0, 0)
+      const dateTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), hours, minutes, 0, 0)
 
       if (dateTime <= new Date()) {
         toast({
@@ -162,45 +240,31 @@ export function ScheduleFollowupDialog({
         return
       }
 
-      if (isAppointmentReminder) {
-        // Backend creates 1-day and 1-hour reminders from Scheduling settings; no message_text needed
-        const res = await contractorAI.scheduleFollowup({
-          sp_id: contractorId as number,
-          customer_number: client.phone,
-          appointment_datetime: dateTime.toISOString(),
-        }) as { reminders?: unknown[] }
-        const count = Array.isArray(res?.reminders) ? res.reminders.length : 0
-        toast({
-          title: t("scheduledSuccess"),
-          description: count > 0
-            ? `Appointment reminders scheduled (${count} reminder${count === 1 ? "" : "s"} — 1 day and 1 hour before).`
-            : "Automatic follow-ups are disabled or no reminders were created. Enable them in Scheduling settings.",
-        })
-      } else {
-        const timeStr = format(dateTime, "h:mm a")
-        const dateStr = format(dateTime, "MMMM d, yyyy")
-        const formattedMessage = messageText
-          .replace(/\{client_name\}/g, client.name ?? "there")
-          .replace(/\{time\}/g, timeStr)
-          .replace(/\{date\}/g, dateStr)
-          .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
+      const formattedMessage = fillTemplate(messageText, nameForTemplate, dateTime)
 
+      if (isEditing) {
+        await contractorAI.updateFollowup(String(editFollowup!.id), {
+          scheduled_for: dateTime.toISOString(),
+          message_text: formattedMessage,
+        })
+        toast({
+          title: t("updatedSuccess"),
+          description: `Message rescheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+        })
+        onUpdated?.()
+      } else {
         await contractorAI.scheduleFollowup({
           sp_id: contractorId as number,
-          customer_number: client.phone,
+          customer_number: recipientPhone,
           scheduled_for: dateTime.toISOString(),
           message_text: formattedMessage,
           followup_type: selectedTemplate || "custom",
         })
-
         toast({
           title: t("scheduledSuccess"),
           description: `Message scheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
         })
-      }
-
-      if (onScheduled) {
-        onScheduled()
+        onScheduled?.()
       }
 
       // Reset form
@@ -215,7 +279,7 @@ export function ScheduleFollowupDialog({
     } catch (error) {
       toast({
         title: t("error"),
-        description: error instanceof Error ? error.message : t("scheduleFailed"),
+        description: error instanceof Error ? error.message : (isEditing ? t("updateFailed") : t("scheduleFailed")),
         variant: "destructive",
       })
     } finally {
@@ -230,8 +294,8 @@ export function ScheduleFollowupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
+          <DialogTitle>{isEditing ? t("editTitle") : t("title")}</DialogTitle>
+          <DialogDescription>{isEditing ? t("editDescription") : t("description")}</DialogDescription>
         </DialogHeader>
 
         {!contractorId ? (
@@ -245,6 +309,18 @@ export function ScheduleFollowupDialog({
           {/* Client Selection - combined search + dropdown */}
           <div className="space-y-2">
             <Label htmlFor="client">{t("clientLabel")}</Label>
+            {isEditing ? (
+              <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                <span className="font-medium">
+                  {editFollowup?.customer_name || formatPhoneForDisplay(editFollowup?.customer_number ?? "") || "—"}
+                </span>
+                {editFollowup?.customer_number && (
+                  <span className="text-xs text-muted-foreground">
+                    {formatPhoneForDisplay(editFollowup.customer_number)}
+                  </span>
+                )}
+              </div>
+            ) : (
             <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -294,9 +370,11 @@ export function ScheduleFollowupDialog({
                 </Command>
               </PopoverContent>
             </Popover>
+            )}
           </div>
 
-          {/* Template Selection */}
+          {/* Template Selection — only when creating; editing keeps the existing message */}
+          {!isEditing && (
           <div className="space-y-2">
             <Label htmlFor="template">{t("templateLabel")}</Label>
             <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
@@ -312,11 +390,13 @@ export function ScheduleFollowupDialog({
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {/* Message Text */}
           <div className="space-y-2">
             <Label htmlFor="message">{t("messageLabel")}</Label>
             <Textarea
+              ref={messageRef}
               id="message"
               rows={6}
               placeholder={t("messagePlaceholder")}
@@ -324,9 +404,24 @@ export function ScheduleFollowupDialog({
               onChange={(e) => setMessageText(e.target.value)}
               maxLength={maxCharacters}
             />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{t("useVariables")} {"{client_name}"}, {"{time}"}, {"{date}"}</span>
-              <span className={characterCount > maxCharacters * 0.9 ? "text-orange-500" : ""}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">{t("insertLabel")}</span>
+              {[
+                { token: "{client_name}", label: t("varName") },
+                { token: "{date}", label: t("varDate") },
+                { token: "{time}", label: t("varTime") },
+              ].map(({ token, label }) => (
+                <button
+                  type="button"
+                  key={token}
+                  onClick={() => insertToken(token)}
+                  className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  {label}
+                </button>
+              ))}
+              <span className={cn("ml-auto text-xs", characterCount > maxCharacters * 0.9 ? "text-orange-500" : "text-muted-foreground")}>
                 {characterCount}/{maxCharacters}
               </span>
             </div>
@@ -394,17 +489,28 @@ export function ScheduleFollowupDialog({
             </p>
           </div>
 
-          {/* Preview */}
-          {selectedDate && selectedTime && (
-            <div className="rounded-lg border border-muted bg-muted/50 p-4">
-              <p className="text-sm font-medium mb-2">{t("preview")}</p>
-              <p className="text-sm text-muted-foreground">
+          {/* Preview — resolved exactly as the client will receive it */}
+          {messageText.trim() && previewDateTime && (
+            <div className="space-y-2 rounded-lg border border-muted bg-muted/50 p-4">
+              <p className="text-sm font-medium">
+                {t("preview")}
+                {recipientName && (
+                  <span className="font-normal text-muted-foreground">
+                    {" · "}
+                    {t("previewRecipient", { name: recipientName })}
+                  </span>
+                )}
+              </p>
+              <p className="whitespace-pre-wrap text-sm text-foreground">
+                {fillTemplate(messageText, recipientName, previewDateTime)}
+              </p>
+              <p className="text-xs text-muted-foreground">
                 {t("previewSentOn")}{" "}
                 <span className="font-medium text-foreground">
-                  {format(selectedDate, "MMMM d, yyyy")} at {selectedTime}
+                  {format(previewDateTime, "MMMM d, yyyy 'at' h:mm a")}
                 </span>
                 {typeof Intl !== "undefined" && (
-                  <span className="text-muted-foreground"> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>
+                  <span> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>
                 )}
               </p>
             </div>
@@ -421,7 +527,9 @@ export function ScheduleFollowupDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             <SendIcon className="mr-2 h-4 w-4" />
-            {isSubmitting ? t("scheduling") : t("schedule")}
+            {isSubmitting
+              ? (isEditing ? t("updating") : t("scheduling"))
+              : (isEditing ? t("update") : t("schedule"))}
           </Button>
         </DialogFooter>
         </>

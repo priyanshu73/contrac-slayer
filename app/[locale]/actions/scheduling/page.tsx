@@ -3,13 +3,14 @@
 import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { CalendarPlusIcon, Loader2Icon } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { CalendarPlusIcon, Loader2Icon, Settings2Icon } from "lucide-react"
 import { FollowupSettings } from "@/components/followup-settings"
 import {
   ScheduledFollowupsList,
   type FollowupStats,
 } from "@/components/scheduled-followups-list"
-import { ScheduleFollowupDialog } from "@/components/schedule-followup-dialog"
+import { ScheduleFollowupDialog, type EditFollowup } from "@/components/schedule-followup-dialog"
 import { api } from "@/lib/api"
 import { ContractorProfile } from "@/lib/types"
 import { AuthGuard } from "@/components/auth-guard"
@@ -40,6 +41,7 @@ export default function SchedulingPage() {
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
+  const [editFollowup, setEditFollowup] = useState<EditFollowup | null>(null)
   const [stats, setStats] = useState<FollowupStats>(EMPTY_STATS)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -75,7 +77,12 @@ export default function SchedulingPage() {
                   <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
                   <p className="text-sm text-muted-foreground md:text-base">{t("subtitle")}</p>
                 </div>
-                <Button onClick={() => setShowScheduleDialog(true)}>
+                <Button
+                  onClick={() => {
+                    setEditFollowup(null)
+                    setShowScheduleDialog(true)
+                  }}
+                >
                   <CalendarPlusIcon className="mr-2 h-4 w-4" />
                   {t("scheduleShort")}
                 </Button>
@@ -89,34 +96,57 @@ export default function SchedulingPage() {
                 <StatCard label={t("list.failed")} value={stats.failed} valueClassName="text-red-500" />
               </div>
 
-              {/* Automations + Activity */}
-              <div className="grid gap-6 lg:grid-cols-5">
-                <section className="space-y-3 lg:col-span-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {/* Activity leads; automations is set-once config tucked into a tab */}
+              <Tabs defaultValue="activity" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="activity">{t("activity")}</TabsTrigger>
+                  <TabsTrigger value="automations">
+                    <Settings2Icon className="mr-1.5 h-4 w-4" />
                     {t("automations")}
-                  </h2>
-                  <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
-                </section>
+                  </TabsTrigger>
+                </TabsList>
 
-                <section className="space-y-3 lg:col-span-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("activity")}
-                  </h2>
+                <TabsContent value="activity" className="space-y-4">
                   <ScheduledFollowupsList
                     contractorId={profile?.contractor_ai_sp_id}
                     refreshKey={refreshKey}
                     onStatsChange={handleStatsChange}
+                    onSchedule={() => {
+                      setEditFollowup(null)
+                      setShowScheduleDialog(true)
+                    }}
+                    onEdit={(f) => {
+                      setEditFollowup({
+                        id: f.id,
+                        customer_number: f.customer_number,
+                        customer_name: f.customer_name,
+                        message_text: f.message_text,
+                        scheduled_for: f.scheduled_for,
+                      })
+                      setShowScheduleDialog(true)
+                    }}
                   />
-                </section>
-              </div>
+                </TabsContent>
+
+                <TabsContent value="automations">
+                  <div className="max-w-2xl">
+                    <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
           <ScheduleFollowupDialog
             contractorId={profile?.contractor_ai_sp_id}
             open={showScheduleDialog}
-            onOpenChange={setShowScheduleDialog}
+            onOpenChange={(o) => {
+              setShowScheduleDialog(o)
+              if (!o) setEditFollowup(null)
+            }}
+            editFollowup={editFollowup}
             onScheduled={() => setRefreshKey((k) => k + 1)}
+            onUpdated={() => setRefreshKey((k) => k + 1)}
           />
         </main>
       </div>

@@ -9,7 +9,7 @@ import {
   FileText,
   MessageSquare,
   Calendar,
-  Bot,
+  CalendarClock,
   Users,
   Wrench,
   Settings,
@@ -153,6 +153,11 @@ export function Navbar() {
         { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
         { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
         { href: `/${locale}/clients`, label: t("clients"), icon: Users },
+        {
+          href: `/${locale}/actions/scheduling`,
+          label: t("scheduling"),
+          icon: CalendarClock,
+        },
       ],
     },
     {
@@ -178,11 +183,6 @@ export function Navbar() {
           href: `/${locale}/frontline`,
           label: t("yourFrontline"),
           icon: PhoneAIIcon,
-        },
-        {
-          href: `/${locale}/actions/scheduling`,
-          label: t("scheduling"),
-          icon: Bot,
         },
       ],
     },
@@ -226,7 +226,7 @@ export function Navbar() {
     if (currentRoute.startsWith("/projects/")) return "Project Details";
     if (currentRoute === "/projects") return t("projects");
     if (currentRoute === "/tasks") return t("tasks");
-    if (currentRoute === "/actions/scheduling") return "Generate Lead";
+    if (currentRoute === "/actions/scheduling") return t("scheduling");
     if (currentRoute.startsWith("/settings")) return t("settings");
     if (currentRoute.startsWith("/billing")) return "Billing";
     if (currentRoute.startsWith("/admin")) return "Admin";

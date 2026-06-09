@@ -2836,6 +2836,16 @@ class ContractorAIClient {
     })
   }
 
+  async updateFollowup(followupId: string, data: {
+    scheduled_for?: string
+    message_text?: string
+  }) {
+    return this.request(`/followup/${followupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
   async cancelFollowup(followupId: string) {
     return this.request(`/followup/${followupId}`, {
       method: 'DELETE',
