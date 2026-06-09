@@ -30,11 +30,16 @@ import {
   FileTextIcon,
   MoreHorizontalIcon,
   TrashIcon,
+  PencilIcon,
   SearchIcon,
   FilterIcon,
   Loader2Icon,
   InfoIcon,
   Link2Icon,
+  AlertTriangleIcon,
+  RefreshCwIcon,
+  SendIcon,
+  CheckCircle2Icon,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -84,6 +89,14 @@ function normalizePhoneToE164(phone: string): string {
   return phone
 }
 
+/** Parse a backend datetime string as UTC (it may or may not carry a tz suffix). */
+function toUtcDate(dateString: string): Date {
+  const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString)
+    ? dateString
+    : `${dateString.replace(/Z$/, "")}Z`
+  return new Date(utcString)
+}
+
 export interface FollowupStats {
   total: number
   pending: number
@@ -97,6 +110,10 @@ interface ScheduledFollowupsListProps {
   refreshKey?: number
   /** Reports stats for the full (unfiltered) set so a parent can render them. */
   onStatsChange?: (stats: FollowupStats) => void
+  /** Launch the schedule dialog from the empty state, if provided. */
+  onSchedule?: () => void
+  /** Edit a pending follow-up (opens the dialog prefilled). */
+  onEdit?: (followup: ScheduledFollowup) => void
 }
 
 const followupTypeIcons: Record<FollowupType, React.ReactNode> = {
@@ -122,13 +139,15 @@ const statusColors: Record<FollowupStatus, string> = {
   cancelled: "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20",
 }
 
-/** Status pills shown in the Activity panel header. */
-const STATUS_PILLS: Array<FollowupStatus | "all"> = ["all", "pending", "sent"]
+/** How many history items to render before requiring "Load More". */
+const PAGE_SIZE = 10
 
 export function ScheduledFollowupsList({
   contractorId,
   refreshKey = 0,
   onStatsChange,
+  onSchedule,
+  onEdit,
 }: ScheduledFollowupsListProps) {
   const t = useTranslations("scheduling")
   const [followups, setFollowups] = useState<ScheduledFollowup[]>([])
@@ -136,9 +155,10 @@ export function ScheduledFollowupsList({
   const [spNotFound, setSpNotFound] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<FollowupType | "all">("all")
-  const [selectedStatus, setSelectedStatus] = useState<FollowupStatus | "all">("all")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [followupToDelete, setFollowupToDelete] = useState<number | null>(null)
+  const [retryingId, setRetryingId] = useState<number | null>(null)
+  const [visibleHistory, setVisibleHistory] = useState(PAGE_SIZE)
   const { toast } = useToast()
   const followupTypeLabels = getFollowupTypeLabels((key) => t(key))
 
@@ -154,60 +174,62 @@ export function ScheduledFollowupsList({
     })
   }, [])
 
-  useEffect(() => {
-    const fetchFollowups = async () => {
-      if (!contractorId) {
-        setIsLoading(false)
-        setSpNotFound(false)
-        setFollowups([])
-        reportStats([])
-        return
-      }
-
-      try {
-        setIsLoading(true)
-        setSpNotFound(false)
-        // Fetch the full set (no server-side status/type filter) so the stats and
-        // pills stay stable; all filtering happens client-side below.
-        const data = await contractorAI.getScheduledFollowups(contractorId.toString()) as
-          { followups?: ScheduledFollowup[] } | ScheduledFollowup[]
-        const raw = (Array.isArray(data) ? data : data.followups || []) as ScheduledFollowup[]
-        const phones = [...new Set(raw.map((f) => f.customer_number).filter(Boolean))]
-        let phoneToName: Record<string, string> = {}
-        try {
-          phoneToName = await api.getCustomerNamesByPhones(phones)
-        } catch {
-          // User may not be logged into ContractorBackend; show followups without names
-        }
-        const merged = raw.map((f) => ({
-          ...f,
-          customer_name: phoneToName[normalizePhoneToE164(f.customer_number)] ?? f.customer_name ?? "",
-        }))
-        setFollowups(merged)
-        reportStats(merged)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : ""
-        if (message.toLowerCase().includes("service provider not found")) {
-          setFollowups([])
-          reportStats([])
-          setSpNotFound(true)
-        } else {
-          toast({
-            title: t("list.loadFailed").replace(/\..*/, "").trim() || "Error",
-            description: message || t("list.loadFailed"),
-            variant: "destructive",
-          })
-        }
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchFollowups = useCallback(async () => {
+    if (!contractorId) {
+      setIsLoading(false)
+      setSpNotFound(false)
+      setFollowups([])
+      reportStats([])
+      return
     }
 
+    try {
+      setIsLoading(true)
+      setSpNotFound(false)
+      // Fetch the full set (no server-side status/type filter) so stats stay
+      // stable; all filtering and grouping happens client-side below.
+      const data = (await contractorAI.getScheduledFollowups(contractorId.toString())) as
+        | { followups?: ScheduledFollowup[] }
+        | ScheduledFollowup[]
+      const raw = (Array.isArray(data) ? data : data.followups || []) as ScheduledFollowup[]
+      const phones = [...new Set(raw.map((f) => f.customer_number).filter(Boolean))]
+      let phoneToName: Record<string, string> = {}
+      try {
+        phoneToName = await api.getCustomerNamesByPhones(phones)
+      } catch {
+        // User may not be logged into ContractorBackend; show followups without names
+      }
+      const merged = raw.map((f) => ({
+        ...f,
+        customer_name: phoneToName[normalizePhoneToE164(f.customer_number)] ?? f.customer_name ?? "",
+      }))
+      setFollowups(merged)
+      reportStats(merged)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ""
+      if (message.toLowerCase().includes("service provider not found")) {
+        setFollowups([])
+        reportStats([])
+        setSpNotFound(true)
+      } else {
+        toast({
+          title: t("list.loadFailed").replace(/\..*/, "").trim() || "Error",
+          description: message || t("list.loadFailed"),
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setIsLoading(false)
+    }
+    // t intentionally omitted: it is stable per-locale and including it would refetch on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractorId, reportStats, toast])
+
+  useEffect(() => {
     fetchFollowups()
-  }, [contractorId, refreshKey, reportStats, toast])
+  }, [fetchFollowups, refreshKey])
 
   const filteredFollowups = followups.filter((followup) => {
-    if (selectedStatus !== "all" && followup.status !== selectedStatus) return false
     if (typeFilter !== "all" && followup.followup_type !== typeFilter) return false
 
     if (searchQuery) {
@@ -221,6 +243,25 @@ export function ScheduledFollowupsList({
 
     return true
   })
+
+  // Group the feed: failures need action, upcoming is what's queued, history is the rest.
+  const byScheduledAsc = (a: ScheduledFollowup, b: ScheduledFollowup) =>
+    toUtcDate(a.scheduled_for).getTime() - toUtcDate(b.scheduled_for).getTime()
+  const byScheduledDesc = (a: ScheduledFollowup, b: ScheduledFollowup) => -byScheduledAsc(a, b)
+
+  const failedItems = filteredFollowups.filter((f) => f.status === "failed").sort(byScheduledDesc)
+  const upcomingItems = filteredFollowups.filter((f) => f.status === "pending").sort(byScheduledAsc)
+  const historyItems = filteredFollowups
+    .filter((f) => f.status === "sent" || f.status === "cancelled")
+    .sort(byScheduledDesc)
+
+  const visibleHistoryItems = historyItems.slice(0, visibleHistory)
+  const hasMoreHistory = historyItems.length > visibleHistory
+
+  // Reset history pagination whenever the filtered set changes.
+  useEffect(() => {
+    setVisibleHistory(PAGE_SIZE)
+  }, [searchQuery, typeFilter, followups])
 
   const handleDeleteClick = (followupId: number) => {
     setFollowupToDelete(followupId)
@@ -253,10 +294,34 @@ export function ScheduledFollowupsList({
     }
   }
 
+  const handleRetry = async (followup: ScheduledFollowup) => {
+    if (!contractorId) return
+    setRetryingId(followup.id)
+    try {
+      await contractorAI.sendImmediateSms({
+        sp_id: contractorId,
+        customer_number: followup.customer_number,
+        message_text: followup.message_text,
+      })
+      toast({
+        title: t("list.retrySuccessTitle"),
+        description: t("list.retrySuccess"),
+      })
+      await fetchFollowups()
+    } catch (error) {
+      toast({
+        title: t("settings.error"),
+        description: error instanceof Error ? error.message : t("list.retryFailed"),
+        variant: "destructive",
+      })
+    } finally {
+      setRetryingId(null)
+    }
+  }
+
   const getRelativeTime = (dateString: string) => {
     try {
-      const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
-      const date = new Date(utcString)
+      const date = toUtcDate(dateString)
       const now = new Date()
       const diffInHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60))
 
@@ -275,16 +340,137 @@ export function ScheduledFollowupsList({
 
   const formatShortDate = (dateString: string) => {
     try {
-      const utcString = /[Z+-]\d{2}:?\d{2}$/.test(dateString) ? dateString : `${dateString.replace(/Z$/, "")}Z`
-      const date = new Date(utcString)
-      return format(date, "MMM d, h:mm a")
+      return format(toUtcDate(dateString), "MMM d, h:mm a")
     } catch {
       return dateString
     }
   }
 
-  const pillLabel = (status: FollowupStatus | "all") =>
-    status === "all" ? t("list.filterAll") : t(`list.${status}` as "list.pending" | "list.sent")
+  /** Render a single follow-up card. Action area varies by status. */
+  const renderCard = (followup: ScheduledFollowup) => {
+    const { cleanText, urls } = extractUrls(followup.message_text)
+    return (
+      <div key={followup.id} className="rounded-lg border bg-card p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <span className="mt-0.5 shrink-0 text-muted-foreground">
+              {followupTypeIcons[followup.followup_type]}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-semibold">
+                  {followup.customer_name || formatPhoneForDisplay(followup.customer_number) || "—"}
+                </span>
+              </div>
+              {cleanText && (
+                <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{cleanText}</p>
+              )}
+              {urls.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {urls.map((u, i) => (
+                    <a
+                      key={i}
+                      href={u.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary no-underline transition-colors hover:bg-primary/20"
+                    >
+                      <Link2Icon className="h-3 w-3 shrink-0" />
+                      {u.label} →
+                    </a>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
+                {followup.followup_type !== "custom" && (
+                  <> · {followupTypeLabels[followup.followup_type]}</>
+                )}
+              </p>
+              {followup.status === "failed" && followup.error_message && (
+                <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Badge className={statusColors[followup.status]} variant="secondary">
+              {t(`list.${followup.status}` as "list.pending" | "list.sent" | "list.failed" | "list.cancelled")}
+            </Badge>
+            {followup.status === "failed" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                disabled={retryingId === followup.id}
+                onClick={() => handleRetry(followup)}
+              >
+                {retryingId === followup.id ? (
+                  <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCwIcon className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("list.retry")}
+              </Button>
+            )}
+            {followup.status === "pending" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <MoreHorizontalIcon className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onEdit && (
+                    <DropdownMenuItem onClick={() => onEdit(followup)}>
+                      <PencilIcon className="mr-2 h-4 w-4" />
+                      {t("list.edit")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => handleDeleteClick(followup.id)}
+                  >
+                    <TrashIcon className="mr-2 h-4 w-4" />
+                    {t("list.cancelFollowup")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /** A titled group of cards; renders nothing when empty. */
+  const renderSection = (
+    title: string,
+    icon: React.ReactNode,
+    items: ScheduledFollowup[],
+    tone?: "danger",
+  ) => {
+    if (items.length === 0) return null
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-0.5">
+          <span className={cn("shrink-0", tone === "danger" ? "text-red-500" : "text-muted-foreground")}>
+            {icon}
+          </span>
+          <h3
+            className={cn(
+              "text-xs font-semibold uppercase tracking-wider",
+              tone === "danger" ? "text-red-500" : "text-muted-foreground",
+            )}
+          >
+            {title}
+          </h3>
+          <span className="text-xs text-muted-foreground">({items.length})</span>
+        </div>
+        <div className="space-y-2">{items.map(renderCard)}</div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -304,6 +490,8 @@ export function ScheduledFollowupsList({
       </Alert>
     )
   }
+
+  const isFiltering = Boolean(searchQuery) || typeFilter !== "all"
 
   return (
     <div className="space-y-4">
@@ -333,117 +521,38 @@ export function ScheduledFollowupsList({
         </Select>
       </div>
 
-      {/* Status pills */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_PILLS.map((status) => (
-          <button
-            key={status}
-            type="button"
-            onClick={() => setSelectedStatus(status)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-              selectedStatus === status
-                ? "border-transparent bg-foreground text-background"
-                : "bg-background text-muted-foreground hover:bg-muted"
-            )}
-          >
-            {pillLabel(status)}
-          </button>
-        ))}
-      </div>
-
-      {/* Activity feed */}
+      {/* Grouped activity */}
       {filteredFollowups.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <MailIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
           <h3 className="mt-4 text-lg font-semibold">{t("list.noFollowups")}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            {searchQuery || typeFilter !== "all" || selectedStatus !== "all"
-              ? t("list.tryFilters")
-              : t("list.getStarted")}
+            {isFiltering ? t("list.tryFilters") : t("list.getStarted")}
           </p>
+          {!isFiltering && onSchedule && (
+            <Button className="mt-4" onClick={onSchedule}>
+              <SendIcon className="mr-2 h-4 w-4" />
+              {t("list.scheduleFirst")}
+            </Button>
+          )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredFollowups.map((followup) => (
-            <div key={followup.id} className="rounded-lg border bg-card p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="mt-0.5 shrink-0 text-muted-foreground">
-                    {followupTypeIcons[followup.followup_type]}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold">
-                        {followup.customer_name || formatPhoneForDisplay(followup.customer_number) || "—"}
-                      </span>
-                    </div>
-                    {(() => {
-                      const { cleanText, urls } = extractUrls(followup.message_text)
-                      return (
-                        <>
-                          {cleanText && (
-                            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                              {cleanText}
-                            </p>
-                          )}
-                          {urls.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {urls.map((u, i) => (
-                                <a
-                                  key={i}
-                                  href={u.href}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary no-underline transition-colors hover:bg-primary/20"
-                                >
-                                  <Link2Icon className="h-3 w-3 shrink-0" />
-                                  {u.label} →
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
-                      {followup.followup_type !== "custom" && (
-                        <> · {followupTypeLabels[followup.followup_type]}</>
-                      )}
-                    </p>
-                    {followup.status === "failed" && followup.error_message && (
-                      <p className="mt-1 text-xs text-red-500">{followup.error_message}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Badge className={statusColors[followup.status]} variant="secondary">
-                    {t(`list.${followup.status}` as "list.pending" | "list.sent" | "list.failed" | "list.cancelled")}
-                  </Badge>
-                  {followup.status === "pending" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => handleDeleteClick(followup.id)}
-                        >
-                          <TrashIcon className="mr-2 h-4 w-4" />
-                          {t("list.cancelFollowup")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </div>
+        <div className="space-y-5">
+          {renderSection(
+            t("list.needsAttention"),
+            <AlertTriangleIcon className="h-4 w-4" />,
+            failedItems,
+            "danger",
+          )}
+          {renderSection(t("list.upcoming"), <SendIcon className="h-4 w-4" />, upcomingItems)}
+          {renderSection(t("list.history"), <CheckCircle2Icon className="h-4 w-4" />, visibleHistoryItems)}
+          {hasMoreHistory && (
+            <div className="flex justify-center pt-1">
+              <Button variant="outline" onClick={() => setVisibleHistory((c) => c + PAGE_SIZE)}>
+                {t("list.loadMore")}
+              </Button>
             </div>
-          ))}
+          )}
         </div>
       )}
 

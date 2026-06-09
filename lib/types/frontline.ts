@@ -47,18 +47,27 @@ export interface FrontlineSetupGenerateResponse {
   preview: FrontlineSetupPreview
 }
 
-export interface FrontlineKnowledgeDoc {
+export interface FrontlineKnowledgeChunkItem {
   id: number
-  profile_uuid: string
-  sp_id: number | null
-  title: string
-  markdown_text: string
-  version: number
-  created_at: string | null
-  updated_at: string | null
+  source_type: string
+  source_id: string | null
+  section_title: string | null
+  content: string
+  similarity?: number | null
 }
 
-export interface FrontlineKnowledgeIntakeResponse extends FrontlineKnowledgeDoc {
+export interface FrontlineKnowledgeResponse {
+  chunks: FrontlineKnowledgeChunkItem[]
+  count: number
+}
+
+export interface FrontlineKnowledgeIntakeResponse {
+  intake_skipped: boolean
+  intake_skip_reason?: string | null
+  facts_saved?: number
+  facts_inserted?: number
+  facts_updated?: number
+  facts_skipped?: number
   intake_summary?: string | null
 }
 

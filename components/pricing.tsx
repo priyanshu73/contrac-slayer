@@ -21,10 +21,10 @@ export function Pricing() {
 
   const coreFeatures = [
     t("pricingBasic1") || "Lead Generator Agent",
-    t("pricingBasic2") || "AI quote generation",
-    t("pricingBasic3") || "Client management & CRM",
-    t("pricingBasic4") || "Lead tracking & pipeline",
-    t("pricingBasic5") || "Calendar & email sync",
+    t("pricingBasic2") || "AI Receptionist Agent",
+    t("pricingBasic3") || "AI-Powered Quote Generation",
+    t("pricingBasic4") || "Client Management & CRM",
+    t("pricingBasic5") || "Calendar & Email Integration",
     t("pricingWebsite") || "Pro website + maintenance",
   ]
 
@@ -100,8 +100,9 @@ export function Pricing() {
               className="p-[36px] md:border-r md:border-[#F0EDE3]"
             >
               <p className="text-[14px] font-semibold text-[#888780]">{t("monthly")}</p>
+              {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
               <div className="mt-6 flex items-end gap-1">
-                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$139</span>
+                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$180</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
               <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledMonthly")}</p>
@@ -128,8 +129,9 @@ export function Pricing() {
                   <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">{t("pricingSave29")}</span>
                 </div>
               </div>
+              {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($1,800/yr = $150/mo) */}
               <div className="mt-6 flex items-end gap-1">
-                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$99</span>
+                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$150</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
               <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledAnnuallyShort")}</p>

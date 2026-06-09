@@ -34,7 +34,7 @@ type TranscriptItem = {
 }
 
 type Props = {
-  onKnowledgeSaved?: (markdown: string, summary?: string | null) => void
+  onKnowledgeSaved?: (summary?: string | null) => void
   onError?: (message: string) => void
 }
 
@@ -384,8 +384,8 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
               ? summary || "Training skipped — nothing useful was saved to knowledge."
               : summary,
           )
-          if (knowledge?.markdown_text) {
-            onKnowledgeSaved?.(knowledge.markdown_text, savedSession?.intake_summary)
+          if (knowledge && !skipped) {
+            onKnowledgeSaved?.(savedSession?.intake_summary)
           }
           cleanupAudio()
           setVoiceState("completed")
