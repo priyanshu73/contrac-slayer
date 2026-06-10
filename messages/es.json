@@ -1371,6 +1371,7 @@
     "step1": "Info de Empresa y Marca",
     "step2": "Número OpsAI",
     "step3": "Estimador IA",
+    "logoTooLarge": "El logo debe pesar menos de {mb}MB. Elige una imagen más pequeña.",
     "companyInfo": {
       "title": "Información de la Empresa",
       "description": "Cuéntenos sobre su negocio",
@@ -1455,7 +1456,9 @@
       "fileFormats": "PDF, Word (.doc/.docx) o imágenes",
       "uploadOptional": "Opcional — omita ahora y agregue documentos cuando quiera desde Configuración.",
       "filesSelected": "{count, plural, one {# archivo listo} other {# archivos listos}}",
-      "privacyNote": "Los archivos son privados de su cuenta y alimentan su IA — nunca se comparten con otros contratistas."
+      "privacyNote": "Los archivos son privados de su cuenta y alimentan su IA — nunca se comparten con otros contratistas.",
+      "fileTooLarge": "{count, plural, one {# archivo superaba {mb}MB y se omitió} other {# archivos superaban {mb}MB y se omitieron}}",
+      "fileLimit": "Puedes subir hasta {max} archivos."
     },
     "buttons": {
       "back": "Regresar",

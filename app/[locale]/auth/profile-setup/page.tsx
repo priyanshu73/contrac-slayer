@@ -38,6 +38,10 @@ import {
   Shield,
 } from "lucide-react"
 
+// Upload caps — keep in sync with ContractorBackend (Cloudinary logo + onboarding route).
+const MAX_ONBOARDING_FILES = 15
+const MAX_UPLOAD_FILE_SIZE_MB = 20
+
 export default function ProfileSetupPage() {
   const router = useRouter()
   const { refreshUser, user, loading } = useAuth()
@@ -122,6 +126,13 @@ export default function ProfileSetupPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      // Reject oversized logos client-side so they never hit the backend.
+      if (file.size > MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024) {
+        setError(t("logoTooLarge", { mb: MAX_UPLOAD_FILE_SIZE_MB }))
+        e.target.value = ""
+        return
+      }
+      setError("")
       setLogoFile(file)
       // Create preview
       const reader = new FileReader()
@@ -164,7 +175,22 @@ export default function ProfileSetupPage() {
   const handleInvoiceFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
-    setInvoiceFiles((prev) => [...prev, ...Array.from(files)])
+    // Mirror the server caps (ContractorBackend onboarding route) for instant feedback.
+    const sizeLimit = MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024
+    const incoming = Array.from(files)
+    const sized = incoming.filter((f) => f.size <= sizeLimit)
+    const tooBig = incoming.length - sized.length
+    const room = Math.max(0, MAX_ONBOARDING_FILES - invoiceFiles.length)
+    const accepted = sized.slice(0, room)
+    const overflow = sized.length - accepted.length
+
+    if (accepted.length) setInvoiceFiles((prev) => [...prev, ...accepted])
+
+    const notes: string[] = []
+    if (tooBig) notes.push(t("aiEstimator.fileTooLarge", { count: tooBig, mb: MAX_UPLOAD_FILE_SIZE_MB }))
+    if (overflow) notes.push(t("aiEstimator.fileLimit", { max: MAX_ONBOARDING_FILES }))
+    setError(notes.join(" · "))
+
     e.target.value = ""
   }
 
