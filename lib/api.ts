@@ -515,13 +515,16 @@ class ApiClient {
   }
 
   /** Upload onboarding step 3 attachments (invoices/samples). Stored as SUPPORT_TICKET with contractor uuid. */
-  async uploadOnboardingAttachments(files: File[]): Promise<{ attachments_uploaded: number }> {
+  async uploadOnboardingAttachments(
+    files: File[],
+  ): Promise<{ attachments_uploaded: number; skipped?: Array<{ file: string; reason: string }>; remaining?: number; max?: number }> {
     if (!files.length) return { attachments_uploaded: 0 }
     const formData = new FormData()
     for (const file of files) {
       formData.append('files', file)
     }
-    const response = await fetch(`${this.baseURL}/contractors/profile/onboarding-attachments`, {
+    // User-scoped onboarding route: works before a contractor profile exists.
+    const response = await fetch(`${this.baseURL}/onboarding/attachments`, {
       method: 'POST',
       body: formData,
       credentials: 'include',

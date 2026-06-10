@@ -1388,6 +1388,7 @@
     "step1": "Company Info & Branding",
     "step2": "OpsAI Number",
     "step3": "AI Estimator",
+    "logoTooLarge": "Logo must be under {mb}MB. Please choose a smaller image.",
     "companyInfo": {
       "title": "Company Information",
       "description": "Tell us about your business",
@@ -1472,7 +1473,9 @@
       "fileFormats": "PDF, Word (.doc/.docx), or images",
       "uploadOptional": "Optional — skip now and add documents anytime from Settings.",
       "filesSelected": "{count, plural, one {# file ready to upload} other {# files ready to upload}}",
-      "privacyNote": "Files stay private to your account and power your AI — never shared with other contractors."
+      "privacyNote": "Files stay private to your account and power your AI — never shared with other contractors.",
+      "fileTooLarge": "{count, plural, one {# file was over {mb}MB and skipped} other {# files were over {mb}MB and skipped}}",
+      "fileLimit": "You can upload up to {max} files."
     },
     "buttons": {
       "back": "Back",
