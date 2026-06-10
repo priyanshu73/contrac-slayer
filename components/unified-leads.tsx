@@ -230,8 +230,6 @@ interface SummaryFact {
   value: string
 }
 
-const SUMMARY_FACT_LABELS = ['Service', 'Scope', 'Location', 'Next step'] as const
-
 const sentenceCase = (value: string): string => {
   const clean = value.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
   if (!clean) return clean
@@ -258,30 +256,6 @@ const inferServiceLabel = (lead: UnifiedLead, text: string): string => {
   ]
 
   return matches.find(([needle]) => lower.includes(needle))?.[1] || 'General inquiry'
-}
-
-const inferScopeLabel = (lead: UnifiedLead, text: string): string => {
-  const measurement = lead.measurements?.items?.[0]
-  if (measurement) {
-    if (measurement.type === 'dimensions' && measurement.length && measurement.width) {
-      return `${measurement.length} x ${measurement.width} ${measurement.unit || 'ft'}`
-    }
-    if (measurement.value) {
-      return `${measurement.value} ${measurement.unit || (measurement.type === 'square_footage' ? 'sq ft' : 'ft')}`
-    }
-    if (measurement.name || measurement.label) {
-      return measurement.name || measurement.label || 'Measurement provided'
-    }
-  }
-
-  const normalized = text.replace(/\s+/g, ' ')
-  const quantityMatch = normalized.match(/\b(?:around|about|approximately|roughly|~)?\s*(\d[\d,]*(?:\.\d+)?(?:\s*-\s*\d[\d,]*(?:\.\d+)?)?\s*(?:sq\.?\s*ft|square\s*(?:feet|foot)|linear\s*ft|feet|ft|beds?|rooms?))\b/i)
-  if (quantityMatch?.[1]) return quantityMatch[1].replace(/\s+/g, ' ')
-
-  const scopeMatch = normalized.match(/\b(?:for|regarding|about|requesting|needs?)\s+([^.!?]{8,80})/i)
-  if (scopeMatch?.[1]) return sentenceCase(scopeMatch[1].replace(/\b(work|project|done)\b\.?$/i, '').trim())
-
-  return 'Needs clarification'
 }
 
 const inferLocationLabel = (lead: UnifiedLead, text: string): string => {
@@ -314,21 +288,44 @@ const inferNextStepLabel = (text: string): string => {
   return 'Review and follow up'
 }
 
-const buildSummaryFacts = (lead: UnifiedLead, summaryText: string): SummaryFact[] => {
-  const contextText = [
-    summaryText,
-    lead.description,
-    lead.project_type,
-    lead.service_type,
-    lead.address,
-  ].filter(Boolean).join(' ')
+const inferStageLabel = (text: string): string | null => {
+  const lower = text.toLowerCase()
+  // Order matters: check the most specific stage first.
+  if (lower.includes('planning') || lower.includes('plan stage') || lower.includes('early stage')) return 'Planning'
+  if (lower.includes('quote') || lower.includes('estimate') || lower.includes('quoting')) return 'Quoting'
+  if (lower.includes('scheduled') || lower.includes('booked') || lower.includes('appointment set')) return 'Scheduled'
+  if (lower.includes('in progress') || lower.includes('underway') || lower.includes('ongoing')) return 'In progress'
+  if (lower.includes('completed') || lower.includes('finished') || lower.includes('wrapped up')) return 'Completed'
+  return null
+}
 
-  return [
-    { label: SUMMARY_FACT_LABELS[0], value: inferServiceLabel(lead, contextText) },
-    { label: SUMMARY_FACT_LABELS[1], value: inferScopeLabel(lead, contextText) },
-    { label: SUMMARY_FACT_LABELS[2], value: inferLocationLabel(lead, contextText) },
-    { label: SUMMARY_FACT_LABELS[3], value: inferNextStepLabel(contextText) },
+// Title shown in the AI summary header, e.g. "Johnson · bathroom renovation".
+const buildSummaryTitle = (lead: UnifiedLead, summaryText: string): string => {
+  const contextText = [summaryText, lead.description, lead.project_type, lead.service_type].filter(Boolean).join(' ')
+  const service = inferServiceLabel(lead, contextText)
+  const serviceLabel = service !== 'General inquiry' ? service.toLowerCase() : null
+  const name = lead.name?.trim()
+  if (name) return serviceLabel ? `${name} · ${serviceLabel}` : name
+  return serviceLabel ? sentenceCase(serviceLabel) : 'Call summary'
+}
+
+// Only the scannable facts the prose doesn't already carry; placeholders are dropped.
+const buildFooterFacts = (lead: UnifiedLead, summaryText: string): SummaryFact[] => {
+  const contextText = [summaryText, lead.description, lead.project_type, lead.service_type, lead.address].filter(Boolean).join(' ')
+  const candidates: Array<SummaryFact | null> = [
+    (() => { const v = inferLocationLabel(lead, contextText); return v === 'No address on file' ? null : { label: 'Location', value: v } })(),
+    (() => { const v = inferStageLabel(contextText); return v ? { label: 'Stage', value: v } : null })(),
+    (() => { const v = inferNextStepLabel(contextText); return v === 'Review and follow up' ? null : { label: 'Next step', value: v } })(),
   ]
+  return candidates.filter((f): f is SummaryFact => f !== null)
+}
+
+// Drops a redundant "<Name> called regarding/about …" lead-in since the title already carries who + what.
+const cleanNarrative = (text: string): string => {
+  const introRe = /^\s*[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]+){0,2}\s+(?:called|phoned|reached out|contacted us|got in touch)\s+(?:regarding|about|concerning|to discuss|to ask about|asking about|to inquire about)\s+/
+  const stripped = text.replace(introRe, '').trimStart()
+  if (!stripped || stripped === text.trimStart()) return text
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1)
 }
 
 const formatBrowserPhoneTime = (): string => {
@@ -1595,15 +1592,13 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* AI Summary from contractor-ai (for call leads and consolidated leads) */}
               {lead.summary_text && (() => {
                 const SUMMARY_CAP = 360
-                const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
+                const rawSummary = cleanNarrative(stripMarkdownBold(translatedSummary || lead.summary_text))
                 const isLong = rawSummary.length > SUMMARY_CAP
                 const displaySummary = isLong && !summaryCardExpanded
                   ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                   : rawSummary
-                const summaryFacts = buildSummaryFacts(lead, lead.summary_text)
-                const summaryTitle = summaryFacts[0]?.value && summaryFacts[0].value !== 'General inquiry'
-                  ? `${summaryFacts[0].value} request`
-                  : 'Call summary'
+                const footerFacts = buildFooterFacts(lead, lead.summary_text)
+                const summaryTitle = buildSummaryTitle(lead, lead.summary_text)
                 return (
                   <div id="lead-detail-ai-summary" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
@@ -1646,17 +1641,6 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     <p className="mt-3 text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap break-words">
                       {displaySummary}
                     </p>
-                    <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
-                      {summaryFacts.map((fact) => (
-                        <div key={fact.label} className="rounded-xl border border-border bg-background px-3 py-3">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">{fact.label}</span>
-                          </div>
-                          <p className="mt-1.5 text-sm font-semibold leading-snug text-foreground">{fact.value}</p>
-                        </div>
-                      ))}
-                    </div>
                     {isLong && (
                       <button
                         onClick={() => setSummaryCardExpanded(v => !v)}
@@ -1664,6 +1648,16 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       >
                         {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
                       </button>
+                    )}
+                    {footerFacts.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-border pt-4">
+                        {footerFacts.map((fact) => (
+                          <div key={fact.label} className="min-w-0">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{fact.label}</p>
+                            <p className="mt-1 text-sm font-semibold leading-snug text-foreground break-words">{fact.value}</p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                     {translatedSummary && (
                       <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>
@@ -1937,15 +1931,13 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     </Card>
                     {lead.summary_text && (() => {
                       const SUMMARY_CAP = 320
-                      const rawSummary = stripMarkdownBold(translatedSummary || lead.summary_text)
+                      const rawSummary = cleanNarrative(stripMarkdownBold(translatedSummary || lead.summary_text))
                       const isLong = rawSummary.length > SUMMARY_CAP
                       const displaySummary = isLong && !summaryCardExpanded
                         ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                         : rawSummary
-                      const summaryFacts = buildSummaryFacts(lead, lead.summary_text)
-                      const summaryTitle = summaryFacts[0]?.value && summaryFacts[0].value !== 'General inquiry'
-                        ? `${summaryFacts[0].value} request`
-                        : 'Call summary'
+                      const footerFacts = buildFooterFacts(lead, lead.summary_text)
+                      const summaryTitle = buildSummaryTitle(lead, lead.summary_text)
                       return (
                       <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                         <div className="flex items-center justify-between gap-2">
@@ -1974,14 +1966,6 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         <p className="mt-3 text-sm text-foreground/80 whitespace-pre-wrap break-words leading-relaxed">
                           {displaySummary}
                         </p>
-                        <div className="mt-3 grid grid-cols-1 gap-2">
-                          {summaryFacts.map((fact) => (
-                            <div key={fact.label} className="rounded-xl border border-border bg-background px-3 py-2.5">
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{fact.label}</p>
-                              <p className="mt-1 text-sm font-semibold text-foreground">{fact.value}</p>
-                            </div>
-                          ))}
-                        </div>
                         {isLong && (
                           <button
                             onClick={() => setSummaryCardExpanded(v => !v)}
@@ -1989,6 +1973,16 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           >
                             {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
                           </button>
+                        )}
+                        {footerFacts.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 border-t border-border pt-3">
+                            {footerFacts.map((fact) => (
+                              <div key={fact.label} className="min-w-0">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{fact.label}</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground break-words">{fact.value}</p>
+                              </div>
+                            ))}
+                          </div>
                         )}
                         {translatedSummary && <p className="text-[10px] mt-2 text-muted-foreground italic">{tTranslation('translated')}</p>}
                       </div>
