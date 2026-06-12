@@ -210,6 +210,7 @@ interface UnifiedLead {
   interaction_id?: string
   interaction_type?: 'phone_call' | 'frontline_voice' | string
   is_frontline_ai?: boolean
+  has_sms?: boolean // Lead also has an inbound SMS thread (text-first or follow-up texts)
   _needsCallDataLoad?: boolean // Internal flag to load call data for consolidated leads
 
   // Multiple form submissions for same phone
@@ -447,6 +448,7 @@ export function UnifiedLeads() {
           interaction_id: callInteractionId,
           interaction_type: lead.interaction_type,
           is_frontline_ai: isFrontlineVoice,
+          has_sms: lead.has_sms,
           source: lead.source,
           quote_requests: lead.quote_requests || [],
           // Enrichment flags
@@ -872,6 +874,12 @@ export function UnifiedLeads() {
                 {lead.is_frontline_ai ? <Bot className="h-2.5 w-2.5" /> : <Link2 className="h-2.5 w-2.5" />}
                 {sourceLabel}
               </span>
+              {lead.has_sms && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-medium">
+                  <MessageSquare className="h-2.5 w-2.5" />
+                  Text
+                </span>
+              )}
             </div>
           </div>
         </div>
