@@ -615,9 +615,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             {effectiveStatus === "PAUSED" && (
               <ActionButton label="Resume" icon={<Play />} action="resume" pending={pendingAction} run={runAction} />
             )}
-            {effectiveStatus === "SENDING" && (
-              <ActionButton label="Send Now" icon={<Send />} action="send" pending={pendingAction} run={runAction} />
-            )}
 
             {/* Delete — far right */}
             <div className="ml-auto">
