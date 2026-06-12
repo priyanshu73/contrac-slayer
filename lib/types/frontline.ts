@@ -13,6 +13,7 @@ export interface FrontlineSettings {
   custom_voice_enabled: boolean
   operator_display_name: string | null
   operator_voice_id: string | null
+  escalation_number: string | null
   initial_setup_done: boolean
   business_display_name: string | null
   receptionist_system_prompt: string | null
