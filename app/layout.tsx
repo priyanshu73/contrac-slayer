@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
 import { MobileThemeSync } from "@/components/mobile-theme-sync"
+import { GoogleAnalytics } from "@/components/google-analytics"
 import "./globals.css"
 
 const mobileThemeScript = `try{if(localStorage.getItem("contractorops-mobile-dark-mode")==="true"){document.documentElement.classList.add("mobile-dark")}}catch(e){}`
@@ -49,6 +50,7 @@ export default function RootLayout({
         {children}
         <Toaster />
         <Analytics />
+        <GoogleAnalytics />
       </body>
     </html>
   )

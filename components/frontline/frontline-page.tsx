@@ -949,6 +949,7 @@ export function FrontlinePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [operatorEditing, setOperatorEditing] = useState(false);
   const [operatorDraftVoiceId, setOperatorDraftVoiceId] = useState("matthew");
+  const [escalationDraft, setEscalationDraft] = useState("");
 
   const activeMode: FrontlineMode = settings?.enabled ? settings.mode : "off";
 
@@ -985,6 +986,11 @@ export function FrontlinePage() {
     if (!settings) return;
     setOperatorDraftVoiceId(settings.operator_voice_id || "matthew");
   }, [settings?.operator_voice_id]);
+
+  useEffect(() => {
+    if (!settings) return;
+    setEscalationDraft(settings.escalation_number || "");
+  }, [settings?.escalation_number]);
 
   const flashSuccess = (message: string) => {
     setSuccess(message);
@@ -1459,6 +1465,52 @@ export function FrontlinePage() {
                       disabled={!settings.initial_setup_done}
                       aria-label="Enable voice calls"
                     />
+                  </div>
+                )}
+
+                {settings && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                        <Phone className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-slate-950">Escalation contact</div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Number the operator calls/notifies on an emergency or escalation.
+                          Leave blank to use your account phone number.
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            value={escalationDraft}
+                            onChange={(e) => setEscalationDraft(e.target.value)}
+                            placeholder="+1 555 123 4567"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-slate-400"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                              saving ||
+                              escalationDraft.trim() === (settings.escalation_number || "")
+                            }
+                            onClick={() =>
+                              void saveSettings({ escalation_number: escalationDraft.trim() })
+                            }
+                            className="rounded-xl bg-slate-950 text-white hover:bg-slate-800"
+                          >
+                            {saving ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </Surface>
