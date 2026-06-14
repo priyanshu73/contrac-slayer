@@ -7,14 +7,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import { X, Sparkles, ArrowRight } from "lucide-react"
 import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
 import { useAuth } from "@/contexts/AuthContext"
-
-// Fire a GA4 event when gtag is present. GA only loads on the prod hostname, so
-// this is a safe no-op on localhost/dev (and SSR).
-function track(event: string, params?: Record<string, unknown>) {
-  if (typeof window === "undefined") return
-  const w = window as unknown as { gtag?: (...args: unknown[]) => void }
-  if (typeof w.gtag === "function") w.gtag("event", event, params ?? {})
-}
+import { trackGA as track, trackTikTok } from "@/lib/analytics"
 
 // On-theme confetti (grass greens + gold) that rains once behind the modal copy.
 const CONFETTI_COLORS = ["#16a34a", "#22c55e", "#84cc16", "#f59e0b", "#facc15", "#0ea5e9"]
@@ -176,6 +169,7 @@ export function AdWelcome() {
   }
   const handleCtaClick = (where: "modal" | "bar") => {
     track("ad_nudge_cta_click", { nudge_location: where })
+    trackTikTok("ClickButton", { content_name: `ad_nudge_${where}` })
     // They clicked through to signup — quiet BOTH surfaces so we don't keep
     // nudging them if they come back to the landing page.
     localStorage.setItem(BAR_DISMISSED, "1")

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AuthPasswordInput } from "../_components/auth-password-input"
 import { api } from "@/lib/api"
+import { trackGA, trackTikTok } from "@/lib/analytics"
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -105,7 +106,12 @@ export default function SignupPage() {
 
     try {
       await api.signup(formData.email, formData.password, formData.full_name)
-      
+
+      // Ad-conversion events — the signup is the key conversion. No-op off prod
+      // (gtag/ttq only load on the production hostname).
+      trackGA("sign_up", { method: "email" })
+      trackTikTok("CompleteRegistration")
+
       // Track referral if present (don't await - fire and forget)
       trackReferral(formData.full_name)
       
