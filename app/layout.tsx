@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
 import { MobileThemeSync } from "@/components/mobile-theme-sync"
 import { GoogleAnalytics } from "@/components/google-analytics"
+import { TikTokPixel } from "@/components/tiktok-pixel"
 import "./globals.css"
 
 const mobileThemeScript = `try{if(localStorage.getItem("contractorops-mobile-dark-mode")==="true"){document.documentElement.classList.add("mobile-dark")}}catch(e){}`
@@ -51,6 +52,7 @@ export default function RootLayout({
         <Toaster />
         <Analytics />
         <GoogleAnalytics />
+        <TikTokPixel />
       </body>
     </html>
   )
