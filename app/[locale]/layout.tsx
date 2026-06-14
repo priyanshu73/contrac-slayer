@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext"
 import { ReferralProvider } from "@/contexts/ReferralContext"
 import { AuthGuard } from "@/components/auth-guard"
 import { ConditionalShell } from "@/components/conditional-shell"
+import { AdWelcome } from "@/components/ad-welcome"
 import { generateMetadata } from './metadata'
 
 export { generateMetadata }
@@ -41,6 +42,7 @@ export default async function LocaleLayout({
                   {children}
                 </ConditionalShell>
               </AuthGuard>
+              <AdWelcome />
             </ReferralProvider>
           </Suspense>
         </LanguageProvider>

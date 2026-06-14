@@ -820,3 +820,20 @@
   0% { transform: scale(1); }
   100% { transform: scale(1.06); }
 }
+
+/* AdWelcome modal confetti — one-shot fall + spin + fade. */
+@keyframes ad-confetti-fall {
+  0% { transform: translateY(-16px) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateY(380px) rotate(var(--ad-confetti-rot, 360deg)); opacity: 0; }
+}
+.ad-confetti-piece {
+  animation-name: ad-confetti-fall;
+  animation-timing-function: cubic-bezier(0.3, 0.7, 0.5, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ad-confetti-piece { animation: none; display: none; }
+}
