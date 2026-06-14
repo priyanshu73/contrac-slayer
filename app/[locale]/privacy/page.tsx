@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">4. Third-Party Services and Sharing</h2>
             <p className="text-muted-foreground leading-relaxed">
-              We use third-party services to run the Service. These may include cloud hosting, email delivery (e.g., Gmail API when you connect Gmail), SMS (e.g., Twilio), payment processing (e.g., Stripe), and analytics. These providers have their own privacy policies and process data as necessary to provide their services to us. We do not sell your personal information. We may share information with your consent, to comply with law, or to protect rights and safety.
+              We use third-party services to run the Service. These may include cloud hosting, email delivery (e.g., Gmail API when you connect Gmail), SMS (e.g., Twilio), payment processing (e.g., Stripe), analytics (e.g., Google Analytics), and advertising and measurement partners (e.g., TikTok) that help us run and measure marketing campaigns. These providers have their own privacy policies and process data as necessary to provide their services to us. We do not sell your personal information for money; however, our use of analytics and advertising technologies may be considered &quot;sharing&quot; or a &quot;sale&quot; for cross-context behavioral advertising under some privacy laws. We may share information with your consent, to comply with law, or to protect rights and safety.
             </p>
           </section>
 
@@ -76,7 +76,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">6. Cookies and Similar Technologies</h2>
             <p className="text-muted-foreground leading-relaxed">
-              We use cookies and similar technologies for authentication, preferences, and to understand how the Service is used. You can control cookies through your browser settings.
+              We use cookies and similar technologies for authentication, preferences, and to understand how the Service is used. We also use analytics and advertising technologies — including Google Analytics and the TikTok Pixel — which set cookies and may share information with these providers (such as a hashed version of your email, device or cookie identifiers, pages viewed, and on-site actions) to measure conversions and improve our advertising. You can control cookies through your browser settings, opt out of Google Analytics using Google&apos;s opt-out browser add-on, and manage personalized-ads settings in your TikTok account.
             </p>
           </section>
 
