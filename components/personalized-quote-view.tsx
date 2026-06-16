@@ -25,6 +25,7 @@ import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
 import { SignatureCapture } from "@/components/signature-capture"
+import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -196,7 +197,9 @@ export function PersonalizedQuoteView({
     }
 
     fetchContractorProfile()
-    fetchJobSignature()
+    if (SIGNATURE_FEATURE_ENABLED) {
+      fetchJobSignature()
+    }
   }, [job.id, job.contractor, isContractor, isPublicView])
 
   const fetchContractorProfile = async () => {
@@ -476,10 +479,10 @@ export function PersonalizedQuoteView({
   const activityItems = [
     { label: "Quote created", value: formatDate(currentJob.created_at) },
     currentJob.updated_at ? { label: "Last updated", value: formatDate(currentJob.updated_at) } : null,
-    currentJob.signature?.contractor_signed_at
+    SIGNATURE_FEATURE_ENABLED && currentJob.signature?.contractor_signed_at
       ? { label: "Signed by contractor", value: formatDate(currentJob.signature.contractor_signed_at) }
       : null,
-    currentJob.signature?.customer_signed_at
+    SIGNATURE_FEATURE_ENABLED && currentJob.signature?.customer_signed_at
       ? { label: "Signed by customer", value: formatDate(currentJob.signature.customer_signed_at) }
       : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>
@@ -520,10 +523,7 @@ export function PersonalizedQuoteView({
                     <span className="inline-flex">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            className={inlineActionButtonClass}
-                            disabled={!currentJob.signature?.contractor_signed_at}
-                          >
+                          <Button className={inlineActionButtonClass}>
                             <Send className="mr-2 h-4 w-4 shrink-0" />
                             {t("sendToClient")}
                           </Button>
@@ -575,17 +575,8 @@ export function PersonalizedQuoteView({
                       </DropdownMenu>
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent
-                    side="bottom"
-                    className={
-                      !currentJob.signature?.contractor_signed_at
-                        ? "max-w-xs border-amber-500/80 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600"
-                        : "max-w-xs"
-                    }
-                  >
-                    {!currentJob.signature?.contractor_signed_at
-                      ? t("sendToClientTooltipSignFirst")
-                      : "Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link."}
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link.
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -860,7 +851,7 @@ export function PersonalizedQuoteView({
                     </div>
                     <div className="text-right">
                       <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">QUOTE</h2>
-                      {!isPublicView && (!currentJob.signature?.contractor_signed_at || currentJob.status.toString().toUpperCase() !== 'DRAFT') && (
+                      {!isPublicView && (
                         <div className="inline-block print:hidden">
                           <Badge className={`${getStatusColor(currentJob.status)} text-xs print:text-xs`}>
                             {currentJob.status}
@@ -973,7 +964,11 @@ export function PersonalizedQuoteView({
                         {(currentJob.items || []).map((item: any, index: number) => {
                           // Handle both JobItem interface and API response format
                           const itemTitle = item.title || ""
-                          const customDescription = item.custom_description || item.description || "Line Item"
+                          const itemDescription = item.custom_description || item.description || ""
+                          // Show the title row only when both title and description exist.
+                          // If only one is present, display it as the single main line.
+                          const showTitleRow = Boolean(itemTitle && itemDescription)
+                          const customDescription = itemDescription || itemTitle || "Line Item"
                           const thumbnailUrl = item.thumbnail_url || item.thumbnailUrl
                           const costPerUnit = item.cost_per_unit || item.costPerUnit || item.rate || 0
                           const markupPercentage = item.markup_percentage || item.markupPercentage || 0
@@ -1002,7 +997,7 @@ export function PersonalizedQuoteView({
                                       </div>
                                     )}
                                     <div className="min-w-0 flex-1">
-                                      {itemTitle && (
+                                      {showTitleRow && (
                                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide print:text-[10px]">
                                           {itemTitle}
                                         </p>
@@ -1180,6 +1175,7 @@ export function PersonalizedQuoteView({
                 )}
 
                 {/* Signatures Section */}
+                {SIGNATURE_FEATURE_ENABLED && (
                 <div className="mt-4 sm:mt-8 print:mt-4 pt-4 sm:pt-6 print:pt-3 border-t-2 border-gray-300 print:break-inside-avoid">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 print:gap-4">
                     {/* Contractor Signature */}
@@ -1346,6 +1342,7 @@ export function PersonalizedQuoteView({
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Terms & Notes */}
                 {(currentJob.payment_terms || currentJob.customer_notes) && (
@@ -1487,7 +1484,7 @@ export function PersonalizedQuoteView({
         </div>
 
         {/* Signature Capture Modals */}
-        {showContractorSignature && (
+        {SIGNATURE_FEATURE_ENABLED && showContractorSignature && (
           <SignatureCapture
             customerName={contractorProfile?.company_name || "Contractor"}
             onComplete={handleContractorSignatureComplete}
@@ -1496,7 +1493,7 @@ export function PersonalizedQuoteView({
           />
         )}
 
-        {showCustomerSignature && (
+        {SIGNATURE_FEATURE_ENABLED && showCustomerSignature && (
           <SignatureCapture
             customerName={currentJob.client?.name || "Customer"}
             onComplete={handleCustomerSignatureComplete}

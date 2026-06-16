@@ -1957,6 +1957,7 @@ class ApiClient {
     beforeImages: File[]
     afterImageDescription: string
     userPrompt?: string
+    includeProjectContext?: boolean
     lineItems?: Array<{
       title?: string
       description?: string
@@ -1984,6 +1985,10 @@ class ApiClient {
     formData.append('after_image_description', params.afterImageDescription)
     formData.append('user_prompt', params.userPrompt || '')
     formData.append('line_items_json', JSON.stringify(params.lineItems || []))
+    formData.append(
+      'include_project_context',
+      String(params.includeProjectContext ?? true),
+    )
 
     const response = await fetch(`${this.baseURL}/jobs/${jobId}/generate-after-images`, {
       method: 'POST',

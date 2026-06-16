@@ -490,11 +490,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false)
 
   // When the builder opens with a pre-determined client context (from a lead,
-  // client, project, or an existing quote), the client is already decided.
-  // Lock the project/client controls so changing the project can't silently
-  // swap the client out and break the lead -> quote linkage. Captured once on
-  // mount because onProjectContextChange rewrites the clientId/projectId params.
-  const [clientContextLocked] = useState<boolean>(
+  // client, project, or an existing quote), the client may already be decided.
+  // Captured once on mount because onProjectContextChange rewrites the
+  // clientId/projectId params.
+  const [hadInitialClientContext] = useState<boolean>(
     () => Boolean(leadId || clientId || projectId || initialData?.client_id)
   )
 
@@ -504,6 +503,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [showClientSuggestions, setShowClientSuggestions] = useState(false)
   const [loadingClients, setLoadingClients] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
+
+  // Lock the project/client controls only once an actual client is resolved, so
+  // changing the project can't silently swap the client out and break the
+  // lead/client -> quote linkage. A quote opened from a clientless project (or a
+  // lead with no client record yet) stays editable so the user can still pick or
+  // enter a client instead of being stuck.
+  const clientContextLocked = hadInitialClientContext && selectedClientId != null
 
   // Additional details states
   const [notes, setNotes] = useState("")
@@ -1852,32 +1858,38 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   )}
                 </div>
 
+                {!selectedClientId && (
+                  <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                    </svg>
+                    <span>
+                      No client selected. Search for an existing client by name, email, or phone below, or enter new client details to create one with this quote.
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="client-name">Client Name *</Label>
                       {selectedClientId && (
-                        clientContextLocked ? (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center gap-1 shrink-0">
-                            Using Existing Client
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setSelectedClientId(null)
-                              toast({
-                                title: "Client selection cleared",
-                                description: "You can now enter new client information",
-                              })
-                            }}
-                            className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
-                          >
-                            <span>Using Existing Client</span>
-                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )
+                        <button
+                          onClick={() => {
+                            setSelectedClientId(null)
+                            toast({
+                              title: "Client selection cleared",
+                              description: "You can now choose a different client or enter new client information",
+                            })
+                          }}
+                          className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
+                          title="Change client"
+                        >
+                          <span>Using Existing Client</span>
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       )}
                     </div>
                     <Input

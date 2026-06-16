@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { ProductSelector } from "@/components/product-selector"
 import { SignatureCapture } from "@/components/signature-capture"
+import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 
 interface LineItem {
   id: number
@@ -321,7 +322,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
                 Send Suggested Changes to Contractor
               </Button>
             </div>
-          ) : (
+          ) : SIGNATURE_FEATURE_ENABLED ? (
             <div className="space-y-4">
               <Button size="lg" className="w-full" onClick={handleAcceptQuote}>
                 <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +339,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
                 By accepting, you agree to the terms and pricing outlined above
               </p>
             </div>
-          )}
+          ) : null}
         </Card>
       </div>
 
@@ -355,7 +356,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
       )}
 
       {/* Signature Capture Modal */}
-      {showSignature && (
+      {SIGNATURE_FEATURE_ENABLED && showSignature && (
         <SignatureCapture
           customerName={quote.customerName}
           onComplete={handleSignatureComplete}
