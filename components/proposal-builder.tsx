@@ -1777,9 +1777,20 @@ export function ProposalBuilder({
     if (!files || files.length === 0) return
     setUploadingPageId(pageId)
     try {
+      // Standalone proposals have no job, so write to the project's media (same
+      // attachment table the builder already reads from in proposal mode). The
+      // job path is kept for quote-linked proposals. Either way the returned
+      // ProjectMedia (id + file_url) is embedded into the document JSON, so
+      // reload identifies the image from the block, not the upload parent.
       const uploadJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id
-      if (!uploadJobId) throw new Error("No quote to upload media to")
-      const uploaded = (await api.uploadQuoteMedia(uploadJobId, Array.from(files))) as ProjectMedia[]
+      let uploaded: ProjectMedia[]
+      if (isProposalMode && proposal?.project_id) {
+        uploaded = (await api.uploadProjectMedia(proposal.project_id, Array.from(files), "PROJECT_PHOTO")) as ProjectMedia[]
+      } else if (uploadJobId) {
+        uploaded = (await api.uploadQuoteMedia(uploadJobId, Array.from(files))) as ProjectMedia[]
+      } else {
+        throw new Error("No quote or project to upload media to")
+      }
       const imageBlocks = await Promise.all(uploaded.map((media) => createImageBlock(media)))
       updateDocument((current) =>
         updatePage(current, pageId, (page) => ({
