@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -20,6 +21,7 @@ import {
   ChevronDown,
   Download,
   ImagePlus,
+  Info,
   Loader2,
   Sparkles,
   Trash2,
@@ -237,6 +239,7 @@ export function BeforeAfterPanel({
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
   const [selectedLineItems, setSelectedLineItems] = useState<Record<number, boolean>>({})
   const [afterImageDescription, setAfterImageDescription] = useState("")
+  const [includeProjectContext, setIncludeProjectContext] = useState(true)
 
   const usableLineItems = lineItems
     .map((item, index) => ({ ...item, originalIndex: index }))
@@ -335,6 +338,7 @@ export function BeforeAfterPanel({
           .map((pair) => pair.beforeFile)
           .filter((file): file is File => Boolean(file)),
         afterImageDescription: afterImageDescription.trim(),
+        includeProjectContext,
         lineItems: selectedUsableLineItems.map((item) => ({
           title: item.title,
           description: item.description,
@@ -533,6 +537,26 @@ export function BeforeAfterPanel({
                 Photo ready
               </span>
             )}
+          </div>
+
+          {/* Project context toggle */}
+          <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2.5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-700">
+                <Info className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                Project context included
+              </div>
+              <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">
+                Adds this project&apos;s objective and scope (or its proposal) so the render
+                better matches the job. Turn off to use only the selected quote items.
+              </p>
+            </div>
+            <Switch
+              checked={includeProjectContext}
+              onCheckedChange={setIncludeProjectContext}
+              aria-label="Include project context in generation"
+              className="mt-0.5 shrink-0"
+            />
           </div>
         </div>
 

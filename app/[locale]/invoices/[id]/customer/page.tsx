@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { InvoiceView } from "@/components/invoice-view"
 import { SignatureCapture } from "@/components/signature-capture"
+import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -167,13 +168,13 @@ export default function CustomerInvoicePage() {
             invoice={invoice}
             isCustomerView={true}
             onPayment={handlePayment}
-            onSignature={handleSignature}
+            onSignature={SIGNATURE_FEATURE_ENABLED ? handleSignature : undefined}
             showActions={true}
           />
         </div>
 
         {/* Signature Modal */}
-        {showSignature && (
+        {SIGNATURE_FEATURE_ENABLED && showSignature && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">

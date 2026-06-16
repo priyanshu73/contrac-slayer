@@ -30,7 +30,15 @@ export type FeatureGroup = {
   features: Feature[]
 }
 
-export const featureGroups: FeatureGroup[] = [
+/**
+ * E-signature feature switch. Set to `false` to hide the entire signature UI
+ * (quote signing buttons/modals, signature display, this "Contracts & Signature"
+ * marketing entry, and the public invoice signing page). Backend endpoints, models,
+ * and stored signature data are left untouched, so re-enabling is non-destructive.
+ */
+export const SIGNATURE_FEATURE_ENABLED = false
+
+const featureGroupsRaw: FeatureGroup[] = [
   {
     name: "Revenue Command",
     label: "Pricing, margins, and money movement",
@@ -200,6 +208,15 @@ export const featureGroups: FeatureGroup[] = [
     ],
   },
 ]
+
+const HIDDEN_FEATURE_SLUGS = SIGNATURE_FEATURE_ENABLED ? [] : ["contracts-signature"]
+
+export const featureGroups: FeatureGroup[] = featureGroupsRaw
+  .map((group) => ({
+    ...group,
+    features: group.features.filter((feature) => !HIDDEN_FEATURE_SLUGS.includes(feature.slug)),
+  }))
+  .filter((group) => group.features.length > 0)
 
 export const features = featureGroups.flatMap((group) =>
   group.features.map((feature) => ({ ...feature, groupName: group.name, groupLabel: group.label })),
