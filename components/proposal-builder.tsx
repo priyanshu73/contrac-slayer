@@ -51,14 +51,14 @@ import type {
 // ─── Typography ──────────────────────────────────────────────────────────────
 
 export const PROPOSAL_FONTS = [
-  { id: "inter",             name: "Inter",              stack: "Inter, system-ui, sans-serif",                    google: null },
-  { id: "playfair",          name: "Playfair Display",   stack: "'Playfair Display', Georgia, serif",              google: "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600" },
-  { id: "cormorant",         name: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif",            google: "Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
-  { id: "merriweather",      name: "Merriweather",       stack: "Merriweather, Georgia, serif",                    google: "Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400" },
-  { id: "libre-baskerville", name: "Libre Baskerville",  stack: "'Libre Baskerville', Georgia, serif",             google: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
-  { id: "lato",              name: "Lato",               stack: "Lato, Arial, sans-serif",                         google: "Lato:ital,wght@0,300;0,400;0,700;1,300;1,400" },
-  { id: "raleway",           name: "Raleway",            stack: "Raleway, Arial, sans-serif",                      google: "Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
-  { id: "source-serif",      name: "Source Serif 4",     stack: "'Source Serif 4', Georgia, serif",                google: "Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400" },
+  { id: "inter", name: "Inter", stack: "Inter, system-ui, sans-serif", google: null },
+  { id: "playfair", name: "Playfair Display", stack: "'Playfair Display', Georgia, serif", google: "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600" },
+  { id: "cormorant", name: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif", google: "Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "merriweather", name: "Merriweather", stack: "Merriweather, Georgia, serif", google: "Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "libre-baskerville", name: "Libre Baskerville", stack: "'Libre Baskerville', Georgia, serif", google: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
+  { id: "lato", name: "Lato", stack: "Lato, Arial, sans-serif", google: "Lato:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "raleway", name: "Raleway", stack: "Raleway, Arial, sans-serif", google: "Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "source-serif", name: "Source Serif 4", stack: "'Source Serif 4', Georgia, serif", google: "Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400" },
 ] as const
 
 export type ProposalFontId = (typeof PROPOSAL_FONTS)[number]["id"]
@@ -227,9 +227,9 @@ function buildInitialProposalDocument(job: Job, contractorName: string, t: Propo
       date: job.proposal_document.date || today,
       pages: Array.isArray(job.proposal_document.pages)
         ? job.proposal_document.pages.map((page, pageIndex) => ({
-            ...page,
-            title: normalizePageTitle(page.title, pageIndex),
-          }))
+          ...page,
+          title: normalizePageTitle(page.title, pageIndex),
+        }))
         : [],
     }
   }
@@ -542,6 +542,7 @@ function ImageBlockEditor({
               ...block.annotations,
               {
                 id: createId("stroke"),
+                type: "stroke",
                 color: strokeColor,
                 width: strokeWidth,
                 points: finishedPoints,
@@ -596,9 +597,9 @@ function ImageBlockEditor({
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
             {([
-              { icon: AlignLeft,   value: "left"   },
+              { icon: AlignLeft, value: "left" },
               { icon: AlignCenter, value: "center" },
-              { icon: AlignRight,  value: "right"  },
+              { icon: AlignRight, value: "right" },
             ] as const).map(({ icon: Icon, value }, i) => {
               const isActive = (block.alignment ?? "left") === value
               return (
@@ -771,98 +772,107 @@ function ImageBlockEditor({
         "flex w-full",
         block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
       )}>
-      <div
-        ref={wrapperRef}
-        className={cn(
-          "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
-          !readOnly && "touch-none select-none",
-          drawMode && !readOnly && "cursor-crosshair",
-        )}
-        style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
-        onPointerDown={(event) => {
-          if (readOnly || !drawMode || !wrapperRef.current) return
-          event.preventDefault()
-          wrapperRef.current.setPointerCapture?.(event.pointerId)
-          const rect = wrapperRef.current.getBoundingClientRect()
-          const point = {
-            x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-            y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-          }
-          drawStateRef.current = { pointerId: event.pointerId, points: [point] }
-          setDraftPoints([point])
-        }}
-      >
-        <img
-          src={block.url}
-          alt={block.file_name || t("imageEditor.imageAlt")}
-          className="pointer-events-none h-full w-full select-none object-contain"
-          draggable={false}
-          onDragStart={(event) => event.preventDefault()}
-        />
+        <div
+          ref={wrapperRef}
+          className={cn(
+            "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
+            !readOnly && "touch-none select-none",
+            drawMode && !readOnly && "cursor-crosshair",
+          )}
+          style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
+          onPointerDown={(event) => {
+            if (readOnly || !drawMode || !wrapperRef.current) return
+            event.preventDefault()
+            wrapperRef.current.setPointerCapture?.(event.pointerId)
+            const rect = wrapperRef.current.getBoundingClientRect()
+            const point = {
+              x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+              y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+            }
+            drawStateRef.current = { pointerId: event.pointerId, points: [point] }
+            setDraftPoints([point])
+          }}
+        >
+          <img
+            src={block.url}
+            alt={block.file_name || "Proposal image"}
+            className="pointer-events-none h-full w-full select-none object-contain"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+          />
 
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${block.width} ${block.height}`} preserveAspectRatio="none">
-          {block.annotations.map((stroke) => (
-            <StrokePath key={stroke.id} stroke={stroke} width={block.width} height={block.height} />
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${block.width} ${block.height}`} preserveAspectRatio="none">
+            {block.annotations.map((annotation) => {
+              if (annotation.type !== "stroke") return null
+
+              return (
+                <StrokePath
+                  key={annotation.id}
+                  stroke={annotation}
+                  width={block.width}
+                  height={block.height}
+                />
+              )
+            })}
+            {draftPoints.length >= 2 ? (
+              <path
+                d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : null}
+          </svg>
+
+          {block.textOverlays.map((overlay) => (
+            <div
+              key={overlay.id}
+              className={cn(
+                "absolute select-none rounded-md px-3 py-1.5 shadow-lg",
+                !readOnly && "cursor-move",
+                selectedOverlayId === overlay.id && !readOnly && "ring-2 ring-sky-400",
+              )}
+              style={{
+                left: `${overlay.x * 100}%`,
+                top: `${overlay.y * 100}%`,
+                transform: "translate(-50%, -50%)",
+                color: overlay.color,
+                fontSize: `${overlay.fontSize}px`,
+                fontWeight: overlay.bold ? 700 : 400,
+                backgroundColor: "rgba(15, 23, 42, 0.55)",
+              }}
+              onPointerDown={(event) => {
+                if (readOnly || drawMode) return
+                event.stopPropagation()
+                event.preventDefault()
+                setSelectedOverlayId(overlay.id)
+                dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
+              }}
+            >
+              {overlay.text}
+            </div>
           ))}
-          {draftPoints.length >= 2 ? (
-            <path
-              d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+
+          {!readOnly ? (
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
+              aria-label="Resize image"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                resizeStateRef.current = {
+                  pointerId: event.pointerId,
+                  startX: event.clientX,
+                  startY: event.clientY,
+                  width: block.width,
+                  height: block.height,
+                }
+              }}
             />
           ) : null}
-        </svg>
-
-        {block.textOverlays.map((overlay) => (
-          <div
-            key={overlay.id}
-            className={cn(
-              "absolute select-none rounded-md px-3 py-1.5 shadow-lg",
-              !readOnly && "cursor-move",
-              selectedOverlayId === overlay.id && !readOnly && "ring-2 ring-sky-400",
-            )}
-            style={{
-              left: `${overlay.x * 100}%`,
-              top: `${overlay.y * 100}%`,
-              transform: "translate(-50%, -50%)",
-              color: overlay.color,
-              fontSize: `${overlay.fontSize}px`,
-              fontWeight: overlay.bold ? 700 : 400,
-              backgroundColor: "rgba(15, 23, 42, 0.55)",
-            }}
-            onPointerDown={(event) => {
-              if (readOnly || drawMode) return
-              event.stopPropagation()
-              event.preventDefault()
-              setSelectedOverlayId(overlay.id)
-              dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
-            }}
-          >
-            {overlay.text}
-          </div>
-        ))}
-
-        {!readOnly ? (
-          <button
-            type="button"
-            className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
-            aria-label={t("imageEditor.resizeImage")}
-            onPointerDown={(event) => {
-              event.preventDefault()
-              resizeStateRef.current = {
-                pointerId: event.pointerId,
-                startX: event.clientX,
-                startY: event.clientY,
-                width: block.width,
-                height: block.height,
-              }
-            }}
-          />
-        ) : null}
-      </div>
+        </div>
       </div>
     </div>
   )
@@ -1195,7 +1205,7 @@ export function ProposalBuilder({
       .then((data) => {
         if (!cancelled) setSendClient(data as Client)
       })
-      .catch(() => {})
+      .catch(() => { })
 
     return () => {
       cancelled = true
@@ -1231,7 +1241,7 @@ export function ProposalBuilder({
         description: item.custom_description ?? "",
       })),
     }
-    ;(window as any).proposalBuilderContext = ctx
+      ; (window as any).proposalBuilderContext = ctx
     window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
   }, [
     document.title,
@@ -1351,26 +1361,26 @@ export function ProposalBuilder({
       const description = opts?.description?.trim() || project?.objective || job?.job_description || job?.description || undefined
       const generated = isProposalMode && proposal && proposal.project_id
         ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
-            description,
-            job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
-            selected_item_ids: opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
-            clarified_scope: opts?.clarifiedScope ?? null,
+          description,
+          job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
+          selected_item_ids: opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+          clarified_scope: opts?.clarifiedScope ?? null,
+          proposal_title: opts?.proposalTitle?.trim() || undefined,
+          project_title: opts?.projectTitle?.trim() || undefined,
+          include_project_brief: opts?.includeProjectBriefInContext ?? true,
+          include_line_items: opts?.includeLineItemsInContext ?? true,
+        })
+        : await api.generateAIProposal(
+          job!.id,
+          description,
+          opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+          {
             proposal_title: opts?.proposalTitle?.trim() || undefined,
             project_title: opts?.projectTitle?.trim() || undefined,
             include_project_brief: opts?.includeProjectBriefInContext ?? true,
             include_line_items: opts?.includeLineItemsInContext ?? true,
-          })
-        : await api.generateAIProposal(
-            job!.id,
-            description,
-            opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
-            {
-              proposal_title: opts?.proposalTitle?.trim() || undefined,
-              project_title: opts?.projectTitle?.trim() || undefined,
-              include_project_brief: opts?.includeProjectBriefInContext ?? true,
-              include_line_items: opts?.includeLineItemsInContext ?? true,
-            }
-          )
+          }
+        )
 
       const beforeAfterQueue = [...(generated.before_after_pairs ?? [])]
       const generatedPages: ProposalPage[] = (generated.pages ?? []).map((page) => {
@@ -1501,13 +1511,15 @@ export function ProposalBuilder({
   const clientName = sendClient?.name ?? job?.client?.name ?? client?.name ?? t("doc.customer")
   const emailSubject = t("review.emailSubject", { title: proposalTitle, contractor: contractorName })
 
+  const getFrontendUrl = () => {
+    return process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== "undefined" ? window.location.origin : "")
+  }
+
   const getProposalShareUrl = () => {
     if (proposalShareUrl) return proposalShareUrl
-    // Only standalone/project proposals are shareable. Quote-attached proposals
-    // are never publicly viewable, so they have no share link.
     const publicLink = isProposalMode ? proposal?.public_link : undefined
     if (!publicLink || typeof window === "undefined") return ""
-    return `${window.location.origin}/${locale}/proposals/${publicLink}`
+    return `${getFrontendUrl()}/${locale}/proposals/${publicLink}`
   }
 
   const ensureProposalShareLink = async (): Promise<string | null> => {
@@ -1538,10 +1550,11 @@ export function ProposalBuilder({
         return null
 
       }
-      const url =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/${locale}/proposals/${updated.public_link}`
-          : `/${locale}/proposals/${updated.public_link}`
+      const frontendUrl = getFrontendUrl()
+
+
+      const url = `${frontendUrl}/${locale}/proposals/${updated.public_link}`
+      console.log("Generated proposal URL:", url)
       setProposalShareUrl(url)
       return url
     } catch (err: any) {
@@ -2056,8 +2069,8 @@ export function ProposalBuilder({
                 </div>
               ) : null}
 
-      {!publicMode ? (
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {!publicMode ? (
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Button
                     type="button"
                     size="sm"
@@ -2682,8 +2695,6 @@ export function ProposalBuilder({
                 quantity: item.quantity,
                 unitOfMeasure: item.unit_of_measure,
               }))}
-              jobDescription={job?.job_description || job?.description || ""}
-              jobTitle={job?.title || project?.title || ""}
               imagePairs={imagePairs}
               onImagePairsChange={setImagePairs}
             />
