@@ -85,17 +85,17 @@ const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 
 function getStatusColor(status: string): string {
   switch (status?.toUpperCase()) {
-    case "DRAFT":       return "bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/25"
-    case "SENT":        return "bg-blue-500/15 text-blue-700 border-blue-300 hover:bg-blue-500/25"
-    case "VIEWED":      return "bg-purple-500/15 text-purple-700 border-purple-300 hover:bg-purple-500/25"
-    case "ACCEPTED":    return "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-500/25"
-    case "REJECTED":    return "bg-red-500/15 text-red-700 border-red-300 hover:bg-red-500/25"
+    case "DRAFT": return "bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/25"
+    case "SENT": return "bg-blue-500/15 text-blue-700 border-blue-300 hover:bg-blue-500/25"
+    case "VIEWED": return "bg-purple-500/15 text-purple-700 border-purple-300 hover:bg-purple-500/25"
+    case "ACCEPTED": return "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-500/25"
+    case "REJECTED": return "bg-red-500/15 text-red-700 border-red-300 hover:bg-red-500/25"
     case "IN_PROGRESS": return "bg-sky-500/15 text-sky-700 border-sky-300 hover:bg-sky-500/25"
-    case "COMPLETED":   return "bg-teal-500/15 text-teal-700 border-teal-300 hover:bg-teal-500/25"
-    case "INVOICED":    return "bg-indigo-500/15 text-indigo-700 border-indigo-300 hover:bg-indigo-500/25"
-    case "PAID":        return "bg-green-500/15 text-green-700 border-green-300 hover:bg-green-500/25"
-    case "CANCELLED":   return "bg-slate-500/15 text-slate-600 border-slate-300 hover:bg-slate-500/25"
-    default:            return "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+    case "COMPLETED": return "bg-teal-500/15 text-teal-700 border-teal-300 hover:bg-teal-500/25"
+    case "INVOICED": return "bg-indigo-500/15 text-indigo-700 border-indigo-300 hover:bg-indigo-500/25"
+    case "PAID": return "bg-green-500/15 text-green-700 border-green-300 hover:bg-green-500/25"
+    case "CANCELLED": return "bg-slate-500/15 text-slate-600 border-slate-300 hover:bg-slate-500/25"
+    default: return "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
   }
 }
 
@@ -677,7 +677,7 @@ export function PersonalizedQuoteView({
                 <Button asChild className={inlineActionButtonClass} variant="outline">
                   <Link href={`/${locale}/invoices/${existingInvoiceId}`}>
                     <FileText className="mr-2 h-4 w-4 shrink-0" />
-                    View Invoice
+                    {t("viewInvoice")}
                   </Link>
                 </Button>
               )}
@@ -700,7 +700,7 @@ export function PersonalizedQuoteView({
               {onOpenBeforeAfter && (
                 <Button className={featuredActionButtonClass} variant="outline" onClick={onOpenBeforeAfter}>
                   <Sparkles className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
-                  Before & After
+                  {t("beforeAfter")}
                 </Button>
               )}
 
@@ -723,7 +723,7 @@ export function PersonalizedQuoteView({
                       ) : (
                         <>
                           <MessageSquareMore className="mr-2 h-4 w-4 shrink-0" />
-                          Follow-up
+                          {t("followUp")}
                         </>
                       )}
                     </Button>
@@ -928,17 +928,19 @@ export function PersonalizedQuoteView({
                       </div>
                     </div>
                     <div className="text-right">
-                      <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">QUOTE</h2>
-                      {!isPublicView && (
-                        <div className="inline-block print:hidden">
-                          <Badge className={`${getStatusColor(currentJob.status)} text-xs print:text-xs`}>
-                            {currentJob.status}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+  <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">
+    {t("quote")}
+  </h2>
+  {!isPublicView &&
+    (!currentJob.signature?.contractor_signed_at ||
+      currentJob.status.toString().toUpperCase() !== "DRAFT") && (
+      <div className="inline-block print:hidden">
+        <Badge className={`${getStatusColor(currentJob.status)} text-xs print:text-xs`}>
+          {currentJob.status}
+        </Badge>
+      </div>
+    )}
+</div>
 
 
                 {/* Workflow Progress */}
@@ -975,8 +977,7 @@ export function PersonalizedQuoteView({
                         return (
                           <div key={stage} className="flex items-center gap-2">
                             <div
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                index <= currentStage
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${index <= currentStage
                                   ? "bg-sky-600 text-white"
                                   : "bg-gray-100 text-gray-500"
                                 }`}
@@ -1691,8 +1692,8 @@ export function PersonalizedQuoteView({
                 <button
                   type="button"
                   className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${alsoCreateQBO
-                      ? "bg-green-50 border-green-300"
-                      : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                    ? "bg-green-50 border-green-300"
+                    : "bg-gray-50 border-gray-200 hover:border-gray-300"
                     }`}
                   onClick={() => setAlsoCreateQBO(!alsoCreateQBO)}
                 >

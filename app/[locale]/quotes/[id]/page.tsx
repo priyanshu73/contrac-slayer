@@ -33,8 +33,7 @@ import { Job } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
-import { useLocale } from "next-intl"
-
+import { useLocale, useTranslations } from "next-intl"
 function isBeforePhotoFilename(fileName?: string | null): boolean {
   if (!fileName) return false
   return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
@@ -101,6 +100,7 @@ export default function QuoteDetailPage() {
   const params = useParams()
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("quotes")
   const { user, loading: authLoading } = useAuth()
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
   const { toast } = useToast()
@@ -223,29 +223,29 @@ export default function QuoteDetailPage() {
       delete (window as Window & { quotePageContext?: { job_id: number; client_email?: string; quote_public_link?: string } }).quotePageContext
       return
     }
-    const clientEmail = job.client?.email ?? job.client_email ?? undefined
+    const clientEmail = job.client?.email ?? undefined
     const customerQuoteUrl = portalUrl ?? undefined
-    ;(window as Window & {
-      quotePageContext?: {
-        job_id: number
-        project_id?: number
-        client_id?: number
-        lead_id?: number
-        client_email?: string
-        quote_public_link?: string
-        customer_quote_url?: string
-        frontend_origin?: string
+      ; (window as Window & {
+        quotePageContext?: {
+          job_id: number
+          project_id?: number
+          client_id?: number
+          lead_id?: number
+          client_email?: string
+          quote_public_link?: string
+          customer_quote_url?: string
+          frontend_origin?: string
+        }
+      }).quotePageContext = {
+        job_id: job.id,
+        project_id: job.project_id,
+        client_id: job.client_id ?? job.client?.id,
+        lead_id: job.lead_id,
+        client_email: clientEmail,
+        quote_public_link: job.quote_public_link,
+        customer_quote_url: customerQuoteUrl,
+        frontend_origin: typeof window !== "undefined" ? window.location.origin : undefined,
       }
-    }).quotePageContext = {
-      job_id: job.id,
-      project_id: job.project_id,
-      client_id: job.client_id ?? job.client?.id,
-      lead_id: job.lead_id,
-      client_email: clientEmail,
-      quote_public_link: job.quote_public_link,
-      customer_quote_url: customerQuoteUrl,
-      frontend_origin: typeof window !== "undefined" ? window.location.origin : undefined,
-    }
     window.dispatchEvent(new CustomEvent("quote-page-context-updated"))
     return () => {
       delete (window as Window & { quotePageContext?: unknown }).quotePageContext
@@ -612,6 +612,8 @@ export default function QuoteDetailPage() {
         router.push(`/${locale}/invoices/${invoiceId}`)
       }
     } catch (err: any) {
+      console.error("Invoice creation error:", err)
+
       toast({
         title: "Failed to create invoice",
         description: err?.message || "Something went wrong.",
@@ -945,7 +947,7 @@ export default function QuoteDetailPage() {
               disabled={unlinkingProject}
             >
               {unlinkingProject ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-              Unlink
+              {t("unlink")}
             </Button>
             <Button
               size="sm"
@@ -953,7 +955,7 @@ export default function QuoteDetailPage() {
               className="shrink-0 border-sky-300 bg-white text-sky-700 hover:bg-sky-100 hover:text-sky-800 h-8 gap-1.5 text-xs"
               onClick={() => router.push(`/${locale}/projects/${job.project_id}`)}
             >
-              View Project
+              {t("viewProject")}
               <ArrowRight className="h-3 w-3" />
             </Button>
           </div>
@@ -962,14 +964,14 @@ export default function QuoteDetailPage() {
         <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 print:hidden">
           <div className="flex items-center gap-2.5 min-w-0">
             <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground font-medium">No project linked</span>
+            <span className="text-sm text-muted-foreground font-medium">{t("noProjectLinked")}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Popover open={linkProjectOpen} onOpenChange={setLinkProjectOpen}>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
                   {linkingProject ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                  Link to Project
+                  {t("linkToProject")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent side="bottom" align="end" className="w-56 p-1">

@@ -1511,6 +1511,7 @@ export function ProposalBuilder({
   }
 
   const ensureProposalShareLink = async (): Promise<string | null> => {
+
     if (!isProposalMode || !proposal) return null
 
     // A DRAFT proposal is hidden from the client portal even via a direct link,
@@ -1535,6 +1536,7 @@ export function ProposalBuilder({
           variant: "destructive",
         })
         return null
+
       }
       const url =
         typeof window !== "undefined"
@@ -2543,6 +2545,7 @@ export function ProposalBuilder({
                         if (!pageId) return
                         const block = await createImageBlockFromUrl(url, label)
                         updateDocument((current) =>
+
                           updatePage(current, pageId, (p) => ({
                             ...p,
                             description: [...p.description, block],

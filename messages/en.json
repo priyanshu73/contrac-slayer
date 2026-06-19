@@ -1194,7 +1194,26 @@
     "sendToClientTooltipSignFirst": "Sign the quote first to send to client.",
     "copyLinkTooltipSignFirst": "Sign the quote first to generate a public link.",
     "copyLinkTooltipGenerate": "Generate and copy link",
-    "copyLinkTooltipCopy": "Copy quote link"
+    "copyLinkTooltipCopy": "Copy quote link",
+    "newQuote": "New Quote",
+    "client": "Client",
+    "allProjects": "All Projects",
+    "viewProject": "View Project",
+    "unlink": "Unlink",
+    "viewInvoice": "View Invoice",
+    "noProjectLinked": "No project linked",
+    "linkToProject": "Link to Project",
+    "createProject": "Create Project",
+    "beforeAfter": "Before & After",
+    "followUp": "Follow-up",
+    "changeOrders": "Change Orders",
+    "activity": "Activity",
+    "directions": "Directions",
+    "quote": "QUOTE",
+    "quoteDetails": "QUOTE DETAILS",
+    "lineItems": "LINE ITEMS",
+    "hour": "Hour"
+    
   },
   "forms": {
     "required": "Required",
