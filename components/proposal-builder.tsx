@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
@@ -85,14 +86,16 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function formatProposalDate(value: string) {
+function formatProposalDate(value: string, locale = "en") {
   const date = value ? new Date(`${value}T00:00:00`) : new Date()
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale === "es" ? "es-ES" : "en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
   }).toUpperCase()
 }
+
+type ProposalTranslator = (key: string, values?: Record<string, string | number>) => string
 
 function escapeHtml(value: string) {
   return value
@@ -110,16 +113,6 @@ function createTextBlock(html = ""): ProposalTextBlock {
     html,
   }
 }
-
-const DEFAULT_SCOPE_SUMMARY_HTML = "<p>Describe the overall scope, intent, and project goals for this proposal.</p>"
-const DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML = "<p>Summarize the project approach, priorities, and expected outcomes.</p>"
-const PAGE_TEXT_PLACEHOLDER = "Add page notes, photos, and markups here."
-const AI_PROPOSAL_LOADING_MESSAGES = [
-  "Reviewing project context and linked quote details...",
-  "Drafting a client-friendly scope and story...",
-  "Organizing the proposal pages and flow...",
-  "Polishing the final proposal copy...",
-] as const
 
 function normalizeHexColor(value: string | undefined, fallback: string) {
   const normalized = value?.trim()
@@ -214,14 +207,14 @@ async function createImageBlockFromUrl(url: string, fileName?: string | null): P
   }
 }
 
-function buildInitialProposalDocument(job: Job, contractorName: string, client?: import("@/lib/types").Client): ProposalDocument {
+function buildInitialProposalDocument(job: Job, contractorName: string, t: ProposalTranslator, client?: import("@/lib/types").Client): ProposalDocument {
   const today = new Date().toISOString().slice(0, 10)
 
   if (job.proposal_document) {
     const themeId = normalizeProposalThemeId(job.proposal_document.themeId)
     const theme = getProposalTheme(themeId)
     const savedName = job.proposal_document.companyName
-    const isPlaceholder = !savedName || savedName === "Client / Property"
+    const isPlaceholder = !savedName || savedName === "Client / Property" || savedName === t("cover.clientProperty")
     return {
       ...job.proposal_document,
       companyName: isPlaceholder ? (client?.name || savedName || "") : savedName,
@@ -245,8 +238,8 @@ function buildInitialProposalDocument(job: Job, contractorName: string, client?:
   const clientAddress = client?.address || job.client?.address || job.address || ""
 
   return {
-    title: job.title || (clientName ? `Proposal for ${clientName}` : "Proposal for Project"),
-    companyName: clientName || "Client / Property",
+    title: job.title || (clientName ? t("doc.titleForClient", { name: clientName }) : t("doc.titleForProject")),
+    companyName: clientName || t("cover.clientProperty"),
     companyAddress: clientAddress,
     quoteId: job.id,
     date: today,
@@ -256,10 +249,10 @@ function buildInitialProposalDocument(job: Job, contractorName: string, client?:
     tintColor: getProposalTheme(DEFAULT_PROPOSAL_THEME_ID).swatches[2],
     scopeSummary: job.job_description
       ? `<p>${escapeHtml(job.job_description)}</p>`
-      : DEFAULT_SCOPE_SUMMARY_HTML,
+      : `<p>${t("doc.scopeSummaryDefault")}</p>`,
     projectOverview: {
-      title: job.title || "Project Overview",
-      description: DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML,
+      title: job.title || t("doc.projectOverviewTitle"),
+      description: `<p>${t("doc.projectOverviewDescriptionDefault")}</p>`,
     },
     pages: [
       {
@@ -273,16 +266,17 @@ function buildInitialProposalDocument(job: Job, contractorName: string, client?:
 
 function syncProposalDocumentClient(
   document: ProposalDocument,
+  t: ProposalTranslator,
   client?: Client,
 ): ProposalDocument {
   if (!client) return document
 
   const nextCompanyName = client.name || document.companyName
   const nextCompanyAddress = client.address || document.companyAddress
-  const oldGeneratedTitle = document.companyName ? `Proposal for ${document.companyName}` : ""
+  const oldGeneratedTitle = document.companyName ? t("doc.titleForClient", { name: document.companyName }) : ""
   const nextTitle =
     !document.title || document.title === oldGeneratedTitle
-      ? `Proposal for ${nextCompanyName}`
+      ? t("doc.titleForClient", { name: nextCompanyName })
       : document.title
 
   return {
@@ -352,6 +346,7 @@ function RichTextEditor({
   editorClassName?: string
   readOnlyClassName?: string
 }) {
+  const t = useTranslations("proposals")
   const editorRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -392,31 +387,31 @@ function RichTextEditor({
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
       <div className={cn("flex flex-wrap items-center gap-1 border-b border-slate-200 px-2 py-1.5", toolbarClassName)}>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bold" onMouseDown={(e) => { e.preventDefault(); exec("bold") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.bold")} onMouseDown={(e) => { e.preventDefault(); exec("bold") }}>
           <Bold className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Italic" onMouseDown={(e) => { e.preventDefault(); exec("italic") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.italic")} onMouseDown={(e) => { e.preventDefault(); exec("italic") }}>
           <Italic className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Underline" onMouseDown={(e) => { e.preventDefault(); exec("underline") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.underline")} onMouseDown={(e) => { e.preventDefault(); exec("underline") }}>
           <Underline className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Strikethrough" onMouseDown={(e) => { e.preventDefault(); exec("strikeThrough") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.strikethrough")} onMouseDown={(e) => { e.preventDefault(); exec("strikeThrough") }}>
           <Strikethrough className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Heading" onMouseDown={(e) => { e.preventDefault(); toggleHeading() }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.heading")} onMouseDown={(e) => { e.preventDefault(); toggleHeading() }}>
           <Heading2 className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.bulletList")} onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList") }}>
           <List className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Numbered list" onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.numberedList")} onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList") }}>
           <ListOrdered className="h-3.5 w-3.5" />
         </Button>
         {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Clear formatting" onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); exec("formatBlock", "p") }}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.clearFormatting")} onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); exec("formatBlock", "p") }}>
           <RemoveFormatting className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -472,6 +467,7 @@ function ImageBlockEditor({
   canMoveDown?: boolean
   className?: string
 }) {
+  const t = useTranslations("proposals")
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
@@ -623,7 +619,7 @@ function ImageBlockEditor({
           </div>
           <Button type="button" variant={drawMode ? "default" : "outline"} size="sm" onClick={() => setDrawMode((value) => !value)}>
             <PencilLine className="mr-1 h-4 w-4" />
-            {drawMode ? "Drawing" : "Draw"}
+            {drawMode ? t("imageEditor.drawing") : t("imageEditor.draw")}
           </Button>
           <Button
             type="button"
@@ -632,7 +628,7 @@ function ImageBlockEditor({
             onClick={() => {
               const overlay = {
                 id: createId("label"),
-                text: "Text overlay",
+                text: t("imageEditor.textOverlay"),
                 x: 0.5,
                 y: 0.88,
                 fontSize: 18,
@@ -644,7 +640,7 @@ function ImageBlockEditor({
             }}
           >
             <Type className="mr-1 h-4 w-4" />
-            Add label
+            {t("imageEditor.addLabel")}
           </Button>
           <Button
             type="button"
@@ -654,7 +650,7 @@ function ImageBlockEditor({
             onClick={() => onChange({ ...block, annotations: block.annotations.slice(0, -1) })}
           >
             <Undo2 className="mr-1 h-4 w-4" />
-            Undo
+            {t("imageEditor.undo")}
           </Button>
           <Button
             type="button"
@@ -664,7 +660,7 @@ function ImageBlockEditor({
             onClick={() => onChange({ ...block, annotations: [] })}
           >
             <Paintbrush className="mr-1 h-4 w-4" />
-            Clear
+            {t("imageEditor.clear")}
           </Button>
           <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
             <Trash2 className="h-4 w-4" />
@@ -675,11 +671,11 @@ function ImageBlockEditor({
       {!readOnly && drawMode ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            Color
+            {t("imageEditor.color")}
             <input type="color" value={strokeColor} onChange={(event) => setStrokeColor(event.target.value)} />
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            Stroke
+            {t("imageEditor.stroke")}
             <input
               type="range"
               min={2}
@@ -707,7 +703,7 @@ function ImageBlockEditor({
             className="max-w-xs"
           />
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            Size
+            {t("imageEditor.size")}
             <input
               type="number"
               min={12}
@@ -725,7 +721,7 @@ function ImageBlockEditor({
             />
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            Color
+            {t("imageEditor.color")}
             <input
               type="color"
               value={selectedOverlay.color}
@@ -753,7 +749,7 @@ function ImageBlockEditor({
             }
           >
             <Bold className="mr-1 h-4 w-4" />
-            Bold
+            {t("imageEditor.bold")}
           </Button>
           <Button
             type="button"
@@ -766,7 +762,7 @@ function ImageBlockEditor({
             }}
           >
             <Trash2 className="mr-1 h-4 w-4" />
-            Delete label
+            {t("imageEditor.deleteLabel")}
           </Button>
         </div>
       ) : null}
@@ -798,7 +794,7 @@ function ImageBlockEditor({
       >
         <img
           src={block.url}
-          alt={block.file_name || "Proposal image"}
+          alt={block.file_name || t("imageEditor.imageAlt")}
           className="pointer-events-none h-full w-full select-none object-contain"
           draggable={false}
           onDragStart={(event) => event.preventDefault()}
@@ -853,7 +849,7 @@ function ImageBlockEditor({
           <button
             type="button"
             className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
-            aria-label="Resize image"
+            aria-label={t("imageEditor.resizeImage")}
             onPointerDown={(event) => {
               event.preventDefault()
               resizeStateRef.current = {
@@ -891,6 +887,7 @@ function BeforeAfterBlockEditor({
   canMoveDown?: boolean
   className?: string
 }) {
+  const t = useTranslations("proposals")
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
@@ -912,12 +909,12 @@ function BeforeAfterBlockEditor({
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <img
             src={block.beforeUrl}
-            alt={block.beforeLabel ?? "Before"}
+            alt={block.beforeLabel ?? t("imageEditor.before")}
             className="aspect-[4/3] w-full object-cover"
             draggable={false}
           />
           <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-slate-900 print:[backdrop-filter:none]">
-            {block.beforeLabel ?? "Before"}
+            {block.beforeLabel ?? t("imageEditor.before")}
           </span>
         </div>
 
@@ -925,12 +922,12 @@ function BeforeAfterBlockEditor({
         <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
           <img
             src={block.afterUrl}
-            alt={block.afterLabel ?? "After"}
+            alt={block.afterLabel ?? t("imageEditor.after")}
             className="aspect-[4/3] w-full object-cover"
             draggable={false}
           />
           <span className="absolute left-2 top-2 rounded-full bg-emerald-600/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-emerald-600 print:[backdrop-filter:none]">
-            {block.afterLabel ?? "After"}
+            {block.afterLabel ?? t("imageEditor.after")}
           </span>
         </div>
       </div>
@@ -1007,6 +1004,7 @@ function ClientNameField({
   onChange: (name: string) => void
   onClientSelect: (client: Client) => void
 }) {
+  const t = useTranslations("proposals")
   const [open, setOpen] = useState(false)
 
   return (
@@ -1014,21 +1012,21 @@ function ClientNameField({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Company / property name"
+        placeholder={t("cover.companyNamePlaceholder")}
         className="flex-1"
       />
       {clients && clients.length > 0 && (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" title="Link client from your contacts">
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" title={t("cover.linkClient")}>
               <User className="size-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-0" align="end">
             <Command>
-              <CommandInput placeholder="Search clients…" />
+              <CommandInput placeholder={t("cover.searchClients")} />
               <CommandList>
-                <CommandEmpty>No clients found.</CommandEmpty>
+                <CommandEmpty>{t("cover.noClients")}</CommandEmpty>
                 <CommandGroup>
                   {clients.map((c) => (
                     <CommandItem
@@ -1087,6 +1085,7 @@ export function ProposalBuilder({
   portalUrl?: string
 }) {
   const isProposalMode = !!proposal
+  const t = useTranslations("proposals")
   const { toast } = useToast()
   const { user } = useAuth()
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
@@ -1096,10 +1095,11 @@ export function ProposalBuilder({
       return buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
         contractorName,
+        t,
         client
       )
     }
-    return buildInitialProposalDocument(job as Job, contractorName)
+    return buildInitialProposalDocument(job as Job, contractorName, t)
   })
   const [viewMode, setViewMode] = useState(publicMode)
   const [saving, setSaving] = useState(false)
@@ -1144,7 +1144,7 @@ export function ProposalBuilder({
     setAiProposalLoadingProgress(8)
     const started = Date.now()
     const rotate = window.setInterval(() => {
-      setAiProposalLoadingStage((prev) => (prev + 1) % AI_PROPOSAL_LOADING_MESSAGES.length)
+      setAiProposalLoadingStage((prev) => (prev + 1) % 4)
     }, 2400)
     const progress = window.setInterval(() => {
       const elapsed = Date.now() - started
@@ -1259,20 +1259,21 @@ export function ProposalBuilder({
       const initialDocument = buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
         contractorName,
+        t,
         client
       )
-      setDocument(proposal.project_id ? syncProposalDocumentClient(initialDocument, client) : initialDocument)
+      setDocument(proposal.project_id ? syncProposalDocumentClient(initialDocument, t, client) : initialDocument)
     } else if (job) {
-      setDocument(buildInitialProposalDocument(job, contractorName))
+      setDocument(buildInitialProposalDocument(job, contractorName, t))
     }
     setDirty(false)
     setOverviewLoaded(false)
-  }, [contractorName, isProposalMode, job, proposal, publicMode, client])
+  }, [contractorName, isProposalMode, job, proposal, publicMode, client, t])
 
   useEffect(() => {
     if (!isProposalMode || !proposal?.project_id || !client) return
-    updateDocument((current) => syncProposalDocumentClient(current, client))
-  }, [client, isProposalMode, proposal?.project_id])
+    updateDocument((current) => syncProposalDocumentClient(current, t, client))
+  }, [client, isProposalMode, proposal?.project_id, t])
 
   useEffect(() => {
     setViewMode(publicMode)
@@ -1289,7 +1290,7 @@ export function ProposalBuilder({
     const shouldHydrateOverview =
       !hasExistingDoc &&
       !overviewLoaded &&
-      document.projectOverview.description === DEFAULT_PROJECT_OVERVIEW_DESCRIPTION_HTML
+      document.projectOverview.description === `<p>${t("doc.projectOverviewDescriptionDefault")}</p>`
 
     if (!shouldHydrateOverview) {
       return
@@ -1324,7 +1325,7 @@ export function ProposalBuilder({
     return () => {
       cancelled = true
     }
-  }, [document.projectOverview.description, isProposalMode, job?.id, overviewLoaded, proposal])
+  }, [document.projectOverview.description, isProposalMode, job?.id, overviewLoaded, proposal, t])
 
   const generateFullProposal = useCallback(async (opts?: {
     clarifiedScope?: ScopeClarifiedScope | null
@@ -1342,8 +1343,8 @@ export function ProposalBuilder({
       detail: {
         kind: "proposal",
         phase: "running",
-        title: "Generating AI proposal",
-        detail: "Reviewing scope, project context, and proposal structure.",
+        title: t("aiStatus.generatingTitle"),
+        detail: t("aiStatus.generatingDetail"),
       },
     }))
     try {
@@ -1382,8 +1383,8 @@ export function ProposalBuilder({
               type: "before_after",
               beforeUrl: pair.before_url,
               afterUrl: pair.after_url,
-              beforeLabel: "Before",
-              afterLabel: "After",
+              beforeLabel: t("imageEditor.before"),
+              afterLabel: t("imageEditor.after"),
             }]
           }
 
@@ -1419,32 +1420,32 @@ export function ProposalBuilder({
         detail: {
           kind: "proposal",
           phase: "succeeded",
-          title: "Proposal ready",
-          detail: "The AI draft has been added to the builder. Review and save when you're ready.",
+          title: t("aiStatus.readyTitle"),
+          detail: t("aiStatus.readyDetail"),
         },
       }))
       toast({
-        title: "Proposal generated",
-        description: "AI drafted the proposal pages. Review and save when you're ready.",
+        title: t("toast.proposalGeneratedTitle"),
+        description: t("toast.proposalGeneratedDescription"),
       })
     } catch (error: any) {
       window.dispatchEvent(new CustomEvent("ai-generation-status", {
         detail: {
           kind: "proposal",
           phase: "failed",
-          title: "Proposal generation failed",
-          detail: error?.message || "The AI returned an unexpected response. Please try again.",
+          title: t("aiStatus.failedTitle"),
+          detail: error?.message || t("aiStatus.failedDetailFallback"),
         },
       }))
       toast({
-        title: "Generation failed",
-        description: error?.message || "Unable to generate the proposal right now.",
+        title: t("toast.generationFailedTitle"),
+        description: error?.message || t("toast.generationFailedDescription"),
         variant: "destructive",
       })
     } finally {
       setAiProposalLoading(false)
     }
-  }, [aiProposalLoading, isProposalMode, proposal, project?.objective, job, toast])
+  }, [aiProposalLoading, isProposalMode, proposal, project?.objective, job, toast, t])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1494,11 +1495,11 @@ export function ProposalBuilder({
     backgroundImage: `linear-gradient(135deg, ${withAlpha(accentColor, 0.08)}, rgba(255,255,255,0.97) 56%, ${withAlpha(tintColor, 0.14)})`,
   }
   const proposalTitle =
-    document.title || proposal?.title || job?.title || project?.title || "your project"
+    document.title || proposal?.title || job?.title || project?.title || t("doc.fallbackProjectTitle")
   const clientEmail = sendClient?.email ?? job?.client?.email ?? client?.email ?? ""
   const clientPhone = sendClient?.phone ?? job?.client?.phone ?? client?.phone ?? ""
-  const clientName = sendClient?.name ?? job?.client?.name ?? client?.name ?? "Customer"
-  const emailSubject = `Your proposal for ${proposalTitle} from ${contractorName}`
+  const clientName = sendClient?.name ?? job?.client?.name ?? client?.name ?? t("doc.customer")
+  const emailSubject = t("review.emailSubject", { title: proposalTitle, contractor: contractorName })
 
   const getProposalShareUrl = () => {
     if (proposalShareUrl) return proposalShareUrl
@@ -1529,8 +1530,8 @@ export function ProposalBuilder({
       onProposalUpdated?.(updated)
       if (!updated.public_link) {
         toast({
-          title: "No share link",
-          description: "Save the proposal first, then try again.",
+          title: t("toast.noShareLinkTitle"),
+          description: t("toast.noShareLinkDescription"),
           variant: "destructive",
         })
         return null
@@ -1543,8 +1544,8 @@ export function ProposalBuilder({
       return url
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err?.message || "Failed to prepare proposal link.",
+        title: t("toast.errorTitle"),
+        description: err?.message || t("toast.prepareLinkFailed"),
         variant: "destructive",
       })
       return null
@@ -1561,16 +1562,14 @@ export function ProposalBuilder({
       const gmail = await api.getGmailStatus()
       if (!gmail.connected) {
         toast({
-          title: "Gmail not connected",
-          description: (
-            <>
-              Connect Gmail in{" "}
+          title: t("toast.gmailNotConnectedTitle"),
+          description: t.rich("toast.gmailNotConnectedDescription", {
+            link: (chunks) => (
               <Link href={`/${locale}/settings`} className="underline font-medium">
-                Settings → Integrations
-              </Link>{" "}
-              to send the proposal from your inbox.
-            </>
-          ),
+                {chunks}
+              </Link>
+            ),
+          }),
           variant: "destructive",
         })
         return
@@ -1584,8 +1583,8 @@ export function ProposalBuilder({
       setSendEmailOpen(true)
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err?.message || "Failed to prepare email.",
+        title: t("toast.errorTitle"),
+        description: err?.message || t("toast.prepareEmailFailed"),
         variant: "destructive",
       })
     }
@@ -1594,7 +1593,7 @@ export function ProposalBuilder({
   const handleSendProposalEmail = async () => {
     const to = sendEmailTo.trim()
     if (!to) {
-      toast({ title: "Enter email", description: "Please enter the client's email address.", variant: "destructive" })
+      toast({ title: t("toast.enterEmailTitle"), description: t("toast.enterEmailDescription"), variant: "destructive" })
       return
     }
     const proposalUrl = await ensureProposalShareLink()
@@ -1609,15 +1608,15 @@ export function ProposalBuilder({
       }
       setSentToEmail(to)
       setSendEmailSuccess(true)
-      toast({ title: "Proposal sent", description: `Sent to ${to}.` })
+      toast({ title: t("toast.proposalSentTitle"), description: t("toast.proposalSentDescription", { email: to }) })
     } catch (err: any) {
       const msg = err?.message ?? ""
       const isInvalidTo = /invalid to header|invalid email|valid email address/i.test(msg)
       toast({
-        title: "Send failed",
+        title: t("toast.sendFailedTitle"),
         description: isInvalidTo
-          ? "Please enter a valid email address in the To field and try again."
-          : msg || "Failed to send email.",
+          ? t("toast.invalidEmailDescription")
+          : msg || t("toast.sendEmailFailed"),
         variant: "destructive",
       })
     } finally {
@@ -1628,24 +1627,24 @@ export function ProposalBuilder({
   const handleSendViaSms = async () => {
     if (!user?.contractor_profile?.contractor_ai_sp_id) {
       toast({
-        title: "SMS not available",
-        description: "Contractor AI integration is not set up. Connect it in settings to send via SMS.",
+        title: t("toast.smsNotAvailableTitle"),
+        description: t("toast.smsNotAvailableDescription"),
         variant: "destructive",
       })
       return
     }
     if (!contractorOpsAiNumber?.trim()) {
       toast({
-        title: "Contractor Ops AI number required",
-        description: "Set up your Contractor Ops AI number in Settings → Integrations to send via SMS.",
+        title: t("toast.opsNumberRequiredTitle"),
+        description: t("toast.opsNumberRequiredDescription"),
         variant: "destructive",
       })
       return
     }
     if (!clientPhone) {
       toast({
-        title: "No phone number",
-        description: "Add a phone number for this client to send the proposal via SMS.",
+        title: t("toast.noPhoneTitle"),
+        description: t("toast.noPhoneDescription"),
         variant: "destructive",
       })
       return
@@ -1659,7 +1658,7 @@ export function ProposalBuilder({
 
     const refJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id ?? 0
     try {
-      const message = `Hi ${clientName}, your documents are ready. View them here: ${shareUrl}`
+      const message = t("smsMessage", { name: clientName, url: shareUrl })
       await contractorAI.sendImmediateSms({
         sp_id: user.contractor_profile.contractor_ai_sp_id,
         customer_number: clientPhone,
@@ -1667,11 +1666,11 @@ export function ProposalBuilder({
         reference_type: "job",
         reference_id: refJobId,
       })
-      toast({ title: "SMS sent", description: `Proposal link sent to ${clientName}.` })
+      toast({ title: t("toast.smsSentTitle"), description: t("toast.smsSentDescription", { name: clientName }) })
     } catch {
       toast({
-        title: "Send failed",
-        description: "Failed to send SMS. Please try again.",
+        title: t("toast.sendFailedTitle"),
+        description: t("toast.smsSendFailedDescription"),
         variant: "destructive",
       })
     }
@@ -1686,10 +1685,10 @@ export function ProposalBuilder({
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(true)
-      toast({ title: "Link copied", description: "Proposal link copied to clipboard." })
+      toast({ title: t("toast.linkCopiedTitle"), description: t("toast.linkCopiedDescription") })
       setTimeout(() => setCopiedLink(false), 2000)
     } catch {
-      toast({ title: "Failed to copy", description: "Please try again or copy manually.", variant: "destructive" })
+      toast({ title: t("toast.copyFailedTitle"), description: t("toast.copyFailedDescription"), variant: "destructive" })
     }
   }
 
@@ -1728,12 +1727,12 @@ export function ProposalBuilder({
       const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
       onProposalUpdated?.(updated)
       setDirty(false)
-      if (!silent) toast({ title: "Proposal saved", description: "Your proposal has been saved." })
+      if (!silent) toast({ title: t("toast.proposalSavedTitle"), description: t("toast.proposalSavedDescription") })
     } catch (error: any) {
       if (!silent) {
         toast({
-          title: "Save failed",
-          description: error?.message || "Unable to save the proposal right now.",
+          title: t("toast.saveFailedTitle"),
+          description: error?.message || t("toast.saveFailedDescription"),
           variant: "destructive",
         })
       }
@@ -1789,7 +1788,7 @@ export function ProposalBuilder({
       } else if (uploadJobId) {
         uploaded = (await api.uploadQuoteMedia(uploadJobId, Array.from(files))) as ProjectMedia[]
       } else {
-        throw new Error("No quote or project to upload media to")
+        throw new Error(t("errors.noQuoteToUpload"))
       }
       const imageBlocks = await Promise.all(uploaded.map((media) => createImageBlock(media)))
       updateDocument((current) =>
@@ -1799,13 +1798,13 @@ export function ProposalBuilder({
         })),
       )
       toast({
-        title: "Images added",
-        description: uploaded.length === 1 ? "Photo added to proposal page." : `${uploaded.length} photos added to proposal page.`,
+        title: t("toast.imagesAddedTitle"),
+        description: uploaded.length === 1 ? t("toast.imageAddedDescriptionSingle") : t("toast.imageAddedDescriptionMultiple", { count: uploaded.length }),
       })
     } catch (error: any) {
       toast({
-        title: "Upload failed",
-        description: error?.message || "Unable to upload one or more files.",
+        title: t("toast.uploadFailedTitle"),
+        description: error?.message || t("toast.uploadFailedDescription"),
         variant: "destructive",
       })
     } finally {
@@ -1826,14 +1825,14 @@ export function ProposalBuilder({
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2.5">
                 <Badge variant="secondary" className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.22em] text-white">
-                  {publicMode ? "Shared Proposal" : "Proposal Builder"}
+                  {publicMode ? t("badge.shared") : t("badge.builder")}
                 </Badge>
                 {!publicMode ? (
                   dirty
-                    ? <span className="text-xs font-medium text-amber-600">Unsaved changes</span>
-                    : <span className="text-xs text-slate-400">All changes saved</span>
+                    ? <span className="text-xs font-medium text-amber-600">{t("status.unsaved")}</span>
+                    : <span className="text-xs text-slate-400">{t("status.saved")}</span>
                 ) : (
-                  <span className="text-xs text-slate-400">Read-only</span>
+                  <span className="text-xs text-slate-400">{t("status.readOnly")}</span>
                 )}
 
               </div>
@@ -1845,7 +1844,7 @@ export function ProposalBuilder({
                     onValueChange={(value) => updateDocument((current) => updateProposalTheme(current, value as ProposalThemeId))}
                   >
                     <SelectTrigger size="sm" className="h-8 w-auto min-w-[150px] max-w-[220px] rounded-xl border-slate-200 bg-white text-xs">
-                      <SelectValue placeholder="Select a theme" />
+                      <SelectValue placeholder={t("header.selectTheme")} />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-200 bg-white">
                       {PROPOSAL_THEMES.map((themeOption) => (
@@ -1874,7 +1873,7 @@ export function ProposalBuilder({
                     }}
                   >
                     <SelectTrigger size="sm" className="h-8 w-[142px] rounded-xl border-slate-200 bg-white text-xs">
-                      <SelectValue placeholder="Font" />
+                      <SelectValue placeholder={t("header.fontPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-200 bg-white">
                       {PROPOSAL_FONTS.map((font) => (
@@ -1886,7 +1885,7 @@ export function ProposalBuilder({
                   </Select>
 
                   <label className="flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Accent</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{t("header.accent")}</span>
                     <input
                       type="color"
                       value={accentColor}
@@ -1896,7 +1895,7 @@ export function ProposalBuilder({
                   </label>
 
                   <label className="flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Tint</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{t("header.tint")}</span>
                     <input
                       type="color"
                       value={tintColor}
@@ -1915,7 +1914,7 @@ export function ProposalBuilder({
                   className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  My Portal
+                  {t("header.myPortal")}
                 </a>
               )}
               {!publicMode ? (
@@ -1933,7 +1932,7 @@ export function ProposalBuilder({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-[10px] px-1.5 py-0.5">
-                      {viewMode ? "Edit mode" : "Preview"}
+                      {viewMode ? t("header.editMode") : t("header.preview")}
                     </TooltipContent>
                   </Tooltip>
                   <Button
@@ -1945,7 +1944,7 @@ export function ProposalBuilder({
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    Save
+                    {t("header.save")}
                   </Button>
                   <DropdownMenu
                     onOpenChange={(menuOpen) => {
@@ -1962,7 +1961,7 @@ export function ProposalBuilder({
                         disabled={saving}
                       >
                         {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                        Send to Client
+                        {t("header.sendToClient")}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -1976,7 +1975,7 @@ export function ProposalBuilder({
                         <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                        Send via Email
+                        {t("header.sendViaEmail")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => void handleSaveAndSend(() => handleSendViaSms())}
@@ -1986,7 +1985,7 @@ export function ProposalBuilder({
                         <svg className="mr-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                        Send via SMS
+                        {t("header.sendViaSms")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-slate-100" />
                       <DropdownMenuItem
@@ -2013,10 +2012,10 @@ export function ProposalBuilder({
                           <ExternalLink className="mr-2 h-4 w-4 text-slate-500" />
                         )}
                         {copiedLink
-                          ? "Copied!"
+                          ? t("header.copied")
                           : proposalShared
-                            ? "Copy proposal link"
-                            : "Generate Client link"}
+                            ? t("header.copyProposalLink")
+                            : t("header.generateClientLink")}
                       </DropdownMenuItem>
                       {!proposalShared && confirmShareOpen ? (
                         <div
@@ -2024,7 +2023,7 @@ export function ProposalBuilder({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <p className="text-[11px] leading-relaxed text-slate-500">
-                            This marks the proposal as sent and makes it visible in the client portal. You can copy and re-share it afterwards.
+                            {t("header.generateLinkConfirm")}
                           </p>
                           <div className="mt-2 flex justify-end gap-2">
                             <Button
@@ -2035,7 +2034,7 @@ export function ProposalBuilder({
                               onClick={() => setConfirmShareOpen(false)}
                               disabled={generatingLink}
                             >
-                              Cancel
+                              {t("header.cancel")}
                             </Button>
                             <Button
                               type="button"
@@ -2045,7 +2044,7 @@ export function ProposalBuilder({
                               disabled={generatingLink}
                             >
                               {generatingLink ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                              Generate
+                              {t("header.generate")}
                             </Button>
                           </div>
                         </div>
@@ -2069,7 +2068,7 @@ export function ProposalBuilder({
                     ) : (
                       <Sparkles className="mr-1 h-3.5 w-3.5 text-fuchsia-500" />
                     )}
-                    {aiProposalLoading ? "Generating..." : "Generate AI Proposal"}
+                    {aiProposalLoading ? t("header.generating") : t("header.generateAiProposal")}
                   </Button>
                   <Button
                     type="button"
@@ -2078,7 +2077,7 @@ export function ProposalBuilder({
                     onClick={() => setShowAIModal(true)}
                   >
                     <Sparkles className="mr-1 h-3.5 w-3.5 text-sky-500" />
-                    AI Before &amp; After
+                    {t("header.aiBeforeAfter")}
                   </Button>
                 </div>
               ) : null}
@@ -2092,14 +2091,14 @@ export function ProposalBuilder({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
-                  Generating your AI proposal
+                  {t("aiLoading.title")}
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  {AI_PROPOSAL_LOADING_MESSAGES[aiProposalLoadingStage]}
+                  {t(`aiLoading.messages.${aiProposalLoadingStage}`)}
                 </p>
               </div>
               <span className="shrink-0 rounded-full border border-violet-200 bg-white/80 px-3 py-1 text-xs font-medium text-violet-700">
-                Drafting pages and narrative
+                {t("aiLoading.badge")}
               </span>
             </div>
             <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-violet-100">
@@ -2109,7 +2108,7 @@ export function ProposalBuilder({
               />
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              The builder will update automatically when the draft is ready.
+              {t("aiLoading.hint")}
             </p>
           </div>
         ) : null}
@@ -2135,12 +2134,12 @@ export function ProposalBuilder({
                   className={cn("rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.24em]", proposalTheme.coverPrimaryBadgeClassName)}
                   style={{ backgroundColor: accentColor, color: accentTextColor }}
                 >
-                  Proposal
+                  {t("badge.proposal")}
                 </Badge>
-                {document.quoteId ? <Badge className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>QUOTE #{document.quoteId}</Badge> : null}
+                {document.quoteId ? <Badge className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>{t("badge.quoteNumber", { id: document.quoteId })}</Badge> : null}
                 {isReadOnly ? (
                   <Badge variant="secondary" className={cn("rounded-full px-3 py-1 text-xs", proposalTheme.coverSecondaryBadgeClassName)}>
-                    {formatProposalDate(document.date)}
+                    {formatProposalDate(document.date, locale)}
                   </Badge>
                 ) : (
                   <label
@@ -2148,14 +2147,14 @@ export function ProposalBuilder({
                       "relative inline-flex cursor-pointer items-center overflow-hidden rounded-full px-3 py-1 text-xs",
                       proposalTheme.coverSecondaryBadgeClassName,
                     )}
-                    title="Edit proposal date"
+                    title={t("cover.editDate")}
                   >
-                    <span>{formatProposalDate(document.date)}</span>
+                    <span>{formatProposalDate(document.date, locale)}</span>
                     <input
                       type="date"
                       value={document.date}
                       onChange={(event) => updateDocument((current) => ({ ...current, date: event.target.value }))}
-                      aria-label="Proposal date"
+                      aria-label={t("cover.proposalDate")}
                       className="absolute inset-0 cursor-pointer opacity-0"
                     />
                   </label>
@@ -2175,12 +2174,12 @@ export function ProposalBuilder({
                       ? "text-white placeholder:text-stone-400 hover:border-white/20 focus:border-white/40"
                       : "text-slate-950 placeholder:text-slate-300 hover:border-slate-200 focus:border-slate-400",
                   )}
-                  placeholder="Proposal title"
+                  placeholder={t("cover.titlePlaceholder")}
                 />
               )}
 
               <p className={cn("max-w-3xl text-sm font-medium sm:text-base", proposalTheme.id === "editorial" ? "text-stone-200" : "text-slate-600")}>
-                {subtitle || "Link this proposal to a company / property"}
+                {subtitle || t("cover.linkCompany")}
               </p>
             </div>
           </div>
@@ -2204,7 +2203,7 @@ export function ProposalBuilder({
                 <Input
                   value={document.companyAddress}
                   onChange={(event) => updateDocument((current) => ({ ...current, companyAddress: event.target.value }))}
-                  placeholder="Company / property address"
+                  placeholder={t("cover.companyAddressPlaceholder")}
                 />
                 <Input
                   value={document.date}
@@ -2214,21 +2213,21 @@ export function ProposalBuilder({
                 <Input
                   value={document.contractorName}
                   onChange={(event) => updateDocument((current) => ({ ...current, contractorName: event.target.value }))}
-                  placeholder="Contractor company name"
+                  placeholder={t("cover.contractorNamePlaceholder")}
                 />
               </div>
             ) : (
               <div className={cn("grid rounded-[28px] border text-sm sm:grid-cols-3", "gap-2.5 p-3", proposalTheme.coverMetaPanelClassName)}>
                 <div>
-                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Prepared For</p>
-                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyName || "Client / Property"}</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>{t("cover.preparedFor")}</p>
+                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyName || t("cover.clientProperty")}</p>
                 </div>
                 <div>
-                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Address</p>
-                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyAddress || "Not specified"}</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>{t("cover.address")}</p>
+                  <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.companyAddress || t("cover.notSpecified")}</p>
                 </div>
                 <div>
-                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>Prepared By</p>
+                  <p className={cn("text-[11px] uppercase tracking-[0.22em]", proposalTheme.id === "editorial" ? "text-stone-400" : "text-slate-400")}>{t("cover.preparedBy")}</p>
                   <p className={cn("mt-0.5 font-medium", proposalTheme.id === "editorial" ? "text-white" : "text-slate-900")}>{document.contractorName}</p>
                 </div>
               </div>
@@ -2242,7 +2241,7 @@ export function ProposalBuilder({
               toolbarClassName={proposalTheme.richTextToolbarClassName}
               editorClassName={proposalTheme.richTextEditorClassName}
               readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
-              placeholder="Add the top-level scope summary for this proposal."
+              placeholder={t("cover.scopePlaceholder")}
             />
           </div>
         </Card>
@@ -2250,7 +2249,7 @@ export function ProposalBuilder({
         <Card className={cn("rounded-[32px] border", isReadOnly ? "p-4 sm:p-5" : "p-5 sm:p-6", proposalTheme.overviewCardClassName)}>
           <div className={cn(isReadOnly ? "space-y-3" : "space-y-4")}>
             <Badge variant="outline" className={cn("rounded-full px-3 py-1 text-[11px] tracking-[0.24em]", proposalTheme.overviewBadgeClassName)}>
-              PROJECT OVERVIEW
+              {t("badge.projectOverview")}
             </Badge>
 
             {isReadOnly ? (
@@ -2265,7 +2264,7 @@ export function ProposalBuilder({
                   }))
                 }
                 className="h-auto border-none px-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0"
-                placeholder="Project overview title"
+                placeholder={t("overview.titlePlaceholder")}
               />
             )}
 
@@ -2282,7 +2281,7 @@ export function ProposalBuilder({
               toolbarClassName={proposalTheme.richTextToolbarClassName}
               editorClassName={proposalTheme.richTextEditorClassName}
               readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
-              placeholder="Describe the project context and why this work matters."
+              placeholder={t("overview.descriptionPlaceholder")}
             />
           </div>
         </Card>
@@ -2296,7 +2295,7 @@ export function ProposalBuilder({
                     {!isReadOnly ? <GripVertical className="mt-1 h-5 w-5 shrink-0 text-slate-400" /> : null}
                     <div className="min-w-0 flex-1">
                       {isReadOnly ? (
-                        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{page.title || `Untitled page ${pageIndex + 1}`}</h2>
+                        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{page.title || t("page.untitled", { number: pageIndex + 1 })}</h2>
                       ) : (
                         <Input
                           value={page.title}
@@ -2306,7 +2305,7 @@ export function ProposalBuilder({
                             )
                           }
                           className="h-auto border-none bg-transparent px-0 py-0 text-2xl font-semibold tracking-tight text-slate-950 shadow-none outline-none placeholder:text-slate-400 focus-visible:border-transparent focus-visible:ring-0"
-                          placeholder="Add a page title"
+                          placeholder={t("page.titlePlaceholder")}
                         />
                       )}
                     </div>
@@ -2386,7 +2385,7 @@ export function ProposalBuilder({
                           }
                           readOnly
                           readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
-                          placeholder={PAGE_TEXT_PLACEHOLDER}
+                          placeholder={t("page.textPlaceholder")}
                         />
                       )
                     }
@@ -2414,7 +2413,7 @@ export function ProposalBuilder({
                           className={proposalTheme.richTextSurfaceClassName}
                           toolbarClassName={proposalTheme.richTextToolbarClassName}
                           editorClassName={proposalTheme.richTextEditorClassName}
-                          placeholder={PAGE_TEXT_PLACEHOLDER}
+                          placeholder={t("page.textPlaceholder")}
                         />
                       </div>
                     )
@@ -2456,7 +2455,7 @@ export function ProposalBuilder({
                     }
                   >
                     <Plus className="mr-1 h-4 w-4" />
-                    Add text
+                    {t("page.addText")}
                   </Button>
 
                   <Button
@@ -2480,7 +2479,7 @@ export function ProposalBuilder({
                     ) : (
                       <ImagePlus className="mr-1 h-4 w-4" />
                     )}
-                    Add images
+                    {t("page.addImages")}
                   </Button>
 
                   <input
@@ -2508,7 +2507,7 @@ export function ProposalBuilder({
             onClick={addPage}
           >
             <FileImage className="mr-2 h-4 w-4" />
-            + Add Page
+            {t("page.addPage")}
           </Button>
         ) : null}
       </div>
@@ -2516,9 +2515,9 @@ export function ProposalBuilder({
       <Dialog open={imagePickerPageId !== null} onOpenChange={(open) => { if (!open) setImagePickerPageId(null) }}>
         <DialogContent className="flex max-h-[80vh] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:rounded-[28px]">
           <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
-            <DialogTitle className="text-base font-semibold text-slate-900">Add Image</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-slate-900">{t("imagePicker.title")}</DialogTitle>
             <DialogDescription className="mt-0.5 text-sm text-slate-500">
-              Select from your AI before &amp; after photos or upload a new image.
+              {t("imagePicker.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -2528,7 +2527,7 @@ export function ProposalBuilder({
                 <div className="mb-3 flex items-center gap-2">
                   <Sparkles className="h-3.5 w-3.5 text-violet-500" />
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    AI Before &amp; After
+                    {t("imagePicker.aiBeforeAfter")}
                   </span>
                 </div>
                 <div className="space-y-3">
@@ -2560,8 +2559,8 @@ export function ProposalBuilder({
                           type: "before_after",
                           beforeUrl: pair.beforePreview,
                           afterUrl: pair.afterUrl,
-                          beforeLabel: "Before",
-                          afterLabel: "After",
+                          beforeLabel: t("imageEditor.before"),
+                          afterLabel: t("imageEditor.after"),
                         }
                         updateDocument((current) =>
                           updatePage(current, pageId, (p) => ({
@@ -2575,7 +2574,7 @@ export function ProposalBuilder({
                       return (
                         <div key={pair.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                           <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-3 py-2">
-                            <span className="text-xs font-medium text-slate-500">Pair {pairIndex + 1}</span>
+                            <span className="text-xs font-medium text-slate-500">{t("imagePicker.pair", { number: pairIndex + 1 })}</span>
                             {hasBoth ? (
                               <button
                                 type="button"
@@ -2583,7 +2582,7 @@ export function ProposalBuilder({
                                 className="flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-slate-800"
                               >
                                 <Plus className="h-3 w-3" />
-                                Add both
+                                {t("imagePicker.addBoth")}
                               </button>
                             ) : null}
                           </div>
@@ -2592,13 +2591,13 @@ export function ProposalBuilder({
                               <button
                                 type="button"
                                 className="group text-left transition hover:bg-slate-50"
-                                onClick={() => addImage(pair.beforePreview, `Before ${pairIndex + 1}`)}
+                                onClick={() => addImage(pair.beforePreview, t("imagePicker.beforeLabel", { number: pairIndex + 1 }))}
                               >
                                 <div className="aspect-[4/3] overflow-hidden">
-                                  <img src={pair.beforePreview} alt={`Before ${pairIndex + 1}`} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                                  <img src={pair.beforePreview} alt={t("imagePicker.beforeLabel", { number: pairIndex + 1 })} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
                                 </div>
                                 <div className="px-3 py-2">
-                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">Before</span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">{t("imagePicker.before")}</span>
                                 </div>
                               </button>
                             ) : null}
@@ -2606,13 +2605,13 @@ export function ProposalBuilder({
                               <button
                                 type="button"
                                 className="group text-left transition hover:bg-slate-50"
-                                onClick={() => addImage(pair.afterUrl!, `After ${pairIndex + 1}`)}
+                                onClick={() => addImage(pair.afterUrl!, t("imagePicker.afterLabel", { number: pairIndex + 1 }))}
                               >
                                 <div className="aspect-[4/3] overflow-hidden">
-                                  <img src={pair.afterUrl!} alt={`After ${pairIndex + 1}`} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                                  <img src={pair.afterUrl!} alt={t("imagePicker.afterLabel", { number: pairIndex + 1 })} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
                                 </div>
                                 <div className="px-3 py-2">
-                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">After (AI)</span>
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{t("imagePicker.afterAi")}</span>
                                 </div>
                               </button>
                             ) : null}
@@ -2628,7 +2627,7 @@ export function ProposalBuilder({
               <div className="mb-3 flex items-center gap-2">
                 <ImagePlus className="h-3.5 w-3.5 text-slate-400" />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Upload from device
+                  {t("imagePicker.uploadFromDevice")}
                 </span>
               </div>
               <button
@@ -2645,8 +2644,8 @@ export function ProposalBuilder({
                   <ImagePlus className="h-4 w-4 text-slate-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Upload images</p>
-                  <p className="text-xs text-slate-400">JPG, PNG, WEBP and more</p>
+                  <p className="text-sm font-medium text-slate-700">{t("imagePicker.uploadImages")}</p>
+                  <p className="text-xs text-slate-400">{t("imagePicker.fileTypes")}</p>
                 </div>
               </button>
             </div>
@@ -2663,10 +2662,10 @@ export function ProposalBuilder({
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-base font-semibold text-slate-900">
-                  AI Before and After
+                  {t("aiModal.title")}
                 </DialogTitle>
                 <DialogDescription className="mt-0.5 text-sm text-slate-500">
-                  Upload a before photo, choose the saved quote items to include, and generate a before/after preview for this quote.
+                  {t("aiModal.description")}
                 </DialogDescription>
               </div>
             </div>
@@ -2705,10 +2704,10 @@ export function ProposalBuilder({
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
                   <Check className="h-5 w-5 shrink-0" />
-                  Proposal sent to {sentToEmail}
+                  {t("review.sentTitle", { email: sentToEmail })}
                 </DialogTitle>
                 <DialogDescription>
-                  Your client will receive the email from your Gmail with a link to view the proposal.
+                  {t("review.sentDescription")}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 pt-6">
@@ -2721,44 +2720,44 @@ export function ProposalBuilder({
                     if (url) {
                       await navigator.clipboard.writeText(url)
                       setCopiedLink(true)
-                      toast({ title: "Link copied" })
+                      toast({ title: t("toast.linkCopiedShort") })
                       setTimeout(() => setCopiedLink(false), 2000)
                     }
                   }}
                 >
                   {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copiedLink ? "Copied!" : "Copy share link"}
+                  {copiedLink ? t("review.copied") : t("review.copyShareLink")}
                 </Button>
                 <Button className="w-full" onClick={() => setSendEmailOpen(false)}>
-                  Close
+                  {t("review.close")}
                 </Button>
               </div>
             </div>
           ) : (
             <>
               <DialogHeader className="pb-2">
-                <DialogTitle className="text-lg font-semibold">Review &amp; Send Proposal</DialogTitle>
+                <DialogTitle className="text-lg font-semibold">{t("review.title")}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-0 border-t">
                 <div className="flex items-center gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0">From</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">{t("review.from")}</span>
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                       <UserCircle className="h-5 w-5" />
                     </div>
-                    <span className="truncate text-sm font-medium">{contractorName} (me)</span>
+                    <span className="truncate text-sm font-medium">{t("review.fromMe", { name: contractorName })}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">To</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">{t("review.to")}</span>
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <Input
                       id="send-proposal-email-to"
                       type="email"
-                      placeholder="Enter client email address"
+                      placeholder={t("review.toPlaceholder")}
                       value={sendEmailTo}
                       onChange={(e) => setSendEmailTo(e.target.value)}
                       className="min-h-11 w-full px-3 py-2.5 text-base"
@@ -2769,7 +2768,7 @@ export function ProposalBuilder({
                 </div>
 
                 <div className="flex items-center gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0">Subject</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">{t("review.subject")}</span>
                   <p className="min-w-0 flex-1 truncate text-sm text-foreground" title={emailSubject}>
                     {emailSubject}
                   </p>
@@ -2778,7 +2777,7 @@ export function ProposalBuilder({
                 <div className="flex gap-3 py-3 px-1">
                   <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5" />
                   <textarea
-                    placeholder="Add a short message (optional)"
+                    placeholder={t("review.notePlaceholder")}
                     value={optionalNote}
                     onChange={(e) => setOptionalNote(e.target.value)}
                     className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -2787,18 +2786,18 @@ export function ProposalBuilder({
                 </div>
 
                 <div className="rounded-lg border bg-muted/30 p-3 mx-1 mt-2">
-                  <p className="text-xs text-muted-foreground mb-2">What your client will receive</p>
+                  <p className="text-xs text-muted-foreground mb-2">{t("review.previewLabel")}</p>
                   <div className="rounded-md border bg-background p-3 text-left space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      Hi{clientName ? ` ${String(clientName).split(" ")[0]}` : ""},
+                      {clientName ? t("review.greeting", { name: String(clientName).split(" ")[0] }) : t("review.greetingNoName")}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {contractorName} has prepared a proposal for{" "}
+                      {t("review.previewBody", { contractor: contractorName })}{" "}
                       <strong className="text-foreground">{proposalTitle}</strong>.
                     </p>
                     <div className="py-1">
                       <span className="inline-block rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-                        View Proposal
+                        {t("review.viewProposal")}
                       </span>
                     </div>
                   </div>
@@ -2812,7 +2811,7 @@ export function ProposalBuilder({
                   disabled={sendEmailSending}
                   className="order-2 sm:order-1 text-muted-foreground"
                 >
-                  Discard
+                  {t("review.discard")}
                 </Button>
                 <Button
                   onClick={() => void handleSendProposalEmail()}
@@ -2824,7 +2823,7 @@ export function ProposalBuilder({
                   className="order-1 sm:order-2 text-base font-medium gap-2"
                 >
                   <Send className="h-4 w-4" />
-                  {sendEmailSending ? "Sending…" : "Send Proposal"}
+                  {sendEmailSending ? t("review.sending") : t("review.sendProposal")}
                 </Button>
               </DialogFooter>
             </>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useParams } from "next/navigation"
 import { ProposalPreviewPage } from "@/components/proposal-preview-page"
 import { api } from "@/lib/api"
@@ -8,6 +9,7 @@ import type { ContractorProfile, Job, Proposal } from "@/lib/types"
 
 export default function QuoteProposalPreview() {
   const params = useParams()
+  const t = useTranslations("proposals")
   const locale = (params.locale as string) || "en"
   const jobId = Number(params.id)
 
@@ -37,14 +39,14 @@ export default function QuoteProposalPreview() {
         const proposals = (await api.getJobProposals(jobId)) as Proposal[]
         setProposal(proposals[0] ?? null)
       } catch (err: any) {
-        setError(err?.message || "Failed to load proposal.")
+        setError(err?.message || t("errors.loadProposal"))
       } finally {
         setLoading(false)
       }
     }
 
     void fetchData()
-  }, [jobId])
+  }, [jobId, t])
 
   return (
     <ProposalPreviewPage
@@ -55,13 +57,13 @@ export default function QuoteProposalPreview() {
       loading={loading}
       error={error}
       breadcrumbs={[
-        { label: "Quotes", href: `/${locale}/quotes` },
-        { label: `Quote #${jobId}`, href: `/${locale}/quotes/${jobId}` },
-        { label: "Proposal", href: `/${locale}/quotes/${jobId}/proposal` },
-        { label: "Preview" },
+        { label: t("routePage.breadcrumbQuotes"), href: `/${locale}/quotes` },
+        { label: t("routePage.breadcrumbQuoteNumber", { id: jobId }), href: `/${locale}/quotes/${jobId}` },
+        { label: t("routePage.breadcrumbProposal"), href: `/${locale}/quotes/${jobId}/proposal` },
+        { label: t("routePage.breadcrumbPreview") },
       ]}
       backHref={`/${locale}/quotes/${jobId}`}
-      backLabel="Back to Quote"
+      backLabel={t("routePage.backToQuote")}
     />
   )
 }

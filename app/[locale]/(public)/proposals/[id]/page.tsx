@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useParams } from "next/navigation"
 
 import { Card } from "@/components/ui/card"
@@ -14,6 +15,7 @@ import type { Proposal, PublicProposalLookup } from "@/lib/types"
 
 export default function PublicProposalPage() {
   const params = useParams()
+  const t = useTranslations("proposals")
   const locale = (params.locale as string) || "en"
   const identifier = params.id as string
   const [proposal, setProposal] = useState<Proposal | null>(null)
@@ -37,7 +39,7 @@ export default function PublicProposalPage() {
         }
       } catch (err: any) {
         if (!cancelled) {
-          setError(err?.message || "Proposal not found.")
+          setError(err?.message || t("errors.publicProposalNotFound"))
         }
       } finally {
         if (!cancelled) {
@@ -51,7 +53,7 @@ export default function PublicProposalPage() {
     return () => {
       cancelled = true
     }
-  }, [identifier])
+  }, [identifier, t])
 
   if (loading) {
     return (
@@ -77,13 +79,13 @@ export default function PublicProposalPage() {
       <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl">
           <Card className="rounded-3xl p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold text-slate-950">No Proposal</h1>
+            <h1 className="text-2xl font-semibold text-slate-950">{t("public.noProposal")}</h1>
             <p className="mt-3 text-sm text-slate-600">
-              There's no proposal to view here yet.
+              {t("public.noProposalDescription")}
             </p>
             {fallbackQuoteUrl ? (
               <Button asChild className="mt-6">
-                <a href={fallbackQuoteUrl}>View Quote</a>
+                <a href={fallbackQuoteUrl}>{t("public.viewQuote")}</a>
               </Button>
             ) : null}
           </Card>
@@ -93,7 +95,7 @@ export default function PublicProposalPage() {
   }
 
   const contractorName =
-    proposal.proposal_document.contractorName || "Contractor"
+    proposal.proposal_document.contractorName || t("doc.contractor")
   const quoteUrl = resolveQuoteNavUrl(
     portalQuotes.length > 0 ? portalQuotes : (proposal.portal_quotes ?? []),
     locale,

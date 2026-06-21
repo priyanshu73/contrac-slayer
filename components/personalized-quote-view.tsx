@@ -575,7 +575,7 @@ export function PersonalizedQuoteView({
                       </DropdownMenu>
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
+                  <TooltipContent side="top" className="max-w-xs">
                     Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link.
                   </TooltipContent>
                 </Tooltip>

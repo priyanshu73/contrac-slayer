@@ -187,6 +187,18 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         })
     }
 
+    const handleCopyPortalLink = async () => {
+        if (!subData?.uuid) return
+        const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
+        const fullUrl = `${frontendUrl}/${locale}/crew/portal/${subData.uuid}`
+        try {
+            await navigator.clipboard.writeText(fullUrl)
+            toast({ title: "Link copied", description: "Crew portal link copied to clipboard." })
+        } catch {
+            toast({ title: "Failed to copy", variant: "destructive" })
+        }
+    }
+
     const handleCopyScopeLink = async (trade: ProjectTrade) => {
         if (!trade?.uuid) return
         const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
@@ -294,6 +306,9 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
 
                             {/* Actions */}
                             <div className="flex gap-2 shrink-0">
+                                <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
+                                    <Share2 className="h-4 w-4 mr-1" /> Crew Portal
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                                     <Pencil className="h-4 w-4 mr-1" /> Edit
                                 </Button>

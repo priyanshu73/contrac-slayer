@@ -87,6 +87,18 @@ export function SubcontractorsList({
         })
     }
 
+    const handleCopyPortalLink = (e: React.MouseEvent, uuid: string) => {
+        e.stopPropagation()
+        if (!uuid) return
+        const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        const fullUrl = `${frontendUrl}/${locale}/crew/portal/${uuid}`
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            toast({ title: "Link Copied", description: "Crew portal link copied to clipboard." })
+        }).catch(() => {
+            toast({ title: "Failed to copy", variant: "destructive" })
+        })
+    }
+
     const handleArchive = async () => {
         if (!archiveTarget) return
         try {
@@ -174,6 +186,10 @@ export function SubcontractorsList({
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={(e) => handleCopyPortalLink(e, sub.uuid)}>
+                                            <Link2 className="h-4 w-4 mr-2" />
+                                            Copy Crew Portal Link
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
                                             <Link2 className="h-4 w-4 mr-2" />
                                             Request Availability
@@ -402,6 +418,10 @@ export function SubcontractorsList({
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={(e) => handleCopyPortalLink(e, sub.uuid)}>
+                                                    <Link2 className="h-4 w-4 mr-2" />
+                                                    Copy Crew Portal Link
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
                                                     <Link2 className="h-4 w-4 mr-2" />
                                                     Request Availability
@@ -415,6 +435,15 @@ export function SubcontractorsList({
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="h-10 rounded-lg text-xs"
+                                            onClick={(e) => handleCopyPortalLink(e, sub.uuid)}
+                                        >
+                                            <Link2 className="mr-1.5 h-4 w-4" />
+                                            Crew Portal
+                                        </Button>
                                         <Button
                                             type="button"
                                             variant="outline"

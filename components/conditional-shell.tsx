@@ -32,6 +32,9 @@ function isPublicShellRoute(pathname: string): boolean {
     // Public client portal — no contractor shell
     !!pathname?.match(/^\/[a-z]{2}\/client\//) ||
     pathname?.startsWith("/client/") ||
+    // Public crew (subcontractor) portal — no contractor shell
+    !!pathname?.match(/^\/[a-z]{2}\/crew\/portal\//) ||
+    pathname?.startsWith("/crew/portal/") ||
     // Public proposal share links
     !!pathname?.match(/^\/[a-z]{2}\/proposals\//) ||
     pathname?.startsWith("/proposals/") ||

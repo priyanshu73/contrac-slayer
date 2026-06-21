@@ -2034,6 +2034,12 @@ class ApiClient {
     })
   }
 
+  async rejectTradeScopePublic(tradeUuid: string) {
+    return this.request(`/projects/trade/${tradeUuid}/reject`, {
+      method: 'POST',
+    })
+  }
+
   async updateTradeTaskStatusPublic(tradeUuid: string, taskId: number, status: string) {
     const response = await fetch(`${this.baseURL}/projects/trade/${tradeUuid}/tasks/${taskId}`, {
       method: 'PATCH',
@@ -2050,6 +2056,83 @@ class ApiClient {
   async uploadProjectMedia(projectId: number, files: File[], context: string, tradeId?: number, taskId?: number) {
     if (!files || files.length === 0) return []
 
+    // Preferred path: upload bytes straight to Cloudinary from the browser
+    // (signed), so the files never transit our backend. Falls back to the
+    // server-side endpoint if signing/direct upload is unavailable.
+    try {
+      return await this.uploadProjectMediaDirect(projectId, files, context, tradeId, taskId)
+    } catch (err) {
+      console.warn('Direct Cloudinary upload failed, falling back to server upload:', err)
+      return this.uploadProjectMediaViaServer(projectId, files, context, tradeId, taskId)
+    }
+  }
+
+  private async uploadProjectMediaDirect(
+    projectId: number,
+    files: File[],
+    context: string,
+    tradeId?: number,
+    taskId?: number,
+  ) {
+    // One signature is valid for every file targeting this project's folder.
+    const sig = await this.request<{
+      cloud_name: string
+      api_key: string
+      timestamp: number
+      signature: string
+      folder: string
+      max_file_bytes?: number
+    }>(`/projects/${projectId}/media/upload-signature`, { method: 'POST' })
+
+    if (sig?.max_file_bytes) {
+      const tooBig = files.find((f) => f.size > sig.max_file_bytes!)
+      if (tooBig) {
+        const limitMb = (sig.max_file_bytes / (1024 * 1024)).toFixed(1)
+        throw new Error(`${tooBig.name} exceeds the ${limitMb} MB upload limit.`)
+      }
+    }
+
+    // Upload all files to Cloudinary concurrently, then record each result.
+    return Promise.all(
+      files.map(async (file) => {
+        const resourceType = this.cloudinaryResourceType(file)
+        const form = new FormData()
+        form.append('file', file)
+        form.append('api_key', sig.api_key)
+        form.append('timestamp', String(sig.timestamp))
+        form.append('signature', sig.signature)
+        form.append('folder', sig.folder)
+
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resourceType}/upload`,
+          { method: 'POST', body: form },
+        )
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({}))
+          throw new Error(error?.error?.message || `Cloudinary upload failed for ${file.name}`)
+        }
+        const result = await res.json()
+
+        return this.attachProjectMedia(projectId, {
+          file_url: result.secure_url,
+          file_name: file.name,
+          file_size: result.bytes ?? file.size,
+          media_type: this.mediaTypeFromName(file.name),
+          context,
+          trade_id: tradeId,
+          task_id: taskId,
+        })
+      }),
+    )
+  }
+
+  private async uploadProjectMediaViaServer(
+    projectId: number,
+    files: File[],
+    context: string,
+    tradeId?: number,
+    taskId?: number,
+  ) {
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
     formData.append('context', context)
@@ -2068,6 +2151,18 @@ class ApiClient {
     }
 
     return response.json()
+  }
+
+  private cloudinaryResourceType(file: File): 'image' | 'video' | 'auto' {
+    if (file.type?.startsWith('video')) return 'video'
+    if (file.type?.startsWith('image')) return 'image'
+    return 'auto'
+  }
+
+  private mediaTypeFromName(name: string): 'PHOTO' | 'VIDEO' | 'DOCUMENT' {
+    if (/\.(mp4|mov|avi|webm|mkv)$/i.test(name)) return 'VIDEO'
+    if (/\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(name)) return 'PHOTO'
+    return 'DOCUMENT'
   }
 
   async deleteProjectMedia(projectId: number, mediaId: number) {
