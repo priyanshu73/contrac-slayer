@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { ChevronDown, ChevronUp, Loader2, Mic2, Square } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -49,6 +50,7 @@ function rmsLevel(samples: Float32Array): number {
 }
 
 export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props) {
+  const t = useTranslations("frontline.voiceTraining")
   const [eligibility, setEligibility] = useState<FrontlineVoiceTrainingEligibility | null>(null)
   const [voiceState, setVoiceState] = useState<VoiceState>("idle")
   const [transcript, setTranscript] = useState<TranscriptItem[]>([])
@@ -84,9 +86,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       const data = await api.getFrontlineVoiceTrainingEligibility()
       setEligibility(data)
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : "Unable to load voice training eligibility.")
+      onError?.(err instanceof Error ? err.message : t("eligibilityError"))
     }
-  }, [onError])
+  }, [onError, t])
 
   useEffect(() => {
     void loadEligibility()
@@ -381,7 +383,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
           const skipped = Boolean((knowledge as { intake_skipped?: boolean } | undefined)?.intake_skipped)
           setIntakeSummary(
             skipped
-              ? summary || "Training skipped — nothing useful was saved to knowledge."
+              ? summary || t("skippedFallback")
               : summary,
           )
           if (knowledge && !skipped) {
@@ -392,7 +394,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
           void loadEligibility()
         }
         if (type === "error") {
-          const msg = String(payload.message || "Voice training failed.")
+          const msg = String(payload.message || t("voiceTrainingFailed"))
           setLocalError(msg)
           onError?.(msg)
           cleanupAudio()
@@ -401,8 +403,8 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       }
 
       ws.onerror = () => {
-        setLocalError("WebSocket connection failed.")
-        onError?.("WebSocket connection failed.")
+        setLocalError(t("wsConnectionFailed"))
+        onError?.(t("wsConnectionFailed"))
         cleanupAudio()
         setVoiceState("failed")
       }
@@ -410,13 +412,13 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       ws.onclose = () => {
         const state = voiceStateRef.current
         if (state === "recording" || state === "connecting") {
-          setLocalError("Voice connection lost — keep this tab open and try again.")
+          setLocalError(t("connectionLost"))
           cleanupAudio()
           setVoiceState("failed")
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to start voice training."
+      const msg = err instanceof Error ? err.message : t("startError")
       setLocalError(msg)
       onError?.(msg)
       cleanupAudio()
@@ -440,10 +442,9 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   return (
     <div className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="text-center">
-        <h2 className="text-sm font-semibold text-slate-950">Train your operator</h2>
+        <h2 className="text-sm font-semibold text-slate-950">{t("title")}</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-          Have a short voice conversation about how you run your business. We turn it into
-          operator knowledge automatically.
+          {t("desc")}
         </p>
       </div>
 
@@ -454,18 +455,18 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         <div className="mx-auto mt-3 max-w-md space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
           {liveUserText ? (
             <p className="text-slate-700">
-              <span className="font-medium">You:</span> {liveUserText}
+              <span className="font-medium">{t("you")}</span> {liveUserText}
             </p>
           ) : null}
           {waitingForResponse && !liveAssistantText && !assistantSpeaking ? (
             <p className="flex items-center gap-2 text-slate-500">
               <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-              <span>Thinking…</span>
+              <span>{t("thinking")}</span>
             </p>
           ) : null}
           {liveAssistantText ? (
             <p className="text-slate-500 italic">
-              <span className="font-medium not-italic text-slate-600">Assistant:</span>{" "}
+              <span className="font-medium not-italic text-slate-600">{t("assistant")}</span>{" "}
               {liveAssistantText}
             </p>
           ) : null}
@@ -475,9 +476,12 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       {eligibility && (
         <p className="text-center text-xs text-slate-500">
           {eligibility.weekly_limit != null && eligibility.weekly_limit > 0
-            ? `${eligibility.completed_this_week}/${eligibility.weekly_limit} sessions this week · `
+            ? t("sessionsThisWeek", {
+                completed: eligibility.completed_this_week,
+                limit: eligibility.weekly_limit,
+              })
             : null}
-          up to {Math.round(eligibility.max_seconds / 60)} min
+          {t("upToMinutes", { minutes: Math.round(eligibility.max_seconds / 60) })}
         </p>
       )}
 
@@ -489,7 +493,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
             className="gap-2 rounded-full bg-slate-950 px-6 text-white hover:bg-slate-800"
           >
             <Mic2 className="h-4 w-4" />
-            Start conversation
+            {t("startConversation")}
           </Button>
         ) : (
           <Button
@@ -503,7 +507,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
             ) : (
               <Square className="h-4 w-4" />
             )}
-            End and save
+            {t("endAndSave")}
           </Button>
         )}
       </div>
@@ -513,7 +517,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         eligibility.weekly_limit > 0 &&
         voiceState === "idle" && (
           <p className="mt-3 text-center text-xs text-amber-700">
-            Weekly limit reached. You can train again next week.
+            {t("weeklyLimitReached")}
           </p>
         )}
 
@@ -529,7 +533,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
               : "border-emerald-200 bg-emerald-50 text-emerald-900"
           }`}
         >
-          {intakeSummary.startsWith("Skipped:") ? intakeSummary : `Saved: ${intakeSummary}`}
+          {intakeSummary.startsWith("Skipped:") ? intakeSummary : t("saved", { summary: intakeSummary })}
         </p>
       )}
 
@@ -541,14 +545,14 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
             className="flex w-full items-center justify-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
           >
             {showTranscript ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            {showTranscript ? "Hide transcript" : "Show transcript"}
+            {showTranscript ? t("hideTranscript") : t("showTranscript")}
           </button>
           {showTranscript && (
             <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
               {transcript.map((item, idx) => (
                 <div key={`${item.role}-${idx}`} className="text-sm">
                   <span className="font-medium text-slate-700">
-                    {item.role === "user" ? "You" : "Assistant"}:
+                    {item.role === "user" ? t("youLabel") : t("assistantLabel")}:
                   </span>{" "}
                   <span className={item.interim ? "text-slate-500 italic" : "text-slate-600"}>
                     {item.text}
@@ -562,7 +566,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
       {session?.status === "completed" && session.transcript_text && voiceState === "completed" && (
         <p className="mt-2 text-center text-xs text-slate-400">
-          {session.duration_seconds ?? 0}s session
+          {t("sessionDuration", { seconds: session.duration_seconds ?? 0 })}
         </p>
       )}
     </div>

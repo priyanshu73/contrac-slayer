@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { ArrowLeft, CheckCircle2, Loader2, Mic2, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,14 @@ const INTAKE_OPTIONS = [
   "Urgency / timeline",
 ]
 
+const INTAKE_OPTION_KEYS: Record<string, string> = {
+  "Name": "name",
+  "Callback number": "callbackNumber",
+  "Service address": "serviceAddress",
+  "Issue description": "issueDescription",
+  "Urgency / timeline": "urgencyTimeline",
+}
+
 const ESCALATION_OPTIONS = [
   "Caller asks for owner",
   "Pricing dispute",
@@ -33,6 +42,14 @@ const ESCALATION_OPTIONS = [
   "Emergency",
   "Question I can't answer",
 ]
+
+const ESCALATION_OPTION_KEYS: Record<string, string> = {
+  "Caller asks for owner": "asksForOwner",
+  "Pricing dispute": "pricingDispute",
+  "Angry caller": "angryCaller",
+  "Emergency": "emergency",
+  "Question I can't answer": "cantAnswer",
+}
 
 type CoreFields = {
   business_name: string
@@ -154,6 +171,7 @@ function StepSlide({ children, dir }: { children: React.ReactNode; dir: "left" |
 // ─── Loading card ─────────────────────────────────────────────────────────────
 
 function LoadingCard({ operatorName }: { operatorName: string }) {
+  const t = useTranslations("frontline.setup")
   const [dotPhase, setDotPhase] = useState(0)
   useEffect(() => {
     const id = setInterval(() => setDotPhase(p => (p + 1) % 4), 400)
@@ -172,8 +190,8 @@ function LoadingCard({ operatorName }: { operatorName: string }) {
         </div>
       </div>
       <div className="text-center">
-        <p className="text-[15px] font-semibold text-zinc-800">Preparing {operatorName}{dots}</p>
-        <p className="mt-1 text-[12.5px] text-zinc-400">Loading your business profile</p>
+        <p className="text-[15px] font-semibold text-zinc-800">{t("preparing", { operatorName, dots })}</p>
+        <p className="mt-1 text-[12.5px] text-zinc-400">{t("loadingProfile")}</p>
       </div>
     </div>
   )
@@ -185,6 +203,10 @@ const STEPS = ["voice", "business", "hours", "pricing", "booking", "collect", "e
 type Step = (typeof STEPS)[number]
 
 export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
+  const t = useTranslations("frontline.setup")
+  const tIntake = useTranslations("frontline.intakeOptions")
+  const tEscalation = useTranslations("frontline.escalationOptions")
+  const tOperator = useTranslations("frontline.operator")
   const [step, setStep] = useState<Step>("voice")
   const [dir, setDir] = useState<"left" | "right" | "none">("none")
   const [prefilling, setPrefilling] = useState(false)
@@ -225,7 +247,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
   const back = () => { if (stepIndex > 0) go(STEPS[stepIndex - 1] as Step) }
 
   const save = async () => {
-    if (!fields.business_name.trim()) { onError?.("Business name is required."); return }
+    if (!fields.business_name.trim()) { onError?.(t("businessNameRequired")); return }
     try {
       setSaving(true)
       await api.updateFrontlineSettings({ operator_display_name: operator.name, operator_voice_id: operator.voiceId })
@@ -234,7 +256,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
       setTimeout(() => onComplete(), 1200)
     } catch (err) {
       setSaving(false)
-      onError?.(err instanceof Error ? err.message : "Unable to save setup.")
+      onError?.(err instanceof Error ? err.message : t("saveError"))
     }
   }
 
@@ -247,8 +269,8 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <CheckCircle2 className="h-7 w-7" />
         </span>
         <div>
-          <p className="text-[17px] font-semibold text-zinc-900">{operator.name} is ready</p>
-          <p className="mt-1.5 text-[13px] text-zinc-500">Turn it on whenever you&apos;re set.</p>
+          <p className="text-[17px] font-semibold text-zinc-900">{t("operatorReady", { operatorName: operator.name })}</p>
+          <p className="mt-1.5 text-[13px] text-zinc-500">{t("turnOnWhenSet")}</p>
         </div>
       </div>
     )
@@ -278,9 +300,9 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="space-y-2">
-                <p className="text-[20px] font-semibold tracking-tight text-zinc-900">Set up your operator</p>
+                <p className="text-[20px] font-semibold tracking-tight text-zinc-900">{t("setUpOperator")}</p>
                 <p className="text-[13px] leading-relaxed text-zinc-500 max-w-[260px] mx-auto">
-                  Pick a voice — we&apos;ll walk through a few quick questions.
+                  {t("pickVoiceHint")}
                 </p>
               </div>
               <div className="grid w-full gap-3 grid-cols-2">
@@ -301,7 +323,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
                     </span>
                     <span className="mt-3 block text-[13.5px] font-semibold">{opt.name}</span>
                     <span className={cn("mt-0.5 block text-[11.5px]", operator.voiceId === opt.voiceId ? "text-zinc-300" : "text-zinc-400")}>
-                      {opt.label} voice
+                      {t("voiceLabel", { label: opt.label === "Male" ? tOperator("male") : tOperator("female") })}
                     </span>
                   </button>
                 ))}
@@ -312,7 +334,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
                 onClick={() => void next()}
                 className="w-full rounded-full bg-zinc-900 py-3 text-[14px] font-semibold text-white shadow-sm transition hover:bg-zinc-700 active:scale-[0.98]"
               >
-                Get started
+                {t("getStarted")}
               </button>
             </div>
           </StepSlide>
@@ -323,28 +345,28 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="business">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">Your business</p>
-                <p className="mt-1 text-[13px] text-zinc-400">What should {operator.name} know about you?</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("yourBusiness")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("businessKnowDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="space-y-4">
-                <Field label="Business name">
+                <Field label={t("businessName")}>
                   <Input value={fields.business_name} onChange={e => set("business_name", e.target.value)}
-                    placeholder="e.g. Valley Landscaping" autoFocus
+                    placeholder={t("businessNamePlaceholder")} autoFocus
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
-                <Field label="Services offered" hint="Separate with commas">
+                <Field label={t("servicesOffered")} hint={t("separateCommas")}>
                   <Input value={fields.services_offered} onChange={e => set("services_offered", e.target.value)}
-                    placeholder="e.g. Tree removal, irrigation, grading"
+                    placeholder={t("servicesOfferedPlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
-                <Field label="Things you don't do" hint="Optional — helps decline confidently">
+                <Field label={t("thingsYouDontDo")} hint={t("thingsYouDontDoHint")}>
                   <Input value={fields.services_not_offered} onChange={e => set("services_not_offered", e.target.value)}
-                    placeholder="e.g. Roofing, electrical"
+                    placeholder={t("thingsYouDontDoPlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
-                <Field label="Where do you work?">
+                <Field label={t("whereDoYouWork")}>
                   <Input value={fields.service_area} onChange={e => set("service_area", e.target.value)}
-                    placeholder="e.g. Gettysburg PA within 50 miles"
+                    placeholder={t("whereDoYouWorkPlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
               </div>
@@ -357,18 +379,18 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="hours">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">Hours</p>
-                <p className="mt-1 text-[13px] text-zinc-400">When do you work, and what happens after hours?</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("hours")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("hoursDesc")}</p>
               </div>
               <div className="space-y-4">
-                <Field label="Regular hours">
+                <Field label={t("regularHours")}>
                   <Input value={fields.hours_regular} onChange={e => set("hours_regular", e.target.value)}
-                    placeholder="e.g. Mon–Fri 8am–5pm, Sat 9am–2pm" autoFocus
+                    placeholder={t("regularHoursPlaceholder")} autoFocus
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
-                <Field label="After-hours policy">
+                <Field label={t("afterHoursPolicy")}>
                   <Input value={fields.hours_after_hours} onChange={e => set("hours_after_hours", e.target.value)}
-                    placeholder="e.g. Leave a message, we call back next morning"
+                    placeholder={t("afterHoursPlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
               </div>
@@ -381,25 +403,25 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="pricing">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">Pricing</p>
-                <p className="mt-1 text-[13px] text-zinc-400">{operator.name} won&apos;t quote exact prices — just enough to sound informed.</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("pricing")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("pricingDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="space-y-5">
-                <Field label="Free estimates?">
+                <Field label={t("freeEstimates")}>
                   <div className="flex gap-2 flex-wrap">
                     {([true, false, null] as const).map(v => (
-                      <Pill key={String(v)} label={v === null ? "Not sure" : v ? "Yes, free" : "No, we charge"} active={fields.free_estimates === v} onClick={() => set("free_estimates", v)} />
+                      <Pill key={String(v)} label={v === null ? t("notSure") : v ? t("yesFree") : t("noWeCharge")} active={fields.free_estimates === v} onClick={() => set("free_estimates", v)} />
                     ))}
                   </div>
                 </Field>
-                <Field label="Callout / diagnostic fee" hint="Leave blank if none">
+                <Field label={t("calloutFee")} hint={t("calloutFeeHint")}>
                   <Input value={fields.callout_fee} onChange={e => set("callout_fee", e.target.value)}
-                    placeholder="e.g. $75 service call fee"
+                    placeholder={t("calloutFeePlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
-                <Field label="General rate info" hint="Ranges are fine">
+                <Field label={t("generalRateInfo")} hint={t("rangesFine")}>
                   <Input value={fields.rate_info} onChange={e => set("rate_info", e.target.value)}
-                    placeholder="e.g. $85–150/hr depending on job"
+                    placeholder={t("rateInfoPlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
               </div>
@@ -412,30 +434,30 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="booking">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">Booking</p>
-                <p className="mt-1 text-[13px] text-zinc-400">What should {operator.name} do when someone wants to book?</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("booking")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("bookingDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="space-y-2">
                 {[
-                  { label: "Collect details, owner calls back", sub: "Gather name, number, and project info — you follow up." },
-                  { label: "Text the booking link", sub: "Offer to text the online scheduling link." },
-                  { label: "Take a message", sub: "Get name and number, say someone will be in touch." },
+                  { label: t("bookingCollectLabel"), sub: t("bookingCollectSub"), value: "Gather name, number, and project info — you follow up." },
+                  { label: t("bookingLinkLabel"), sub: t("bookingLinkSub"), value: "Offer to text the online scheduling link." },
+                  { label: t("bookingMessageLabel"), sub: t("bookingMessageSub"), value: "Get name and number, say someone will be in touch." },
                 ].map(opt => (
                   <button
-                    key={opt.label}
+                    key={opt.value}
                     type="button"
-                    onClick={() => set("booking_behavior", opt.sub)}
+                    onClick={() => set("booking_behavior", opt.value)}
                     className={cn(
                       "w-full rounded-xl border px-4 py-3 text-left transition-all duration-150",
-                      fields.booking_behavior === opt.sub
+                      fields.booking_behavior === opt.value
                         ? "border-indigo-300 bg-indigo-50 ring-1 ring-indigo-400"
                         : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50",
                     )}
                   >
-                    <span className={cn("block text-[13.5px] font-semibold", fields.booking_behavior === opt.sub ? "text-indigo-900" : "text-zinc-800")}>
+                    <span className={cn("block text-[13.5px] font-semibold", fields.booking_behavior === opt.value ? "text-indigo-900" : "text-zinc-800")}>
                       {opt.label}
                     </span>
-                    <span className={cn("mt-0.5 block text-[12px]", fields.booking_behavior === opt.sub ? "text-indigo-600" : "text-zinc-400")}>
+                    <span className={cn("mt-0.5 block text-[12px]", fields.booking_behavior === opt.value ? "text-indigo-600" : "text-zinc-400")}>
                       {opt.sub}
                     </span>
                   </button>
@@ -450,12 +472,12 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="collect">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">What to collect</p>
-                <p className="mt-1 text-[13px] text-zinc-400">What should {operator.name} always ask callers for?</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("whatToCollect")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("whatToCollectDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {INTAKE_OPTIONS.map(item => (
-                  <Pill key={item} label={item} active={fields.intake_fields.includes(item)} onClick={() => toggleList("intake_fields", item)} />
+                  <Pill key={item} label={tIntake(INTAKE_OPTION_KEYS[item])} active={fields.intake_fields.includes(item)} onClick={() => toggleList("intake_fields", item)} />
                 ))}
               </div>
             </div>
@@ -467,18 +489,18 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
           <StepSlide dir={dir} key="escalation">
             <div className="space-y-6">
               <div>
-                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">Escalation</p>
-                <p className="mt-1 text-[13px] text-zinc-400">When should {operator.name} transfer to you?</p>
+                <p className="text-[18px] font-semibold tracking-tight text-zinc-900">{t("escalation")}</p>
+                <p className="mt-1 text-[13px] text-zinc-400">{t("escalationDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="space-y-5">
                 <div className="flex flex-wrap gap-2">
                   {ESCALATION_OPTIONS.map(item => (
-                    <Pill key={item} label={item} active={fields.escalation_when.includes(item)} onClick={() => toggleList("escalation_when", item)} />
+                    <Pill key={item} label={tEscalation(ESCALATION_OPTION_KEYS[item])} active={fields.escalation_when.includes(item)} onClick={() => toggleList("escalation_when", item)} />
                   ))}
                 </div>
-                <Field label="Your number for live transfers" hint="Optional — leave blank if not needed">
+                <Field label={t("yourNumberLabel")} hint={t("yourNumberHint")}>
                   <Input value={fields.escalation_number} onChange={e => set("escalation_number", e.target.value)}
-                    placeholder="e.g. +1 555 123 4567"
+                    placeholder={t("phonePlaceholder")}
                     className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
                 </Field>
               </div>
@@ -508,7 +530,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
             className="flex items-center gap-1.5 text-[12.5px] font-medium text-zinc-400 transition hover:text-zinc-700"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back
+            {t("back")}
           </button>
 
           {/* Dots */}
@@ -532,10 +554,10 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
             ) : isLast ? (
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" />
-                Finish setup
+                {t("finishSetup")}
               </span>
             ) : (
-              "Next"
+              t("next")
             )}
           </button>
         </div>

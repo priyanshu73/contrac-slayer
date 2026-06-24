@@ -9,6 +9,7 @@ import {
   type ElementType,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import {
   Activity,
   AlertTriangle,
@@ -82,60 +83,21 @@ type VoiceTranscriptItem = {
 
 const VIEW_STEPS: Array<{
   id: ViewKey;
-  title: string;
-  subtitle: string;
   icon: ElementType;
 }> = [
-  {
-    id: "dashboard",
-    title: "Dashboard",
-    subtitle: "Calls, texts, and recent activity.",
-    icon: LayoutDashboard,
-  },
-  {
-    id: "train",
-    title: "Train",
-    subtitle: "Give it the business basics.",
-    icon: BookOpen,
-  },
-  {
-    id: "test",
-    title: "Test",
-    subtitle: "Ask a customer-style question.",
-    icon: FlaskConical,
-  },
-  {
-    id: "settings",
-    title: "Settings",
-    subtitle: "Reply mode, voice, and operator.",
-    icon: ShieldCheck,
-  },
+  { id: "dashboard", icon: LayoutDashboard },
+  { id: "train", icon: BookOpen },
+  { id: "test", icon: FlaskConical },
+  { id: "settings", icon: ShieldCheck },
 ];
 
 const MODE_OPTIONS: Array<{
   mode: FrontlineMode;
-  title: string;
-  subtitle: string;
   icon: ElementType;
 }> = [
-  {
-    mode: "review",
-    title: "Review",
-    subtitle: "Drafts replies and asks the owner before sending.",
-    icon: UserRound,
-  },
-  {
-    mode: "auto",
-    title: "Auto",
-    subtitle: "Sends directly only when the answer is confident.",
-    icon: Zap,
-  },
-  {
-    mode: "off",
-    title: "Off",
-    subtitle: "Keeps the smart operator paused.",
-    icon: Clock3,
-  },
+  { mode: "review", icon: UserRound },
+  { mode: "auto", icon: Zap },
+  { mode: "off", icon: Clock3 },
 ];
 
 const OPERATOR_OPTIONS = [
@@ -143,25 +105,24 @@ const OPERATOR_OPTIONS = [
   { name: "Jane", voiceId: "tiffany", label: "Female" },
 ] as const;
 
-const QUICK_TESTS = [
-  "Do you service my area and can I get an estimate?",
-  "Can you come tomorrow morning for a repair?",
-  "How much do you charge and do you offer warranties?",
-];
+const QUICK_TEST_KEYS = ["0", "1", "2"] as const;
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function summarizeIntake(result: FrontlineKnowledgeIntakeResponse) {
+function summarizeIntake(
+  result: FrontlineKnowledgeIntakeResponse,
+  t: ReturnType<typeof useTranslations>,
+) {
   const added = result.facts_inserted ?? result.facts_saved ?? 0;
   const updated = result.facts_updated ?? 0;
   const skipped = result.facts_skipped ?? 0;
   const parts: string[] = [];
-  if (added) parts.push(`${added} fact${added === 1 ? "" : "s"} added`);
-  if (updated) parts.push(`${updated} updated`);
-  if (skipped) parts.push(`${skipped} already known`);
-  return parts.length ? parts.join(", ") + "." : "Training notes turned into operator knowledge.";
+  if (added) parts.push(t("factsAdded", { count: added }));
+  if (updated) parts.push(t("updated", { count: updated }));
+  if (skipped) parts.push(t("alreadyKnown", { count: skipped }));
+  return parts.length ? parts.join(", ") + "." : t("fallback");
 }
 
 function toneClasses(tone: string) {
@@ -225,12 +186,12 @@ function pcm16ToAudioBuffer(bytes: Uint8Array, context: AudioContext, sampleRate
   return buffer;
 }
 
-function formatTalkTime(minutes: number) {
-  if (!minutes || minutes < 1) return "0m";
-  if (minutes < 60) return `${minutes}m`;
+function formatTalkTime(minutes: number, t: ReturnType<typeof useTranslations>) {
+  if (!minutes || minutes < 1) return t("zero");
+  if (minutes < 60) return t("minutes", { minutes });
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  return mins ? t("hoursMinutes", { hours, minutes: mins }) : t("hours", { hours });
 }
 
 const STAT_TONES = {
@@ -269,10 +230,13 @@ function StatCard({
   );
 }
 
-function statusText(settings: FrontlineSettings | null) {
-  if (!settings?.enabled || settings.mode === "off") return "Paused";
-  if (settings.mode === "auto") return "Auto mode";
-  return "Review mode";
+function statusText(
+  settings: FrontlineSettings | null,
+  t: ReturnType<typeof useTranslations>,
+) {
+  if (!settings?.enabled || settings.mode === "off") return t("paused");
+  if (settings.mode === "auto") return t("autoMode");
+  return t("reviewMode");
 }
 
 function Surface({
@@ -304,6 +268,7 @@ function StepButton({
   step: (typeof VIEW_STEPS)[number];
   onClick: () => void;
 }) {
+  const t = useTranslations("frontline.steps");
   const Icon = step.icon;
 
   return (
@@ -326,9 +291,9 @@ function StepButton({
         <Icon className="h-4 w-4" />
       </span>
       <span>
-        <span className="block text-sm font-semibold">{step.title}</span>
+        <span className="block text-sm font-semibold">{t(`${step.id}.title`)}</span>
         <span className={cx("mt-1 block text-xs", active ? "text-slate-200" : "text-slate-500")}>
-          {step.subtitle}
+          {t(`${step.id}.subtitle`)}
         </span>
       </span>
     </button>
@@ -344,6 +309,7 @@ function ModeButton({
   option: (typeof MODE_OPTIONS)[number];
   onClick: () => void;
 }) {
+  const t = useTranslations("frontline.modes");
   const Icon = option.icon;
 
   return (
@@ -366,9 +332,9 @@ function ModeButton({
         <Icon className="h-4 w-4" />
       </span>
       <span>
-        <span className="block text-sm font-semibold">{option.title}</span>
+        <span className="block text-sm font-semibold">{t(`${option.mode}.title`)}</span>
         <span className={cx("mt-1 block text-xs", active ? "text-slate-200" : "text-slate-500")}>
-          {option.subtitle}
+          {t(`${option.mode}.subtitle`)}
         </span>
       </span>
     </button>
@@ -388,6 +354,8 @@ function DashboardView({
   events: FrontlineActivityEvent[];
   approvals: FrontlineReplyApproval[];
 }) {
+  const t = useTranslations("frontline.dashboard");
+  const tTalk = useTranslations("frontline.talkTime");
   const window = stats?.[statsWindow];
   const weekly = stats?.weekly_calls ?? [];
   const weeklyChartData = useMemo(
@@ -407,12 +375,12 @@ function DashboardView({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
               <Activity className="h-4 w-4 text-emerald-500" />
-              At a glance
+              {t("atAGlance")}
             </div>
             <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-0.5">
               {([
-                { key: "all", label: "All time" },
-                { key: "last_30d", label: "30 days" },
+                { key: "all", label: t("allTime") },
+                { key: "last_30d", label: t("last30Days") },
               ] as const).map((option) => (
                 <button
                   key={option.key}
@@ -432,10 +400,10 @@ function DashboardView({
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard tone="emerald" icon={PhoneCall} label="Calls handled" value={window?.calls_handled ?? 0} />
-            <StatCard tone="sky" icon={Clock3} label="Talk time" value={formatTalkTime(window?.talk_minutes ?? 0)} />
-            <StatCard tone="violet" icon={MessageSquare} label="Texts handled" value={window?.texts_handled ?? 0} />
-            <StatCard tone="amber" icon={PhoneForwarded} label="Handoffs" value={window?.handoffs ?? 0} />
+            <StatCard tone="emerald" icon={PhoneCall} label={t("callsHandled")} value={window?.calls_handled ?? 0} />
+            <StatCard tone="sky" icon={Clock3} label={t("talkTime")} value={formatTalkTime(window?.talk_minutes ?? 0, tTalk)} />
+            <StatCard tone="violet" icon={MessageSquare} label={t("textsHandled")} value={window?.texts_handled ?? 0} />
+            <StatCard tone="amber" icon={PhoneForwarded} label={t("handoffs")} value={window?.handoffs ?? 0} />
           </div>
         </Surface>
 
@@ -444,22 +412,22 @@ function DashboardView({
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <PhoneCall className="h-4 w-4 text-emerald-500" />
-                Calls this week
+                {t("callsThisWeek")}
               </div>
               {stats?.timezone ? (
                 <p className="text-[11px] text-slate-500">
-                  Week and days use your local time ({stats.timezone.replace(/_/g, " ")}).
+                  {t("localTimeNote", { timezone: stats.timezone.replace(/_/g, " ") })}
                 </p>
               ) : null}
             </div>
             <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
-                Answered
+                {t("answered")}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" />
-                Sent to you
+                {t("sentToYou")}
               </span>
             </div>
           </div>
@@ -505,14 +473,14 @@ function DashboardView({
                       }).format(day);
                     }}
                   />
-                  <Bar dataKey="answered" name="Answered" stackId="calls" fill="#10b981" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="sent_to_you" name="Sent to you" stackId="calls" fill="#cbd5e1" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="answered" name={t("answered")} stackId="calls" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="sent_to_you" name={t("sentToYou")} stackId="calls" fill="#cbd5e1" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <p className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm leading-6 text-slate-500">
-              No calls yet this week. Answered calls and handoffs will chart here.
+              {t("noCallsThisWeek")}
             </p>
           )}
         </Surface>
@@ -523,7 +491,7 @@ function DashboardView({
         <Surface className="bg-gradient-to-br from-white to-amber-50/50">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
             <ClipboardList className="h-4 w-4 text-amber-500" />
-            Waiting for owner
+            {t("waitingForOwner")}
           </div>
           <div className="mt-4 space-y-3">
             {approvals.length ? (
@@ -543,7 +511,7 @@ function DashboardView({
               ))
             ) : (
               <p className="rounded-2xl border border-dashed border-amber-200 bg-white/60 p-4 text-sm leading-6 text-slate-500">
-                No pending owner approvals.
+                {t("noPendingApprovals")}
               </p>
             )}
           </div>
@@ -552,7 +520,7 @@ function DashboardView({
         <Surface>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
             <Activity className="h-4 w-4 text-sky-500" />
-            Recent activity
+            {t("recentActivity")}
           </div>
           <div className="mt-4 space-y-2.5">
             {events.length ? (
@@ -581,7 +549,7 @@ function DashboardView({
               ))
             ) : (
               <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-                Activity will appear after sandbox tests, teach notes, approvals, and SMS events.
+                {t("noActivity")}
               </p>
             )}
           </div>
@@ -612,6 +580,7 @@ function SmsPreview({
   setTeachValue: (value: string) => void;
   onTeach: () => void;
 }) {
+  const t = useTranslations("frontline.sms");
   const [draft, setDraft] = useState("");
   const [teaching, setTeaching] = useState(false);
   const threadRef = useRef<HTMLDivElement | null>(null);
@@ -653,12 +622,12 @@ function SmsPreview({
             {confidence !== null ? (
               <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                {confidence}% confident
+                {t("confident", { confidence })}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-[11px] text-slate-400">
                 <Phone className="h-3 w-3" />
-                Frontline operator · sandbox
+                {t("operatorTag")}
               </span>
             )}
           </div>
@@ -673,10 +642,9 @@ function SmsPreview({
                   <MessageSquare className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Try it like a customer</p>
+                  <p className="text-sm font-semibold text-slate-800">{t("tryItTitle")}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Text a question below. The operator answers from the same knowledge it uses on
-                    real SMS — so you can check it before going live.
+                    {t("tryItHint")}
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-2">
@@ -728,14 +696,14 @@ function SmsPreview({
                           className="ml-1 flex items-center gap-1 text-[11px] font-medium text-slate-400 transition hover:text-emerald-600"
                         >
                           <Wand2 className="h-3 w-3" />
-                          Not quite? Teach a better reply
+                          {t("teachPrompt")}
                         </button>
                       )}
                     </div>
                     {answer.escalation_reason && (
                       <div className="flex justify-start">
                         <div className="max-w-[82%] rounded-2xl rounded-bl-md border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs leading-5 text-amber-900">
-                          Would hand off: {answer.escalation_reason}
+                          {t("wouldHandOff", { reason: answer.escalation_reason })}
                         </div>
                       </div>
                     )}
@@ -762,20 +730,20 @@ function SmsPreview({
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
                   <Wand2 className="h-3.5 w-3.5" />
-                  Teaching — this becomes future knowledge
+                  {t("teachingLabel")}
                 </span>
                 <button
                   type="button"
                   onClick={() => setTeaching(false)}
                   className="text-[11px] font-medium text-slate-400 hover:text-slate-600"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
               <Textarea
                 value={teachValue}
                 onChange={(event) => setTeachValue(event.target.value)}
-                placeholder="Write the reply it should have given…"
+                placeholder={t("teachPlaceholder")}
                 className="min-h-[80px] resize-none rounded-2xl border-emerald-200 bg-white text-sm leading-5 focus-visible:ring-emerald-400"
               />
               <Button
@@ -784,7 +752,7 @@ function SmsPreview({
                 className="mt-2 w-full gap-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save correction
+                {t("saveCorrection")}
               </Button>
             </div>
           ) : (
@@ -798,7 +766,7 @@ function SmsPreview({
                     send();
                   }
                 }}
-                placeholder="Text message"
+                placeholder={t("messagePlaceholder")}
                 disabled={pending}
                 className="min-w-0 flex-1 rounded-full bg-slate-100 px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
               />
@@ -806,7 +774,7 @@ function SmsPreview({
                 type="button"
                 onClick={send}
                 disabled={pending || !draft.trim()}
-                aria-label="Send message"
+                aria-label={t("sendMessage")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
@@ -817,7 +785,7 @@ function SmsPreview({
       </div>
 
       <p className="mt-3 text-center text-xs text-slate-400">
-        Replies use your live knowledge. Corrections train it instantly.
+        {t("footerNote")}
       </p>
     </div>
   );
@@ -930,6 +898,14 @@ function FrontlinePageSkeleton() {
 }
 
 export function FrontlinePage() {
+  const t = useTranslations("frontline.page");
+  const tToast = useTranslations("frontline.toast");
+  const tStatus = useTranslations("frontline.status");
+  const tIntake = useTranslations("frontline.intake");
+  const tTrain = useTranslations("frontline.train");
+  const tSettings = useTranslations("frontline.settings");
+  const tOperator = useTranslations("frontline.operator");
+  const tQuick = useTranslations("frontline.quickTests");
   const [view, setView] = useState<ViewKey>("dashboard");
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
   const [chunks, setChunks] = useState<FrontlineKnowledgeChunkItem[]>([]);
@@ -972,11 +948,11 @@ export function FrontlinePage() {
       setApprovals(approvalResponse.approvals || []);
       setStats(statsResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load Your Frontline.");
+      setError(err instanceof Error ? err.message : t("loadError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -1003,9 +979,9 @@ export function FrontlinePage() {
       setError(null);
       const updated = await api.updateFrontlineSettings(patch);
       setSettings(updated);
-      flashSuccess("Settings saved.");
+      flashSuccess(tToast("settingsSaved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save settings.");
+      setError(err instanceof Error ? err.message : tToast("saveSettingsError"));
     } finally {
       setSaving(false);
     }
@@ -1033,15 +1009,15 @@ export function FrontlinePage() {
       setIntakeResult(result);
       setTrainingIntake("");
       if (result.intake_skipped) {
-        flashSuccess(result.intake_skip_reason || "Nothing new was added — looks like we already knew that.");
+        flashSuccess(result.intake_skip_reason || tToast("nothingNew"));
       } else {
         const knowledgeResponse = await api.getFrontlineKnowledge();
         setChunks(knowledgeResponse.chunks || []);
         setView("test");
-        flashSuccess(summarizeIntake(result));
+        flashSuccess(summarizeIntake(result, tIntake));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to process training notes.");
+      setError(err instanceof Error ? err.message : tToast("processNotesError"));
     } finally {
       setSaving(false);
     }
@@ -1059,7 +1035,7 @@ export function FrontlinePage() {
       setTeachBad(answer.answer || "");
       setTeachGood("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to run the sandbox.");
+      setError(err instanceof Error ? err.message : tToast("sandboxError"));
     } finally {
       setSaving(false);
     }
@@ -1077,10 +1053,10 @@ export function FrontlinePage() {
         source: "sandbox",
       });
       setTeachGood("");
-      flashSuccess("Correction saved as training material.");
+      flashSuccess(tToast("correctionSaved"));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save that correction.");
+      setError(err instanceof Error ? err.message : tToast("saveCorrectionError"));
     } finally {
       setSaving(false);
     }
@@ -1090,7 +1066,7 @@ export function FrontlinePage() {
 
   const updateMode = (mode: FrontlineMode) => {
     if (!settings?.initial_setup_done && mode !== "off") {
-      setError("Complete initial operator setup before turning Frontline on.");
+      setError(tToast("completeSetupFirst"));
       return;
     }
     void saveSettings({
@@ -1109,7 +1085,7 @@ export function FrontlinePage() {
         <header className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-              Your Frontline
+              {t("badge")}
             </Badge>
             <Badge
               className={cx(
@@ -1121,14 +1097,14 @@ export function FrontlinePage() {
                     : "border-slate-200 bg-slate-100 text-slate-600",
               )}
             >
-              {statusText(settings)}
+              {statusText(settings, tStatus)}
             </Badge>
           </div>
           <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            Make the business number answer like a trained operator.
+            {t("title")}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Train it on your business, test replies, then run SMS and calls with the right amount of trust.
+            {t("subtitle")}
           </p>
         </header>
 
@@ -1177,16 +1153,16 @@ export function FrontlinePage() {
             <Surface>
               <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-900">
                 <PenLine className="h-3.5 w-3.5 text-slate-400" />
-                Training notes
+                {tTrain("notesTitle")}
               </div>
               <p className="mt-1 text-[12.5px] text-slate-500">
-                Write anything — pricing, policies, how you work. Short is fine.
+                {tTrain("notesHint")}
               </p>
 
               <Textarea
                 value={trainingIntake}
                 onChange={(event) => setTrainingIntake(event.target.value)}
-                placeholder="e.g. We charge $85–150/hr. Free estimates for jobs over $500. We don't do roofing or electrical. Emergency calls go to Mike directly..."
+                placeholder={tTrain("notesPlaceholder")}
                 className="mt-4 min-h-[180px] resize-none rounded-xl border-slate-200 bg-slate-50/60 text-[13px] leading-6 placeholder:text-slate-400 focus-visible:ring-slate-300"
               />
 
@@ -1197,7 +1173,7 @@ export function FrontlinePage() {
                   className="gap-2 rounded-full bg-slate-900 px-5 text-[13px] text-white hover:bg-slate-700"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-                  Build knowledge
+                  {tTrain("buildKnowledge")}
                 </Button>
               </div>
             </Surface>
@@ -1211,7 +1187,7 @@ export function FrontlinePage() {
                     .then((res) => setChunks(res.chunks || []))
                     .catch(() => undefined)
                   setView("test")
-                  flashSuccess("Voice training saved to operator knowledge.")
+                  flashSuccess(tToast("voiceTrainingSaved"))
                 }}
                 onError={(message) => setError(message)}
               />
@@ -1222,11 +1198,11 @@ export function FrontlinePage() {
                     <Sparkles className="h-4 w-4" />
                   </span>
                   <div>
-                    <h2 className="text-sm font-semibold text-slate-950">Current knowledge</h2>
+                    <h2 className="text-sm font-semibold text-slate-950">{tTrain("currentKnowledge")}</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                       {chunks.length
-                        ? `${chunks.length} fact${chunks.length === 1 ? "" : "s"} ready for retrieval.`
-                        : "No knowledge has been added yet."}
+                        ? tTrain("factsReady", { count: chunks.length })
+                        : tTrain("noKnowledge")}
                     </p>
                   </div>
                 </div>
@@ -1244,7 +1220,7 @@ export function FrontlinePage() {
                       >
                         <div className="flex items-center gap-2">
                           <Badge className="border-slate-200 bg-slate-100 text-[11px] font-medium text-slate-600 hover:bg-slate-100">
-                            {chunk.source_type === "teach_note" ? "correction" : chunk.section_title || "training"}
+                            {chunk.source_type === "teach_note" ? tTrain("correction") : chunk.section_title || tTrain("training")}
                           </Badge>
                         </div>
                         <p className="mt-1 whitespace-pre-line">{chunk.content}</p>
@@ -1270,7 +1246,7 @@ export function FrontlinePage() {
               askedQuestion={sandboxQ}
               answer={sandboxA}
               pending={saving}
-              quickTests={QUICK_TESTS}
+              quickTests={QUICK_TEST_KEYS.map((key) => tQuick(key))}
               onSend={(text) => void runSandbox(text)}
               teachValue={teachGood}
               setTeachValue={setTeachGood}
@@ -1287,15 +1263,14 @@ export function FrontlinePage() {
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                       <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                      Reply mode
+                      {tSettings("replyMode")}
                     </div>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                      Review is the default. Auto should only be used after the owner has tested the
-                      knowledge and correction loop.
+                      {tSettings("replyModeDesc")}
                     </p>
                   </div>
                   <Badge className="w-fit border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100">
-                    {statusText(settings)}
+                    {statusText(settings, tStatus)}
                   </Badge>
                 </div>
 
@@ -1313,7 +1288,7 @@ export function FrontlinePage() {
                 {settings && (
                   <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-medium text-slate-950">Auto confidence floor</span>
+                      <span className="font-medium text-slate-950">{tSettings("autoConfidenceFloor")}</span>
                       <span className="font-semibold text-slate-950">
                         {Math.round(settings.auto_min_confidence * 100)}%
                       </span>
@@ -1355,10 +1330,10 @@ export function FrontlinePage() {
                       <div>
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                           <Mic2 className="h-4 w-4 text-slate-500" />
-                          Operator identity
+                          {tSettings("operatorIdentity")}
                         </div>
                         <p className="mt-2 text-xs leading-5 text-slate-500">
-                          Choose the default operator voice for Frontline phone calls.
+                          {tSettings("operatorIdentityDesc")}
                         </p>
                       </div>
                       {!operatorEditing ? (
@@ -1370,7 +1345,7 @@ export function FrontlinePage() {
                           className="rounded-xl"
                         >
                           <PenLine className="mr-2 h-4 w-4" />
-                          Edit
+                          {tSettings("edit")}
                         </Button>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -1385,7 +1360,7 @@ export function FrontlinePage() {
                             }}
                             className="rounded-xl"
                           >
-                            Cancel
+                            {tSettings("cancel")}
                           </Button>
                           <Button
                             type="button"
@@ -1402,13 +1377,13 @@ export function FrontlinePage() {
                             ) : (
                               <Save className="mr-2 h-4 w-4" />
                             )}
-                            Save
+                            {tSettings("save")}
                           </Button>
                         </div>
                       )}
                     </div>
                     <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                      Current operator:{" "}
+                      {tSettings("currentOperator")}{" "}
                       <span className="font-semibold text-slate-950">
                         {settings.operator_display_name ||
                           OPERATOR_OPTIONS.find(
@@ -1437,7 +1412,7 @@ export function FrontlinePage() {
                           >
                             <span className="block font-semibold">{option.name}</span>
                             <span className="mt-1 block text-xs text-slate-500">
-                              {option.label} voice
+                              {tSettings("voiceLabel", { label: option.label === "Male" ? tOperator("male") : tOperator("female") })}
                             </span>
                           </button>
                         );
@@ -1453,9 +1428,9 @@ export function FrontlinePage() {
                         <Mic2 className="h-4 w-4" />
                       </span>
                       <div>
-                        <div className="text-sm font-semibold text-slate-950">Voice calls (beta)</div>
+                        <div className="text-sm font-semibold text-slate-950">{tSettings("voiceCallsBeta")}</div>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          When enabled, inbound calls to your Twilio number can be answered by AI.
+                          {tSettings("voiceCallsDesc")}
                         </p>
                       </div>
                     </div>
@@ -1463,7 +1438,7 @@ export function FrontlinePage() {
                       checked={Boolean(settings.voice_enabled)}
                       onCheckedChange={(checked) => void saveSettings({ voice_enabled: checked })}
                       disabled={!settings.initial_setup_done}
-                      aria-label="Enable voice calls"
+                      aria-label={tSettings("enableVoiceCalls")}
                     />
                   </div>
                 )}
@@ -1475,10 +1450,9 @@ export function FrontlinePage() {
                         <Phone className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-slate-950">Escalation contact</div>
+                        <div className="text-sm font-semibold text-slate-950">{tSettings("escalationContact")}</div>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Number the operator calls/notifies on an emergency or escalation.
-                          Leave blank to use your account phone number.
+                          {tSettings("escalationContactDesc")}
                         </p>
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                           <input
@@ -1486,7 +1460,7 @@ export function FrontlinePage() {
                             inputMode="tel"
                             value={escalationDraft}
                             onChange={(e) => setEscalationDraft(e.target.value)}
-                            placeholder="+1 555 123 4567"
+                            placeholder={tSettings("phonePlaceholder")}
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-slate-400"
                           />
                           <Button
@@ -1506,7 +1480,7 @@ export function FrontlinePage() {
                             ) : (
                               <Save className="mr-2 h-4 w-4" />
                             )}
-                            Save
+                            {tSettings("save")}
                           </Button>
                         </div>
                       </div>
@@ -1521,24 +1495,24 @@ export function FrontlinePage() {
               <Surface className="bg-gradient-to-br from-white to-sky-50/50">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                   <Sparkles className="h-4 w-4 text-sky-500" />
-                  How trust builds
+                  {tSettings("howTrustBuilds")}
                 </div>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
                   <li className="flex gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                    Start in <span className="font-medium text-slate-800">Review</span> — every reply waits for your OK.
+                    {tSettings("startIn")} <span className="font-medium text-slate-800">{tSettings("trustReviewBold")}</span> — {tSettings("trustReview")}
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
-                    Use <span className="font-medium text-slate-800">Test</span> to correct answers until they sound right.
+                    {tSettings("useThe")} <span className="font-medium text-slate-800">{tSettings("trustTestBold")}</span> {tSettings("trustTest")}
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                    Switch to <span className="font-medium text-slate-800">Auto</span> once confident — only high-confidence replies send on their own.
+                    {tSettings("switchTo")} <span className="font-medium text-slate-800">{tSettings("trustAutoBold")}</span> {tSettings("trustAuto")}
                   </li>
                 </ul>
                 <p className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-3 text-xs leading-5 text-slate-500">
-                  Live stats and recent activity now live in the Dashboard tab.
+                  {tSettings("statsMovedNote")}
                 </p>
               </Surface>
             </div>

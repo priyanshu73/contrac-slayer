@@ -36,7 +36,7 @@ export type FeatureGroup = {
  * marketing entry, and the public invoice signing page). Backend endpoints, models,
  * and stored signature data are left untouched, so re-enabling is non-destructive.
  */
-export const SIGNATURE_FEATURE_ENABLED = false
+export const SIGNATURE_FEATURE_ENABLED = true
 
 const featureGroupsRaw: FeatureGroup[] = [
   {

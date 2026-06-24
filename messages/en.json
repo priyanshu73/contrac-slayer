@@ -1800,5 +1800,260 @@
       "noProposalDescription": "There's no proposal to view here yet.",
       "viewQuote": "View Quote"
     }
+  },
+  "frontline": {
+    "page": {
+      "badge": "Your Frontline",
+      "title": "Make the business number answer like a trained operator.",
+      "subtitle": "Train it on your business, test replies, then run SMS and calls with the right amount of trust.",
+      "loadError": "Unable to load Your Frontline."
+    },
+    "status": {
+      "paused": "Paused",
+      "autoMode": "Auto mode",
+      "reviewMode": "Review mode"
+    },
+    "steps": {
+      "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "Calls, texts, and recent activity."
+      },
+      "train": {
+        "title": "Train",
+        "subtitle": "Give it the business basics."
+      },
+      "test": {
+        "title": "Test",
+        "subtitle": "Ask a customer-style question."
+      },
+      "settings": {
+        "title": "Settings",
+        "subtitle": "Reply mode, voice, and operator."
+      }
+    },
+    "modes": {
+      "review": {
+        "title": "Review",
+        "subtitle": "Drafts replies and asks the owner before sending."
+      },
+      "auto": {
+        "title": "Auto",
+        "subtitle": "Sends directly only when the answer is confident."
+      },
+      "off": {
+        "title": "Off",
+        "subtitle": "Keeps the smart operator paused."
+      }
+    },
+    "operator": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "quickTests": {
+      "0": "Do you service my area and can I get an estimate?",
+      "1": "Can you come tomorrow morning for a repair?",
+      "2": "How much do you charge and do you offer warranties?"
+    },
+    "intake": {
+      "factsAdded": "{count, plural, one {# fact added} other {# facts added}}",
+      "updated": "{count} updated",
+      "alreadyKnown": "{count} already known",
+      "fallback": "Training notes turned into operator knowledge."
+    },
+    "dashboard": {
+      "atAGlance": "At a glance",
+      "allTime": "All time",
+      "last30Days": "30 days",
+      "callsHandled": "Calls handled",
+      "talkTime": "Talk time",
+      "textsHandled": "Texts handled",
+      "handoffs": "Handoffs",
+      "callsThisWeek": "Calls this week",
+      "localTimeNote": "Week and days use your local time ({timezone}).",
+      "answered": "Answered",
+      "sentToYou": "Sent to you",
+      "noCallsThisWeek": "No calls yet this week. Answered calls and handoffs will chart here.",
+      "waitingForOwner": "Waiting for owner",
+      "noPendingApprovals": "No pending owner approvals.",
+      "recentActivity": "Recent activity",
+      "noActivity": "Activity will appear after sandbox tests, teach notes, approvals, and SMS events."
+    },
+    "talkTime": {
+      "zero": "0m",
+      "minutes": "{minutes}m",
+      "hours": "{hours}h",
+      "hoursMinutes": "{hours}h {minutes}m"
+    },
+    "sms": {
+      "operatorTag": "Frontline operator · sandbox",
+      "confident": "{confidence}% confident",
+      "tryItTitle": "Try it like a customer",
+      "tryItHint": "Text a question below. The operator answers from the same knowledge it uses on real SMS — so you can check it before going live.",
+      "teachPrompt": "Not quite? Teach a better reply",
+      "wouldHandOff": "Would hand off: {reason}",
+      "teachingLabel": "Teaching — this becomes future knowledge",
+      "cancel": "Cancel",
+      "teachPlaceholder": "Write the reply it should have given…",
+      "saveCorrection": "Save correction",
+      "messagePlaceholder": "Text message",
+      "sendMessage": "Send message",
+      "footerNote": "Replies use your live knowledge. Corrections train it instantly."
+    },
+    "train": {
+      "notesTitle": "Training notes",
+      "notesHint": "Write anything — pricing, policies, how you work. Short is fine.",
+      "notesPlaceholder": "e.g. We charge $85–150/hr. Free estimates for jobs over $500. We don't do roofing or electrical. Emergency calls go to Mike directly...",
+      "buildKnowledge": "Build knowledge",
+      "currentKnowledge": "Current knowledge",
+      "factsReady": "{count, plural, one {# fact ready for retrieval.} other {# facts ready for retrieval.}}",
+      "noKnowledge": "No knowledge has been added yet.",
+      "correction": "correction",
+      "training": "training"
+    },
+    "settings": {
+      "replyMode": "Reply mode",
+      "replyModeDesc": "Review is the default. Auto should only be used after the owner has tested the knowledge and correction loop.",
+      "autoConfidenceFloor": "Auto confidence floor",
+      "operatorIdentity": "Operator identity",
+      "operatorIdentityDesc": "Choose the default operator voice for Frontline phone calls.",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "currentOperator": "Current operator:",
+      "voiceLabel": "{label} voice",
+      "voiceCallsBeta": "Voice calls (beta)",
+      "voiceCallsDesc": "When enabled, inbound calls to your Twilio number can be answered by AI.",
+      "enableVoiceCalls": "Enable voice calls",
+      "escalationContact": "Escalation contact",
+      "escalationContactDesc": "Number the operator calls/notifies on an emergency or escalation. Leave blank to use your account phone number.",
+      "phonePlaceholder": "+1 555 123 4567",
+      "howTrustBuilds": "How trust builds",
+      "trustReview": "every reply waits for your OK.",
+      "trustReviewBold": "Review",
+      "startIn": "Start in",
+      "trustTest": "to correct answers until they sound right.",
+      "trustTestBold": "Test",
+      "useThe": "Use",
+      "trustAuto": "once confident — only high-confidence replies send on their own.",
+      "trustAutoBold": "Auto",
+      "switchTo": "Switch to",
+      "statsMovedNote": "Live stats and recent activity now live in the Dashboard tab."
+    },
+    "toast": {
+      "settingsSaved": "Settings saved.",
+      "saveSettingsError": "Unable to save settings.",
+      "nothingNew": "Nothing new was added — looks like we already knew that.",
+      "processNotesError": "Unable to process training notes.",
+      "sandboxError": "Unable to run the sandbox.",
+      "correctionSaved": "Correction saved as training material.",
+      "saveCorrectionError": "Unable to save that correction.",
+      "completeSetupFirst": "Complete initial operator setup before turning Frontline on.",
+      "voiceTrainingSaved": "Voice training saved to operator knowledge."
+    },
+    "setup": {
+      "businessNameRequired": "Business name is required.",
+      "saveError": "Unable to save setup.",
+      "preparing": "Preparing {operatorName}{dots}",
+      "loadingProfile": "Loading your business profile",
+      "operatorReady": "{operatorName} is ready",
+      "turnOnWhenSet": "Turn it on whenever you're set.",
+      "setUpOperator": "Set up your operator",
+      "pickVoiceHint": "Pick a voice — we'll walk through a few quick questions.",
+      "getStarted": "Get started",
+      "yourBusiness": "Your business",
+      "businessKnowDesc": "What should {operatorName} know about you?",
+      "businessName": "Business name",
+      "businessNamePlaceholder": "e.g. Valley Landscaping",
+      "servicesOffered": "Services offered",
+      "separateCommas": "Separate with commas",
+      "servicesOfferedPlaceholder": "e.g. Tree removal, irrigation, grading",
+      "thingsYouDontDo": "Things you don't do",
+      "thingsYouDontDoHint": "Optional — helps decline confidently",
+      "thingsYouDontDoPlaceholder": "e.g. Roofing, electrical",
+      "whereDoYouWork": "Where do you work?",
+      "whereDoYouWorkPlaceholder": "e.g. Gettysburg PA within 50 miles",
+      "hours": "Hours",
+      "hoursDesc": "When do you work, and what happens after hours?",
+      "regularHours": "Regular hours",
+      "regularHoursPlaceholder": "e.g. Mon–Fri 8am–5pm, Sat 9am–2pm",
+      "afterHoursPolicy": "After-hours policy",
+      "afterHoursPlaceholder": "e.g. Leave a message, we call back next morning",
+      "pricing": "Pricing",
+      "pricingDesc": "{operatorName} won't quote exact prices — just enough to sound informed.",
+      "freeEstimates": "Free estimates?",
+      "notSure": "Not sure",
+      "yesFree": "Yes, free",
+      "noWeCharge": "No, we charge",
+      "calloutFee": "Callout / diagnostic fee",
+      "calloutFeeHint": "Leave blank if none",
+      "calloutFeePlaceholder": "e.g. $75 service call fee",
+      "generalRateInfo": "General rate info",
+      "rangesFine": "Ranges are fine",
+      "rateInfoPlaceholder": "e.g. $85–150/hr depending on job",
+      "booking": "Booking",
+      "bookingDesc": "What should {operatorName} do when someone wants to book?",
+      "bookingCollectLabel": "Collect details, owner calls back",
+      "bookingCollectSub": "Gather name, number, and project info — you follow up.",
+      "bookingLinkLabel": "Text the booking link",
+      "bookingLinkSub": "Offer to text the online scheduling link.",
+      "bookingMessageLabel": "Take a message",
+      "bookingMessageSub": "Get name and number, say someone will be in touch.",
+      "whatToCollect": "What to collect",
+      "whatToCollectDesc": "What should {operatorName} always ask callers for?",
+      "escalation": "Escalation",
+      "escalationDesc": "When should {operatorName} transfer to you?",
+      "yourNumberLabel": "Your number for live transfers",
+      "yourNumberHint": "Optional — leave blank if not needed",
+      "back": "Back",
+      "next": "Next",
+      "finishSetup": "Finish setup",
+      "voiceLabel": "{label} voice",
+      "phonePlaceholder": "+1 555 123 4567"
+    },
+    "intakeOptions": {
+      "name": "Name",
+      "callbackNumber": "Callback number",
+      "serviceAddress": "Service address",
+      "issueDescription": "Issue description",
+      "urgencyTimeline": "Urgency / timeline"
+    },
+    "escalationOptions": {
+      "asksForOwner": "Caller asks for owner",
+      "pricingDispute": "Pricing dispute",
+      "angryCaller": "Angry caller",
+      "emergency": "Emergency",
+      "cantAnswer": "Question I can't answer"
+    },
+    "voiceTraining": {
+      "title": "Train your operator",
+      "desc": "Have a short voice conversation about how you run your business. We turn it into operator knowledge automatically.",
+      "you": "You:",
+      "thinking": "Thinking…",
+      "assistant": "Assistant:",
+      "sessionsThisWeek": "{completed}/{limit} sessions this week · ",
+      "upToMinutes": "up to {minutes} min",
+      "startConversation": "Start conversation",
+      "endAndSave": "End and save",
+      "weeklyLimitReached": "Weekly limit reached. You can train again next week.",
+      "skippedFallback": "Training skipped — nothing useful was saved to knowledge.",
+      "voiceTrainingFailed": "Voice training failed.",
+      "wsConnectionFailed": "WebSocket connection failed.",
+      "connectionLost": "Voice connection lost — keep this tab open and try again.",
+      "startError": "Unable to start voice training.",
+      "eligibilityError": "Unable to load voice training eligibility.",
+      "saved": "Saved: {summary}",
+      "hideTranscript": "Hide transcript",
+      "showTranscript": "Show transcript",
+      "youLabel": "You",
+      "assistantLabel": "Assistant",
+      "sessionDuration": "{seconds}s session"
+    },
+    "orb": {
+      "idle": "Ready",
+      "connecting": "Connecting…",
+      "listening": "Listening",
+      "speaking": "Speaking",
+      "saving": "Saving…"
+    }
   }
 }

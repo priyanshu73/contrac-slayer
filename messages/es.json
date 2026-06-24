@@ -1783,5 +1783,260 @@
       "noProposalDescription": "Aún no hay ninguna propuesta para ver aquí.",
       "viewQuote": "Ver cotización"
     }
+  },
+  "frontline": {
+    "page": {
+      "badge": "Tu Frontline",
+      "title": "Haz que el número del negocio responda como un operador capacitado.",
+      "subtitle": "Capacítalo sobre tu negocio, prueba las respuestas y luego gestiona SMS y llamadas con el nivel de confianza adecuado.",
+      "loadError": "No se pudo cargar Tu Frontline."
+    },
+    "status": {
+      "paused": "En pausa",
+      "autoMode": "Modo automático",
+      "reviewMode": "Modo de revisión"
+    },
+    "steps": {
+      "dashboard": {
+        "title": "Panel",
+        "subtitle": "Llamadas, mensajes y actividad reciente."
+      },
+      "train": {
+        "title": "Capacitar",
+        "subtitle": "Dale los datos básicos del negocio."
+      },
+      "test": {
+        "title": "Probar",
+        "subtitle": "Haz una pregunta como la de un cliente."
+      },
+      "settings": {
+        "title": "Configuración",
+        "subtitle": "Modo de respuesta, voz y operador."
+      }
+    },
+    "modes": {
+      "review": {
+        "title": "Revisión",
+        "subtitle": "Redacta respuestas y consulta al propietario antes de enviarlas."
+      },
+      "auto": {
+        "title": "Automático",
+        "subtitle": "Envía directamente solo cuando la respuesta es confiable."
+      },
+      "off": {
+        "title": "Desactivado",
+        "subtitle": "Mantiene el operador inteligente en pausa."
+      }
+    },
+    "operator": {
+      "male": "Masculino",
+      "female": "Femenino"
+    },
+    "quickTests": {
+      "0": "¿Dan servicio en mi zona y puedo obtener un presupuesto?",
+      "1": "¿Pueden venir mañana por la mañana para una reparación?",
+      "2": "¿Cuánto cobran y ofrecen garantías?"
+    },
+    "intake": {
+      "factsAdded": "{count, plural, one {# dato agregado} other {# datos agregados}}",
+      "updated": "{count} actualizados",
+      "alreadyKnown": "{count} ya conocidos",
+      "fallback": "Las notas de capacitación se convirtieron en conocimiento del operador."
+    },
+    "dashboard": {
+      "atAGlance": "Resumen general",
+      "allTime": "Todo el tiempo",
+      "last30Days": "30 días",
+      "callsHandled": "Llamadas atendidas",
+      "talkTime": "Tiempo de conversación",
+      "textsHandled": "Mensajes atendidos",
+      "handoffs": "Transferencias",
+      "callsThisWeek": "Llamadas esta semana",
+      "localTimeNote": "La semana y los días usan tu hora local ({timezone}).",
+      "answered": "Atendidas",
+      "sentToYou": "Enviadas a ti",
+      "noCallsThisWeek": "Aún no hay llamadas esta semana. Las llamadas atendidas y las transferencias aparecerán en el gráfico aquí.",
+      "waitingForOwner": "Esperando al propietario",
+      "noPendingApprovals": "No hay aprobaciones del propietario pendientes.",
+      "recentActivity": "Actividad reciente",
+      "noActivity": "La actividad aparecerá después de las pruebas en el sandbox, las notas de capacitación, las aprobaciones y los eventos de SMS."
+    },
+    "talkTime": {
+      "zero": "0m",
+      "minutes": "{minutes}m",
+      "hours": "{hours}h",
+      "hoursMinutes": "{hours}h {minutes}m"
+    },
+    "sms": {
+      "operatorTag": "Operador Frontline · sandbox",
+      "confident": "{confidence}% de confianza",
+      "tryItTitle": "Pruébalo como un cliente",
+      "tryItHint": "Escribe una pregunta abajo. El operador responde con el mismo conocimiento que usa en los SMS reales, para que puedas comprobarlo antes de ponerlo en marcha.",
+      "teachPrompt": "¿No del todo? Enseña una mejor respuesta",
+      "wouldHandOff": "Transferiría: {reason}",
+      "teachingLabel": "Enseñando — esto se convierte en conocimiento futuro",
+      "cancel": "Cancelar",
+      "teachPlaceholder": "Escribe la respuesta que debió dar…",
+      "saveCorrection": "Guardar corrección",
+      "messagePlaceholder": "Mensaje de texto",
+      "sendMessage": "Enviar mensaje",
+      "footerNote": "Las respuestas usan tu conocimiento en vivo. Las correcciones lo entrenan al instante."
+    },
+    "train": {
+      "notesTitle": "Notas de capacitación",
+      "notesHint": "Escribe lo que quieras — precios, políticas, cómo trabajas. Breve está bien.",
+      "notesPlaceholder": "p. ej. Cobramos $85–150/h. Presupuestos gratuitos para trabajos de más de $500. No hacemos techos ni electricidad. Las llamadas de emergencia van directamente a Mike...",
+      "buildKnowledge": "Crear conocimiento",
+      "currentKnowledge": "Conocimiento actual",
+      "factsReady": "{count, plural, one {# dato listo para recuperar.} other {# datos listos para recuperar.}}",
+      "noKnowledge": "Aún no se ha agregado ningún conocimiento.",
+      "correction": "corrección",
+      "training": "capacitación"
+    },
+    "settings": {
+      "replyMode": "Modo de respuesta",
+      "replyModeDesc": "Revisión es la opción predeterminada. El modo Automático solo debe usarse después de que el propietario haya probado el conocimiento y el ciclo de correcciones.",
+      "autoConfidenceFloor": "Umbral mínimo de confianza para Automático",
+      "operatorIdentity": "Identidad del operador",
+      "operatorIdentityDesc": "Elige la voz predeterminada del operador para las llamadas de Frontline.",
+      "edit": "Editar",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "currentOperator": "Operador actual:",
+      "voiceLabel": "Voz {label}",
+      "voiceCallsBeta": "Llamadas de voz (beta)",
+      "voiceCallsDesc": "Cuando está activado, las llamadas entrantes a tu número de Twilio pueden ser atendidas por IA.",
+      "enableVoiceCalls": "Activar llamadas de voz",
+      "escalationContact": "Contacto de escalamiento",
+      "escalationContactDesc": "Número al que el operador llama o notifica en una emergencia o escalamiento. Déjalo en blanco para usar el número de teléfono de tu cuenta.",
+      "phonePlaceholder": "+1 555 123 4567",
+      "howTrustBuilds": "Cómo se construye la confianza",
+      "trustReview": "cada respuesta espera tu aprobación.",
+      "trustReviewBold": "Revisión",
+      "startIn": "Empieza en",
+      "trustTest": "para corregir las respuestas hasta que suenen bien.",
+      "trustTestBold": "Probar",
+      "useThe": "Usa",
+      "trustAuto": "cuando tengas confianza — solo se envían por sí solas las respuestas de alta confianza.",
+      "trustAutoBold": "Automático",
+      "switchTo": "Cambia a",
+      "statsMovedNote": "Las estadísticas en vivo y la actividad reciente ahora están en la pestaña Panel."
+    },
+    "toast": {
+      "settingsSaved": "Configuración guardada.",
+      "saveSettingsError": "No se pudo guardar la configuración.",
+      "nothingNew": "No se agregó nada nuevo — parece que ya lo sabíamos.",
+      "processNotesError": "No se pudieron procesar las notas de capacitación.",
+      "sandboxError": "No se pudo ejecutar el sandbox.",
+      "correctionSaved": "Corrección guardada como material de capacitación.",
+      "saveCorrectionError": "No se pudo guardar esa corrección.",
+      "completeSetupFirst": "Completa la configuración inicial del operador antes de activar Frontline.",
+      "voiceTrainingSaved": "Capacitación por voz guardada en el conocimiento del operador."
+    },
+    "setup": {
+      "businessNameRequired": "El nombre del negocio es obligatorio.",
+      "saveError": "No se pudo guardar la configuración.",
+      "preparing": "Preparando a {operatorName}{dots}",
+      "loadingProfile": "Cargando el perfil de tu negocio",
+      "operatorReady": "{operatorName} está listo",
+      "turnOnWhenSet": "Actívalo cuando estés listo.",
+      "setUpOperator": "Configura tu operador",
+      "pickVoiceHint": "Elige una voz — te haremos algunas preguntas rápidas.",
+      "getStarted": "Comenzar",
+      "yourBusiness": "Tu negocio",
+      "businessKnowDesc": "¿Qué debería saber {operatorName} sobre ti?",
+      "businessName": "Nombre del negocio",
+      "businessNamePlaceholder": "p. ej. Valley Landscaping",
+      "servicesOffered": "Servicios ofrecidos",
+      "separateCommas": "Sepáralos con comas",
+      "servicesOfferedPlaceholder": "p. ej. Tala de árboles, riego, nivelación",
+      "thingsYouDontDo": "Cosas que no haces",
+      "thingsYouDontDoHint": "Opcional — ayuda a rechazar con seguridad",
+      "thingsYouDontDoPlaceholder": "p. ej. Techos, electricidad",
+      "whereDoYouWork": "¿Dónde trabajas?",
+      "whereDoYouWorkPlaceholder": "p. ej. Gettysburg PA en un radio de 50 millas",
+      "hours": "Horario",
+      "hoursDesc": "¿Cuándo trabajas y qué pasa fuera del horario?",
+      "regularHours": "Horario habitual",
+      "regularHoursPlaceholder": "p. ej. Lun–Vie 8am–5pm, Sáb 9am–2pm",
+      "afterHoursPolicy": "Política fuera del horario",
+      "afterHoursPlaceholder": "p. ej. Deja un mensaje, devolvemos la llamada a la mañana siguiente",
+      "pricing": "Precios",
+      "pricingDesc": "{operatorName} no dará precios exactos — solo lo suficiente para sonar informado.",
+      "freeEstimates": "¿Presupuestos gratuitos?",
+      "notSure": "No estoy seguro",
+      "yesFree": "Sí, gratis",
+      "noWeCharge": "No, cobramos",
+      "calloutFee": "Cargo por visita / diagnóstico",
+      "calloutFeeHint": "Déjalo en blanco si no hay",
+      "calloutFeePlaceholder": "p. ej. $75 por visita de servicio",
+      "generalRateInfo": "Información general de tarifas",
+      "rangesFine": "Los rangos están bien",
+      "rateInfoPlaceholder": "p. ej. $85–150/h según el trabajo",
+      "booking": "Reservas",
+      "bookingDesc": "¿Qué debería hacer {operatorName} cuando alguien quiere reservar?",
+      "bookingCollectLabel": "Recopilar datos, el propietario devuelve la llamada",
+      "bookingCollectSub": "Reúne nombre, número e información del proyecto — tú haces el seguimiento.",
+      "bookingLinkLabel": "Enviar el enlace de reserva por mensaje",
+      "bookingLinkSub": "Ofrece enviar por mensaje el enlace de programación en línea.",
+      "bookingMessageLabel": "Tomar un mensaje",
+      "bookingMessageSub": "Obtén el nombre y el número, di que alguien se pondrá en contacto.",
+      "whatToCollect": "Qué recopilar",
+      "whatToCollectDesc": "¿Qué debería pedir siempre {operatorName} a quienes llaman?",
+      "escalation": "Escalamiento",
+      "escalationDesc": "¿Cuándo debería {operatorName} transferirte la llamada?",
+      "yourNumberLabel": "Tu número para transferencias en vivo",
+      "yourNumberHint": "Opcional — déjalo en blanco si no es necesario",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "finishSetup": "Finalizar configuración",
+      "voiceLabel": "Voz {label}",
+      "phonePlaceholder": "+1 555 123 4567"
+    },
+    "intakeOptions": {
+      "name": "Nombre",
+      "callbackNumber": "Número para devolver la llamada",
+      "serviceAddress": "Dirección del servicio",
+      "issueDescription": "Descripción del problema",
+      "urgencyTimeline": "Urgencia / plazo"
+    },
+    "escalationOptions": {
+      "asksForOwner": "Quien llama pide hablar con el propietario",
+      "pricingDispute": "Disputa de precios",
+      "angryCaller": "Persona enojada",
+      "emergency": "Emergencia",
+      "cantAnswer": "Pregunta que no puedo responder"
+    },
+    "voiceTraining": {
+      "title": "Capacita a tu operador",
+      "desc": "Ten una breve conversación por voz sobre cómo manejas tu negocio. La convertimos en conocimiento del operador automáticamente.",
+      "you": "Tú:",
+      "thinking": "Pensando…",
+      "assistant": "Asistente:",
+      "sessionsThisWeek": "{completed}/{limit} sesiones esta semana · ",
+      "upToMinutes": "hasta {minutes} min",
+      "startConversation": "Iniciar conversación",
+      "endAndSave": "Terminar y guardar",
+      "weeklyLimitReached": "Límite semanal alcanzado. Puedes capacitar de nuevo la próxima semana.",
+      "skippedFallback": "Capacitación omitida — no se guardó nada útil en el conocimiento.",
+      "voiceTrainingFailed": "La capacitación por voz falló.",
+      "wsConnectionFailed": "La conexión WebSocket falló.",
+      "connectionLost": "Se perdió la conexión de voz — mantén esta pestaña abierta e inténtalo de nuevo.",
+      "startError": "No se pudo iniciar la capacitación por voz.",
+      "eligibilityError": "No se pudo cargar la elegibilidad para la capacitación por voz.",
+      "saved": "Guardado: {summary}",
+      "hideTranscript": "Ocultar transcripción",
+      "showTranscript": "Mostrar transcripción",
+      "youLabel": "Tú",
+      "assistantLabel": "Asistente",
+      "sessionDuration": "sesión de {seconds}s"
+    },
+    "orb": {
+      "idle": "Listo",
+      "connecting": "Conectando…",
+      "listening": "Escuchando",
+      "speaking": "Hablando",
+      "saving": "Guardando…"
+    }
   }
 }
