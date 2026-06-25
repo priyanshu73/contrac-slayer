@@ -1,32 +1,29 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, X, AlertTriangle } from "lucide-react"
+import { Plus, X, AlertTriangle, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type {
-  JobBillingMode,
   PaymentScheduleLineInput,
   PaymentTriggerType,
   PaymentAmountType,
 } from "@/lib/types"
 
-interface PaymentScheduleBuilderProps {
-  /** Contract grand total (markup + tax), used to preview each draw's dollar amount. */
-  total: number
-  billingMode: JobBillingMode
-  lines: PaymentScheduleLineInput[]
-  onBillingModeChange: (mode: JobBillingMode) => void
-  onLinesChange: (lines: PaymentScheduleLineInput[]) => void
+// ─── Bill-when options ───────────────────────────────────────────────────────
+// Only two triggers are authored from the builder. Legacy values
+// (ON_ACCEPTANCE / ON_PHASE) are normalised to ON_COMPLETION on load.
+type BuilderTrigger = "ON_COMPLETION" | "ON_DATE"
+
+const TRIGGER_LABELS: Record<BuilderTrigger, string> = {
+  ON_COMPLETION: "On completion",
+  ON_DATE: "On a date",
 }
 
-const TRIGGER_LABELS: Record<PaymentTriggerType, string> = {
-  ON_ACCEPTANCE: "On acceptance (deposit)",
-  ON_PHASE: "On phase completion",
-  ON_DATE: "On a date",
-  ON_COMPLETION: "On completion",
+export function normalizeTrigger(t: PaymentTriggerType): BuilderTrigger {
+  return t === "ON_DATE" ? "ON_DATE" : "ON_COMPLETION"
 }
 
 const fmt = (n: number) =>
@@ -34,7 +31,7 @@ const fmt = (n: number) =>
 
 const draw = (
   label: string,
-  trigger: PaymentTriggerType,
+  trigger: BuilderTrigger,
   amount: number,
   order: number,
 ): PaymentScheduleLineInput => ({
@@ -45,12 +42,23 @@ const draw = (
   order_index: order,
 })
 
-const PRESETS: { key: string; label: string; build: () => PaymentScheduleLineInput[] }[] = [
+// ─── Presets (the "Billing" dropdown) ────────────────────────────────────────
+
+export const PAYMENT_PRESETS: {
+  key: string
+  label: string
+  build: () => PaymentScheduleLineInput[]
+}[] = [
+  {
+    key: "single",
+    label: "Single payment",
+    build: () => [],
+  },
   {
     key: "50-50",
     label: "50 / 50",
     build: () => [
-      draw("Deposit", "ON_ACCEPTANCE", 50, 0),
+      draw("Deposit", "ON_COMPLETION", 50, 0),
       draw("Final payment", "ON_COMPLETION", 50, 1),
     ],
   },
@@ -58,8 +66,8 @@ const PRESETS: { key: string; label: string; build: () => PaymentScheduleLineInp
     key: "30-40-30",
     label: "30 / 40 / 30",
     build: () => [
-      draw("Deposit", "ON_ACCEPTANCE", 30, 0),
-      draw("Progress draw", "ON_PHASE", 40, 1),
+      draw("Deposit", "ON_COMPLETION", 30, 0),
+      draw("Progress draw", "ON_COMPLETION", 40, 1),
       draw("Final payment", "ON_COMPLETION", 30, 2),
     ],
   },
@@ -67,25 +75,75 @@ const PRESETS: { key: string; label: string; build: () => PaymentScheduleLineInp
     key: "deposit-balance",
     label: "Deposit + balance",
     build: () => [
-      draw("Deposit", "ON_ACCEPTANCE", 30, 0),
+      draw("Deposit", "ON_COMPLETION", 30, 0),
       draw("Balance on completion", "ON_COMPLETION", 70, 1),
     ],
   },
 ]
 
-function lineAmount(line: PaymentScheduleLineInput, total: number): number {
-  if (line.amount_type === "PERCENT") return (total * (line.amount_value || 0)) / 100
-  return line.amount_value || 0
+/** Which preset (if any) the current draws match — drives the Billing dropdown. */
+export function matchPresetKey(lines: PaymentScheduleLineInput[]): string {
+  for (const p of PAYMENT_PRESETS) {
+    const built = p.build()
+    if (built.length !== lines.length) continue
+    const same = built.every(
+      (b, i) =>
+        lines[i].amount_type === b.amount_type &&
+        (lines[i].amount_value || 0) === b.amount_value &&
+        normalizeTrigger(lines[i].trigger_type) === b.trigger_type,
+    )
+    if (same) return p.key
+  }
+  return "custom"
+}
+
+// ─── Draw math (industry-standard) ───────────────────────────────────────────
+// Each percentage draw is a share of the FULL contract total (so 30/40/30 sums
+// to 100%), and fixed draws bill their flat amount. `remainingAfter` is just the
+// contract total minus everything billed top-to-bottom, for the running display.
+// Mirror of the backend's `_compute_draw_amounts` so the preview matches what
+// the server stores.
+export interface DrawComputation {
+  amount: number
+  remainingAfter: number
+}
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
+
+export function computeDraws(
+  lines: PaymentScheduleLineInput[],
+  total: number,
+): DrawComputation[] {
+  let remaining = total
+  return lines.map((line) => {
+    const value = line.amount_value || 0
+    const amount = round2(line.amount_type === "PERCENT" ? (total * value) / 100 : value)
+    remaining = round2(remaining - amount)
+    return { amount, remainingAfter: remaining }
+  })
+}
+
+// Shared column template for the header row and each draw row, so they line up:
+// handle · name · split · flexible gap · amount · trigger · remove.
+// Every column except name + gap is a fixed width — each row is its own grid,
+// so fixed widths are what keep the columns aligned across rows.
+const GRID =
+  "grid grid-cols-[18px_minmax(0,1.4fr)_180px_1fr_100px_244px_32px] items-center gap-x-3"
+
+interface PaymentScheduleBuilderProps {
+  /** Contract grand total (markup + tax), used to preview each draw's dollar amount. */
+  total: number
+  lines: PaymentScheduleLineInput[]
+  onLinesChange: (lines: PaymentScheduleLineInput[]) => void
 }
 
 export function PaymentScheduleBuilder({
   total,
-  billingMode,
   lines,
-  onBillingModeChange,
   onLinesChange,
 }: PaymentScheduleBuilderProps) {
-  const scheduled = billingMode === "SCHEDULED"
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
 
   const reindex = (next: PaymentScheduleLineInput[]) =>
     next.map((l, i) => ({ ...l, order_index: i }))
@@ -97,224 +155,228 @@ export function PaymentScheduleBuilder({
     onLinesChange(
       reindex([
         ...lines,
-        draw(lines.length === 0 ? "Deposit" : "Payment", lines.length === 0 ? "ON_ACCEPTANCE" : "ON_COMPLETION", 0, lines.length),
+        draw(lines.length === 0 ? "Deposit" : "Payment", "ON_COMPLETION", 0, lines.length),
       ]),
     )
 
   const removeLine = (idx: number) =>
     onLinesChange(reindex(lines.filter((_, i) => i !== idx)))
 
-  const applyPreset = (build: () => PaymentScheduleLineInput[]) => onLinesChange(build())
+  const moveLine = (from: number, to: number) => {
+    if (from === to) return
+    const next = [...lines]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    onLinesChange(reindex(next))
+  }
 
-  const pctSum = lines
-    .filter((l) => l.amount_type === "PERCENT")
-    .reduce((s, l) => s + (l.amount_value || 0), 0)
-  const scheduledTotal = lines.reduce((s, l) => s + lineAmount(l, total), 0)
-  const hasFixed = lines.some((l) => l.amount_type === "FIXED")
-  const pctOver = pctSum > 100.01
-  const pctUnder = !hasFixed && lines.length > 0 && Math.abs(pctSum - 100) > 0.01
+  const computed = computeDraws(lines, total)
+  const scheduledTotal = computed.reduce((s, c) => s + c.amount, 0)
+  const scheduledPct = total > 0 ? Math.round((scheduledTotal / total) * 100) : 0
+  const overContract = scheduledTotal > total + 0.01
 
-  return (
-    <div className="space-y-4">
-      {/* Mode toggle */}
-      <div className="space-y-2">
-        <Label>Billing</Label>
-        <div className="inline-flex rounded-lg border border-border/70 p-1">
-          <button
-            type="button"
-            onClick={() => onBillingModeChange("LUMP_SUM")}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              !scheduled ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Lump sum
-          </button>
-          <button
-            type="button"
-            onClick={() => onBillingModeChange("SCHEDULED")}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              scheduled ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Payment schedule (draws)
-          </button>
-        </div>
-      </div>
-
-      {scheduled && (
-        <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-background/70 p-4">
-          {/* Presets */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Quick start:</span>
-            {PRESETS.map((p) => (
-              <Button
-                key={p.key}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7"
-                onClick={() => applyPreset(p.build)}
-              >
-                {p.label}
-              </Button>
-            ))}
-          </div>
-
-          {/* Rows */}
-          <div className="space-y-2">
-            {lines.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No draws yet. Pick a preset above or add one below.
-              </p>
-            )}
-            {lines.map((line, idx) => (
-              <div
-                key={idx}
-                className="flex flex-wrap items-end gap-2 rounded-md border border-border/60 p-2 sm:flex-nowrap"
-              >
-                {/* Label */}
-                <div className="min-w-[140px] flex-1 space-y-1">
-                  {idx === 0 && <Label className="text-xs text-muted-foreground">Draw</Label>}
-                  <Input
-                    value={line.label}
-                    placeholder="Deposit"
-                    onChange={(e) => updateLine(idx, { label: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-
-                {/* Amount + type */}
-                <div className="space-y-1">
-                  {idx === 0 && <Label className="text-xs text-muted-foreground">Amount</Label>}
-                  <div className="flex">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={line.amount_value === 0 ? "" : line.amount_value}
-                      onChange={(e) =>
-                        updateLine(idx, {
-                          amount_value: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className="h-9 w-20 rounded-r-none"
-                    />
-                    <Select
-                      value={line.amount_type}
-                      onValueChange={(v) => updateLine(idx, { amount_type: v as PaymentAmountType })}
-                    >
-                      <SelectTrigger className="h-9 w-14 rounded-l-none border-l-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PERCENT">%</SelectItem>
-                        <SelectItem value="FIXED">$</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Trigger */}
-                <div className="min-w-[160px] space-y-1">
-                  {idx === 0 && <Label className="text-xs text-muted-foreground">Bill when</Label>}
-                  <Select
-                    value={line.trigger_type}
-                    onValueChange={(v) => updateLine(idx, { trigger_type: v as PaymentTriggerType })}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(TRIGGER_LABELS) as PaymentTriggerType[]).map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {TRIGGER_LABELS[t]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Trigger detail (phase / date) */}
-                {line.trigger_type === "ON_PHASE" && (
-                  <div className="min-w-[120px] space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Phase</Label>}
-                    <Input
-                      value={line.trigger_phase ?? ""}
-                      placeholder="Rough-in"
-                      onChange={(e) => updateLine(idx, { trigger_phase: e.target.value || null })}
-                      className="h-9"
-                    />
-                  </div>
-                )}
-                {line.trigger_type === "ON_DATE" && (
-                  <div className="min-w-[140px] space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Date</Label>}
-                    <Input
-                      type="date"
-                      value={line.trigger_date ?? ""}
-                      onChange={(e) => updateLine(idx, { trigger_date: e.target.value || null })}
-                      className="h-9"
-                    />
-                  </div>
-                )}
-
-                {/* Computed $ */}
-                <div className="space-y-1">
-                  {idx === 0 && <Label className="text-xs text-muted-foreground">≈ Amount</Label>}
-                  <div className="flex h-9 items-center px-1 text-sm font-medium tabular-nums">
-                    {fmt(lineAmount(line, total))}
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeLine(idx)}
-                  aria-label="Remove draw"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
+  if (lines.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+        Billed as a single payment. Pick a billing schedule above or add a draw below.
+        <div className="mt-3">
           <Button type="button" variant="outline" size="sm" className="h-8" onClick={addLine}>
             <Plus className="mr-1 h-4 w-4" /> Add draw
           </Button>
+        </div>
+      </div>
+    )
+  }
 
-          {/* Footer / totals */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-sm">
-            <span className="text-muted-foreground">
-              Contract total: <strong className="text-foreground">{fmt(total)}</strong>
-            </span>
-            <span className="text-muted-foreground">
-              Scheduled:{" "}
-              <strong className={cn("text-foreground tabular-nums", pctOver && "text-destructive")}>
-                {fmt(scheduledTotal)}
-              </strong>{" "}
-              {!hasFixed && `(${pctSum.toFixed(0)}%)`}
-            </span>
-          </div>
+  return (
+    <div className="space-y-2">
+      {/* Column headers */}
+      <div className={cn(GRID, "px-1 pb-1 text-xs font-medium text-muted-foreground")}>
+        <span />
+        <span>Draw name</span>
+        <span>Split</span>
+        <span />
+        <span className="text-right">Amount</span>
+        <span>Trigger</span>
+        <span />
+      </div>
 
-          {(pctOver || pctUnder) && (
+      {/* Rows */}
+      <div className="space-y-1.5">
+        {lines.map((line, idx) => {
+          const { amount, remainingAfter } = computed[idx]
+          const trigger = normalizeTrigger(line.trigger_type)
+          return (
             <div
+              key={idx}
+              onDragOver={(e) => {
+                if (dragIndex === null) return
+                e.preventDefault()
+                setOverIndex(idx)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragIndex !== null) moveLine(dragIndex, idx)
+                setDragIndex(null)
+                setOverIndex(null)
+              }}
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-xs",
-                pctOver ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-600",
+                GRID,
+                "rounded-lg px-1 py-1 transition-colors",
+                dragIndex === idx && "opacity-50",
+                overIndex === idx && dragIndex !== idx && "bg-muted/60",
               )}
             >
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              {pctOver
-                ? `Draws exceed 100% of the contract (${pctSum.toFixed(0)}%). Reduce them before saving.`
-                : `Draws add up to ${pctSum.toFixed(0)}% — they don't cover the full contract yet.`}
+              {/* Drag handle */}
+              <span
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move"
+                  setDragIndex(idx)
+                }}
+                onDragEnd={() => {
+                  setDragIndex(null)
+                  setOverIndex(null)
+                }}
+                className="flex h-9 w-[18px] cursor-grab items-center justify-center text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+                aria-label="Drag to reorder"
+              >
+                <GripVertical className="h-4 w-4" />
+              </span>
+
+              {/* Draw name */}
+              <Input
+                value={line.label}
+                placeholder="Draw name"
+                onChange={(e) => updateLine(idx, { label: e.target.value })}
+                className="h-9"
+              />
+
+              {/* Split = amount value + unit */}
+              <div className="flex">
+                <Input
+                  type="number"
+                  min={0}
+                  max={line.amount_type === "PERCENT" ? 100 : 999999999}
+                  step="any"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={line.amount_value === 0 ? "" : line.amount_value}
+                  onChange={(e) =>
+                    updateLine(idx, {
+                      amount_value: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  className="h-9 w-[112px] rounded-r-none text-center"
+                />
+                <Select
+                  value={line.amount_type}
+                  onValueChange={(v) => updateLine(idx, { amount_type: v as PaymentAmountType })}
+                >
+                  <SelectTrigger className="h-9 w-[68px] gap-1 rounded-l-none border-l-0 px-2.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PERCENT">%</SelectItem>
+                    <SelectItem value="FIXED">$</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Flexible gap */}
+              <span />
+
+              {/* Computed amount + remaining balance */}
+              <div className="flex flex-col items-end justify-center text-right">
+                <span className="text-sm font-semibold tabular-nums">{fmt(amount)}</span>
+                <span
+                  className={cn(
+                    "text-[11px] tabular-nums text-muted-foreground",
+                    remainingAfter < -0.01 && "text-destructive",
+                  )}
+                >
+                  {fmt(remainingAfter)} left
+                </span>
+              </div>
+
+              {/* Trigger — one box; the date lives inside it when "On a date" */}
+              <div className="flex h-9 items-center overflow-hidden rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
+                <Select
+                  value={trigger}
+                  onValueChange={(v) =>
+                    updateLine(idx, {
+                      trigger_type: v as PaymentTriggerType,
+                      trigger_date: v === "ON_DATE" ? (line.trigger_date ?? "") : null,
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-full rounded-none border-0 bg-transparent shadow-none focus:ring-0 focus-visible:ring-0",
+                      trigger === "ON_DATE" ? "w-auto shrink-0 gap-1 px-2.5" : "w-full px-3",
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(TRIGGER_LABELS) as BuilderTrigger[]).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {TRIGGER_LABELS[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {trigger === "ON_DATE" && (
+                  <>
+                    <span className="h-5 w-px shrink-0 bg-border" />
+                    <input
+                      type="date"
+                      value={line.trigger_date ?? ""}
+                      onChange={(e) => updateLine(idx, { trigger_date: e.target.value || null })}
+                      className="h-full min-w-0 flex-1 bg-transparent px-2 text-xs outline-none"
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Remove */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => removeLine(idx)}
+                aria-label="Remove draw"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+          )
+        })}
+      </div>
+
+      <Button type="button" variant="outline" size="sm" className="mt-1 h-8" onClick={addLine}>
+        <Plus className="mr-1 h-4 w-4" /> Add draw
+      </Button>
+
+      {/* Footer / totals */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-sm">
+        <span className="text-muted-foreground">
+          Contract total: <strong className="text-foreground">{fmt(total)}</strong>
+        </span>
+        <span className="text-muted-foreground">
+          Scheduled:{" "}
+          <strong className={cn("text-foreground tabular-nums", overContract && "text-destructive")}>
+            {fmt(scheduledTotal)}
+          </strong>{" "}
+          ({scheduledPct}%)
+        </span>
+      </div>
+
+      {overContract && (
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Draws exceed the contract total ({fmt(scheduledTotal)} of {fmt(total)}). Reduce them before saving.
         </div>
       )}
     </div>

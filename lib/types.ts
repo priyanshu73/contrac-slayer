@@ -912,8 +912,11 @@ export interface Invoice {
 
 // ─── Payment schedule (draws) ────────────────────────────────────────
 
+// ON_ACCEPTANCE / ON_PHASE are soft-deprecated: the quote builder only authors
+// ON_COMPLETION / ON_DATE, but legacy rows may still carry the older values.
 export type PaymentTriggerType = "ON_ACCEPTANCE" | "ON_PHASE" | "ON_DATE" | "ON_COMPLETION"
 export type PaymentAmountType = "PERCENT" | "FIXED"
+/** Derived (read-only) on the API: "SCHEDULED" when the job has draws, else "LUMP_SUM". */
 export type JobBillingMode = "LUMP_SUM" | "SCHEDULED"
 /** Derived per-draw state: trigger not fired → fired/unbilled → billed → paid. */
 export type PaymentDrawState = "LOCKED" | "READY" | "INVOICED" | "PAID"
@@ -933,6 +936,8 @@ export interface PaymentScheduleLineInput {
 export interface PaymentScheduleLine extends PaymentScheduleLineInput {
   id: number
   computed_amount: number
+  /** Contract balance left after this draw is taken (cascading remaining balance). */
+  remaining_after: number
   invoice_id: number | null
   invoice_number: string | null
   invoice_status: string | null

@@ -19,8 +19,14 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
-import type { JobBillingMode, PaymentScheduleLineInput } from "@/lib/types"
-import { PaymentScheduleBuilder } from "@/components/payment-schedule-builder"
+import type { PaymentScheduleLineInput } from "@/lib/types"
+import {
+  PaymentScheduleBuilder,
+  PAYMENT_PRESETS,
+  matchPresetKey,
+  normalizeTrigger,
+  computeDraws,
+} from "@/components/payment-schedule-builder"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
@@ -516,8 +522,6 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   // Additional details states
   const [notes, setNotes] = useState("")
   const [dueDate, setDueDate] = useState("")
-  const [paymentTerms, setPaymentTerms] = useState("")
-  const [billingMode, setBillingMode] = useState<JobBillingMode>("LUMP_SUM")
   const [scheduleLines, setScheduleLines] = useState<PaymentScheduleLineInput[]>([])
 
   // Quote creation states
@@ -784,12 +788,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     api.getPaymentSchedule(jobId)
       .then((sched) => {
         if (cancelled) return
-        setBillingMode(sched.billing_mode)
         setScheduleLines(
           sched.lines.map((l) => ({
             label: l.label,
-            trigger_type: l.trigger_type,
-            trigger_phase: l.trigger_phase ?? null,
+            // Coerce legacy triggers (ON_ACCEPTANCE / ON_PHASE) to the two we author.
+            trigger_type: normalizeTrigger(l.trigger_type),
+            trigger_phase: null,
             trigger_date: l.trigger_date ?? null,
             amount_type: l.amount_type,
             amount_value: l.amount_value,
@@ -924,7 +928,6 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
       // Load additional details
       setNotes(initialData.customer_notes || "")
-      setPaymentTerms(initialData.payment_terms || "")
 
       // Handle due date or quote expiration date
       const dateValue = initialData.due_date || initialData.quote_expiration_date
@@ -1547,7 +1550,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     return {
       job_description: serviceDescription.trim() || null,
       customer_notes: (notesOverride !== undefined ? notesOverride : notes.trim()) || null,
-      payment_terms: paymentTerms.trim() || null,
+      payment_terms: null,
       quote_expiration_date: dueDate || null,
       location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
       items: validItems.map(item => ({
@@ -1669,21 +1672,19 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       return
     }
 
-    // Validate payment schedule (draws)
-    if (billingMode === "SCHEDULED") {
-      if (scheduleLines.length === 0) {
-        setCreateError("Add at least one draw, or switch billing to Lump sum.")
-        return
-      }
+    // Validate payment schedule (draws). An empty schedule = single payment, which is fine.
+    if (scheduleLines.length > 0) {
       if (scheduleLines.some((l) => !l.label.trim())) {
         setCreateError("Every draw needs a label.")
         return
       }
-      const pctSum = scheduleLines
-        .filter((l) => l.amount_type === "PERCENT")
-        .reduce((s, l) => s + (l.amount_value || 0), 0)
-      if (pctSum > 100.01) {
-        setCreateError(`Payment draws exceed 100% of the contract (${pctSum.toFixed(0)}%).`)
+      if (scheduleLines.some((l) => l.trigger_type === "ON_DATE" && !l.trigger_date)) {
+        setCreateError("Pick a date for every draw billed on a date.")
+        return
+      }
+      const scheduledTotal = computeDraws(scheduleLines, total).reduce((s, c) => s + c.amount, 0)
+      if (scheduledTotal > total + 0.01) {
+        setCreateError("Payment draws exceed the contract total. Reduce them before saving.")
         return
       }
     }
@@ -1710,7 +1711,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
         job_description: serviceDescription.trim() || null,
         customer_notes: notes.trim() || null,
-        payment_terms: paymentTerms.trim() || null,
+        payment_terms: null,
         quote_expiration_date: dueDate || null,
         items: validItems.map(item => ({
           title: item.title?.trim() || null,
@@ -1782,15 +1783,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
       const finalJobId = (response as any)?.id || (quoteId ? parseInt(quoteId, 10) : null)
 
-      // Persist the payment schedule (draws). Sending LUMP_SUM with an empty
-      // list also clears any schedule left over from a prior save.
-      if (finalJobId && (billingMode === "SCHEDULED" || scheduleLines.length > 0)) {
+      // Persist the payment schedule (draws). An empty list clears any prior
+      // schedule so the job bills as a single invoice.
+      if (finalJobId) {
         try {
-          await api.savePaymentSchedule(
-            finalJobId,
-            billingMode,
-            billingMode === "SCHEDULED" ? scheduleLines : [],
-          )
+          await api.savePaymentSchedule(finalJobId, scheduleLines)
         } catch (schedErr) {
           console.error("Failed to save payment schedule (quote was still saved):", schedErr)
         }
@@ -3022,18 +3019,42 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="payment-terms">
-                    Payment Terms {billingMode === "SCHEDULED" && (
-                      <span className="text-xs font-normal text-muted-foreground">(per-draw due window)</span>
-                    )}
-                  </Label>
-                  <Input
-                    id="payment-terms"
-                    placeholder="Net 30"
-                    value={paymentTerms}
-                    onChange={(e) => setPaymentTerms(e.target.value)}
-                    className={quoteInputSurfaceClass}
-                  />
+                  <Label htmlFor="billing">Billing</Label>
+                  <Select
+                    value={matchPresetKey(scheduleLines)}
+                    onValueChange={(key) => {
+                      if (key === "custom") {
+                        if (scheduleLines.length === 0) {
+                          setScheduleLines([
+                            {
+                              label: "Deposit",
+                              trigger_type: "ON_COMPLETION",
+                              trigger_phase: null,
+                              trigger_date: null,
+                              amount_type: "PERCENT",
+                              amount_value: 0,
+                              order_index: 0,
+                            },
+                          ])
+                        }
+                        return
+                      }
+                      const preset = PAYMENT_PRESETS.find((p) => p.key === key)
+                      if (preset) setScheduleLines(preset.build())
+                    }}
+                  >
+                    <SelectTrigger id="billing" className={quoteInputSurfaceClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_PRESETS.map((p) => (
+                        <SelectItem key={p.key} value={p.key}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -3041,9 +3062,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               <div className="border-t border-border/60 pt-4">
                 <PaymentScheduleBuilder
                   total={total}
-                  billingMode={billingMode}
                   lines={scheduleLines}
-                  onBillingModeChange={setBillingMode}
                   onLinesChange={setScheduleLines}
                 />
               </div>

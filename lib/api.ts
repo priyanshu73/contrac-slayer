@@ -20,7 +20,6 @@ import type {
   User,
   PaymentSchedule,
   PaymentScheduleLineInput,
-  JobBillingMode,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type {
@@ -505,15 +504,15 @@ class ApiClient {
     return this.request<PaymentSchedule>(`/jobs/${jobId}/payment-schedule`)
   }
 
-  /** Replace the draw schedule on a quote (the plan). Does not create invoices. */
+  /** Replace the draw schedule on a quote (the plan). Does not create invoices.
+   * An empty `lines` clears the schedule (the job bills as a single invoice). */
   async savePaymentSchedule(
     jobId: number,
-    billingMode: JobBillingMode,
     lines: PaymentScheduleLineInput[],
   ): Promise<PaymentSchedule> {
     return this.request<PaymentSchedule>(`/jobs/${jobId}/payment-schedule`, {
       method: 'PUT',
-      body: JSON.stringify({ billing_mode: billingMode, lines }),
+      body: JSON.stringify({ lines }),
     })
   }
 
