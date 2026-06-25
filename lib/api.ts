@@ -18,6 +18,9 @@ import type {
   QBOProjectInvoiceDetailResponse,
   StagedLeadActionResponse,
   User,
+  PaymentSchedule,
+  PaymentScheduleLineInput,
+  JobBillingMode,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type {
@@ -494,6 +497,29 @@ class ApiClient {
 
   async sendInvoiceViaEmail(invoiceId: number): Promise<{ message: string; status: string }> {
     return this.request<{ message: string; status: string }>(`/invoices/${invoiceId}/send`, { method: 'POST' })
+  }
+
+  // --- Payment schedule (draws) ---
+  /** Get the draw schedule for a quote, with computed amounts + per-line state. */
+  async getPaymentSchedule(jobId: number): Promise<PaymentSchedule> {
+    return this.request<PaymentSchedule>(`/jobs/${jobId}/payment-schedule`)
+  }
+
+  /** Replace the draw schedule on a quote (the plan). Does not create invoices. */
+  async savePaymentSchedule(
+    jobId: number,
+    billingMode: JobBillingMode,
+    lines: PaymentScheduleLineInput[],
+  ): Promise<PaymentSchedule> {
+    return this.request<PaymentSchedule>(`/jobs/${jobId}/payment-schedule`, {
+      method: 'PUT',
+      body: JSON.stringify({ billing_mode: billingMode, lines }),
+    })
+  }
+
+  /** Bill a single draw — creates an invoice for that line and links it back. */
+  async billDraw(jobId: number, lineId: number): Promise<any> {
+    return this.request(`/jobs/${jobId}/payment-schedule/${lineId}/invoice`, { method: 'POST' })
   }
 
   async uploadLogo(file: File) {

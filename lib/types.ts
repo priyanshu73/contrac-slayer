@@ -517,6 +517,7 @@ export interface Job {
   /** Project/job description; API uses job_description */
   job_description?: string
   payment_terms?: string
+  billing_mode?: JobBillingMode
   customer_notes?: string
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
@@ -907,6 +908,45 @@ export interface Invoice {
   client?: Client
   job?: Job
   items?: InvoiceItem[]
+}
+
+// ─── Payment schedule (draws) ────────────────────────────────────────
+
+export type PaymentTriggerType = "ON_ACCEPTANCE" | "ON_PHASE" | "ON_DATE" | "ON_COMPLETION"
+export type PaymentAmountType = "PERCENT" | "FIXED"
+export type JobBillingMode = "LUMP_SUM" | "SCHEDULED"
+/** Derived per-draw state: trigger not fired → fired/unbilled → billed → paid. */
+export type PaymentDrawState = "LOCKED" | "READY" | "INVOICED" | "PAID"
+
+/** A draw as authored in the quote builder (the plan). */
+export interface PaymentScheduleLineInput {
+  label: string
+  trigger_type: PaymentTriggerType
+  trigger_phase?: string | null
+  trigger_date?: string | null
+  amount_type: PaymentAmountType
+  amount_value: number
+  order_index: number
+}
+
+/** A draw as returned by the backend, with computed amount + billing state. */
+export interface PaymentScheduleLine extends PaymentScheduleLineInput {
+  id: number
+  computed_amount: number
+  invoice_id: number | null
+  invoice_number: string | null
+  invoice_status: string | null
+  state: PaymentDrawState
+  is_billable: boolean
+}
+
+export interface PaymentSchedule {
+  job_id: number
+  billing_mode: JobBillingMode
+  contract_total: number
+  scheduled_total: number
+  summary: { billed: number; paid: number; outstanding: number }
+  lines: PaymentScheduleLine[]
 }
 
 export interface InvoiceCreate {

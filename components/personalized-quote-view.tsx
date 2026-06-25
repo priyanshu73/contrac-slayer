@@ -27,6 +27,7 @@ import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborC
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
+import { PaymentScheduleDraws } from "@/components/payment-schedule-draws"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -581,8 +582,10 @@ export function PersonalizedQuoteView({
                 </Tooltip>
               )}
 
-              {/* Create Invoice — shown for accepted/in-progress/completed jobs with no invoice yet */}
-              {isContractor && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase() ?? '') && !existingInvoiceId && (
+              {/* Create Invoice — lump-sum only. Scheduled quotes bill via the
+                  Payment schedule panel (draws), so the single-invoice action
+                  is hidden for them. */}
+              {isContractor && currentJob.billing_mode !== 'SCHEDULED' && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase() ?? '') && !existingInvoiceId && (
                 <Button
                   className={inlineActionButtonClass}
                   variant="outline"
@@ -594,8 +597,9 @@ export function PersonalizedQuoteView({
                 </Button>
               )}
 
-              {/* View Invoice — shown when a ContractorOps invoice exists for this quote */}
-              {isContractor && existingInvoiceId && (
+              {/* View Invoice — lump-sum only. Scheduled quotes have multiple
+                  draw invoices, each linked from the Payment schedule panel. */}
+              {isContractor && existingInvoiceId && currentJob.billing_mode !== 'SCHEDULED' && (
                 <Button asChild className={inlineActionButtonClass} variant="outline">
                   <Link href={`/${locale}/invoices/${existingInvoiceId}`}>
                     <FileText className="mr-2 h-4 w-4 shrink-0" />
@@ -1478,6 +1482,11 @@ export function PersonalizedQuoteView({
                     </div>
                   )}
                 </div>
+
+                {/* Payment schedule (draws) — self-hides unless the quote uses one */}
+                {isContractor && currentJob.id && (
+                  <PaymentScheduleDraws jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                )}
               </div>
             </div>
           )}

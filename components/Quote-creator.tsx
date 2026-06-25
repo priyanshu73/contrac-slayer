@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
+import type { JobBillingMode, PaymentScheduleLineInput } from "@/lib/types"
+import { PaymentScheduleBuilder } from "@/components/payment-schedule-builder"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
@@ -515,6 +517,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [notes, setNotes] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [paymentTerms, setPaymentTerms] = useState("")
+  const [billingMode, setBillingMode] = useState<JobBillingMode>("LUMP_SUM")
+  const [scheduleLines, setScheduleLines] = useState<PaymentScheduleLineInput[]>([])
 
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
@@ -770,6 +774,34 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       fetchProjectData()
     }
   }, [projectId, initialData])
+
+  // Load any existing payment schedule when editing a quote.
+  useEffect(() => {
+    if (!quoteId) return
+    const jobId = parseInt(quoteId, 10)
+    if (isNaN(jobId)) return
+    let cancelled = false
+    api.getPaymentSchedule(jobId)
+      .then((sched) => {
+        if (cancelled) return
+        setBillingMode(sched.billing_mode)
+        setScheduleLines(
+          sched.lines.map((l) => ({
+            label: l.label,
+            trigger_type: l.trigger_type,
+            trigger_phase: l.trigger_phase ?? null,
+            trigger_date: l.trigger_date ?? null,
+            amount_type: l.amount_type,
+            amount_value: l.amount_value,
+            order_index: l.order_index,
+          })),
+        )
+      })
+      .catch((err) => console.error("Failed to load payment schedule:", err))
+    return () => {
+      cancelled = true
+    }
+  }, [quoteId])
 
   // Fetch call lead data if callLeadId is provided
   // Also handle phone parameter if provided without callLeadId (fallback)
@@ -1637,6 +1669,25 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       return
     }
 
+    // Validate payment schedule (draws)
+    if (billingMode === "SCHEDULED") {
+      if (scheduleLines.length === 0) {
+        setCreateError("Add at least one draw, or switch billing to Lump sum.")
+        return
+      }
+      if (scheduleLines.some((l) => !l.label.trim())) {
+        setCreateError("Every draw needs a label.")
+        return
+      }
+      const pctSum = scheduleLines
+        .filter((l) => l.amount_type === "PERCENT")
+        .reduce((s, l) => s + (l.amount_value || 0), 0)
+      if (pctSum > 100.01) {
+        setCreateError(`Payment draws exceed 100% of the contract (${pctSum.toFixed(0)}%).`)
+        return
+      }
+    }
+
     setIsCreatingQuote(true)
 
     try {
@@ -1730,6 +1781,20 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       }
 
       const finalJobId = (response as any)?.id || (quoteId ? parseInt(quoteId, 10) : null)
+
+      // Persist the payment schedule (draws). Sending LUMP_SUM with an empty
+      // list also clears any schedule left over from a prior save.
+      if (finalJobId && (billingMode === "SCHEDULED" || scheduleLines.length > 0)) {
+        try {
+          await api.savePaymentSchedule(
+            finalJobId,
+            billingMode,
+            billingMode === "SCHEDULED" ? scheduleLines : [],
+          )
+        } catch (schedErr) {
+          console.error("Failed to save payment schedule (quote was still saved):", schedErr)
+        }
+      }
 
       // Attach any uploaded images
       if (finalJobId) {
@@ -2957,7 +3022,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="payment-terms">Payment Terms</Label>
+                  <Label htmlFor="payment-terms">
+                    Payment Terms {billingMode === "SCHEDULED" && (
+                      <span className="text-xs font-normal text-muted-foreground">(per-draw due window)</span>
+                    )}
+                  </Label>
                   <Input
                     id="payment-terms"
                     placeholder="Net 30"
@@ -2966,6 +3035,17 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     className={quoteInputSurfaceClass}
                   />
                 </div>
+              </div>
+
+              {/* Draw schedule builder */}
+              <div className="border-t border-border/60 pt-4">
+                <PaymentScheduleBuilder
+                  total={total}
+                  billingMode={billingMode}
+                  lines={scheduleLines}
+                  onBillingModeChange={setBillingMode}
+                  onLinesChange={setScheduleLines}
+                />
               </div>
             </div>
           </Card>
