@@ -27,7 +27,7 @@ import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborC
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
-import { PaymentScheduleDraws } from "@/components/payment-schedule-draws"
+import { QuoteInvoicesSection } from "@/components/quote-invoices-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -1387,6 +1387,11 @@ export function PersonalizedQuoteView({
                   />
                 )}
 
+                {/* Invoices — featured card, directly below Proposals. Self-hides unless the quote uses a draw schedule. */}
+                {isContractor && currentJob.id && (
+                  <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                )}
+
                 {/* Change Orders — minimal collapsable, no card box */}
                 {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
                   <div>
@@ -1483,10 +1488,6 @@ export function PersonalizedQuoteView({
                   )}
                 </div>
 
-                {/* Payment schedule (draws) — self-hides unless the quote uses one */}
-                {isContractor && currentJob.id && (
-                  <PaymentScheduleDraws jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
-                )}
               </div>
             </div>
           )}

@@ -2591,6 +2591,11 @@ class ApiClient {
   async getClientPortal(token: string) {
     return this.fetchPublic(`/projects/client/${token}`)
   }
+
+  /** Public: a client fetches one of their billed invoices via their portal token. */
+  async getPublicInvoice(token: string, invoiceId: number) {
+    return this.fetchPublic(`/projects/client/${token}/invoices/${invoiceId}`)
+  }
 }
 
 class ContractorAIClient {

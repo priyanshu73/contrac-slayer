@@ -19,12 +19,43 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { formatPhoneForDisplay } from "@/lib/utils"
+import { formatPhoneForDisplay, cn } from "@/lib/utils"
 import { useLocale } from "next-intl"
 import Link from "next/link"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { cleanAddressString } from "@/lib/format-address"
+import { ChevronDown } from "lucide-react"
+import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
+
+/** "progress_payment" -> "Progress Payment". Empty/unknown -> "". */
+const formatCategory = (category?: string | null) =>
+  (category || "")
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+
+const DRAW_CATEGORIES = ["deposit", "progress_payment"]
+
+/** Render a draw line like "Deposit (30% of contract)" as "...of quote" with the
+ * word "quote" linked to `quoteHref`. Normalizes legacy "contract" wording too.
+ * Falls back to plain (relabeled) text when there's no quote link. */
+function renderDrawDescription(description: string, quoteHref?: string) {
+  const m = description.match(/\b(contract|quote)\b/i)
+  if (quoteHref && m && m.index !== undefined) {
+    return (
+      <>
+        {description.slice(0, m.index)}
+        <Link href={quoteHref} className="text-sky-700 underline underline-offset-2 hover:text-sky-900 print:no-underline print:text-gray-900">
+          quote
+        </Link>
+        {description.slice(m.index + m[0].length)}
+      </>
+    )
+  }
+  return description.replace(/\b(contract|quote)\b/gi, "quote")
+}
 
 const PAYMENT_METHODS = [
   { value: "CASH", label: "Cash" },
@@ -42,7 +73,10 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ]
 
-export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
+export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?: string }) {
+  // When a portal token is supplied this is the read-only client view: fetch via
+  // the public endpoint and hide all contractor actions.
+  const publicMode = !!token
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -53,6 +87,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [recordingPayment, setRecordingPayment] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [lineItemsOpen, setLineItemsOpen] = useState(false)
   const { toast } = useToast()
   const locale = useLocale()
 
@@ -64,7 +99,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         setInvoice(null)
         return
       }
-      const data = await api.getInvoiceDetail(id)
+      const data = token ? await api.getPublicInvoice(token, id) : await api.getInvoiceDetail(id)
       setInvoice(data)
     } catch (err) {
       console.error("Failed to load invoice:", err)
@@ -72,7 +107,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [invoiceId])
+  }, [invoiceId, token])
 
   useEffect(() => {
     fetchInvoice()
@@ -184,9 +219,11 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             <p className="text-sm text-muted-foreground mb-4">
               The invoice you&apos;re looking for doesn&apos;t exist or hasn&apos;t been created yet.
             </p>
-            <Button variant="outline" asChild>
-              <Link href={`/${locale}/invoices`}>Back to Invoices</Link>
-            </Button>
+            {!publicMode && (
+              <Button variant="outline" asChild>
+                <Link href={`/${locale}/invoices`}>Back to Invoices</Link>
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -211,8 +248,37 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
     }
   }
+
+  // A draw invoice charges a % of the contract — its own line_items are just the
+  // draw. Show the quote's real scope (quote_items) as the collapsible Line Items,
+  // and the draw charge as a separate line below. Lump-sum invoices use their own
+  // line_items as the scope.
+  const ownLines = invoice.line_items || []
+  const drawLine =
+    ownLines.length === 1 && DRAW_CATEGORIES.includes(ownLines[0]?.category)
+      ? ownLines[0]
+      : null
+  const isDraw = !!drawLine
+  const scopeItems = isDraw ? (invoice.quote_items || []) : ownLines
+
+  // Where the "quote" word links: the client view uses the quote's public link,
+  // the contractor view the internal quote page.
+  const quoteHref = publicMode
+    ? (invoice.quote_public_link ? `/${locale}/quotes/${invoice.quote_public_link}` : undefined)
+    : (invoice.job_id ? `/${locale}/quotes/${invoice.job_id}` : undefined)
+
   return (
-    <div className="min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0">
+    <>
+    {publicMode && (
+      <ClientDocumentNav
+        locale={locale}
+        portalToken={token}
+        activeView="invoice"
+        hasInvoice
+        quoteUrl={quoteHref}
+      />
+    )}
+    <div className={cn("min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0", publicMode && clientDocumentNavContentClassName() + " print:ml-0 print:mt-0")}>
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:pl-6 lg:pr-8 xl:pl-8 xl:pr-12 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
         {/* Layout: Invoice centered, Actions on far right */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
@@ -263,7 +329,9 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             </div>
             <div className="text-right">
               <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">INVOICE</h2>
-              <div className="inline-block print:hidden">
+              <p className="text-xs sm:text-sm print:text-xs text-gray-600 font-medium">#{invoice.invoice_number}</p>
+              <p className="text-xs sm:text-sm print:text-xs text-gray-500">{formatDate(invoice.issue_date)}</p>
+              <div className="inline-block mt-1.5 print:hidden">
                 <Badge className={`${getStatusColor(invoice.status)} text-xs print:text-xs border-0`}>
                   {invoice.status?.replace("_", " ")}
                 </Badge>
@@ -316,58 +384,109 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </div>
         </div>
 
-        {/* Line Items */}
-        <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3 print:mb-2">
-            Line Items
-          </h3>
-          <div className="border border-gray-200 rounded-lg overflow-hidden print:border-gray-300 overflow-x-auto">
-            <table className="w-full print:text-sm min-w-[300px] sm:min-w-[600px] md:min-w-0 print:min-w-0">
-              <thead className="bg-gray-50 print:bg-gray-100">
-                <tr>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="hidden sm:table-cell print:table-cell px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Qty
-                  </th>
-                  <th className="hidden sm:table-cell print:table-cell px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Rate
-                  </th>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Amount
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
-                {(invoice.line_items || []).map((item: any, index: number) => (
-                  <tr key={index} className="hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
-                    <td className="px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm sm:text-base font-medium text-gray-900 print:text-sm break-words">
-                          {item.description}
-                        </p>
-                      </div>
-                      <div className="sm:hidden print:hidden flex flex-col mt-1 text-xs text-gray-600">
-                        <span>QTY: {item.quantity} {item.unit_of_measure}</span>
-                        <span>{formatCurrency(item.unit_price)} each</span>
-                      </div>
-                    </td>
-                    <td className="hidden sm:table-cell print:table-cell px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm text-gray-600 print:text-xs whitespace-nowrap">
-                      {item.quantity} {item.unit_of_measure}
-                    </td>
-                    <td className="hidden sm:table-cell print:table-cell px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm text-gray-600 print:text-xs whitespace-nowrap">
-                      {formatCurrency(item.unit_price)}
-                    </td>
-                    <td className="px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm font-semibold text-gray-900 print:text-sm whitespace-nowrap">
-                      {formatCurrency(item.total_amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Project / Scope */}
+        {(invoice.title || invoice.description) && (
+          <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 print:mb-1">
+              Project
+            </h3>
+            {invoice.title && (
+              <p className="text-sm sm:text-base print:text-sm font-semibold text-gray-900">{invoice.title}</p>
+            )}
+            {invoice.description && (
+              <p className="text-xs sm:text-sm print:text-xs text-gray-700 whitespace-pre-line mt-0.5">
+                {invoice.description}
+              </p>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Line Items (the quote scope — collapsed by default, forced open in print) */}
+        {scopeItems.length > 0 && (
+          <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
+            <button
+              type="button"
+              onClick={() => setLineItemsOpen((o) => !o)}
+              className="flex w-full items-center gap-1.5 mb-2 sm:mb-3 print:mb-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-gray-700 uppercase tracking-wide print:hidden"
+            >
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", lineItemsOpen && "rotate-180")} />
+              Line Items ({scopeItems.length})
+            </button>
+            <h3 className="hidden print:block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Line Items
+            </h3>
+            <div className={cn("border border-gray-200 rounded-lg overflow-hidden print:border-gray-300 overflow-x-auto", lineItemsOpen ? "block" : "hidden print:block")}>
+              <table className="w-full print:text-sm min-w-[300px] sm:min-w-[640px] md:min-w-0 print:min-w-0">
+                <thead className="bg-gray-50 print:bg-gray-100">
+                  <tr>
+                    <th className="hidden sm:table-cell print:table-cell px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      Category
+                    </th>
+                    <th className="px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="hidden sm:table-cell print:table-cell px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      Qty
+                    </th>
+                    <th className="hidden sm:table-cell print:table-cell px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      Rate
+                    </th>
+                    <th className="px-2 py-1.5 sm:px-3 sm:py-2 print:px-2 print:py-1 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      Amount
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
+                  {scopeItems.map((item: any, index: number) => (
+                    <tr key={index} className="hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
+                      <td className="hidden sm:table-cell print:table-cell px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-xs sm:text-sm text-gray-500 capitalize print:text-xs whitespace-nowrap">
+                        {formatCategory(item.category) || "—"}
+                      </td>
+                      <td className="px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm sm:text-base font-medium text-gray-900 print:text-sm break-words">
+                            {item.description}
+                          </p>
+                        </div>
+                        <div className="sm:hidden print:hidden flex flex-col mt-1 text-xs text-gray-600">
+                          {item.category && <span>{formatCategory(item.category)}</span>}
+                          <span>QTY: {item.quantity} {item.unit_of_measure}</span>
+                          <span>{formatCurrency(item.unit_price)} each</span>
+                        </div>
+                      </td>
+                      <td className="hidden sm:table-cell print:table-cell px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm text-gray-600 print:text-xs whitespace-nowrap">
+                        {item.quantity} {item.unit_of_measure}
+                      </td>
+                      <td className="hidden sm:table-cell print:table-cell px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm text-gray-600 print:text-xs whitespace-nowrap">
+                        {formatCurrency(item.unit_price)}
+                      </td>
+                      <td className="px-2 py-2 sm:px-3 sm:py-3 print:px-2 print:py-2 text-right text-xs sm:text-sm font-semibold text-gray-900 print:text-sm whitespace-nowrap">
+                        {formatCurrency(item.total_amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Draw charge — what this invoice actually bills (a % of the contract) */}
+        {isDraw && (
+          <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid rounded-lg border border-sky-200 bg-sky-50/50 print:bg-transparent px-3 py-2.5 sm:px-4 sm:py-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-sky-700 uppercase tracking-wide">This invoice bills</p>
+                <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
+                  {renderDrawDescription(drawLine.description, quoteHref)}
+                </p>
+              </div>
+              <span className="shrink-0 text-base sm:text-lg font-bold text-gray-900 tabular-nums">
+                {formatCurrency(drawLine.total_amount)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Summary */}
         <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
@@ -389,7 +508,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
               </div>
             )}
             <div className="flex justify-between items-center pt-1.5 sm:pt-2 border-t-2 border-gray-300">
-              <span className="text-base sm:text-lg font-bold text-gray-900">Total:</span>
+              <span className="text-base sm:text-lg font-bold text-gray-900">Grand Total:</span>
               <span className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(invoice.total_amount)}</span>
             </div>
             
@@ -410,10 +529,21 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </div>
         </div>
 
-        {invoice.notes && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg print:bg-transparent print:p-0 print:border-none print:break-inside-avoid">
-            <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase mb-1">Notes</p>
-            <p className="text-sm text-gray-700 whitespace-pre-line">{invoice.notes}</p>
+        {/* Payment terms / Terms & conditions / Notes */}
+        {(invoice.terms_and_conditions || invoice.notes) && (
+          <div className="mt-5 sm:mt-6 print:mt-4 pt-4 border-t border-gray-200 space-y-3 print:break-inside-avoid">
+            {invoice.terms_and_conditions && (
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase mb-1">Terms &amp; Conditions</p>
+                <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-line">{invoice.terms_and_conditions}</p>
+              </div>
+            )}
+            {invoice.notes && (
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase mb-1">Notes</p>
+                <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-line">{invoice.notes}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -461,7 +591,8 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
       </Card>
       </div>
 
-      {/* Actions Sidebar - Far Right */}
+      {/* Actions Sidebar - Far Right (contractor only) */}
+      {!publicMode && (
       <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
         <div className="lg:sticky lg:top-8 space-y-4">
           <Card className="bg-white shadow-lg p-4 sm:p-6">
@@ -569,9 +700,11 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </Card>
         </div>
       </div>
+      )}
       </div>
 
-      {/* Record Payment Modal */}
+      {/* Record Payment Modal (contractor only) */}
+      {!publicMode && (
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
         <DialogContent className="sm:max-w-md">
           <DialogTitle className="text-lg font-semibold">Record Payment</DialogTitle>
@@ -650,7 +783,9 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </div>
         </DialogContent>
       </Dialog>
+      )}
     </div>
     </div>
+    </>
   )
 }

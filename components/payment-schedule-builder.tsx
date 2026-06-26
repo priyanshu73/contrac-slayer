@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, X, AlertTriangle, GripVertical } from "lucide-react"
+import { Plus, X, AlertTriangle, GripVertical, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type {
   PaymentScheduleLineInput,
@@ -58,17 +58,17 @@ export const PAYMENT_PRESETS: {
     key: "50-50",
     label: "50 / 50",
     build: () => [
-      draw("Deposit", "ON_COMPLETION", 50, 0),
-      draw("Final payment", "ON_COMPLETION", 50, 1),
+      draw("Payment 1", "ON_COMPLETION", 50, 0),
+      draw("Payment 2", "ON_COMPLETION", 50, 1),
     ],
   },
   {
     key: "30-40-30",
     label: "30 / 40 / 30",
     build: () => [
-      draw("Deposit", "ON_COMPLETION", 30, 0),
-      draw("Progress draw", "ON_COMPLETION", 40, 1),
-      draw("Final payment", "ON_COMPLETION", 30, 2),
+      draw("Payment 1", "ON_COMPLETION", 30, 0),
+      draw("Payment 2", "ON_COMPLETION", 40, 1),
+      draw("Payment 3", "ON_COMPLETION", 30, 2),
     ],
   },
   {
@@ -145,28 +145,41 @@ export function PaymentScheduleBuilder({
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
 
+  // Already-billed draws are read-only. They keep their place at the front of
+  // the schedule (billed first), so the boundary between locked and editable is
+  // the count of locked lines.
+  const lockedCount = lines.filter((l) => l.locked).length
+
   const reindex = (next: PaymentScheduleLineInput[]) =>
     next.map((l, i) => ({ ...l, order_index: i }))
 
-  const updateLine = (idx: number, patch: Partial<PaymentScheduleLineInput>) =>
+  const updateLine = (idx: number, patch: Partial<PaymentScheduleLineInput>) => {
+    if (lines[idx]?.locked) return
     onLinesChange(lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
+  }
 
   const addLine = () =>
     onLinesChange(
       reindex([
         ...lines,
-        draw(lines.length === 0 ? "Deposit" : "Payment", "ON_COMPLETION", 0, lines.length),
+        draw(`Payment ${lines.length + 1}`, "ON_COMPLETION", 0, lines.length),
       ]),
     )
 
-  const removeLine = (idx: number) =>
+  const removeLine = (idx: number) => {
+    if (lines[idx]?.locked) return
     onLinesChange(reindex(lines.filter((_, i) => i !== idx)))
+  }
 
   const moveLine = (from: number, to: number) => {
     if (from === to) return
+    // Never reorder a billed draw, and never move an editable one ahead of them.
+    if (lines[from]?.locked) return
+    const target = Math.max(to, lockedCount)
+    if (from === target) return
     const next = [...lines]
     const [moved] = next.splice(from, 1)
-    next.splice(to, 0, moved)
+    next.splice(target, 0, moved)
     onLinesChange(reindex(next))
   }
 
@@ -174,6 +187,12 @@ export function PaymentScheduleBuilder({
   const scheduledTotal = computed.reduce((s, c) => s + c.amount, 0)
   const scheduledPct = total > 0 ? Math.round((scheduledTotal / total) * 100) : 0
   const overContract = scheduledTotal > total + 0.01
+
+  // How much of the contract is already locked up in billed draws, and how much
+  // is still free to schedule. Drives the "remaining" budget shown to the user.
+  const billedTotal = computed.reduce((s, c, i) => (lines[i].locked ? s + c.amount : s), 0)
+  const remainingBudget = round2(total - billedTotal)
+  const hasLocked = lockedCount > 0
 
   if (lines.length === 0) {
     return (
@@ -206,6 +225,43 @@ export function PaymentScheduleBuilder({
         {lines.map((line, idx) => {
           const { amount, remainingAfter } = computed[idx]
           const trigger = normalizeTrigger(line.trigger_type)
+
+          // ── Billed draw: read-only. Shown so the contractor sees the full
+          // schedule, but it can't be edited, reordered, or removed. ──
+          if (line.locked) {
+            const split =
+              line.amount_type === "PERCENT"
+                ? `${line.amount_value || 0}%`
+                : fmt(line.amount_value || 0)
+            return (
+              <div key={idx} className={cn(GRID, "rounded-lg bg-muted/40 px-1 py-1")}>
+                <span className="flex h-9 w-[18px] items-center justify-center text-muted-foreground/50">
+                  <Lock className="h-3.5 w-3.5" />
+                </span>
+                <span className="truncate text-sm font-medium text-foreground" title={line.label}>
+                  {line.label}
+                </span>
+                <span className="text-sm tabular-nums text-muted-foreground">{split}</span>
+                <span />
+                <div className="flex flex-col items-end justify-center text-right">
+                  <span className="text-sm font-semibold tabular-nums">{fmt(amount)}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-semibold uppercase tracking-wide",
+                      line.lockedStatus === "PAID" ? "text-emerald-600" : "text-amber-600",
+                    )}
+                  >
+                    {line.lockedStatus === "PAID" ? "Paid" : "Invoiced"}
+                  </span>
+                </div>
+                <span className="truncate text-sm text-muted-foreground">
+                  {TRIGGER_LABELS[trigger]}
+                </span>
+                <span />
+              </div>
+            )
+          }
+
           return (
             <div
               key={idx}
@@ -363,6 +419,15 @@ export function PaymentScheduleBuilder({
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-sm">
         <span className="text-muted-foreground">
           Contract total: <strong className="text-foreground">{fmt(total)}</strong>
+          {hasLocked && (
+            <>
+              {" · "}
+              Billed: <strong className="text-foreground tabular-nums">{fmt(billedTotal)}</strong>
+              {" · "}
+              Remaining:{" "}
+              <strong className="text-foreground tabular-nums">{fmt(remainingBudget)}</strong>
+            </>
+          )}
         </span>
         <span className="text-muted-foreground">
           Scheduled:{" "}

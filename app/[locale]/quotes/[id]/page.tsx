@@ -870,7 +870,7 @@ export default function QuoteDetailPage() {
           hasQuote
           hasProposal={hasProposal}
           proposalUrl={!hasEmbeddedProposal ? externalProposalUrl : undefined}
-          onViewChange={hasEmbeddedProposal ? setActiveView : undefined}
+          onViewChange={hasEmbeddedProposal ? (v) => { if (v !== "invoice") setActiveView(v) } : undefined}
         />
 
         <div className={clientDocumentNavContentClassName()}>

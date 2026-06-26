@@ -551,7 +551,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   }
 
   // Markup and labor rate control - fetch from contractor profile
-  const [markupPercentage, setMarkupPercentage] = useState<number>(20) // Default 20%, will be updated from profile
+  const [markupPercentage, setMarkupPercentage] = useState<number>(0) // Always start new quotes at 0%; user can change it later
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
   const [laborChargeType, setLaborChargeType] = useState<LaborChargeType>(LaborChargeType.HOURLY) // Default to hourly
   const [laborRateValue, setLaborRateValue] = useState<number>(75) // Default $75, will be updated from profile
@@ -789,16 +789,24 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       .then((sched) => {
         if (cancelled) return
         setScheduleLines(
-          sched.lines.map((l) => ({
-            label: l.label,
-            // Coerce legacy triggers (ON_ACCEPTANCE / ON_PHASE) to the two we author.
-            trigger_type: normalizeTrigger(l.trigger_type),
-            trigger_phase: null,
-            trigger_date: l.trigger_date ?? null,
-            amount_type: l.amount_type,
-            amount_value: l.amount_value,
-            order_index: l.order_index,
-          })),
+          sched.lines.map((l) => {
+            // A draw that's been billed (has an invoice) is locked: the contractor
+            // can no longer change it, only schedule the remaining contract amount.
+            const locked = l.state === "PAID" || l.state === "INVOICED"
+            return {
+              id: l.id,
+              label: l.label,
+              // Coerce legacy triggers (ON_ACCEPTANCE / ON_PHASE) to the two we author.
+              trigger_type: normalizeTrigger(l.trigger_type),
+              trigger_phase: null,
+              trigger_date: l.trigger_date ?? null,
+              amount_type: l.amount_type,
+              amount_value: l.amount_value,
+              order_index: l.order_index,
+              locked,
+              lockedStatus: locked ? l.state : undefined,
+            }
+          }),
         )
       })
       .catch((err) => console.error("Failed to load payment schedule:", err))
@@ -1001,12 +1009,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       if (profile?.contractor_type) {
         setContractorType(profile.contractor_type)
       }
-      // Only set markup if we don't have initialData (not editing) or if initialData doesn't have markup
-      // When editing, markup comes from initialData items, but we still need to load tax rate from profile
-      if (!initialData && profile?.default_markup_percentage !== undefined && profile.default_markup_percentage !== null) {
-        const parsed = parseFloat(profile.default_markup_percentage)
-        setMarkupPercentage(isNaN(parsed) ? 20 : parsed)
-      }
+      // New quotes always start at 0% markup (user can change it later), so we don't pull
+      // the contractor's default markup here. When editing, markup comes from initialData items.
       // Always load tax rate from profile (needed for tracking changes and updating profile)
       if (profile?.default_sales_tax_rate !== undefined && profile.default_sales_tax_rate !== null) {
         const parsed = parseFloat(profile.default_sales_tax_rate)
@@ -1674,11 +1678,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
     // Validate payment schedule (draws). An empty schedule = single payment, which is fine.
     if (scheduleLines.length > 0) {
-      if (scheduleLines.some((l) => !l.label.trim())) {
+      const editable = scheduleLines.filter((l) => !l.locked)
+      if (editable.some((l) => !l.label.trim())) {
         setCreateError("Every draw needs a label.")
         return
       }
-      if (scheduleLines.some((l) => l.trigger_type === "ON_DATE" && !l.trigger_date)) {
+      if (editable.some((l) => l.trigger_type === "ON_DATE" && !l.trigger_date)) {
         setCreateError("Pick a date for every draw billed on a date.")
         return
       }
@@ -1787,7 +1792,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       // schedule so the job bills as a single invoice.
       if (finalJobId) {
         try {
-          await api.savePaymentSchedule(finalJobId, scheduleLines)
+          // Only send unbilled draws. The backend preserves already-billed
+          // lines; resending them would duplicate them.
+          const editableLines = scheduleLines.filter((l) => !l.locked)
+          await api.savePaymentSchedule(finalJobId, editableLines)
         } catch (schedErr) {
           console.error("Failed to save payment schedule (quote was still saved):", schedErr)
         }
@@ -3021,6 +3029,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <div className="space-y-2">
                   <Label htmlFor="billing">Billing</Label>
                   <Select
+                    // Once any draw is billed, the schedule is partly locked —
+                    // changing presets would wipe billed draws, so disable it.
+                    disabled={scheduleLines.some((l) => l.locked)}
                     value={matchPresetKey(scheduleLines)}
                     onValueChange={(key) => {
                       if (key === "custom") {

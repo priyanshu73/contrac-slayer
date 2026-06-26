@@ -884,6 +884,20 @@ export interface InvoiceItem {
   notes?: string
 }
 
+/** A line as serialized on the invoice payload (invoice's own items AND the
+ * embedded quote scope `quote_items`). Customer-facing priced. */
+export interface InvoiceLineOut {
+  id: number
+  description: string
+  quantity: number
+  unit_of_measure?: string | null
+  unit_price: number
+  total_amount: number
+  category?: string | null
+  is_taxable: boolean
+  order?: number
+}
+
 export interface Invoice {
   id: number
   uuid: string
@@ -908,6 +922,13 @@ export interface Invoice {
   client?: Client
   job?: Job
   items?: InvoiceItem[]
+  /** Billing mode of the originating quote — "SCHEDULED" means draw invoices. */
+  billing_mode?: JobBillingMode | null
+  /** Public link of the originating quote, so the client view can link back to it. */
+  quote_public_link?: string | null
+  /** The originating quote's real scope (line items), shown collapsed on the
+   * invoice. For a draw invoice the invoice's own line_items are just the draw. */
+  quote_items?: InvoiceLineOut[]
 }
 
 // ─── Payment schedule (draws) ────────────────────────────────────────
@@ -918,8 +939,9 @@ export type PaymentTriggerType = "ON_ACCEPTANCE" | "ON_PHASE" | "ON_DATE" | "ON_
 export type PaymentAmountType = "PERCENT" | "FIXED"
 /** Derived (read-only) on the API: "SCHEDULED" when the job has draws, else "LUMP_SUM". */
 export type JobBillingMode = "LUMP_SUM" | "SCHEDULED"
-/** Derived per-draw state: trigger not fired → fired/unbilled → billed → paid. */
-export type PaymentDrawState = "LOCKED" | "READY" | "INVOICED" | "PAID"
+/** Derived per-draw state: scheduled for later → due now → billed → paid.
+ * Nothing is ever locked — SCHEDULED draws are still billable on demand. */
+export type PaymentDrawState = "SCHEDULED" | "READY" | "INVOICED" | "PAID"
 
 /** A draw as authored in the quote builder (the plan). */
 export interface PaymentScheduleLineInput {
@@ -930,6 +952,13 @@ export interface PaymentScheduleLineInput {
   amount_type: PaymentAmountType
   amount_value: number
   order_index: number
+  /** Server id, kept for already-billed draws so the builder can show them. */
+  id?: number
+  /** True when this draw has been billed (paid/invoiced) — read-only in the
+   * builder; only the remaining, unbilled draws can be edited. */
+  locked?: boolean
+  /** Status badge for a locked draw ("PAID" | "INVOICED"). */
+  lockedStatus?: PaymentDrawState
 }
 
 /** A draw as returned by the backend, with computed amount + billing state. */

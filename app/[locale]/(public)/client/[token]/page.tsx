@@ -201,12 +201,12 @@ function BookingRow({ b }: { b: ClientPortalBooking }) {
   )
 }
 
-function InvoiceRow({ inv }: { inv: ClientPortalInvoice }) {
+function InvoiceRow({ inv, locale, token }: { inv: ClientPortalInvoice; locale: string; token: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-900">{inv.title || `Invoice ${inv.invoice_number}`}</p>
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-medium text-slate-900 truncate">{inv.title || `Invoice ${inv.invoice_number}`}</p>
           <p className="text-[11px] text-slate-400">#{inv.invoice_number}{inv.due_date ? ` · Due ${fmt(inv.due_date)}` : ""}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -216,6 +216,16 @@ function InvoiceRow({ inv }: { inv: ClientPortalInvoice }) {
             <p className="text-[11px] text-rose-500">{fmtMoney(Number(inv.balance_due))} due</p>
           )}
         </div>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <a
+          href={`/${locale}/invoices/${inv.id}/customer?token=${token}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition-colors"
+        >
+          View invoice <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
     </div>
   )
@@ -372,7 +382,7 @@ export default function ClientPortalPage() {
           <section>
             <SectionHeader icon={<CreditCard className="h-4 w-4" />} title="Invoices" />
             <div className="space-y-2">
-              {portal.invoices.map((inv) => <InvoiceRow key={inv.id} inv={inv} />)}
+              {portal.invoices.map((inv) => <InvoiceRow key={inv.id} inv={inv} locale={locale} token={token} />)}
             </div>
           </section>
         )}
