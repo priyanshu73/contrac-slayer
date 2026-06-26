@@ -2599,9 +2599,9 @@ class ApiClient {
     return this.fetchPublic(`/projects/client/${token}`)
   }
 
-  /** Public: a client fetches one of their billed invoices via their portal token. */
-  async getPublicInvoice(token: string, invoiceId: number) {
-    return this.fetchPublic(`/projects/client/${token}/invoices/${invoiceId}`)
+  /** Public: a client fetches one billed invoice via its per-document public link. */
+  async getInvoiceByPublicLink(publicLink: string) {
+    return this.fetchPublic(`/invoices/public/${publicLink}`)
   }
 }
 

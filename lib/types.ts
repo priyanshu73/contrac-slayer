@@ -730,6 +730,7 @@ export interface ClientPortalInvoice {
   balance_due: number
   status: string
   due_date?: string | null
+  public_link?: string | null
 }
 
 export interface ClientPortalData {

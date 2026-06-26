@@ -27,6 +27,8 @@ import { Badge } from "@/components/ui/badge"
 import { cleanAddressString } from "@/lib/format-address"
 import { ChevronDown } from "lucide-react"
 import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
+import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
+import { buildClientDocumentNavProps } from "@/lib/client-portal-nav"
 
 /** "progress_payment" -> "Progress Payment". Empty/unknown -> "". */
 const formatCategory = (category?: string | null) =>
@@ -73,10 +75,10 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ]
 
-export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?: string }) {
-  // When a portal token is supplied this is the read-only client view: fetch via
-  // the public endpoint and hide all contractor actions.
-  const publicMode = !!token
+export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; publicLink?: string }) {
+  // A public link means the read-only client view: fetch via the public endpoint
+  // (which carries the portal token in its payload) and hide contractor actions.
+  const publicMode = !!publicLink
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -90,16 +92,26 @@ export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?:
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
   const { toast } = useToast()
   const locale = useLocale()
+  // In the public view the portal token rides along in the invoice payload, so
+  // the sidebar (sibling quote + proposal + "My Portal") is driven by the same
+  // source of truth as the quote/proposal viewers — never from the URL.
+  const portalToken: string | undefined = invoice?.client_portal_token
+  const portalDocuments = useClientPortalDocuments(publicMode ? portalToken ?? null : null)
 
   const fetchInvoice = useCallback(async () => {
     try {
       setLoading(true)
-      const id = parseInt(invoiceId)
+      if (publicLink) {
+        const data = await api.getInvoiceByPublicLink(publicLink)
+        setInvoice(data)
+        return
+      }
+      const id = parseInt(invoiceId ?? "")
       if (isNaN(id)) {
         setInvoice(null)
         return
       }
-      const data = token ? await api.getPublicInvoice(token, id) : await api.getInvoiceDetail(id)
+      const data = await api.getInvoiceDetail(id)
       setInvoice(data)
     } catch (err) {
       console.error("Failed to load invoice:", err)
@@ -107,7 +119,7 @@ export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?:
     } finally {
       setLoading(false)
     }
-  }, [invoiceId, token])
+  }, [invoiceId, publicLink])
 
   useEffect(() => {
     fetchInvoice()
@@ -267,15 +279,26 @@ export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?:
     ? (invoice.quote_public_link ? `/${locale}/quotes/${invoice.quote_public_link}` : undefined)
     : (invoice.job_id ? `/${locale}/quotes/${invoice.job_id}` : undefined)
 
+  const navProps = buildClientDocumentNavProps({
+    locale,
+    portalToken,
+    activeView: "invoice",
+    documents: portalDocuments,
+    preferred: {
+      // Point the quote item at this invoice's originating quote when known.
+      quotePublicLink: invoice.quote_public_link,
+      invoicePublicLink: invoice.public_link,
+    },
+  })
+
   return (
     <>
     {publicMode && (
       <ClientDocumentNav
         locale={locale}
-        portalToken={token}
+        portalToken={portalToken}
         activeView="invoice"
-        hasInvoice
-        quoteUrl={quoteHref}
+        {...navProps}
       />
     )}
     <div className={cn("min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0", publicMode && clientDocumentNavContentClassName() + " print:ml-0 print:mt-0")}>
@@ -384,22 +407,8 @@ export function InvoiceDetail({ invoiceId, token }: { invoiceId: string; token?:
           </div>
         </div>
 
-        {/* Project / Scope */}
-        {(invoice.title || invoice.description) && (
-          <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
-            <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 print:mb-1">
-              Project
-            </h3>
-            {invoice.title && (
-              <p className="text-sm sm:text-base print:text-sm font-semibold text-gray-900">{invoice.title}</p>
-            )}
-            {invoice.description && (
-              <p className="text-xs sm:text-sm print:text-xs text-gray-700 whitespace-pre-line mt-0.5">
-                {invoice.description}
-              </p>
-            )}
-          </div>
-        )}
+        {/* Project / Scope section intentionally removed — neither the payment
+            label nor the project name/description is shown on the invoice. */}
 
         {/* Line Items (the quote scope — collapsed by default, forced open in print) */}
         {scopeItems.length > 0 && (

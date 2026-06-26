@@ -931,15 +931,7 @@ export function PersonalizedQuoteView({
                 </div>
 
 
-                {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
-                {!hideProjectDescription && currentJob.job_description && (
-                  <div className="mb-4 sm:mb-6 print:mb-4 p-2.5 sm:p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
-                      Project Description
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap">{currentJob.job_description}</p>
-                  </div>
-                )}
+                {/* Project Description intentionally removed — it holds the long AI prompt text and should not appear on the quote */}
 
                 {/* Line Items */}
                 <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">

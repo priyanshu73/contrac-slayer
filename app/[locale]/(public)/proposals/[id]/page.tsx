@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
 import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
-import { resolveQuoteNavUrl } from "@/lib/client-portal-nav"
+import { buildClientDocumentNavProps, resolveQuoteNavUrl } from "@/lib/client-portal-nav"
 import { api } from "@/lib/api"
 import type { Proposal, PublicProposalLookup } from "@/lib/types"
 
@@ -21,10 +21,7 @@ export default function PublicProposalPage() {
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { quotes: portalQuotes } = useClientPortalDocuments(
-    proposal?.client_portal_token,
-    proposal ? { quotes: proposal.portal_quotes, proposals: proposal.portal_proposals } : null
-  )
+  const portalDocuments = useClientPortalDocuments(proposal?.client_portal_token)
 
   useEffect(() => {
     let cancelled = false
@@ -68,7 +65,7 @@ export default function PublicProposalPage() {
   }
 
   const fallbackQuoteUrl = resolveQuoteNavUrl(
-    portalQuotes,
+    portalDocuments.quotes,
     locale,
     proposal?.linked_quote_public_link
   )
@@ -96,11 +93,16 @@ export default function PublicProposalPage() {
 
   const contractorName =
     proposal.proposal_document.contractorName || t("doc.contractor")
-  const quoteUrl = resolveQuoteNavUrl(
-    portalQuotes.length > 0 ? portalQuotes : (proposal.portal_quotes ?? []),
+  const navProps = buildClientDocumentNavProps({
     locale,
-    proposal.linked_quote_public_link
-  )
+    portalToken: proposal.client_portal_token,
+    activeView: "proposal",
+    documents: portalDocuments,
+    preferred: {
+      proposalPublicLink: proposal.public_link ?? identifier,
+      quotePublicLink: proposal.linked_quote_public_link,
+    },
+  })
 
   return (
     <div className="flex min-h-screen">
@@ -108,9 +110,7 @@ export default function PublicProposalPage() {
         locale={locale}
         portalToken={proposal.client_portal_token}
         activeView="proposal"
-        hasQuote={Boolean(quoteUrl)}
-        hasProposal
-        quoteUrl={quoteUrl}
+        {...navProps}
       />
 
       <div className={clientDocumentNavContentClassName()}>

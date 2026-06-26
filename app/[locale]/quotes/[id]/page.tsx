@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Check, Copy, ChevronDown, Mail, Send, UserCircle, FolderOpen, ArrowRight, Unlink, Loader2, X } from "lucide-react"
 import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
-import { resolveProposalNavUrl } from "@/lib/client-portal-nav"
+import { buildClientDocumentNavProps } from "@/lib/client-portal-nav"
 import { cn } from "@/lib/utils"
 import { api, contractorAI } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
@@ -143,11 +143,10 @@ export default function QuoteDetailPage() {
   const [linkingProject, setLinkingProject] = useState(false)
   const [unlinkingProject, setUnlinkingProject] = useState(false)
 
-  const { proposals: portalProposals, quotes: portalQuotes } = useClientPortalDocuments(
-    isPublicView ? job?.client_portal_token : null,
-    isPublicView && job
-      ? { quotes: job.portal_quotes, proposals: job.portal_proposals }
-      : null
+  // Pull the full document set from the portal (quotes + proposals + invoices)
+  // so the sidebar is driven by a single source of truth, like the other viewers.
+  const portalDocuments = useClientPortalDocuments(
+    isPublicView ? job?.client_portal_token : null
   )
 
   useEffect(() => {
@@ -850,16 +849,16 @@ export default function QuoteDetailPage() {
   if (isPublicView) {
     const contractorName = job.contractor?.company_name || "Contractor"
     const jobPortalToken = job.client_portal_token
-    // Quote-attached proposals are never publicly viewable from the quote uuid.
-    // Only standalone/project proposals (surfaced via the client portal) may be
-    // linked from a shared quote.
-    const hasEmbeddedProposal = false
-    const externalProposalUrl = resolveProposalNavUrl(
-      portalProposals.length > 0 ? portalProposals : (job.portal_proposals ?? []),
+    const navProps = buildClientDocumentNavProps({
       locale,
-      job.linked_proposal_public_link
-    )
-    const hasProposal = hasEmbeddedProposal || Boolean(externalProposalUrl)
+      portalToken: jobPortalToken,
+      activeView,
+      documents: portalDocuments,
+      preferred: {
+        quotePublicLink: job.quote_public_link ?? identifier,
+        proposalPublicLink: job.linked_proposal_public_link,
+      },
+    })
 
     return (
       <div className="flex min-h-screen">
@@ -867,10 +866,7 @@ export default function QuoteDetailPage() {
           locale={locale}
           portalToken={jobPortalToken}
           activeView={activeView}
-          hasQuote
-          hasProposal={hasProposal}
-          proposalUrl={!hasEmbeddedProposal ? externalProposalUrl : undefined}
-          onViewChange={hasEmbeddedProposal ? (v) => { if (v !== "invoice") setActiveView(v) } : undefined}
+          {...navProps}
         />
 
         <div className={clientDocumentNavContentClassName()}>
