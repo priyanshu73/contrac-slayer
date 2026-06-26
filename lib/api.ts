@@ -20,6 +20,8 @@ import type {
   User,
   PaymentSchedule,
   PaymentScheduleLineInput,
+  ProjectFinancialSummary,
+  ProjectScopeBilling,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type {
@@ -2418,8 +2420,13 @@ class ApiClient {
     })
   }
 
-  async getProjectFinancialSummary(projectId: number) {
-    return this.request<any>(`/projects/${projectId}/financials/summary`)
+  async getProjectFinancialSummary(projectId: number): Promise<ProjectFinancialSummary> {
+    return this.request<ProjectFinancialSummary>(`/projects/${projectId}/financials/summary`)
+  }
+
+  /** Scope → draws → invoices for the project, reconciled in one payload. */
+  async getProjectScopeBilling(projectId: number): Promise<ProjectScopeBilling> {
+    return this.request<ProjectScopeBilling>(`/projects/${projectId}/financials/scope`)
   }
 
   async getCampaigns(): Promise<Campaign[]> {

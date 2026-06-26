@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Project, ProjectMaterial } from '@/lib/types'
+import { Project, ProjectMaterial, ScopeQuoteLineItem } from '@/lib/types'
 import { api } from '@/lib/api'
+import { QuoteItemPicker } from './quote-item-picker'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from './money-input'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Trash2, Plus, Loader2, Link2, Eye, Upload } from 'lucide-react'
+import { Trash2, Plus, Loader2, Link2, Eye, Upload, FileDown } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -172,6 +174,45 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
     setCreateDialogOpen(true)
   }
 
+  const [quotePickerCategory, setQuotePickerCategory] = useState<'JOB_MATERIAL' | 'SITE_SERVICE' | null>(null)
+
+  // Quote line items already pulled into materials — so the picker can mark them.
+  const pulledItemIds = new Set(
+    items.map((i) => i.source_job_item_id).filter((x): x is number => x != null)
+  )
+
+  // Seed material lines from selected quote line items (cost → cost, price → client_price).
+  const handleAddFromQuote = async (
+    category: 'JOB_MATERIAL' | 'SITE_SERVICE',
+    lineItems: ScopeQuoteLineItem[],
+  ) => {
+    // Create sequentially and commit whatever succeeded — even if a later item fails —
+    // so already-persisted rows appear immediately (and are deduped on re-open).
+    // Rethrow on failure so the picker stays open instead of closing on a partial save.
+    const created: ProjectMaterial[] = []
+    try {
+      for (const li of lineItems) {
+        const newItem = await api.createProjectMaterial(project.id, {
+          category,
+          item_name: li.description,
+          cost: li.cost,
+          client_price: li.total,
+          source_job_item_id: li.id,
+        })
+        created.push(newItem as ProjectMaterial)
+      }
+      toast({ title: `Added ${created.length} item${created.length === 1 ? '' : 's'} from quote` })
+    } catch (err: any) {
+      toast({ title: 'Error adding from quote', description: err.message, variant: 'destructive' })
+      throw err
+    } finally {
+      if (created.length) {
+        setItems((prev) => [...prev, ...created])
+        onRefreshTotal()
+      }
+    }
+  }
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemName.trim()) return
@@ -206,31 +247,36 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       {/* JOB MATERIALS */}
       <div className="p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Job Materials</h2>
-          <Button size="sm" onClick={() => openCreateDialog('JOB_MATERIAL')} className="bg-orange-500 hover:bg-orange-600">
-            <Plus className="w-4 h-4 mr-1" /> Add Material
-          </Button>
+          <h2 className="text-lg font-bold text-foreground tracking-tight">Job Materials</h2>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('JOB_MATERIAL')} className="text-muted-foreground border-border hover:bg-muted">
+              <FileDown className="w-4 h-4 mr-1" /> From quote
+            </Button>
+            <Button size="sm" onClick={() => openCreateDialog('JOB_MATERIAL')} className="bg-primary hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-1" /> Add Material
+            </Button>
+          </div>
         </div>
         
         <div className="rounded-lg border overflow-hidden">
           <Table>
-            <TableHeader className="bg-slate-50">
+            <TableHeader className="bg-muted">
               <TableRow>
                 <TableHead className="w-[200px]">Item</TableHead>
                 <TableHead>Vendor</TableHead>
                 <TableHead>Detailed Notes</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right font-bold text-slate-700">Client Price</TableHead>
+                <TableHead className="text-right font-bold text-foreground">Client Price</TableHead>
                 <TableHead className="w-[100px] text-center">PO / Receipt</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {jobMaterials.map(item => (
-                <TableRow key={item.id} className="group hover:bg-slate-50 border-b">
-                  <TableCell className="font-medium text-slate-800">
+                <TableRow key={item.id} className="group hover:bg-muted border-b">
+                  <TableCell className="font-medium text-foreground">
                     <Input 
-                      className="border-transparent hover:border-slate-200 bg-transparent h-8 shadow-none focus-visible:ring-1" 
+                      className="border-border/40 hover:border-border bg-transparent h-8 shadow-none focus-visible:ring-1" 
                       defaultValue={item.item_name}
                       onBlur={e => { if(e.target.value !== item.item_name) handleUpdate(item.id, { item_name: e.target.value }) }}
                     />
@@ -238,7 +284,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   <TableCell>
                     <Input 
                       placeholder="e.g. Home Depot"
-                      className="border-transparent hover:border-slate-200 bg-transparent h-8 shadow-none text-sm" 
+                      className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm" 
                       defaultValue={item.vendor || ''}
                       onBlur={e => { if(e.target.value !== item.vendor) handleUpdate(item.id, { vendor: e.target.value }) }}
                     />
@@ -246,29 +292,23 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   <TableCell>
                     <Input 
                       placeholder="Details..."
-                      className="border-transparent hover:border-slate-200 bg-transparent h-8 shadow-none text-sm text-slate-500" 
+                      className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm text-muted-foreground" 
                       defaultValue={item.detailed_notes || ''}
                       onBlur={e => { if(e.target.value !== item.detailed_notes) handleUpdate(item.id, { detailed_notes: e.target.value }) }}
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input 
-                      type="number" 
-                      className="w-24 h-8 text-right ml-auto" 
-                      defaultValue={item.cost.toString()} 
-                      onBlur={(e) => {
-                        if(Number(e.target.value) !== item.cost) handleUpdate(item.id, { cost: Number(e.target.value) })
-                      }}
+                    <MoneyInput
+                      value={item.cost}
+                      onCommit={(n) => handleUpdate(item.id, { cost: n })}
+                      className="w-24 h-8 text-right ml-auto"
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input 
-                      type="number" 
-                      className="w-24 h-8 text-right font-bold text-slate-800 ml-auto" 
-                      defaultValue={item.client_price.toString()} 
-                      onBlur={(e) => {
-                        if(Number(e.target.value) !== item.client_price) handleUpdate(item.id, { client_price: Number(e.target.value) })
-                      }}
+                    <MoneyInput
+                      value={item.client_price}
+                      onCommit={(n) => handleUpdate(item.id, { client_price: n })}
+                      className="w-24 h-8 text-right font-bold text-foreground ml-auto"
                     />
                   </TableCell>
                   <TableCell className="text-center">
@@ -280,7 +320,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={`h-8 w-8 hover:bg-orange-50 ${getReceipts(item).length > 0 ? 'text-emerald-600 hover:text-emerald-700' : 'text-orange-500 hover:text-orange-600'}`}
+                          className={`h-8 w-8 hover:bg-primary/10 ${getReceipts(item).length > 0 ? 'text-status-active hover:text-status-active' : 'text-primary hover:text-primary'}`}
                           disabled={uploadingReceiptItemId === item.id}
                           title={getReceipts(item).length > 0 ? `${getReceipts(item).length} receipt(s) attached` : 'Attach receipt'}
                         >
@@ -292,7 +332,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                           {getReceipts(item).length > 0 && (
                             <div className="mb-2 space-y-1 max-h-48 overflow-y-auto pr-1">
                               {getReceipts(item).map((receipt, idx) => (
-                                <div key={idx} className="flex items-center justify-between gap-1 p-1 rounded hover:bg-slate-100 group">
+                                <div key={idx} className="flex items-center justify-between gap-1 p-1 rounded hover:bg-muted group">
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -300,13 +340,13 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                                     onClick={() => setPreviewAttachment(receipt)}
                                     title={receipt.name}
                                   >
-                                    <Eye className="w-3.5 h-3.5 mr-2 shrink-0 text-slate-400 group-hover:text-emerald-600" />
+                                    <Eye className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground group-hover:text-status-active" />
                                     <span className="truncate">{receipt.name}</span>
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 shrink-0 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50"
+                                    className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 hover:bg-destructive/10"
                                     onClick={() => handleDeleteReceipt(item, idx)}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -337,13 +377,13 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent side="top" align="end" className="w-52 p-3">
-                        <p className="mb-2 text-xs text-slate-700">Delete this material?</p>
+                        <p className="mb-2 text-xs text-foreground">Delete this material?</p>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
@@ -355,7 +395,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                           </Button>
                           <Button
                             size="sm"
-                            className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            className="h-7 px-2 text-xs bg-destructive hover:bg-destructive/90 text-white"
                             disabled={deletingItemId === item.id}
                             onClick={() => handleDelete(item.id)}
                           >
@@ -369,7 +409,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {jobMaterials.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-slate-400 py-6 italic">No materials added.</TableCell>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-6 italic">No materials added.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -380,29 +420,34 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       {/* SITE SERVICES & PERMITS */}
       <div className="p-6 pt-0">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Site Services & Admin (Permits, Utilities)</h2>
-          <Button size="sm" onClick={() => openCreateDialog('SITE_SERVICE')} variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
-            <Plus className="w-4 h-4 mr-1" /> Add Service
-          </Button>
+          <h2 className="text-lg font-bold text-foreground tracking-tight">Site Services & Admin (Permits, Utilities)</h2>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('SITE_SERVICE')} className="text-muted-foreground border-border hover:bg-muted">
+              <FileDown className="w-4 h-4 mr-1" /> From quote
+            </Button>
+            <Button size="sm" onClick={() => openCreateDialog('SITE_SERVICE')} variant="outline" className="text-primary border-primary/30 hover:bg-primary/10">
+              <Plus className="w-4 h-4 mr-1" /> Add Service
+            </Button>
+          </div>
         </div>
         
         <div className="rounded-lg border overflow-hidden">
           <Table>
-            <TableHeader className="bg-slate-100">
+            <TableHeader className="bg-muted">
               <TableRow>
                 <TableHead>Service / Permit Name</TableHead>
                 <TableHead>Agency / Vendor</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right font-bold text-slate-700">Client Price</TableHead>
+                <TableHead className="text-right font-bold text-foreground">Client Price</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {siteServices.map(item => (
-                <TableRow key={item.id} className="group hover:bg-slate-50 border-b">
+                <TableRow key={item.id} className="group hover:bg-muted border-b">
                   <TableCell className="font-medium">
                     <Input 
-                      className="border-transparent hover:border-slate-200 bg-transparent h-8 shadow-none font-medium text-slate-700" 
+                      className="border-border/40 hover:border-border bg-transparent h-8 shadow-none font-medium text-foreground" 
                       defaultValue={item.item_name}
                       onBlur={e => { if(e.target.value !== item.item_name) handleUpdate(item.id, { item_name: e.target.value }) }}
                     />
@@ -410,29 +455,23 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   <TableCell>
                     <Input 
                       placeholder="e.g. City of Seattle"
-                      className="border-transparent hover:border-slate-200 bg-transparent h-8 shadow-none text-sm text-slate-500" 
+                      className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm text-muted-foreground" 
                       defaultValue={item.vendor || ''}
                       onBlur={e => { if(e.target.value !== item.vendor) handleUpdate(item.id, { vendor: e.target.value }) }}
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input 
-                      type="number" 
-                      className="w-24 h-8 text-right ml-auto" 
-                      defaultValue={item.cost.toString()} 
-                      onBlur={(e) => {
-                        if(Number(e.target.value) !== item.cost) handleUpdate(item.id, { cost: Number(e.target.value) })
-                      }}
+                    <MoneyInput
+                      value={item.cost}
+                      onCommit={(n) => handleUpdate(item.id, { cost: n })}
+                      className="w-24 h-8 text-right ml-auto"
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input 
-                      type="number" 
-                      className="w-24 h-8 text-right font-bold text-slate-800 ml-auto" 
-                      defaultValue={item.client_price.toString()} 
-                      onBlur={(e) => {
-                        if(Number(e.target.value) !== item.client_price) handleUpdate(item.id, { client_price: Number(e.target.value) })
-                      }}
+                    <MoneyInput
+                      value={item.client_price}
+                      onCommit={(n) => handleUpdate(item.id, { client_price: n })}
+                      className="w-24 h-8 text-right font-bold text-foreground ml-auto"
                     />
                   </TableCell>
                   <TableCell>
@@ -444,13 +483,13 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent side="top" align="end" className="w-52 p-3">
-                        <p className="mb-2 text-xs text-slate-700">Delete this service?</p>
+                        <p className="mb-2 text-xs text-foreground">Delete this service?</p>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
@@ -462,7 +501,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                           </Button>
                           <Button
                             size="sm"
-                            className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            className="h-7 px-2 text-xs bg-destructive hover:bg-destructive/90 text-white"
                             disabled={deletingItemId === item.id}
                             onClick={() => handleDelete(item.id)}
                           >
@@ -476,7 +515,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {siteServices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-slate-400 py-6 italic">No site services added.</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6 italic">No site services added.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -484,16 +523,16 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         </div>
       </div>
 
-      <div className="bg-slate-900 text-white p-4 flex justify-between items-center rounded-b-lg mt-0 mx-0 shadow-inner">
-        <h3 className="font-bold tracking-widest text-sm text-orange-400 font-mono">TOTAL MATERIALS & PERMITS</h3>
+      <div className="rounded-xl border bg-muted/40 p-4 flex justify-between items-center mt-2">
+        <h3 className="font-bold tracking-wider text-xs uppercase text-muted-foreground">Total Materials &amp; Permits</h3>
         <div className="flex gap-8 text-sm">
           <div className="text-right">
-            <span className="text-slate-400 mr-2 text-xs uppercase">Total Cost</span>
-            <span className="font-semibold tracking-wide text-slate-200">{formatCurrency(totalCost)}</span>
+            <span className="text-muted-foreground mr-2 text-xs uppercase">Total Cost</span>
+            <span className="font-semibold tracking-wide text-foreground">{formatCurrency(totalCost)}</span>
           </div>
-          <div className="text-right border-l border-slate-700 pl-6">
-            <span className="text-slate-400 mr-2 text-xs uppercase">Total Client Price</span>
-            <span className="font-bold text-lg text-emerald-400">{formatCurrency(totalClientPrice)}</span>
+          <div className="text-right border-l border-border pl-6">
+            <span className="text-muted-foreground mr-2 text-xs uppercase">Total Client Price</span>
+            <span className="font-bold text-lg text-status-active">{formatCurrency(totalClientPrice)}</span>
           </div>
         </div>
       </div>
@@ -517,7 +556,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               />
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting} className="bg-orange-500 hover:bg-orange-600">
+              <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
                 {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             </div>
@@ -534,9 +573,9 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       />
 
       <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
-        <DialogContent className="max-w-[90vw] w-full h-[90vh] p-0 flex flex-col gap-0 overflow-hidden bg-slate-100">
+        <DialogContent className="max-w-[90vw] w-full h-[90vh] p-0 flex flex-col gap-0 overflow-hidden bg-muted">
           <DialogHeader className="pt-4 pb-3 px-4 bg-white flex flex-row items-center justify-between shrink-0 shadow-sm z-10">
-            <DialogTitle className="text-base truncate pr-8 font-medium text-slate-800">{previewAttachment?.name || 'Preview'}</DialogTitle>
+            <DialogTitle className="text-base truncate pr-8 font-medium text-foreground">{previewAttachment?.name || 'Preview'}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden relative w-full h-[calc(90vh-65px)] flex items-center justify-center">
             {previewAttachment && (
@@ -546,12 +585,12 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                 <iframe src={`${previewAttachment.url}#view=FitH`} className="w-full h-full border-0 bg-white" title={previewAttachment.name} />
               ) : (
                 <div className="text-center p-8 flex flex-col items-center bg-white rounded-xl shadow-sm border max-w-md mx-auto">
-                  <div className="bg-slate-50 p-4 rounded-full mb-4">
-                    <Link2 className="w-8 h-8 text-slate-400" />
+                  <div className="bg-muted p-4 rounded-full mb-4">
+                    <Link2 className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-lg font-medium text-slate-800 mb-2">No Preview Available</h3>
-                  <p className="text-slate-500 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
-                  <Button onClick={() => window.open(previewAttachment.url, '_blank')} className="bg-orange-500 hover:bg-orange-600">
+                  <h3 className="text-lg font-medium text-foreground mb-2">No Preview Available</h3>
+                  <p className="text-muted-foreground mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                  <Button onClick={() => window.open(previewAttachment.url, '_blank')} className="bg-primary hover:bg-primary/90">
                     Download File
                   </Button>
                 </div>
@@ -560,6 +599,17 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
           </div>
         </DialogContent>
       </Dialog>
+
+      {quotePickerCategory && (
+        <QuoteItemPicker
+          projectId={project.id}
+          open={!!quotePickerCategory}
+          onOpenChange={(o) => { if (!o) setQuotePickerCategory(null) }}
+          pulledItemIds={pulledItemIds}
+          destinationLabel={quotePickerCategory === 'JOB_MATERIAL' ? 'Job Materials' : 'Site Services'}
+          onConfirm={(lineItems) => handleAddFromQuote(quotePickerCategory, lineItems)}
+        />
+      )}
     </div>
   )
 }
