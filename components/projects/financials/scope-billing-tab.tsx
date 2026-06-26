@@ -124,8 +124,6 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
   const defaultOpenPlan: string[] = []
 
   const stats: { label: string; value: string; accent: string }[] = [
-    { label: 'Contract', value: formatCurrency(contractTotal), accent: 'text-foreground' },
-    { label: 'Planned', value: formatCurrency(reconciliation.scheduled_total), accent: 'text-foreground' },
     { label: 'Invoiced', value: formatCurrency(invoicedTotal), accent: 'text-status-pending' },
     { label: 'Collected', value: formatCurrency(collectedTotal), accent: 'text-status-active' },
     overInvoiced
@@ -190,8 +188,8 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             </div>
           </div>
 
-          {/* The five figures, as a clean responsive grid of chips */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          {/* The remaining figures, as a clean responsive grid of chips */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {stats.map((s) => (
               <div key={s.label} className="rounded-lg border bg-card px-3 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
