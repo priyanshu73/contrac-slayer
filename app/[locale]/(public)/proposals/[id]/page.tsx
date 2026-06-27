@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useParams } from "next/navigation"
 
 import { Card } from "@/components/ui/card"
@@ -8,21 +9,19 @@ import { Button } from "@/components/ui/button"
 import { ProposalBuilder } from "@/components/proposal-builder"
 import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
-import { resolveQuoteNavUrl } from "@/lib/client-portal-nav"
+import { buildClientDocumentNavProps, resolveQuoteNavUrl } from "@/lib/client-portal-nav"
 import { api } from "@/lib/api"
 import type { Proposal, PublicProposalLookup } from "@/lib/types"
 
 export default function PublicProposalPage() {
   const params = useParams()
+  const t = useTranslations("proposals")
   const locale = (params.locale as string) || "en"
   const identifier = params.id as string
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { quotes: portalQuotes } = useClientPortalDocuments(
-    proposal?.client_portal_token,
-    proposal ? { quotes: proposal.portal_quotes, proposals: proposal.portal_proposals } : null
-  )
+  const portalDocuments = useClientPortalDocuments(proposal?.client_portal_token)
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +36,7 @@ export default function PublicProposalPage() {
         }
       } catch (err: any) {
         if (!cancelled) {
-          setError(err?.message || "Proposal not found.")
+          setError(err?.message || t("errors.publicProposalNotFound"))
         }
       } finally {
         if (!cancelled) {
@@ -51,7 +50,7 @@ export default function PublicProposalPage() {
     return () => {
       cancelled = true
     }
-  }, [identifier])
+  }, [identifier, t])
 
   if (loading) {
     return (
@@ -66,7 +65,7 @@ export default function PublicProposalPage() {
   }
 
   const fallbackQuoteUrl = resolveQuoteNavUrl(
-    portalQuotes,
+    portalDocuments.quotes,
     locale,
     proposal?.linked_quote_public_link
   )
@@ -77,13 +76,13 @@ export default function PublicProposalPage() {
       <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl">
           <Card className="rounded-3xl p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold text-slate-950">No Proposal</h1>
+            <h1 className="text-2xl font-semibold text-slate-950">{t("public.noProposal")}</h1>
             <p className="mt-3 text-sm text-slate-600">
-              There's no proposal to view here yet.
+              {t("public.noProposalDescription")}
             </p>
             {fallbackQuoteUrl ? (
               <Button asChild className="mt-6">
-                <a href={fallbackQuoteUrl}>View Quote</a>
+                <a href={fallbackQuoteUrl}>{t("public.viewQuote")}</a>
               </Button>
             ) : null}
           </Card>
@@ -93,12 +92,17 @@ export default function PublicProposalPage() {
   }
 
   const contractorName =
-    proposal.proposal_document.contractorName || "Contractor"
-  const quoteUrl = resolveQuoteNavUrl(
-    portalQuotes.length > 0 ? portalQuotes : (proposal.portal_quotes ?? []),
+    proposal.proposal_document.contractorName || t("doc.contractor")
+  const navProps = buildClientDocumentNavProps({
     locale,
-    proposal.linked_quote_public_link
-  )
+    portalToken: proposal.client_portal_token,
+    activeView: "proposal",
+    documents: portalDocuments,
+    preferred: {
+      proposalPublicLink: proposal.public_link ?? identifier,
+      quotePublicLink: proposal.linked_quote_public_link,
+    },
+  })
 
   return (
     <div className="flex min-h-screen">
@@ -106,9 +110,7 @@ export default function PublicProposalPage() {
         locale={locale}
         portalToken={proposal.client_portal_token}
         activeView="proposal"
-        hasQuote={Boolean(quoteUrl)}
-        hasProposal
-        quoteUrl={quoteUrl}
+        {...navProps}
       />
 
       <div className={clientDocumentNavContentClassName()}>

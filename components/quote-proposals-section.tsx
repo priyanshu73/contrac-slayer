@@ -170,17 +170,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
           </Button>
         </div>
 
-        {rows.length === 0 ? (
-          <div className="px-3 py-4 text-center">
-            <p className="text-xs text-slate-500">No proposals yet.</p>
-            <Button asChild size="sm" variant="outline" className="mt-2 h-7 gap-1 rounded-md text-[11px]">
-              <Link href={createHref}>
-                <Plus className="h-3 w-3" />
-                Create proposal
-              </Link>
-            </Button>
-          </div>
-        ) : (
+        {rows.length === 0 ? null : (
           <ul className="divide-y divide-sky-100/60">
             {rows.map((row) => {
               const updated = formatDate(row.updatedAt)

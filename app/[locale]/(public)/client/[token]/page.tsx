@@ -201,23 +201,28 @@ function BookingRow({ b }: { b: ClientPortalBooking }) {
   )
 }
 
-function InvoiceRow({ inv }: { inv: ClientPortalInvoice }) {
+function InvoiceRow({ inv, locale }: { inv: ClientPortalInvoice; locale: string }) {
+  const due = Number(inv.balance_due) > 0 && inv.status !== "PAID"
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-900">{inv.title || `Invoice ${inv.invoice_number}`}</p>
-          <p className="text-[11px] text-slate-400">#{inv.invoice_number}{inv.due_date ? ` · Due ${fmt(inv.due_date)}` : ""}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <StatusBadge status={inv.status} />
-          <p className="text-sm font-semibold text-slate-900">{fmtMoney(Number(inv.total_amount))}</p>
-          {Number(inv.balance_due) > 0 && inv.status !== "PAID" && (
-            <p className="text-[11px] text-rose-500">{fmtMoney(Number(inv.balance_due))} due</p>
-          )}
-        </div>
+    <a
+      href={`/${locale}/invoices/${inv.public_link}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-900 truncate">{inv.title || `Invoice ${inv.invoice_number}`}</p>
+        <p className="text-[11px] text-slate-400 truncate">#{inv.invoice_number}{inv.due_date ? ` · Due ${fmt(inv.due_date)}` : ""}</p>
       </div>
-    </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-semibold text-slate-900">{fmtMoney(Number(inv.total_amount))}</p>
+          {due && <p className="text-[11px] text-rose-500">{fmtMoney(Number(inv.balance_due))} due</p>}
+        </div>
+        <StatusBadge status={inv.status} />
+        <ExternalLink className="h-4 w-4 text-slate-400 transition-colors group-hover:text-slate-600" />
+      </div>
+    </a>
   )
 }
 
@@ -372,7 +377,7 @@ export default function ClientPortalPage() {
           <section>
             <SectionHeader icon={<CreditCard className="h-4 w-4" />} title="Invoices" />
             <div className="space-y-2">
-              {portal.invoices.map((inv) => <InvoiceRow key={inv.id} inv={inv} />)}
+              {portal.invoices.map((inv) => <InvoiceRow key={inv.id} inv={inv} locale={locale} />)}
             </div>
           </section>
         )}

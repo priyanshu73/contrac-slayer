@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
@@ -12,6 +13,7 @@ import type { Client, ContractorProfile, Job, Project, Proposal } from "@/lib/ty
 
 export default function ProjectProposalPage() {
   const params = useParams()
+  const t = useTranslations("proposals")
   const locale = (params.locale as string) || "en"
   const projectId = Number(params.id)
   const proposalId = Number(params.proposalId)
@@ -84,14 +86,14 @@ export default function ProjectProposalPage() {
           }
         }
       } catch (err: any) {
-        setError(err?.message || "Failed to load proposal.")
+        setError(err?.message || t("errors.loadProposal"))
       } finally {
         setLoading(false)
       }
     }
 
     void fetchData()
-  }, [projectId, proposalId])
+  }, [projectId, proposalId, t])
 
   if (loading) {
     return (
@@ -113,10 +115,10 @@ export default function ProjectProposalPage() {
         <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
           <div className="mx-auto max-w-xl">
             <Card className="rounded-3xl p-8 text-center shadow-sm">
-              <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
-              <p className="mt-3 text-sm text-slate-600">{error || "Proposal not found."}</p>
+              <h1 className="text-2xl font-semibold text-slate-950">{t("routePage.unableToOpen")}</h1>
+              <p className="mt-3 text-sm text-slate-600">{error || t("errors.proposalNotFound")}</p>
               <Button asChild className="mt-6">
-                <a href={`/${locale}/projects/${projectId}`}>Back to Project</a>
+                <a href={`/${locale}/projects/${projectId}`}>{t("routePage.backToProject")}</a>
               </Button>
             </Card>
           </div>
@@ -130,9 +132,9 @@ export default function ProjectProposalPage() {
       <AppBreadcrumb
         className="px-4 pt-4 sm:px-6 sm:pt-6 print:hidden"
         items={[
-          { label: "Projects", href: `/${locale}/projects` },
+          { label: t("routePage.breadcrumbProjects"), href: `/${locale}/projects` },
           { label: project.title, href: `/${locale}/projects/${projectId}` },
-          { label: proposal.title || "Proposal" },
+          { label: proposal.title || t("routePage.breadcrumbProposal") },
         ]}
       />
       <ProposalBuilder

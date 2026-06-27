@@ -1,5 +1,7 @@
 "use client"
 
+import { useTranslations } from "next-intl"
+
 type OrbMode = "idle" | "connecting" | "listening" | "speaking" | "saving"
 
 type Props = {
@@ -8,15 +10,8 @@ type Props = {
   energy?: number
 }
 
-const MODE_LABEL: Record<OrbMode, string> = {
-  idle: "Ready",
-  connecting: "Connecting…",
-  listening: "Listening",
-  speaking: "Speaking",
-  saving: "Saving…",
-}
-
 export function VoiceTrainingOrb({ mode, energy = 0 }: Props) {
+  const t = useTranslations("frontline.orb")
   const pulse = 1 + Math.min(1, energy) * 0.22
   const isActive = mode === "listening" || mode === "speaking"
 
@@ -55,7 +50,7 @@ export function VoiceTrainingOrb({ mode, energy = 0 }: Props) {
         />
       </div>
       <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-        {MODE_LABEL[mode]}
+        {t(mode)}
       </p>
     </div>
   )

@@ -27,6 +27,7 @@ import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborC
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
+import { QuoteInvoicesSection } from "@/components/quote-invoices-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -575,14 +576,16 @@ export function PersonalizedQuoteView({
                       </DropdownMenu>
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
+                  <TooltipContent side="top" className="max-w-xs">
                     Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link.
                   </TooltipContent>
                 </Tooltip>
               )}
 
-              {/* Create Invoice — shown for accepted/in-progress/completed jobs with no invoice yet */}
-              {isContractor && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase() ?? '') && !existingInvoiceId && (
+              {/* Create Invoice — lump-sum only. Scheduled quotes bill via the
+                  Payment schedule panel (draws), so the single-invoice action
+                  is hidden for them. */}
+              {isContractor && currentJob.billing_mode !== 'SCHEDULED' && ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status?.toString().toUpperCase() ?? '') && !existingInvoiceId && (
                 <Button
                   className={inlineActionButtonClass}
                   variant="outline"
@@ -594,8 +597,9 @@ export function PersonalizedQuoteView({
                 </Button>
               )}
 
-              {/* View Invoice — shown when a ContractorOps invoice exists for this quote */}
-              {isContractor && existingInvoiceId && (
+              {/* View Invoice — lump-sum only. Scheduled quotes have multiple
+                  draw invoices, each linked from the Payment schedule panel. */}
+              {isContractor && existingInvoiceId && currentJob.billing_mode !== 'SCHEDULED' && (
                 <Button asChild className={inlineActionButtonClass} variant="outline">
                   <Link href={`/${locale}/invoices/${existingInvoiceId}`}>
                     <FileText className="mr-2 h-4 w-4 shrink-0" />
@@ -927,15 +931,7 @@ export function PersonalizedQuoteView({
                 </div>
 
 
-                {/* Project Description (hidden in quote detail view to avoid exposing prompt text) */}
-                {!hideProjectDescription && currentJob.job_description && (
-                  <div className="mb-4 sm:mb-6 print:mb-4 p-2.5 sm:p-3 print:p-2 bg-gray-50 print:bg-transparent rounded-lg print:break-inside-avoid">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
-                      Project Description
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap">{currentJob.job_description}</p>
-                  </div>
-                )}
+                {/* Project Description intentionally removed — it holds the long AI prompt text and should not appear on the quote */}
 
                 {/* Line Items */}
                 <div className="mb-4 sm:mb-6 print:mb-4 print:break-inside-avoid">
@@ -1383,6 +1379,11 @@ export function PersonalizedQuoteView({
                   />
                 )}
 
+                {/* Invoices — featured card, directly below Proposals. Self-hides unless the quote uses a draw schedule. */}
+                {isContractor && currentJob.id && (
+                  <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                )}
+
                 {/* Change Orders — minimal collapsable, no card box */}
                 {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
                   <div>
@@ -1478,6 +1479,7 @@ export function PersonalizedQuoteView({
                     </div>
                   )}
                 </div>
+
               </div>
             </div>
           )}

@@ -12,6 +12,7 @@ import { FinancialSidebar } from './financial-sidebar'
 import { JobCostingTab } from './job-costing-tab'
 import { MaterialsPermitsTab } from './materials-permits-tab'
 import { SummaryInvoicingTab } from './summary-invoicing-tab'
+import { ScopeBillingTab } from './scope-billing-tab'
 
 interface ProjectFinancialsProps {
   project: Project
@@ -54,30 +55,36 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   if (loading && !summary) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
     <div className="animate-in fade-in duration-500">
-      <Tabs defaultValue="job-costing" className="w-full space-y-6">
-        <TabsList className="w-full flex overflow-x-auto flex-nowrap rounded-xl border border-slate-200 bg-slate-100 p-1.5 shadow-sm">
-          <TabsTrigger 
-            value="job-costing" 
-            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+      <Tabs defaultValue="scope-billing" className="w-full space-y-6">
+        <TabsList className="w-full flex overflow-x-auto flex-nowrap rounded-xl border border-border bg-muted p-1.5 shadow-sm">
+          <TabsTrigger
+            value="scope-billing"
+            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+          >
+            Scope &amp; Billing
+          </TabsTrigger>
+          <TabsTrigger
+            value="job-costing"
+            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Job Costing (Labour & Subs)
           </TabsTrigger>
           <TabsTrigger 
             value="materials"
-            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Materials & Permits
           </TabsTrigger>
           <TabsTrigger 
             value="summary"
-            className="h-11 min-w-[220px] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-transparent px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Summary & Invoicing
           </TabsTrigger>
@@ -85,7 +92,12 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main Content Area (Tabs) */}
-          <div className="flex-1 min-w-0">            <div className="bg-white rounded-lg border shadow-sm">
+          <div className="flex-1 min-w-0">
+            <div className="bg-card rounded-lg border shadow-sm">
+              <TabsContent value="scope-billing" className="p-0 m-0 border-none outline-none">
+                <ScopeBillingTab project={project} />
+              </TabsContent>
+
               <TabsContent value="job-costing" className="p-0 m-0 border-none outline-none">
                 <JobCostingTab project={project} onRefreshTotal={refreshFinancialData} />
               </TabsContent>

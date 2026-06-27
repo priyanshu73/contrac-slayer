@@ -40,19 +40,19 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'Paid':
       return (
-        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold">
+        <Badge className="bg-status-active/15 text-status-active border-status-active/30 font-semibold">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Paid
         </Badge>
       )
     case 'Partially Paid':
       return (
-        <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-semibold">
+        <Badge className="bg-status-pending/15 text-status-pending border-status-pending/30 font-semibold">
           <Clock className="w-3 h-3 mr-1" /> Partially Paid
         </Badge>
       )
     default:
       return (
-        <Badge className="bg-blue-100 text-blue-700 border-blue-200 font-semibold">
+        <Badge className="bg-primary/15 text-primary border-primary/20 font-semibold">
           <AlertCircle className="w-3 h-3 mr-1" /> Open
         </Badge>
       )
@@ -70,21 +70,21 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
           : ''
 
   return (
-    <Card className="border-slate-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-slate-50 to-white p-4 border-b flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <Card className="border-border overflow-hidden">
+      <div className="bg-gradient-to-r from-muted to-card p-4 border-b flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-bold text-slate-800">
+            <h3 className="text-base font-bold text-foreground">
               Inv. {detail.doc_number || detail.qbo_invoice_id}
             </h3>
-            <span className="text-xs text-slate-500">#{detail.job_id}</span>
+            <span className="text-xs text-muted-foreground">#{detail.job_id}</span>
             {getStatusBadge(detail.status)}
           </div>
-          {dateStr && <p className="text-xs text-slate-500">{dateStr}</p>}
+          {dateStr && <p className="text-xs text-muted-foreground">{dateStr}</p>}
         </div>
         {detail.qbo_invoice_url && (
           <a href={detail.qbo_invoice_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-            <Button variant="outline" size="sm" className="border-blue-200 text-blue-600 hover:bg-blue-50 h-8">
+            <Button variant="outline" size="sm" className="border-primary/20 text-primary hover:bg-primary/10 h-8">
               <ExternalLink className="w-3.5 h-3.5 mr-1" /> QBO
             </Button>
           </a>
@@ -93,29 +93,29 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
 
       <div className="grid grid-cols-3 divide-x border-b text-center">
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">Total</p>
-          <p className="text-lg font-bold text-slate-800 mt-0.5">{formatCurrency(detail.total)}</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total</p>
+          <p className="text-lg font-bold text-foreground mt-0.5">{formatCurrency(detail.total)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-emerald-600 uppercase">Paid</p>
-          <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatCurrency(detail.amount_paid)}</p>
+          <p className="text-[10px] font-semibold text-status-active uppercase">Paid</p>
+          <p className="text-lg font-bold text-status-active mt-0.5">{formatCurrency(detail.amount_paid)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-orange-600 uppercase">Due</p>
-          <p className="text-lg font-bold text-orange-600 mt-0.5">{formatCurrency(detail.balance)}</p>
+          <p className="text-[10px] font-semibold text-primary uppercase">Due</p>
+          <p className="text-lg font-bold text-primary mt-0.5">{formatCurrency(detail.balance)}</p>
         </div>
       </div>
 
       {detail.line_items.length > 0 && (
         <details className="group border-b">
-          <summary className="px-4 py-2.5 text-xs font-medium text-slate-600 cursor-pointer list-none flex items-center justify-between hover:bg-slate-50/80 [&::-webkit-details-marker]:hidden">
+          <summary className="px-4 py-2.5 text-xs font-medium text-muted-foreground cursor-pointer list-none flex items-center justify-between hover:bg-muted/80 [&::-webkit-details-marker]:hidden">
             <span>Line items ({detail.line_items.length})</span>
-            <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            <span className="text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="overflow-x-auto border-t">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
+                <tr className="bg-muted text-[10px] uppercase tracking-wider text-muted-foreground">
                   <th className="text-left p-2 font-semibold">Item</th>
                   <th className="text-right p-2 font-semibold">Qty</th>
                   <th className="text-right p-2 font-semibold">Rate</th>
@@ -124,17 +124,17 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
               </thead>
               <tbody className="divide-y">
                 {detail.line_items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50">
-                    <td className="p-2 text-slate-700 max-w-[200px] truncate" title={item.description || undefined}>
+                  <tr key={idx} className="hover:bg-muted/50">
+                    <td className="p-2 text-foreground max-w-[200px] truncate" title={item.description || undefined}>
                       {item.description || '—'}
                     </td>
-                    <td className="p-2 text-right text-slate-600">{item.quantity}</td>
-                    <td className="p-2 text-right text-slate-600">{formatCurrency(item.unit_price)}</td>
-                    <td className="p-2 text-right font-medium text-slate-800">{formatCurrency(item.amount)}</td>
+                    <td className="p-2 text-right text-muted-foreground">{item.quantity}</td>
+                    <td className="p-2 text-right text-muted-foreground">{formatCurrency(item.unit_price)}</td>
+                    <td className="p-2 text-right font-medium text-foreground">{formatCurrency(item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t text-slate-600 text-xs">
+              <tfoot className="border-t text-muted-foreground text-xs">
                 <tr>
                   <td colSpan={3} className="p-2 text-right font-medium">
                     Subtotal
@@ -149,7 +149,7 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
                     <td className="p-2 text-right font-medium">{formatCurrency(detail.tax_total)}</td>
                   </tr>
                 )}
-                <tr className="text-slate-800 font-bold">
+                <tr className="text-foreground font-bold">
                   <td colSpan={3} className="p-2 text-right">
                     Total
                   </td>
@@ -162,7 +162,7 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
       )}
 
       {detail.synced_at && (
-        <div className="px-4 py-2 bg-slate-50 text-[11px] text-slate-400">
+        <div className="px-4 py-2 bg-muted text-[11px] text-muted-foreground">
           Synced {new Date(detail.synced_at).toLocaleDateString()}
         </div>
       )}
@@ -173,41 +173,41 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
 function ManualPaidQuoteCard({ row, locale }: { row: ManualPaidQuoteSnapshot; locale: string }) {
   const href = `/${locale}/quotes/${row.job_id}`
   return (
-    <Card className="border-emerald-200/80 overflow-hidden border-l-4 border-l-emerald-500 shadow-sm">
-      <div className="bg-gradient-to-r from-emerald-50/90 to-white p-4 border-b border-emerald-100/80 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <Card className="border-status-active/30 overflow-hidden border-l-4 border-l-status-active shadow-sm">
+      <div className="bg-gradient-to-r from-status-active/10 to-card p-4 border-b border-status-active/30 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-status-active/15 text-status-active">
               <Banknote className="h-4 w-4" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">{row.title}</h3>
-            <span className="text-xs text-slate-500">#{row.job_id}</span>
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold shadow-none">
+            <h3 className="text-base font-bold text-foreground">{row.title}</h3>
+            <span className="text-xs text-muted-foreground">#{row.job_id}</span>
+            <Badge className="bg-status-active/15 text-status-active border-status-active/30 font-semibold shadow-none">
               <CheckCircle2 className="w-3 h-3 mr-1" /> Paid · App only
             </Badge>
           </div>
-          {row.client_name && <p className="text-xs text-slate-600 pl-10 sm:pl-0">{row.client_name}</p>}
-          <p className="text-xs text-slate-500 pl-10 sm:pl-0">No QuickBooks invoice linked — counted as collected in the snapshot.</p>
+          {row.client_name && <p className="text-xs text-muted-foreground pl-10 sm:pl-0">{row.client_name}</p>}
+          <p className="text-xs text-muted-foreground pl-10 sm:pl-0">No QuickBooks invoice linked — counted as collected in the snapshot.</p>
         </div>
-        <Button variant="outline" size="sm" className="border-slate-200 shrink-0 h-8" asChild>
+        <Button variant="outline" size="sm" className="border-border shrink-0 h-8" asChild>
           <Link href={href}>
             <FileText className="w-3.5 h-3.5 mr-1" /> Open quote
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 divide-x border-b border-slate-100 text-center">
+      <div className="grid grid-cols-3 divide-x border-b border-border text-center">
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">Total</p>
-          <p className="text-lg font-bold text-slate-800 mt-0.5">{formatCurrency(row.total_amount)}</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total</p>
+          <p className="text-lg font-bold text-foreground mt-0.5">{formatCurrency(row.total_amount)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-emerald-600 uppercase">Paid</p>
-          <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatCurrency(row.total_amount)}</p>
+          <p className="text-[10px] font-semibold text-status-active uppercase">Paid</p>
+          <p className="text-lg font-bold text-status-active mt-0.5">{formatCurrency(row.total_amount)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">Due</p>
-          <p className="text-lg font-bold text-slate-400 mt-0.5">{formatCurrency(0)}</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Due</p>
+          <p className="text-lg font-bold text-muted-foreground mt-0.5">{formatCurrency(0)}</p>
         </div>
       </div>
     </Card>
@@ -226,12 +226,12 @@ function ManualPaidQuotesSection({
   if (rows.length === 0) return null
   return (
     <div className={className}>
-      <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-        <Banknote className="w-4 h-4 text-emerald-600" />
+      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <Banknote className="w-4 h-4 text-status-active" />
         Other payments
-        <span className="text-slate-500 font-normal">(no QuickBooks invoice)</span>
+        <span className="text-muted-foreground font-normal">(no QuickBooks invoice)</span>
       </h3>
-      <p className="text-xs text-slate-500 mt-1 mb-3 max-w-xl">
+      <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-xl">
         Paid quotes recorded in the app without a QuickBooks invoice id or link. Totals match the financial snapshot.
       </p>
       <div className="space-y-3">
@@ -292,18 +292,18 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
 
   if (qboLoading && !qboPayload) {
     qboSectionBody = (
-      <Card className="border-slate-200">
+      <Card className="border-border">
         <CardContent className="p-8 flex justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </CardContent>
       </Card>
     )
   } else if (qboError) {
     qboSectionBody = (
-      <Card className="border-red-200 bg-red-50">
+      <Card className="border-destructive/30 bg-destructive/10">
         <CardContent className="p-6 text-center">
-          <AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-2" />
-          <p className="text-sm text-red-600">{qboError}</p>
+          <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
+          <p className="text-sm text-destructive">{qboError}</p>
           <Button variant="outline" size="sm" onClick={fetchQBODetail} className="mt-3">
             Try Again
           </Button>
@@ -314,14 +314,14 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
     const manual = qboPayload.manual_paid_quotes ?? []
     qboSectionBody = (
       <div className="space-y-6">
-        <Card className="border-dashed border-slate-300 bg-slate-50/80">
+        <Card className="border-dashed border-border bg-muted/80">
           <CardContent className="p-8 text-center space-y-4 max-w-lg mx-auto">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-600">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Link2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Connect QuickBooks</p>
-              <p className="text-xs text-slate-500 mt-1">Settings → Integrations</p>
+              <p className="text-sm font-semibold text-foreground">Connect QuickBooks</p>
+              <p className="text-xs text-muted-foreground mt-1">Settings → Integrations</p>
             </div>
             <Button asChild>
               <Link href={settingsIntegrationsHref}>Connect</Link>
@@ -339,11 +339,11 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
 
     if (!hasQbo && !hasManual) {
       qboSectionBody = (
-        <Card className="border-dashed border-slate-300 bg-slate-50">
+        <Card className="border-dashed border-border bg-muted">
           <CardContent className="p-8 text-center space-y-2">
-            <FileText className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="text-sm font-medium text-slate-500">No QuickBooks invoices on linked quotes yet.</p>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <FileText className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-sm font-medium text-muted-foreground">No QuickBooks invoices on linked quotes yet.</p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
               When you sync invoices from QuickBooks, they appear here. Paid quotes without QuickBooks also list under
               Other payments when applicable.
             </p>
@@ -356,10 +356,10 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
           {hasQbo && (
             <div className="space-y-4">
               {qboPayload.multiple_invoices && (
-                <Alert className="border-amber-200 bg-amber-50/80 text-amber-950 py-3">
-                  <AlertCircle className="h-4 w-4 text-amber-700" />
-                  <AlertTitle className="text-amber-900 text-sm">{qboPayload.invoice_count} invoices</AlertTitle>
-                  <AlertDescription className="text-amber-900/90 text-xs">
+                <Alert className="border-status-pending/30 bg-status-pending/10 text-foreground py-3">
+                  <AlertCircle className="h-4 w-4 text-status-pending" />
+                  <AlertTitle className="text-status-pending text-sm">{qboPayload.invoice_count} invoices</AlertTitle>
+                  <AlertDescription className="text-status-pending/90 text-xs">
                     One card per linked quote; totals are separate.
                   </AlertDescription>
                 </Alert>
@@ -369,7 +369,7 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
               ))}
             </div>
           )}
-          <ManualPaidQuotesSection rows={manual} locale={locale} className={hasQbo ? 'pt-2 border-t border-slate-200' : undefined} />
+          <ManualPaidQuotesSection rows={manual} locale={locale} className={hasQbo ? 'pt-2 border-t border-border' : undefined} />
         </div>
       )
     }
@@ -378,41 +378,41 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
   return (
     <div className="p-6 space-y-8">
       <div className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight text-slate-800">Snapshot</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Snapshot</h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Card className="bg-amber-50 border-amber-100">
+          <Card className="bg-status-pending/10 border-status-pending/30">
             <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Material Cost</p>
-              <p className="text-lg font-bold text-amber-700 mt-1 tabular-nums">{formatCurrency(summary.total_materials)}</p>
+              <p className="text-[10px] font-semibold text-status-pending uppercase tracking-wide">Material Cost</p>
+              <p className="text-lg font-bold text-status-pending mt-1 tabular-nums">{formatCurrency(summary.total_materials)}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-50 border-slate-200">
+          <Card className="bg-muted border-border">
             <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{companyName} Cost</p>
-              <p className="text-lg font-bold text-slate-700 mt-1 tabular-nums">{formatCurrency(summary.total_cost_items)}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{companyName} Cost</p>
+              <p className="text-lg font-bold text-foreground mt-1 tabular-nums">{formatCurrency(summary.total_cost_items)}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-orange-50 border-orange-100">
+          <Card className="bg-primary/10 border-primary/30">
             <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">Total Invoiced</p>
-              <p className="text-lg font-bold text-orange-600 mt-1 tabular-nums">{formatCurrency(summary.total_invoiced)}</p>
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Total Invoiced</p>
+              <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatCurrency(summary.total_invoiced)}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-emerald-50 border-emerald-100">
+          <Card className="bg-status-active/10 border-status-active/30">
             <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Collected</p>
-              <p className="text-lg font-bold text-emerald-600 mt-1 tabular-nums">{formatCurrency(summary.total_paid)}</p>
+              <p className="text-[10px] font-semibold text-status-active uppercase tracking-wide">Collected</p>
+              <p className="text-lg font-bold text-status-active mt-1 tabular-nums">{formatCurrency(summary.total_paid)}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-50 border-blue-100">
+          <Card className="bg-primary/10 border-primary/20">
             <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">{companyName} Profit</p>
-              <p className="text-lg font-bold text-blue-600 mt-1 tabular-nums">{formatCurrency(summary.profit_to_date)}</p>
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">{companyName} Profit</p>
+              <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatCurrency(summary.profit_to_date)}</p>
             </CardContent>
           </Card>
         </div>
@@ -420,13 +420,13 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-bold tracking-tight text-slate-800">QuickBooks</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">QuickBooks</h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={fetchQBODetail}
             disabled={qboLoading}
-            className="text-slate-500 hover:text-slate-700 shrink-0 h-9 w-9"
+            className="text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
             title="Refresh"
             aria-label="Refresh QuickBooks data"
           >

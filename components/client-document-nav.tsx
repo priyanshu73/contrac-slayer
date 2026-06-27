@@ -1,9 +1,9 @@
 "use client"
 
-import { BookOpen, ExternalLink, FileText } from "lucide-react"
+import { BookOpen, ExternalLink, FileText, Receipt } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type ClientDocumentView = "quote" | "proposal"
+export type ClientDocumentView = "quote" | "proposal" | "invoice"
 
 type NavItem = {
   id: ClientDocumentView
@@ -19,8 +19,10 @@ interface ClientDocumentNavProps {
   activeView: ClientDocumentView
   hasQuote?: boolean
   hasProposal?: boolean
+  hasInvoice?: boolean
   quoteUrl?: string
   proposalUrl?: string
+  invoiceUrl?: string
   onViewChange?: (view: ClientDocumentView) => void
 }
 
@@ -120,8 +122,10 @@ export function ClientDocumentNav({
   activeView,
   hasQuote = false,
   hasProposal = false,
+  hasInvoice = false,
   quoteUrl,
   proposalUrl,
+  invoiceUrl,
   onViewChange,
 }: ClientDocumentNavProps) {
   const navItems: NavItem[] = [
@@ -139,6 +143,16 @@ export function ClientDocumentNav({
       available: hasProposal || Boolean(proposalUrl),
       href: proposalUrl,
     },
+    // Invoice only appears once the client actually has one (or is viewing it).
+    ...(hasInvoice || invoiceUrl || activeView === "invoice"
+      ? [{
+          id: "invoice" as ClientDocumentView,
+          label: "Invoice",
+          icon: Receipt,
+          available: true,
+          href: invoiceUrl,
+        }]
+      : []),
   ]
 
   const portalHref = portalToken ? `/${locale}/client/${portalToken}` : undefined

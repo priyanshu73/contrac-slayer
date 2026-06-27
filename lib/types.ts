@@ -517,6 +517,7 @@ export interface Job {
   /** Project/job description; API uses job_description */
   job_description?: string
   payment_terms?: string
+  billing_mode?: JobBillingMode
   customer_notes?: string
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
@@ -729,6 +730,7 @@ export interface ClientPortalInvoice {
   balance_due: number
   status: string
   due_date?: string | null
+  public_link?: string | null
 }
 
 export interface ClientPortalData {
@@ -883,6 +885,20 @@ export interface InvoiceItem {
   notes?: string
 }
 
+/** A line as serialized on the invoice payload (invoice's own items AND the
+ * embedded quote scope `quote_items`). Customer-facing priced. */
+export interface InvoiceLineOut {
+  id: number
+  description: string
+  quantity: number
+  unit_of_measure?: string | null
+  unit_price: number
+  total_amount: number
+  category?: string | null
+  is_taxable: boolean
+  order?: number
+}
+
 export interface Invoice {
   id: number
   uuid: string
@@ -907,6 +923,65 @@ export interface Invoice {
   client?: Client
   job?: Job
   items?: InvoiceItem[]
+  /** Billing mode of the originating quote — "SCHEDULED" means draw invoices. */
+  billing_mode?: JobBillingMode | null
+  /** Public link of the originating quote, so the client view can link back to it. */
+  quote_public_link?: string | null
+  /** The originating quote's real scope (line items), shown collapsed on the
+   * invoice. For a draw invoice the invoice's own line_items are just the draw. */
+  quote_items?: InvoiceLineOut[]
+}
+
+// ─── Payment schedule (draws) ────────────────────────────────────────
+
+// ON_ACCEPTANCE / ON_PHASE are soft-deprecated: the quote builder only authors
+// ON_COMPLETION / ON_DATE, but legacy rows may still carry the older values.
+export type PaymentTriggerType = "ON_ACCEPTANCE" | "ON_PHASE" | "ON_DATE" | "ON_COMPLETION"
+export type PaymentAmountType = "PERCENT" | "FIXED"
+/** Derived (read-only) on the API: "SCHEDULED" when the job has draws, else "LUMP_SUM". */
+export type JobBillingMode = "LUMP_SUM" | "SCHEDULED"
+/** Derived per-draw state: scheduled for later → due now → billed → paid.
+ * Nothing is ever locked — SCHEDULED draws are still billable on demand. */
+export type PaymentDrawState = "SCHEDULED" | "READY" | "INVOICED" | "PAID"
+
+/** A draw as authored in the quote builder (the plan). */
+export interface PaymentScheduleLineInput {
+  label: string
+  trigger_type: PaymentTriggerType
+  trigger_phase?: string | null
+  trigger_date?: string | null
+  amount_type: PaymentAmountType
+  amount_value: number
+  order_index: number
+  /** Server id, kept for already-billed draws so the builder can show them. */
+  id?: number
+  /** True when this draw has been billed (paid/invoiced) — read-only in the
+   * builder; only the remaining, unbilled draws can be edited. */
+  locked?: boolean
+  /** Status badge for a locked draw ("PAID" | "INVOICED"). */
+  lockedStatus?: PaymentDrawState
+}
+
+/** A draw as returned by the backend, with computed amount + billing state. */
+export interface PaymentScheduleLine extends PaymentScheduleLineInput {
+  id: number
+  computed_amount: number
+  /** Contract balance left after this draw is taken (cascading remaining balance). */
+  remaining_after: number
+  invoice_id: number | null
+  invoice_number: string | null
+  invoice_status: string | null
+  state: PaymentDrawState
+  is_billable: boolean
+}
+
+export interface PaymentSchedule {
+  job_id: number
+  billing_mode: JobBillingMode
+  contract_total: number
+  scheduled_total: number
+  summary: { billed: number; paid: number; outstanding: number }
+  lines: PaymentScheduleLine[]
 }
 
 export interface InvoiceCreate {
@@ -1223,6 +1298,7 @@ export interface ProjectCostItem {
   client_price: number
   owed_to_sub: number
   paid: number
+  source_job_item_id?: number | null  // quote line this was seeded from
   order: number
   created_at: string
   updated_at?: string
@@ -1254,6 +1330,7 @@ export interface ProjectMaterial {
   client_price: number
   po_url?: string | null
   receipts?: { name: string; url: string }[]
+  source_job_item_id?: number | null  // quote line this was seeded from
   order: number
   created_at: string
   updated_at?: string
@@ -1309,6 +1386,95 @@ export interface ProjectFinancialSummary {
   collected_pct: number
   approved_co_total: number
   adjusted_budget: number
+
+  // --- Contract reconciliation (single source of truth) ---
+  /** Anchor quote's live grand total (scope-derived). */
+  base_contract_total?: number
+  /** base_contract + approved change orders. */
+  derived_contract_total?: number
+  /** Where the contract total comes from: 'override' | 'quote' | 'none'. */
+  contract_source?: 'override' | 'quote' | 'none'
+  /** True when project.contract_value was set manually (overrides the quote). */
+  contract_overridden?: boolean
+  /** override − derived (0 when not overridden). Non-zero = drift to flag. */
+  contract_drift?: number
+  /** The quote the contract derives from. */
+  anchor_job_id?: number | null
+}
+
+// ── Scope & Billing: quote line items → draws → invoices, reconciled ──
+export interface ScopeQuoteLineItem {
+  id: number
+  description: string
+  quantity: number
+  unit_of_measure?: string | null
+  unit_price: number
+  total: number          // client price (with markup)
+  cost: number           // pre-markup cost basis (seeds gc_cost / material cost)
+  is_taxable: boolean
+}
+export interface ScopeQuote {
+  job_id: number
+  title: string
+  job_number?: string | null
+  status: string
+  is_anchor: boolean
+  is_change_order: boolean
+  /** Part of the contract (anchor or approved). False for draft/rejected/superseded
+   *  quotes — the picker blocks pulling scope from those. */
+  counts_toward_contract: boolean
+  grand_total: number
+  line_items: ScopeQuoteLineItem[]
+}
+export interface ScopeInvoice {
+  id: number
+  invoice_number: string
+  job_id: number | null
+  title?: string | null
+  status: string | null
+  total_amount: number
+  amount_paid: number
+  balance_due: number
+  issue_date?: string | null
+  due_date?: string | null
+  is_draw: boolean
+}
+/** A draw schedule plus the quote it belongs to — a project can have several
+ * (one per genuine contract / change order), so schedules are returned as a list. */
+export interface ScopeSchedule extends PaymentSchedule {
+  quote_title: string
+  status: string | null
+  is_anchor: boolean
+  is_change_order: boolean
+  /** False when the quote has no draw schedule — the whole `contract_total` is
+   * payable as a single payment (`lines` is empty). */
+  has_draws: boolean
+}
+export interface ProjectScopeBilling {
+  contract: {
+    anchor_job_id: number | null
+    base_contract: number
+    approved_co_total: number
+    derived_total: number
+    override: number | null
+    contract_total: number
+    source: 'override' | 'quote' | 'none'
+    drift: number
+  }
+  quotes: ScopeQuote[]
+  /** Back-compat: the anchor quote's schedule. Prefer `schedules`. */
+  schedule: ScopeSchedule | null
+  /** One schedule per linked quote that has draws (anchor first). */
+  schedules: ScopeSchedule[]
+  invoices: ScopeInvoice[]
+  reconciliation: {
+    contract_total: number
+    scheduled_total: number
+    invoiced_total: number
+    collected_total: number
+    uninvoiced_remaining: number
+    unbilled_in_schedule: number
+  }
 }
 
 // ============================================

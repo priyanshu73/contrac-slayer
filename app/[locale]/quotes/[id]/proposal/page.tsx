@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
@@ -12,6 +13,7 @@ import type { ContractorProfile, Job, Proposal } from "@/lib/types"
 
 export default function QuoteProposalPage() {
   const params = useParams()
+  const t = useTranslations("proposals")
   const locale = (params.locale as string) || "en"
   const identifier = params.id as string
   const [job, setJob] = useState<Job | null>(null)
@@ -47,12 +49,12 @@ export default function QuoteProposalPage() {
           setProposal(proposals[0])
         } else {
           const created = (await api.createJobProposal(jobId, {
-            title: loadedJob.title || `Proposal for ${loadedJob.client?.name || "Client"}`,
+            title: loadedJob.title || t("routePage.defaultProposalTitle", { name: loadedJob.client?.name || t("routePage.clientFallback") }),
           })) as Proposal
           setProposal(created)
         }
       } catch (err: any) {
-        setError(err?.message || "Failed to load quote proposal.")
+        setError(err?.message || t("errors.loadQuoteProposal"))
       } finally {
         setLoading(false)
       }
@@ -64,9 +66,9 @@ export default function QuoteProposalPage() {
       void fetchData()
     } else {
       setLoading(false)
-      setError("Proposal builder is only available for saved quote records.")
+      setError(t("errors.savedQuotesOnly"))
     }
-  }, [identifier])
+  }, [identifier, t])
 
   if (loading) {
     return (
@@ -88,10 +90,10 @@ export default function QuoteProposalPage() {
         <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
           <div className="mx-auto max-w-xl">
             <Card className="rounded-3xl p-8 text-center shadow-sm">
-              <h1 className="text-2xl font-semibold text-slate-950">Unable to open proposal</h1>
-              <p className="mt-3 text-sm text-slate-600">{error || "Quote not found."}</p>
+              <h1 className="text-2xl font-semibold text-slate-950">{t("routePage.unableToOpen")}</h1>
+              <p className="mt-3 text-sm text-slate-600">{error || t("errors.quoteNotFound")}</p>
               <Button asChild className="mt-6">
-                <a href={`/${locale}/quotes/${identifier}`}>Back to Quote</a>
+                <a href={`/${locale}/quotes/${identifier}`}>{t("routePage.backToQuote")}</a>
               </Button>
             </Card>
           </div>
@@ -105,9 +107,9 @@ export default function QuoteProposalPage() {
       <AppBreadcrumb
         className="px-4 pt-4 sm:px-6 sm:pt-6 print:hidden"
         items={[
-          { label: "Quotes", href: `/${locale}/quotes` },
-          { label: `Quote #${job.id}`, href: `/${locale}/quotes/${job.id}` },
-          { label: "Proposal" },
+          { label: t("routePage.breadcrumbQuotes"), href: `/${locale}/quotes` },
+          { label: t("routePage.breadcrumbQuoteNumber", { id: job.id }), href: `/${locale}/quotes/${job.id}` },
+          { label: t("routePage.breadcrumbProposal") },
         ]}
       />
       <ProposalBuilder

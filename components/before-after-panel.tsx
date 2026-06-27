@@ -540,22 +540,21 @@ export function BeforeAfterPanel({
           </div>
 
           {/* Project context toggle */}
-          <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2.5">
+          <div className="mt-2.5 flex items-center justify-between gap-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-2.5 py-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-700">
-                <Info className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-zinc-700">
+                <Info className="h-3 w-3 shrink-0 text-zinc-400" />
                 Project context included
               </div>
-              <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">
-                Adds this project&apos;s objective and scope (or its proposal) so the render
-                better matches the job. Turn off to use only the selected quote items.
+              <p className="mt-0.5 text-[10.5px] leading-snug text-zinc-400">
+                Adds the project&apos;s objective and scope so the render better matches the job.
               </p>
             </div>
             <Switch
               checked={includeProjectContext}
               onCheckedChange={setIncludeProjectContext}
               aria-label="Include project context in generation"
-              className="mt-0.5 shrink-0"
+              className="shrink-0"
             />
           </div>
         </div>
