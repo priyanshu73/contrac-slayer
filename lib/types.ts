@@ -129,6 +129,8 @@ export interface User {
   is_active: boolean
   is_email_verified: boolean
   is_contractor?: boolean
+  /** Team role on the resolved account: OWNER / ADMIN / MEMBER (from /auth/me) */
+  role?: TeamMemberRole | null
   has_access?: boolean
   stripe_customer_id?: string
   stripe_subscription_id?: string
@@ -475,6 +477,38 @@ export interface PublicProposalLookup {
   proposal?: Proposal | null
 }
 
+// ---- Team members ---------------------------------------------------------
+export type TeamMemberRole = "OWNER" | "ADMIN" | "MEMBER"
+export type TeamMemberStatus = "INVITED" | "ACTIVE" | "REVOKED"
+
+export interface TeamMember {
+  id: number
+  user_id?: number | null
+  full_name?: string | null
+  email?: string | null
+  invited_email?: string | null
+  role: TeamMemberRole
+  status: TeamMemberStatus
+  is_you: boolean
+  invite_token?: string | null  // present for pending invites, to re-copy the link
+  created_at?: string
+  accepted_at?: string | null
+}
+
+export interface TeamInviteResponse {
+  member: TeamMember
+  invite_token: string
+  invite_url: string
+}
+
+export interface InviteInfo {
+  valid: boolean
+  company_name?: string | null
+  invited_email?: string | null
+  role?: TeamMemberRole | null
+  already_accepted?: boolean
+}
+
 export interface Job {
   id: number
   uuid: string
@@ -518,6 +552,9 @@ export interface Job {
   job_description?: string
   payment_terms?: string
   billing_mode?: JobBillingMode
+  /** Team member who created this quote (attribution) */
+  created_by_user_id?: number
+  created_by_name?: string
   customer_notes?: string
   /** Amount customer accepted when signing */
   accepted_total_amount?: number

@@ -64,6 +64,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Public client portal (no auth required)
     pathname?.match(/^\/[a-z]{2}\/client\//) || // Matches /en/client/{token}, /es/client/{token}
     pathname?.startsWith("/client/") || // Legacy non-i18n routes
+    // Team invite acceptance (invited users are logged out by definition)
+    pathname?.match(/^\/[a-z]{2}\/invite\//) || // Matches /en/invite/{token}, /es/invite/{token}
+    pathname?.startsWith("/invite/") || // Legacy non-i18n routes
     // Public crew (subcontractor) portal (no auth required)
     pathname?.match(/^\/[a-z]{2}\/crew\/portal\//) || // Matches /en/crew/portal/{uuid}, /es/crew/portal/{uuid}
     pathname?.startsWith("/crew/portal/") // Legacy non-i18n routes

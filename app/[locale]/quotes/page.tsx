@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { FileText, Plus, Search, Trash2, ChevronDown, FolderOpen, Unlink } from "lucide-react"
+import { FileText, Plus, Search, Trash2, ChevronDown, FolderOpen, Unlink, Mail, Phone, MapPin, CalendarDays, UserRound } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
 interface ClientInfo {
@@ -58,6 +58,8 @@ interface Quote {
   project_id?: number | null
   project_title?: string | null
   has_proposal?: boolean
+  created_by_name?: string | null
+  created_by_user_id?: number | null
 }
 
 const ITEMS_PER_PAGE = 10
@@ -680,23 +682,47 @@ export default function QuotesPage() {
                           </DropdownMenu>
                         )}
                       </div>
-                      <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                        {quote.client?.name || "Unknown client"}
+                      <h3 className="flex items-center gap-1.5 text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                          <UserRound className="h-3 w-3" />
+                        </span>
+                        <span className="truncate">{quote.client?.name || "Unknown client"}</span>
                       </h3>
                       {quote.title?.trim() && (
-                        <p className="text-sm text-muted-foreground line-clamp-1">{quote.title}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1 pl-7">{quote.title}</p>
                       )}
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        {quote.client?.email && <span className="truncate max-w-full">{quote.client.email}</span>}
-                        {quote.client?.phone && <span>{quote.client.phone}</span>}
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {quote.client?.email && (
+                          <span className="inline-flex items-center gap-1 truncate max-w-full">
+                            <Mail className="h-3 w-3 shrink-0 opacity-70" />
+                            {quote.client.email}
+                          </span>
+                        )}
+                        {quote.client?.phone && (
+                          <span className="inline-flex items-center gap-1">
+                            <Phone className="h-3 w-3 shrink-0 opacity-70" />
+                            {quote.client.phone}
+                          </span>
+                        )}
+                        {quote.client?.address && (
+                          <span className="inline-flex items-center gap-1 truncate max-w-full">
+                            <MapPin className="h-3 w-3 shrink-0 opacity-70" />
+                            {quote.client.address}
+                          </span>
+                        )}
                       </div>
-                      {quote.client?.address && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{quote.client.address}</p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground pt-0.5">
-                        Created {formatDate(quote.created_at)}
-                        {quote.updated_at && ` · Updated ${formatDate(quote.updated_at)}`}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground pt-0.5">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3 shrink-0 opacity-70" />
+                          {formatDate(quote.created_at)}
+                        </span>
+                        {quote.created_by_name && (
+                          <span className="inline-flex items-center gap-1">
+                            <UserRound className="h-3 w-3 shrink-0 opacity-70" />
+                            {quote.created_by_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <span className="text-[11px] font-medium text-muted-foreground tabular-nums">

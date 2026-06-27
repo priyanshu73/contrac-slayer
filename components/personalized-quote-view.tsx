@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2 } from "lucide-react"
+import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2, UserRound } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
@@ -322,6 +322,20 @@ export function PersonalizedQuoteView({
       year: 'numeric',
       month: 'long',
       day: 'numeric'
+    })
+  }
+
+  // Full timestamp converted to the viewer's local timezone (date + time).
+  const formatDateTimeLocal = (dateString?: string) => {
+    if (!dateString) return ""
+    const d = new Date(dateString)
+    if (isNaN(d.getTime())) return ""
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
     })
   }
 
@@ -1370,6 +1384,29 @@ export function PersonalizedQuoteView({
           {showActions && !isPublicView && (
             <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
               <div className="lg:sticky lg:top-8 space-y-4">
+                {/* Created by — clean attribution + local-time stamp */}
+                {isContractor && (currentJob.created_by_name || currentJob.created_at) && (
+                  <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
+                    {currentJob.created_by_name && (
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
+                          <UserRound className="h-3.5 w-3.5" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wide text-slate-400">Created by</div>
+                          <div className="truncate text-sm font-medium text-slate-800">{currentJob.created_by_name}</div>
+                        </div>
+                      </div>
+                    )}
+                    {currentJob.created_at && (
+                      <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                        <Clock3 className="h-3 w-3 shrink-0 opacity-70" />
+                        {formatDateTimeLocal(currentJob.created_at)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Proposals — featured card, above Change Orders */}
                 {isContractor && (
                   <QuoteProposalsSection

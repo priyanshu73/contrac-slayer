@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare, Users } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -21,11 +21,12 @@ import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 
 import { CostBookSettings } from "@/components/cost-book-settings"
 import { AutoReplySettings } from "@/components/auto-reply-settings"
+import { TeamSettings } from "@/components/team-settings"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply"
+type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team"
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -136,6 +137,9 @@ function SettingsSkeleton() {
 
 export function SettingsTabs() {
   const { user, logout } = useAuth()
+  // Only the account owner manages billing. Default to showing it unless the
+  // user is explicitly a non-owner (ADMIN/MEMBER), so owners are never blocked.
+  const canSeeBilling = user?.role !== "ADMIN" && user?.role !== "MEMBER"
   const locale = useLocale()
   const t = useTranslations('settings')
   const tAuth = useTranslations('auth')
@@ -203,7 +207,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply"].includes(tab)) {
+    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply", "team"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -457,7 +461,8 @@ export function SettingsTabs() {
       ? []
       : [{ id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare }]),
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
-    { id: "billing" as const, label: "Billing", icon: CreditCard },
+    { id: "team" as const, label: "Team", icon: Users },
+    ...(canSeeBilling ? [{ id: "billing" as const, label: "Billing", icon: CreditCard }] : []),
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
     { id: "language" as const, label: t('language'), icon: Globe },
   ]
@@ -601,6 +606,20 @@ export function SettingsTabs() {
                               className="h-10 border-slate-200"
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="account-email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            Account email (login)
+                          </Label>
+                          <Input
+                            id="account-email"
+                            type="email"
+                            value={user?.email || ""}
+                            readOnly
+                            disabled
+                            className="h-10 bg-slate-50 border-slate-200 text-slate-600"
+                          />
                         </div>
 
                         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
@@ -1204,7 +1223,7 @@ export function SettingsTabs() {
             )}
 
             {/* Billing Section */}
-            {activeSection === "billing" && (
+            {activeSection === "billing" && canSeeBilling && (
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-4 sm:p-6">
                   <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Subscription</h3>
@@ -1333,6 +1352,11 @@ export function SettingsTabs() {
             {/* Cost Book Section */}
             {activeSection === "cost-book" && (
               <CostBookSettings />
+            )}
+
+            {/* Team Section */}
+            {activeSection === "team" && (
+              <TeamSettings />
             )}
 
             {/* Auto-reply Section — hidden entirely when Frontline is enabled */}
