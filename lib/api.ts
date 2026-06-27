@@ -22,6 +22,9 @@ import type {
   PaymentScheduleLineInput,
   ProjectFinancialSummary,
   ProjectScopeBilling,
+  TeamMember,
+  TeamInviteResponse,
+  InviteInfo,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type {
@@ -357,6 +360,35 @@ class ApiClient {
     })
   }
 
+  // ---- Team members -------------------------------------------------------
+  async listTeamMembers(): Promise<TeamMember[]> {
+    return this.request<TeamMember[]>('/team/members')
+  }
+
+  async inviteTeamMember(email: string, role: string = 'ADMIN', inviteBaseUrl?: string): Promise<TeamInviteResponse> {
+    return this.request<TeamInviteResponse>('/team/invite', {
+      method: 'POST',
+      body: JSON.stringify({ email, role, invite_base_url: inviteBaseUrl }),
+    })
+  }
+
+  async removeTeamMember(memberId: number): Promise<void> {
+    await this.request<void>(`/team/members/${memberId}`, { method: 'DELETE' })
+  }
+
+  /** Public: look up an invite by token (no auth required). */
+  async getInvite(token: string): Promise<InviteInfo> {
+    return this.request<InviteInfo>(`/team/invite/${token}`)
+  }
+
+  /** Public: accept an invite — creates the user and sets the session cookie. */
+  async acceptInvite(token: string, full_name: string, password: string) {
+    return this.request(`/team/invite/${token}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ full_name, password }),
+    })
+  }
+
   async updateLanguagePreference(locale: string) {
     return this.request('/contractors/profile', {
       method: 'PATCH',
@@ -496,8 +528,16 @@ class ApiClient {
     })
   }
 
-  async sendInvoiceViaEmail(invoiceId: number): Promise<{ message: string; status: string }> {
-    return this.request<{ message: string; status: string }>(`/invoices/${invoiceId}/send`, { method: 'POST' })
+  async sendInvoiceViaEmail(invoiceId: number, baseUrl?: string): Promise<{ message: string; status: string }> {
+    return this.request<{ message: string; status: string }>(`/invoices/${invoiceId}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ base_url: baseUrl }),
+    })
+  }
+
+  /** Ensure the invoice has a public link and return it (for copy/share). */
+  async ensureInvoicePublicLink(invoiceId: number): Promise<{ public_link: string }> {
+    return this.request<{ public_link: string }>(`/invoices/${invoiceId}/public-link`, { method: 'POST' })
   }
 
   // --- Payment schedule (draws) ---

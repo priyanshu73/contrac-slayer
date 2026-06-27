@@ -24,8 +24,17 @@ import { useLocale } from "next-intl"
 import Link from "next/link"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cleanAddressString } from "@/lib/format-address"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Send, Mail, MessageSquare, Link2, Check, Loader2 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { ClientSendSmsDialog } from "@/components/client-send-sms-dialog"
 import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/components/client-document-nav"
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
 import { buildClientDocumentNavProps } from "@/lib/client-portal-nav"
@@ -90,7 +99,11 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
   const [sendingEmail, setSendingEmail] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [generatingLink, setGeneratingLink] = useState(false)
+  const [showSmsDialog, setShowSmsDialog] = useState(false)
   const { toast } = useToast()
+  const { getContractorAISpId } = useAuth()
   const locale = useLocale()
   // In the public view the portal token rides along in the invoice payload, so
   // the sidebar (sibling quote + proposal + "My Portal") is driven by the same
@@ -164,7 +177,8 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
     if (!invoice) return
     setSendingEmail(true)
     try {
-      const result = await api.sendInvoiceViaEmail(invoice.id)
+      const base = typeof window !== "undefined" ? `${window.location.origin}/${locale}` : undefined
+      const result = await api.sendInvoiceViaEmail(invoice.id, base)
       toast({ title: "Invoice sent", description: result.message })
       await fetchInvoice()
     } catch (err: any) {
@@ -177,6 +191,46 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
       setSendingEmail(false)
     }
   }
+
+  const buildInvoiceUrl = (publicLinkValue: string) =>
+    `${typeof window !== "undefined" ? window.location.origin : ""}/${locale}/invoices/${publicLinkValue}`
+
+  const handleCopyInvoiceLink = async () => {
+    if (!invoice) return
+    setGeneratingLink(true)
+    try {
+      let link: string = invoice.public_link
+      if (!link) {
+        const res = await api.ensureInvoicePublicLink(invoice.id)
+        link = res.public_link
+        setInvoice((prev: any) => (prev ? { ...prev, public_link: link } : prev))
+      }
+      await navigator.clipboard.writeText(buildInvoiceUrl(link))
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch (err: any) {
+      toast({ title: "Couldn't copy link", description: err?.message, variant: "destructive" })
+    } finally {
+      setGeneratingLink(false)
+    }
+  }
+
+  const handleOpenSms = async () => {
+    if (!invoice) return
+    if (!invoice.public_link) {
+      try {
+        const res = await api.ensureInvoicePublicLink(invoice.id)
+        setInvoice((prev: any) => (prev ? { ...prev, public_link: res.public_link } : prev))
+      } catch {
+        // proceed even if link generation fails; message just omits the link
+      }
+    }
+    setShowSmsDialog(true)
+  }
+
+  const smsPresetMessage = invoice
+    ? `Hi ${invoice.client_name || "there"}, here's your invoice${invoice.contractor_company_name ? ` from ${invoice.contractor_company_name}` : ""}${invoice.public_link ? `: ${buildInvoiceUrl(invoice.public_link)}` : "."}`
+    : ""
 
   const handleStatusChange = async (newStatus: string) => {
     if (!invoice) return
@@ -630,24 +684,52 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
                 </Button>
               )}
 
-              {/* Send to Client */}
-              <Button
-                size="lg"
-                className="w-full justify-start h-12 text-base"
-                variant="outline"
-                onClick={handleSendEmail}
-                disabled={sendingEmail}
-              >
-                <svg className="mr-3 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-                {sendingEmail ? "Sending…" : "Send to Client"}
-              </Button>
+              {/* Send to Client — Email / SMS / Copy link */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="lg"
+                    className="w-full justify-start h-12 text-base"
+                    variant="outline"
+                    disabled={sendingEmail}
+                  >
+                    {sendingEmail ? (
+                      <Loader2 className="mr-3 h-5 w-5 shrink-0 animate-spin" />
+                    ) : (
+                      <Send className="mr-3 h-5 w-5 shrink-0" />
+                    )}
+                    {sendingEmail ? "Sending…" : "Send to Client"}
+                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail || !invoice.client_email}
+                  >
+                    <Mail className="mr-2 h-4 w-4 text-slate-500" />
+                    Send via Email
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleOpenSms}
+                    disabled={!invoice.client_phone || !getContractorAISpId()}
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4 text-slate-500" />
+                    Send via SMS
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleCopyInvoiceLink} disabled={generatingLink}>
+                    {copiedLink ? (
+                      <Check className="mr-2 h-4 w-4 text-emerald-600" />
+                    ) : generatingLink ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="mr-2 h-4 w-4 text-slate-500" />
+                    )}
+                    {copiedLink ? "Copied!" : "Copy invoice link"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Print */}
               <Button
@@ -792,6 +874,19 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
           </div>
         </DialogContent>
       </Dialog>
+      )}
+
+      {!publicMode && invoice && getContractorAISpId() && invoice.client_phone && (
+        <ClientSendSmsDialog
+          key={invoice.public_link || "no-link"}
+          open={showSmsDialog}
+          onOpenChange={setShowSmsDialog}
+          spId={getContractorAISpId() as number}
+          clientName={invoice.client_name || ""}
+          clientPhone={invoice.client_phone}
+          clientId={invoice.client_id}
+          presetMessage={smsPresetMessage}
+        />
       )}
     </div>
     </div>
