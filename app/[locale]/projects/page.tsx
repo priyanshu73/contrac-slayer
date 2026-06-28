@@ -26,9 +26,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ChevronRight, Plus, Trash2, Loader2, Search } from "lucide-react"
+import { ChevronRight, Plus, Trash2, Loader2, Search, LayoutList, GanttChartSquare } from "lucide-react"
 import { useLocale } from "next-intl"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { PortfolioTimeline } from "@/components/timeline/portfolio-timeline"
 
 type StatusFilter = ProjectStatus | "ALL"
 
@@ -40,6 +41,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
   const [searchTerm, setSearchTerm] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [view, setView] = useState<"list" | "timeline">("list")
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null)
@@ -112,6 +114,7 @@ export default function ProjectsPage() {
               <p className="text-sm text-slate-500 md:mt-1">{t("subtitle")}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <ViewToggle value={view} onChange={setView} />
               <Button className="hidden sm:inline-flex" onClick={() => setDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t("createProject")}
@@ -127,6 +130,10 @@ export default function ProjectsPage() {
 
       <main className="px-3 py-4 pb-24 sm:px-8 sm:py-6 md:px-12 md:pb-8 lg:px-16">
         <div className="max-w-7xl mx-auto space-y-6">
+          {view === "timeline" ? (
+            <PortfolioTimeline />
+          ) : (
+          <>
           {/* Summary stats */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <SummaryCard label={t("stats.totalTrades")} value={stats.totalTrades} />
@@ -219,6 +226,8 @@ export default function ProjectsPage() {
               )}
             </div>
           </Card>
+          </>
+          )}
         </div>
       </main>
 
@@ -263,6 +272,42 @@ export default function ProjectsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: "list" | "timeline"
+  onChange: (v: "list" | "timeline") => void
+}) {
+  const options = [
+    { key: "list" as const, label: "List", icon: LayoutList },
+    { key: "timeline" as const, label: "Timeline", icon: GanttChartSquare },
+  ]
+  return (
+    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+      {options.map((opt) => {
+        const Icon = opt.icon
+        const active = value === opt.key
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              active
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="hidden sm:inline">{opt.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

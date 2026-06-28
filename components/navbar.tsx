@@ -19,6 +19,7 @@ import {
   ChevronsRight,
   ChevronDown,
   Zap,
+  BarChart3,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import { forwardRef, useState, useEffect } from "react";
@@ -152,6 +153,7 @@ export function Navbar() {
         { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
         { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
         { href: `/${locale}/clients`, label: t("clients"), icon: Users },
+        { href: `/${locale}/reports`, label: t("reports"), icon: BarChart3 },
       ],
     },
     {
@@ -220,6 +222,7 @@ export function Navbar() {
     if (currentRoute.startsWith("/projects/")) return "Project Details";
     if (currentRoute === "/projects") return t("projects");
     if (currentRoute === "/tasks") return t("tasks");
+    if (currentRoute === "/reports") return t("reports");
     if (currentRoute === "/actions/scheduling") return t("scheduling");
     if (currentRoute.startsWith("/settings")) return t("settings");
     if (currentRoute.startsWith("/billing")) return "Billing";

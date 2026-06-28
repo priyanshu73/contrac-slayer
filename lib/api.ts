@@ -27,6 +27,15 @@ import type {
   InviteInfo,
 } from './types'
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
+import type { TimelineParams, TimelineResponse } from './types/timeline'
+import type {
+  AnalyticsParams,
+  AnalyticsTimeseriesParams,
+  BreakdownsResponse,
+  OverviewResponse,
+  PipelineResponse,
+  TimeseriesResponse,
+} from './types/analytics'
 import type {
   FrontlineActivityEvent,
   FrontlineKnowledgeResponse,
@@ -1783,6 +1792,41 @@ class ApiClient {
     if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
     const qs = searchParams.toString()
     return this.request(`/projects${qs ? `?${qs}` : ''}`)
+  }
+
+  async getTimeline(params?: TimelineParams): Promise<TimelineResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.from) searchParams.append('from', params.from)
+    if (params?.to) searchParams.append('to', params.to)
+    if (typeof params?.projectId === 'number') searchParams.append('project_id', params.projectId.toString())
+    const qs = searchParams.toString()
+    return this.request<TimelineResponse>(`/timeline${qs ? `?${qs}` : ''}`)
+  }
+
+  // ── Sales & Money reports (analytics) ──────────────────────────────────────
+  private analyticsQuery(params: AnalyticsParams): URLSearchParams {
+    const searchParams = new URLSearchParams()
+    searchParams.append('from', params.from)
+    searchParams.append('to', params.to)
+    return searchParams
+  }
+
+  async getAnalyticsOverview(params: AnalyticsParams): Promise<OverviewResponse> {
+    return this.request<OverviewResponse>(`/analytics/overview?${this.analyticsQuery(params).toString()}`)
+  }
+
+  async getAnalyticsPipeline(params: AnalyticsParams): Promise<PipelineResponse> {
+    return this.request<PipelineResponse>(`/analytics/pipeline?${this.analyticsQuery(params).toString()}`)
+  }
+
+  async getAnalyticsTimeseries(params: AnalyticsTimeseriesParams): Promise<TimeseriesResponse> {
+    const searchParams = this.analyticsQuery(params)
+    if (params.granularity) searchParams.append('granularity', params.granularity)
+    return this.request<TimeseriesResponse>(`/analytics/timeseries?${searchParams.toString()}`)
+  }
+
+  async getAnalyticsBreakdowns(params: AnalyticsParams): Promise<BreakdownsResponse> {
+    return this.request<BreakdownsResponse>(`/analytics/breakdowns?${this.analyticsQuery(params).toString()}`)
   }
 
   async getProjectContextOptions(params?: { skip?: number; limit?: number }) {
