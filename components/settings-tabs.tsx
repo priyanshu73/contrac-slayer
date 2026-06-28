@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare, Users } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare, Users, CalendarClock } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -22,11 +22,12 @@ import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { CostBookSettings } from "@/components/cost-book-settings"
 import { AutoReplySettings } from "@/components/auto-reply-settings"
 import { TeamSettings } from "@/components/team-settings"
+import { FollowupsManager } from "@/components/followups-manager"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team"
+type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team" | "followups"
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -207,7 +208,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply", "team"].includes(tab)) {
+    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply", "team", "followups"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -460,11 +461,11 @@ export function SettingsTabs() {
     ...(frontlineEnabled
       ? []
       : [{ id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare }]),
+    { id: "followups" as const, label: "Follow-ups", icon: CalendarClock },
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
     { id: "team" as const, label: "Team", icon: Users },
     ...(canSeeBilling ? [{ id: "billing" as const, label: "Billing", icon: CreditCard }] : []),
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
-    { id: "language" as const, label: t('language'), icon: Globe },
   ]
 
   return (
@@ -725,19 +726,27 @@ export function SettingsTabs() {
                           </div>
                         </div>
 
-                        {/* Website */}
-                        <div className="space-y-2">
-                          <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            {t('website')}
-                          </Label>
-                          <Input
-                            id="website"
-                            placeholder="https://yourcompany.com"
-                            value={formData.website_url}
-                            onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                            disabled={isSaving}
-                            className="h-10 border-slate-200"
-                          />
+                        {/* Website & Language */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="website" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('website')}
+                            </Label>
+                            <Input
+                              id="website"
+                              placeholder="https://yourcompany.com"
+                              value={formData.website_url}
+                              onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                              disabled={isSaving}
+                              className="h-10 border-slate-200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                              {t('language')}
+                            </Label>
+                            <LanguageSelector showLabel={false} triggerClassName="h-10 w-full border-slate-200" />
+                          </div>
                         </div>
 
                         {/* Service area */}
@@ -1334,19 +1343,9 @@ export function SettingsTabs() {
               </div>
             )}
 
-            {/* Language Section */}
-            {activeSection === "language" && (
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">{t('language')}</h3>
-                  <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">
-                    {t('chooseLanguageDesc')}
-                  </p>
-                  <div className="max-w-sm">
-                    <LanguageSelector />
-                  </div>
-                </div>
-              </div>
+            {/* Follow-ups Section */}
+            {activeSection === "followups" && (
+              <FollowupsManager />
             )}
 
             {/* Cost Book Section */}

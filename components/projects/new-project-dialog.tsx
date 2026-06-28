@@ -11,14 +11,28 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar, Loader2, FileText, User } from "lucide-react"
+import { Calendar, Loader2, FileText, User, ChevronsUpDown, UserPlus, Check } from "lucide-react"
 import { AiCapturedDescription } from "@/components/shared/ai-captured-description"
 import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 import { buildInitialProjectBrief } from "@/lib/project-brief"
+import { AddClientForm, type CreatedClient } from "@/components/add-client-form"
+import { cn } from "@/lib/utils"
+
+type ClientOption = { id: number; name: string; email?: string }
 export interface FromQuoteProps {
     jobId: number
     title?: string
@@ -69,6 +83,15 @@ export function NewProjectDialog({
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [submitting, setSubmitting] = useState(false)
+
+    // Manual client selection (only relevant when not coming from a lead/quote, which
+    // already carry their own client). Optional — a project can be created without one.
+    const [clients, setClients] = useState<ClientOption[]>([])
+    const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
+    const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+    const [addClientPanelOpen, setAddClientPanelOpen] = useState(false)
+    const showClientSelector = !fromLead && !fromQuote
+    const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null
 
     // Raw customer request, kept to seed the project brief's rawRequest.
     const [originalDescription, setOriginalDescription] = useState("")
@@ -134,9 +157,29 @@ export function NewProjectDialog({
             setAiDescription("")
             setStartDate("")
             setEndDate("")
+            setSelectedClientId(null)
+            setAddClientPanelOpen(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
+
+    // Load clients for the optional selector (manual creation only).
+    useEffect(() => {
+        if (!open || !showClientSelector) return
+        let cancelled = false
+        api.getClients(0, 500)
+            .then((res: any) => {
+                if (cancelled) return
+                const list = Array.isArray(res) ? res : res?.clients ?? res?.items ?? []
+                setClients(list.map((c: any) => ({ id: c.id, name: c.name, email: c.email })))
+            })
+            .catch(() => {
+                // Non-fatal: the selector just stays empty, client remains optional.
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [open, showClientSelector])
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -157,7 +200,7 @@ export function NewProjectDialog({
 
         setSubmitting(true)
         try {
-            const clientId: number | undefined = defaultClientId
+            const clientId: number | undefined = defaultClientId ?? selectedClientId ?? undefined
 
             // Fall back to the AI-captured description when the user left their own blank.
             const finalObjective = objective.trim() || aiDescription.trim()
@@ -221,6 +264,7 @@ export function NewProjectDialog({
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -286,6 +330,102 @@ export function NewProjectDialog({
                             className="border-slate-200"
                         />
                     </div>
+
+                    {showClientSelector && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                                <Label className="text-sm font-medium text-slate-700">
+                                    Client <span className="font-normal text-slate-400">(optional)</span>
+                                </Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1.5 px-2 text-xs text-slate-600 hover:text-slate-900"
+                                    onClick={() => setAddClientPanelOpen(true)}
+                                >
+                                    <UserPlus className="h-3.5 w-3.5" />
+                                    Add client
+                                </Button>
+                            </div>
+                            <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={clientComboboxOpen}
+                                        className={cn(
+                                            "w-full justify-between border-slate-200 font-normal",
+                                            !selectedClient && "text-slate-400"
+                                        )}
+                                    >
+                                        {selectedClient ? (
+                                            <span className="truncate text-slate-900">
+                                                {selectedClient.name}
+                                                {selectedClient.email && (
+                                                    <span className="text-slate-400"> · {selectedClient.email}</span>
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span>Select a client</span>
+                                        )}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Search clients..." className="h-10" />
+                                        <CommandList>
+                                            <CommandEmpty>No clients found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {selectedClient && (
+                                                    <CommandItem
+                                                        value="__clear__"
+                                                        onSelect={() => {
+                                                            setSelectedClientId(null)
+                                                            setClientComboboxOpen(false)
+                                                        }}
+                                                        className="text-slate-500"
+                                                    >
+                                                        Clear selection
+                                                    </CommandItem>
+                                                )}
+                                                {clients.map((c) => (
+                                                    <CommandItem
+                                                        key={c.id}
+                                                        value={`${c.name} ${c.email ?? ""}`}
+                                                        onSelect={() => {
+                                                            setSelectedClientId(c.id)
+                                                            setClientComboboxOpen(false)
+                                                        }}
+                                                        className="gap-2"
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "h-4 w-4 shrink-0",
+                                                                selectedClientId === c.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="block truncate text-sm font-medium text-slate-900">
+                                                                {c.name}
+                                                            </span>
+                                                            {c.email && (
+                                                                <span className="block truncate text-xs text-slate-500">
+                                                                    {c.email}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    )}
 
                     <div className="space-y-1.5">
                         <Label htmlFor="project-objective" className="text-sm font-medium text-slate-700">
@@ -370,5 +510,33 @@ export function NewProjectDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {showClientSelector && (
+            <Sheet open={addClientPanelOpen} onOpenChange={setAddClientPanelOpen}>
+                <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>Add client</SheetTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Create a new client and link it to this project.
+                        </p>
+                    </SheetHeader>
+                    <div className="mt-4 px-1">
+                        <AddClientForm
+                            embedded
+                            onSuccess={(newClient: CreatedClient) => {
+                                setClients((prev) =>
+                                    prev.some((c) => c.id === newClient.id)
+                                        ? prev
+                                        : [{ id: newClient.id, name: newClient.name, email: newClient.email }, ...prev]
+                                )
+                                setSelectedClientId(newClient.id)
+                                setAddClientPanelOpen(false)
+                            }}
+                        />
+                    </div>
+                </SheetContent>
+            </Sheet>
+        )}
+        </>
     )
 }

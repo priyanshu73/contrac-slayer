@@ -63,28 +63,28 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   return (
     <div className="animate-in fade-in duration-500">
       <Tabs defaultValue="scope-billing" className="w-full space-y-6">
-        <TabsList className="w-full flex overflow-x-auto flex-nowrap rounded-xl border border-border bg-muted p-1.5 shadow-sm">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-4">
           <TabsTrigger
             value="scope-billing"
-            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Scope &amp; Billing
           </TabsTrigger>
           <TabsTrigger
             value="job-costing"
-            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Job Costing (Labour & Subs)
           </TabsTrigger>
           <TabsTrigger 
             value="materials"
-            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Materials & Permits
           </TabsTrigger>
           <TabsTrigger 
             value="summary"
-            className="h-10 min-w-[140px] flex-1 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Summary & Invoicing
           </TabsTrigger>
