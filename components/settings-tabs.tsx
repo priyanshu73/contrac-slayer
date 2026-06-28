@@ -27,7 +27,10 @@ import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team" | "followups"
+type SettingsSection = "business" | "pricing" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team" | "followups"
+
+// Sub-sections that live behind the "Profile" top tab (shown via the left side-bar).
+const PROFILE_SECTIONS: SettingsSection[] = ["business", "pricing", "team", "integrations", "billing", "auto-reply"]
 
 // Skeleton component for loading states
 function SettingsSkeleton() {
@@ -208,7 +211,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "billing", "integrations", "language", "cost-book", "auto-reply", "team", "followups"].includes(tab)) {
+    if (tab && ["business", "pricing", "billing", "integrations", "language", "cost-book", "auto-reply", "team", "followups"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -455,18 +458,27 @@ export function SettingsTabs() {
     return <SettingsSkeleton />
   }
 
-  const sidebarItems = [
+  // Top-level tabs. "Profile" is a group that opens a left side-bar of sub-sections.
+  const topTabs = [
     { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "followups" as const, label: "Follow-ups", icon: CalendarClock },
+    { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
+  ]
+
+  // Side-bar items shown inside the Profile tab. Team sits directly below Business.
+  const profileSidebarItems = [
+    { id: "business" as const, label: "Business", icon: Building2 },
+    { id: "team" as const, label: "Team", icon: Users },
+    { id: "pricing" as const, label: t('pricingRates'), icon: DollarSign },
     // Hidden when Frontline is enabled — it owns caller follow-up then.
     ...(frontlineEnabled
       ? []
       : [{ id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare }]),
-    { id: "followups" as const, label: "Follow-ups", icon: CalendarClock },
-    { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
-    { id: "team" as const, label: "Team", icon: Users },
-    ...(canSeeBilling ? [{ id: "billing" as const, label: "Billing", icon: CreditCard }] : []),
     { id: "integrations" as const, label: "Integrations", icon: Link2 },
+    ...(canSeeBilling ? [{ id: "billing" as const, label: "Billing", icon: CreditCard }] : []),
   ]
+
+  const isProfileActive = PROFILE_SECTIONS.includes(activeSection)
 
   return (
     <TooltipProvider>
@@ -474,19 +486,23 @@ export function SettingsTabs() {
         {/* Horizontal Tabs */}
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 pt-4 sm:pt-6 pb-3 sm:pb-4">
           <div className="max-w-6xl mx-auto flex gap-1.5 sm:gap-2">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-center rounded-full transition-colors ${
-                  activeSection === item.id
-                    ? "border-2 border-blue-500 text-slate-900 bg-white"
-                    : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+            {topTabs.map((item) => {
+              // The Profile tab stays highlighted for any of its sub-sections.
+              const active = item.id === "business" ? isProfileActive : activeSection === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-center rounded-full transition-colors ${
+                    active
+                      ? "border-2 border-blue-500 text-slate-900 bg-white"
+                      : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -527,10 +543,36 @@ export function SettingsTabs() {
           <div className="max-w-6xl mx-auto">
             <MobileDarkModeToggle />
 
-            {/* Business Section */}
-            {activeSection === "business" && (
-              <div className="space-y-6">
-                {/* Business Information Card - Combined */}
+            {/* Profile group: left side-bar + active sub-section content */}
+            {isProfileActive && (
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                {/* Side-bar */}
+                <nav className="flex-shrink-0 sm:w-52">
+                  <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
+                    {profileSidebarItems.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveSection(item.id)}
+                          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors ${
+                            activeSection === item.id
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          {item.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </nav>
+
+                {/* Section content */}
+                <div className="flex-1 min-w-0 space-y-6">
+                {/* Business Information Card */}
+                {activeSection === "business" && (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
@@ -832,7 +874,10 @@ export function SettingsTabs() {
                   </div>
                 </div>
 
+                )}
+
                 {/* Pricing & Rates Card */}
+                {activeSection === "pricing" && (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
                     <div className="mb-4 sm:mb-6">
@@ -1000,11 +1045,10 @@ export function SettingsTabs() {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+                )}
 
-            {/* Integrations Section */}
-            {activeSection === "integrations" && (
+                {/* Integrations Section */}
+                {activeSection === "integrations" && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
@@ -1343,16 +1387,6 @@ export function SettingsTabs() {
               </div>
             )}
 
-            {/* Follow-ups Section */}
-            {activeSection === "followups" && (
-              <FollowupsManager />
-            )}
-
-            {/* Cost Book Section */}
-            {activeSection === "cost-book" && (
-              <CostBookSettings />
-            )}
-
             {/* Team Section */}
             {activeSection === "team" && (
               <TeamSettings />
@@ -1361,6 +1395,19 @@ export function SettingsTabs() {
             {/* Auto-reply Section — hidden entirely when Frontline is enabled */}
             {activeSection === "auto-reply" && !frontlineEnabled && (
               <AutoReplySettings />
+            )}
+                </div>
+              </div>
+            )}
+
+            {/* Follow-ups Section */}
+            {activeSection === "followups" && (
+              <FollowupsManager />
+            )}
+
+            {/* Cost Book Section */}
+            {activeSection === "cost-book" && (
+              <CostBookSettings />
             )}
 
             {/* Logout Section */}

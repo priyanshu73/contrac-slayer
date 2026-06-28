@@ -23,7 +23,9 @@ import { api } from "@/lib/api"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
-import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia } from "@/lib/types"
+import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia, PaymentScheduleLineInput } from "@/lib/types"
+import { BillingSection } from "@/components/billing-section"
+import { computeDraws } from "@/components/payment-schedule-builder"
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
@@ -142,6 +144,11 @@ export function PersonalizedQuoteView({
   const [followupSendEmail, setFollowupSendEmail] = useState(true)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [alsoCreateQBO, setAlsoCreateQBO] = useState(false)
+  // Billing setup inside the Create Invoice modal — same component/logic as the
+  // quote editor. Starts empty (single payment) until the user picks a schedule.
+  const [invoiceScheduleLines, setInvoiceScheduleLines] = useState<PaymentScheduleLineInput[]>([])
+  const [invoiceBillingChosen, setInvoiceBillingChosen] = useState(false)
+  const [savingSchedule, setSavingSchedule] = useState(false)
   const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
   const [changeOrdersOpen, setChangeOrdersOpen] = useState(true)
@@ -441,6 +448,57 @@ export function PersonalizedQuoteView({
     } finally {
       setGeneratingLink(false)
     }
+  }
+
+  // Confirm the Create Invoice modal. If the user set up a payment schedule
+  // (draws), persist it — that flips the job to SCHEDULED and the per-draw
+  // billing panel takes over. With no draws it's a single payment, so we create
+  // the one lump-sum invoice as before.
+  const handleConfirmInvoice = async () => {
+    const total = currentJob.total_amount || 0
+    const lines = invoiceScheduleLines
+
+    if (lines.length > 0) {
+      if (lines.some((l) => !l.label.trim())) {
+        toast({ title: "Every draw needs a name.", variant: "destructive" })
+        return
+      }
+      if (lines.some((l) => l.trigger_type === "ON_DATE" && !l.trigger_date)) {
+        toast({ title: "Pick a date for every draw billed on a date.", variant: "destructive" })
+        return
+      }
+      const scheduledTotal = computeDraws(lines, total).reduce((s, c) => s + c.amount, 0)
+      if (scheduledTotal > total + 0.01) {
+        toast({ title: "Draws exceed the contract total. Reduce them first.", variant: "destructive" })
+        return
+      }
+
+      setSavingSchedule(true)
+      try {
+        await api.savePaymentSchedule(currentJob.id, lines)
+        toast({
+          title: "Payment schedule saved",
+          description: "Bill each draw from the Invoices panel below.",
+        })
+        setShowInvoiceModal(false)
+        setInvoiceScheduleLines([])
+        setInvoiceBillingChosen(false)
+        onStatusUpdate?.()
+      } catch (err: any) {
+        toast({
+          title: "Couldn't save the payment schedule",
+          description: err?.message || "Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setSavingSchedule(false)
+      }
+      return
+    }
+
+    // Single payment — one lump-sum invoice.
+    setShowInvoiceModal(false)
+    onCreateInvoice?.(alsoCreateQBO)
   }
 
   const quoteSignedByCustomer = Boolean(currentJob.signature?.customer_signed_at)
@@ -1543,26 +1601,41 @@ export function PersonalizedQuoteView({
 
         {/* Create Invoice Sub-Modal */}
         <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={invoiceScheduleLines.length > 0 ? "sm:max-w-4xl max-h-[90vh] overflow-y-auto" : "sm:max-w-md"}>
             <DialogTitle className="text-lg font-semibold">Create Invoice</DialogTitle>
             <div className="space-y-4 py-2">
               <p className="text-sm text-gray-600">
                 Create an invoice for <strong>{currentJob.client?.name || "this client"}</strong> based on the accepted quote.
               </p>
 
-              {/* ContractorOps invoice - always on */}
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-50 border border-sky-200">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-sky-500 bg-sky-500">
-                  <Check className="h-3 w-3 text-white stroke-[3]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Create ContractorOps Invoice</p>
-                  <p className="text-xs text-gray-500">Invoice will be saved and available in your Invoices tab</p>
-                </div>
+              {/* Billing — same controls/logic as the quote editor. Default is a
+                  single payment; pick a schedule to bill in draws instead. */}
+              <div className="rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
+                <BillingSection
+                  total={currentJob.total_amount || 0}
+                  lines={invoiceScheduleLines}
+                  onLinesChange={setInvoiceScheduleLines}
+                  billingChosen={invoiceBillingChosen}
+                  onBillingChosenChange={setInvoiceBillingChosen}
+                />
               </div>
 
+              {/* ContractorOps invoice - always on (single payment only; draws
+                  bill individually from the Invoices panel after saving). */}
+              {invoiceScheduleLines.length === 0 && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-50 border border-sky-200">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-sky-500 bg-sky-500">
+                    <Check className="h-3 w-3 text-white stroke-[3]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Create ContractorOps Invoice</p>
+                    <p className="text-xs text-gray-500">Invoice will be saved and available in your Invoices tab</p>
+                  </div>
+                </div>
+              )}
+
               {/* Optional QBO invoice */}
-              {qboConnected && !currentJob.qbo_invoice_id && (
+              {invoiceScheduleLines.length === 0 && qboConnected && !currentJob.qbo_invoice_id && (
                 <button
                   type="button"
                   className={`flex items-center gap-3 p-3 rounded-lg border w-full text-left transition-colors ${
@@ -1603,13 +1676,16 @@ export function PersonalizedQuoteView({
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={() => {
-                    setShowInvoiceModal(false)
-                    onCreateInvoice?.(alsoCreateQBO)
-                  }}
-                  disabled={creatingInvoice}
+                  onClick={handleConfirmInvoice}
+                  disabled={creatingInvoice || savingSchedule}
                 >
-                  {creatingInvoice ? "Creating…" : "Create Invoice"}
+                  {invoiceScheduleLines.length > 0
+                    ? savingSchedule
+                      ? "Saving…"
+                      : "Save Payment Schedule"
+                    : creatingInvoice
+                      ? "Creating…"
+                      : "Create Invoice"}
                 </Button>
               </div>
             </div>

@@ -21,12 +21,10 @@ import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import type { PaymentScheduleLineInput } from "@/lib/types"
 import {
-  PaymentScheduleBuilder,
-  PAYMENT_PRESETS,
-  matchPresetKey,
   normalizeTrigger,
   computeDraws,
 } from "@/components/payment-schedule-builder"
+import { BillingSection } from "@/components/billing-section"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { MeasurementsInput } from "@/components/measurements-input"
 import { LineItemSearchPopover, LineItemTitleAutocomplete, type LineItemSearchResult } from "@/components/quote-item-autocomplete"
@@ -523,6 +521,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [notes, setNotes] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [scheduleLines, setScheduleLines] = useState<PaymentScheduleLineInput[]>([])
+  // Whether the user has explicitly picked a billing type. Until they do, the
+  // Billing select shows a "Select billing" placeholder instead of defaulting
+  // to "Single payment" (which is what an empty schedule would otherwise match).
+  const [billingChosen, setBillingChosen] = useState(false)
 
   // Quote creation states
   const [isCreatingQuote, setIsCreatingQuote] = useState(false)
@@ -808,6 +810,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             }
           }),
         )
+        // Existing quote already has a defined billing setup, so show it as chosen.
+        setBillingChosen(true)
       })
       .catch((err) => console.error("Failed to load payment schedule:", err))
     return () => {
@@ -2952,6 +2956,17 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             </div>
           </Card>
 
+          {/* Billing & Payment Schedule */}
+          <Card className="border-primary/30 bg-primary/[0.03] p-4 shadow-sm">
+            <BillingSection
+              total={total}
+              lines={scheduleLines}
+              onLinesChange={setScheduleLines}
+              billingChosen={billingChosen}
+              onBillingChosenChange={setBillingChosen}
+            />
+          </Card>
+
           {/* Additional Details */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -3015,66 +3030,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="due-date">Valid Until</Label>
-                  <Input
-                    id="due-date"
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className={quoteInputSurfaceClass}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="billing">Billing</Label>
-                  <Select
-                    // Once any draw is billed, the schedule is partly locked —
-                    // changing presets would wipe billed draws, so disable it.
-                    disabled={scheduleLines.some((l) => l.locked)}
-                    value={matchPresetKey(scheduleLines)}
-                    onValueChange={(key) => {
-                      if (key === "custom") {
-                        if (scheduleLines.length === 0) {
-                          setScheduleLines([
-                            {
-                              label: "Deposit",
-                              trigger_type: "ON_COMPLETION",
-                              trigger_phase: null,
-                              trigger_date: null,
-                              amount_type: "PERCENT",
-                              amount_value: 0,
-                              order_index: 0,
-                            },
-                          ])
-                        }
-                        return
-                      }
-                      const preset = PAYMENT_PRESETS.find((p) => p.key === key)
-                      if (preset) setScheduleLines(preset.build())
-                    }}
-                  >
-                    <SelectTrigger id="billing" className={quoteInputSurfaceClass}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_PRESETS.map((p) => (
-                        <SelectItem key={p.key} value={p.key}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Draw schedule builder */}
-              <div className="border-t border-border/60 pt-4">
-                <PaymentScheduleBuilder
-                  total={total}
-                  lines={scheduleLines}
-                  onLinesChange={setScheduleLines}
+              <div className="space-y-2 sm:max-w-xs">
+                <Label htmlFor="due-date">Valid Until</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className={quoteInputSurfaceClass}
                 />
               </div>
             </div>
