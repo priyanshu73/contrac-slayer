@@ -9,21 +9,26 @@ const LANGUAGE_OPTIONS = {
   es: { name: 'Español (México)', flag: '🇲🇽' }
 } as const;
 
-export function LanguageSelector() {
+export function LanguageSelector({
+  showLabel = true,
+  triggerClassName = "w-full",
+}: { showLabel?: boolean; triggerClassName?: string } = {}) {
   const { currentLocale, supportedLocales, changeLanguage, isChanging } = useLanguage();
   const t = useTranslations('settings');
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-        {t('language')}
-      </label>
+      {showLabel && (
+        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+          {t('language')}
+        </label>
+      )}
       <Select
         value={currentLocale}
         onValueChange={(value) => changeLanguage(value as 'en' | 'es')}
         disabled={isChanging}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className={triggerClassName}>
           <SelectValue>
             {isChanging ? (
               t('changing')

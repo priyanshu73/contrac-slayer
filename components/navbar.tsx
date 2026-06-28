@@ -9,7 +9,6 @@ import {
   FileText,
   MessageSquare,
   Calendar,
-  CalendarClock,
   Users,
   Wrench,
   Settings,
@@ -153,11 +152,6 @@ export function Navbar() {
         { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
         { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
         { href: `/${locale}/clients`, label: t("clients"), icon: Users },
-        {
-          href: `/${locale}/actions/scheduling`,
-          label: t("scheduling"),
-          icon: CalendarClock,
-        },
       ],
     },
     {
@@ -262,7 +256,6 @@ export function Navbar() {
   ]);
   const mobileMenuLinks = uniqueLinksByHref([
     ...mobilePrimaryLinks,
-    allNavLinks.find((link) => link.href === `/${locale}/actions/scheduling`),
   ]);
 
   if (loading) {
