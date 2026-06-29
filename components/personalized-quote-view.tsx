@@ -268,8 +268,14 @@ export function PersonalizedQuoteView({
   const handleCustomerSignatureComplete = async (signatureData: string) => {
     try {
       setSigningInProgress(true)
+      const publicLink = currentJob.quote_public_link || job.quote_public_link
+      if (!publicLink) {
+        alert("This quote link is invalid. Please reopen the link from your email.")
+        setSigningInProgress(false)
+        return
+      }
       const totalAmount = currentJob.total_amount?.toString() || "0"
-      const signatureResponse = await api.signQuoteAsCustomer(job.id, {
+      const signatureResponse = await api.signQuoteAsCustomer(publicLink, {
         signature_data: signatureData,
         signer_name: currentJob.client?.name || "Customer",
         signer_email: currentJob.client?.email,

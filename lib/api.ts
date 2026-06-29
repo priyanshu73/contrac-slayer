@@ -1384,7 +1384,7 @@ class ApiClient {
     })
   }
 
-  async signQuoteAsCustomer(jobId: number, signatureData: {
+  async signQuoteAsCustomer(publicLink: string, signatureData: {
     signature_data: string
     signer_name: string
     signer_email?: string
@@ -1392,7 +1392,8 @@ class ApiClient {
     accepted_total_amount?: string
     additional_notes?: string
   }) {
-    return this.fetchPublic(`/jobs/${jobId}/sign/customer`, {
+    // Keyed by the quote's public link (uuid), not a guessable numeric id.
+    return this.fetchPublic(`/jobs/public/${publicLink}/sign/customer`, {
       method: 'POST',
       body: JSON.stringify(signatureData),
     })
