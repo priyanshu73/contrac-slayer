@@ -135,6 +135,8 @@ export default function QuoteDetailPage() {
   const [beforeAfterOpen, setBeforeAfterOpen] = useState(false)
   const [beforeAfterImagePairs, setBeforeAfterImagePairs] = useState<BeforeAfterImagePair[]>([])
   const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false)
+  const [editAcceptedOpen, setEditAcceptedOpen] = useState(false)
+  const [creatingChangeOrder, setCreatingChangeOrder] = useState(false)
   const [deletingQuote, setDeletingQuote] = useState(false)
   const [activeView, setActiveView] = useState<"quote" | "proposal">("quote")
   const [convertToProjectOpen, setConvertToProjectOpen] = useState(false)
@@ -368,8 +370,10 @@ export default function QuoteDetailPage() {
 
   const handleCreateChangeOrder = async () => {
     if (!job) return
+    setCreatingChangeOrder(true)
     try {
       const newJob = await api.createChangeOrder(job.id, { items: [] })
+      setEditAcceptedOpen(false)
       router.push(`/quotes/${(newJob as Job).id}/edit`)
     } catch (err: any) {
       toast({
@@ -377,6 +381,8 @@ export default function QuoteDetailPage() {
         description: err?.message || "Failed to create change order",
         variant: "destructive",
       })
+    } finally {
+      setCreatingChangeOrder(false)
     }
   }
 
@@ -520,7 +526,16 @@ export default function QuoteDetailPage() {
     }
   }
 
+  // Statuses at or past customer acceptance — editing the original in place
+  // would silently rewrite a signed contract, so we steer to a change order.
+  const ACCEPTED_PLUS_STATUSES = ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"]
+
   const handleEdit = () => {
+    const status = job?.status?.toString().toUpperCase() ?? ""
+    if (ACCEPTED_PLUS_STATUSES.includes(status)) {
+      setEditAcceptedOpen(true)
+      return
+    }
     router.push(`/quotes/${identifier}/edit`)
   }
 
@@ -1038,6 +1053,27 @@ export default function QuoteDetailPage() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteQuote} disabled={deletingQuote}>
               {deletingQuote ? "Deleting..." : "Delete quote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editAcceptedOpen} onOpenChange={setEditAcceptedOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>This quote has already been accepted</DialogTitle>
+            <DialogDescription>
+              Quote #{job.id} has been accepted, so editing it directly would change a signed
+              contract. Create a change order instead to capture the revision while keeping the
+              original on record.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditAcceptedOpen(false)} disabled={creatingChangeOrder}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateChangeOrder} disabled={creatingChangeOrder}>
+              {creatingChangeOrder ? "Creating..." : "Create change order"}
             </Button>
           </DialogFooter>
         </DialogContent>

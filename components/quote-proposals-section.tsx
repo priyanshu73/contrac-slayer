@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import type { Job, Proposal } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import { QuoteSidebarSection } from "@/components/quote-sidebar-section"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +79,7 @@ function formatDate(iso?: string | null): string | undefined {
 export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposalsSectionProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const [open, setOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ProposalRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [jobProposals, setJobProposals] = useState<Proposal[]>([])
@@ -154,22 +156,21 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-sky-200/70 bg-gradient-to-br from-sky-50/80 via-white to-white shadow-sm print:hidden">
-        <div className="flex items-center justify-between gap-2 border-b border-sky-100 bg-sky-50/60 px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-            Proposals
-            <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-sky-700">
-              {rows.length}
-            </span>
-          </div>
+      <QuoteSidebarSection
+        icon={<FileText className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
+        title="Proposals"
+        count={rows.length}
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        action={
           <Button asChild size="sm" className="h-7 gap-1 rounded-md bg-sky-600 px-2 text-[11px] font-semibold text-white hover:bg-sky-700">
             <Link href={createHref}>
               <Plus className="h-3 w-3" />
               {jobProposals.length > 0 ? "Edit" : "New"}
             </Link>
           </Button>
-        </div>
-
+        }
+      >
         {rows.length === 0 ? null : (
           <ul className="divide-y divide-sky-100/60">
             {rows.map((row) => {
@@ -238,12 +239,12 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
             })}
           </ul>
         )}
-      </div>
+      </QuoteSidebarSection>
 
       <Dialog
         open={pendingDelete !== null}
-        onOpenChange={(open) => {
-          if (!open && !deleting) setPendingDelete(null)
+        onOpenChange={(isOpen) => {
+          if (!isOpen && !deleting) setPendingDelete(null)
         }}
       >
         <DialogContent className="sm:max-w-md">

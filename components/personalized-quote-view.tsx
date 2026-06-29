@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Printer, Send, Sparkles, Trash2, UserRound } from "lucide-react"
+import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
@@ -30,6 +30,7 @@ import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
 import { QuoteInvoicesSection } from "@/components/quote-invoices-section"
+import { QuoteSidebarBox, QuoteSidebarSection } from "@/components/quote-sidebar-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -151,7 +152,7 @@ export function PersonalizedQuoteView({
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
-  const [changeOrdersOpen, setChangeOrdersOpen] = useState(true)
+  const [changeOrdersOpen, setChangeOrdersOpen] = useState(false)
   // Only force email off when Gmail disconnects; don't overwrite when user unchecks
   useEffect(() => {
     if (!gmailConnected) setFollowupSendEmail(false)
@@ -339,19 +340,6 @@ export function PersonalizedQuoteView({
   }
 
   // Full timestamp converted to the viewer's local timezone (date + time).
-  const formatDateTimeLocal = (dateString?: string) => {
-    if (!dateString) return ""
-    const d = new Date(dateString)
-    if (isNaN(d.getTime())) return ""
-    return d.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
-  }
-
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'draft': return 'bg-amber-500/15 text-amber-600'
@@ -564,8 +552,16 @@ export function PersonalizedQuoteView({
     SIGNATURE_FEATURE_ENABLED && currentJob.signature?.customer_signed_at
       ? { label: "Signed by customer", value: formatDate(currentJob.signature.customer_signed_at) }
       : null,
+    isContractor && currentJob.created_by_name
+      ? { label: "Created by", value: currentJob.created_by_name }
+      : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>
 
+  // A change order can only be spawned from a quote the customer has committed to.
+  // Mirrors the backend guard in create_change_order (ACCEPTED / IN_PROGRESS / COMPLETED).
+  const canCreateChangeOrder =
+    isContractor &&
+    ["ACCEPTED", "IN_PROGRESS", "COMPLETED"].includes(currentJob.status?.toString().toUpperCase() ?? "")
 
   const renderQuoteActionStrip = () => {
     const showInvoiceSend = currentJob.status?.toString().toUpperCase() === "INVOICED" && currentJob.qbo_invoice_id
@@ -1448,63 +1444,67 @@ export function PersonalizedQuoteView({
           {showActions && !isPublicView && (
             <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 print:hidden">
               <div className="lg:sticky lg:top-8 space-y-4">
-                {/* Created by — clean attribution + local-time stamp */}
-                {isContractor && (currentJob.created_by_name || currentJob.created_at) && (
-                  <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
-                    {currentJob.created_by_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
-                          <UserRound className="h-3.5 w-3.5" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wide text-slate-400">Created by</div>
-                          <div className="truncate text-sm font-medium text-slate-800">{currentJob.created_by_name}</div>
+                {/* Activity — minimal collapsable, no card box */}
+                <div>
+                  <button
+                    onClick={() => setActivityOpen((o) => !o)}
+                    className="flex w-full items-center justify-between px-1 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Clock3 className="h-3 w-3" />
+                      Activity
+                    </span>
+                    <ChevronDown className={`h-3 w-3 transition-transform ${activityOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {activityOpen && (
+                    <div className="mt-1.5 space-y-2 pl-1">
+                      {activityItems.map((item) => (
+                        <div key={`${item.label}-${item.value}`} className="flex items-baseline gap-2">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 mt-1" />
+                          <div className="min-w-0">
+                            <span className="text-xs text-slate-500">{item.label} — </span>
+                            <span className="text-xs text-slate-400">{item.value}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {currentJob.created_at && (
-                      <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                        <Clock3 className="h-3 w-3 shrink-0 opacity-70" />
-                        {formatDateTimeLocal(currentJob.created_at)}
-                      </div>
-                    )}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                {/* Proposals — featured card, above Change Orders */}
+                {/* Documents — one unified box: Proposals, Invoices, Change Orders (each collapsible) */}
                 {isContractor && (
-                  <QuoteProposalsSection
-                    job={currentJob}
-                    locale={locale}
-                    onChanged={onStatusUpdate}
-                  />
-                )}
+                  <QuoteSidebarBox>
+                    <QuoteProposalsSection
+                      job={currentJob}
+                      locale={locale}
+                      onChanged={onStatusUpdate}
+                    />
 
-                {/* Invoices — featured card, directly below Proposals. Self-hides unless the quote uses a draw schedule. */}
-                {isContractor && currentJob.id && (
-                  <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
-                )}
+                    {/* Self-hides unless the quote uses a draw schedule. */}
+                    {currentJob.id && (
+                      <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                    )}
 
-                {/* Change Orders — minimal collapsable, no card box */}
-                {isContractor && (changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id) && (
-                  <div>
-                    <button
-                      onClick={() => setChangeOrdersOpen((o) => !o)}
-                      className="flex w-full items-center justify-between px-1 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <FileText className="h-3 w-3" />
-                        Change Orders
-                        {changeOrders.length > 0 && (
-                          <span className="rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 leading-none">
-                            {changeOrders.length}
-                          </span>
-                        )}
-                      </span>
-                      <ChevronDown className={`h-3 w-3 transition-transform ${changeOrdersOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {changeOrdersOpen && (
-                      <div className="mt-1.5 space-y-2 pl-1">
+                    {(changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id || canCreateChangeOrder) && (
+                      <QuoteSidebarSection
+                        icon={<FileText className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
+                        title="Change Orders"
+                        count={changeOrders.length || undefined}
+                        open={changeOrdersOpen}
+                        onToggle={() => setChangeOrdersOpen((o) => !o)}
+                        action={
+                          canCreateChangeOrder && onCreateChangeOrder ? (
+                            <button
+                              onClick={onCreateChangeOrder}
+                              className="flex items-center gap-0.5 rounded text-xs font-semibold text-sky-600 hover:text-sky-800 transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                              New
+                            </button>
+                          ) : null
+                        }
+                      >
+                      <div className="space-y-2 px-3 py-2.5">
                         {currentJob.created_from_job_id && (
                           <Link
                             href={`/quotes/${currentJob.created_from_job_id}`}
@@ -1550,36 +1550,10 @@ export function PersonalizedQuoteView({
                           </div>
                         )}
                       </div>
+                      </QuoteSidebarSection>
                     )}
-                  </div>
+                  </QuoteSidebarBox>
                 )}
-
-                {/* Activity — minimal collapsable, no card box */}
-                <div>
-                  <button
-                    onClick={() => setActivityOpen((o) => !o)}
-                    className="flex w-full items-center justify-between px-1 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Clock3 className="h-3 w-3" />
-                      Activity
-                    </span>
-                    <ChevronDown className={`h-3 w-3 transition-transform ${activityOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {activityOpen && (
-                    <div className="mt-1.5 space-y-2 pl-1">
-                      {activityItems.map((item) => (
-                        <div key={`${item.label}-${item.value}`} className="flex items-baseline gap-2">
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 mt-1" />
-                          <div className="min-w-0">
-                            <span className="text-xs text-slate-500">{item.label} — </span>
-                            <span className="text-xs text-slate-400">{item.value}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
               </div>
             </div>
