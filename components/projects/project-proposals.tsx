@@ -93,10 +93,10 @@ export function ProjectProposals({ project }: ProjectProposalsProps) {
         </div>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700 transition-colors"
+          className="flex items-center gap-1.5 rounded-full bg-indigo-600 pl-3 pr-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 ring-1 ring-indigo-600/20 hover:bg-indigo-500 hover:shadow-md active:scale-[0.97] transition-all"
         >
-          <Plus className="w-4 h-4" />
-          New Proposal
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          New
         </button>
       </div>
 

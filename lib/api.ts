@@ -1846,6 +1846,11 @@ class ApiClient {
     return this.request(`/projects/${projectId}/quotes`)
   }
 
+  /** Every invoice tied to any job linked to this project. */
+  async getProjectInvoices(projectId: number): Promise<any[]> {
+    return this.request<any[]>(`/projects/${projectId}/invoices`)
+  }
+
   // Generic text refinement. `target` selects the prompt (e.g. "project_description",
   // "quote_description"); `context` carries optional hints like { project_type }.
   async refine(text: string, target: string, context?: Record<string, any>): Promise<{

@@ -13,6 +13,7 @@ import { ProjectDocuments } from "@/components/projects/project-documents"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectQuotes } from "@/components/projects/project-quotes"
 import { ProjectProposals } from "@/components/projects/project-proposals"
+import { ProjectInvoices } from "@/components/projects/project-invoices"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
 import { AppBreadcrumb } from "@/components/app-breadcrumb"
 import { BriefPanel } from "@/components/projects/brief-panel"
@@ -407,9 +408,10 @@ export default function ProjectDetailPage() {
           <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 pb-24 md:pb-10">
 
             <TabsContent value="overview" className="mt-0 space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 <ProjectQuotes project={project} />
                 <ProjectProposals project={project} />
+                <ProjectInvoices project={project} />
               </div>
               <BriefPanel
                 projectId={project.id}
