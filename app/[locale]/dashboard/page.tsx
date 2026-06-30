@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
 import { CalendarPlus2, FilePlus2, FileText, Phone, UserPlus, Link2 } from "lucide-react"
 
-import {
-  DashboardActionQueue,
-  MOCK_ACTION_ITEMS,
-} from "@/components/dashboard/dashboard-action-queue"
-import { DashboardFrontline } from "@/components/dashboard/dashboard-frontline"
+// Hidden for now — "Needs your attention" + "Your frontline" row.
+// import {
+//   DashboardActionQueue,
+//   MOCK_ACTION_ITEMS,
+// } from "@/components/dashboard/dashboard-action-queue"
+// import { DashboardFrontline } from "@/components/dashboard/dashboard-frontline"
 import { DashboardInvoices } from "@/components/dashboard/dashboard-invoices"
 import { DashboardTasks } from "@/components/dashboard/dashboard-tasks"
 import { DashboardProjects } from "@/components/dashboard-projects"
@@ -107,15 +108,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Needs attention + Frontline — 1 row, 2 columns */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 min-w-0">
+          {/* Needs attention + Frontline — hidden for now.
+              Restore this row (and the imports above) to bring them back. */}
+          {/* <div className="grid grid-cols-1 gap-5 md:grid-cols-2 min-w-0">
             <div className="min-w-0">
               <DashboardActionQueue items={MOCK_ACTION_ITEMS} loading={false} />
             </div>
             <div className="min-w-0">
               <DashboardFrontline />
             </div>
-          </div>
+          </div> */}
 
           {/* Tasks + Invoices — 1 row, 2 columns */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 min-w-0">
