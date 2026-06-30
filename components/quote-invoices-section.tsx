@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
+import { QuoteSidebarSection } from "@/components/quote-sidebar-section"
 import { CheckCircle2, Loader2, FileText, Receipt, Plus, X, Pencil } from "lucide-react"
 import type {
   PaymentSchedule,
@@ -117,6 +118,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
   const [schedule, setSchedule] = useState<PaymentSchedule | null>(null)
   const [loading, setLoading] = useState(true)
   const [billingId, setBillingId] = useState<number | null>(null)
+  const [open, setOpen] = useState(false)
 
   // Inline editing of the unbilled draws.
   const [editing, setEditing] = useState(false)
@@ -253,26 +255,24 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
       }}
     >
       <PopoverAnchor asChild>
-        <div className="overflow-hidden rounded-xl border border-sky-200/70 bg-gradient-to-br from-sky-50/80 via-white to-white shadow-sm print:hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-sky-100 bg-sky-50/60 px-3 py-2.5">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-          <Receipt className="h-3.5 w-3.5 text-sky-600" />
-          Invoices
-          <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-sky-700">
-            {count}
-          </span>
-        </div>
-        {!editing && (
-          <button
-            onClick={() => startEditing(false)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-sky-700 transition-colors"
-          >
-            <Pencil className="h-3 w-3" /> Edit
-          </button>
-        )}
-      </div>
-
-      {/* ── Invoice list (always visible; edits happen in the popover) ── */}
+        <QuoteSidebarSection
+          icon={<Receipt className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
+          title="Invoices"
+          count={count}
+          open={open}
+          onToggle={() => setOpen((o) => !o)}
+          action={
+            !editing ? (
+              <button
+                onClick={() => startEditing(false)}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-sky-700 transition-colors"
+              >
+                <Pencil className="h-3 w-3" /> Edit
+              </button>
+            ) : null
+          }
+        >
+      {/* ── Invoice list (edits happen in the popover) ── */}
       <ul className="divide-y divide-sky-100/60">
             {lines.map((line) => (
               <li key={line.id} className="px-3 py-2.5">
@@ -325,7 +325,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
             <Plus className="h-3 w-3" />
             Add draw
           </button>
-        </div>
+        </QuoteSidebarSection>
       </PopoverAnchor>
 
       {/* ── Edit mode (popover anchored beside the invoice box) ──────── */}

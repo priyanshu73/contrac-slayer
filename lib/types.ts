@@ -816,7 +816,9 @@ export interface ProjectTrade {
   project_id: number
   project_title?: string
   trade_type: string
-  subcontractor_id?: number
+  subcontractor_id?: number | null
+  team_member_id?: number | null
+  is_internal?: boolean
   subcontractor_name: string
   subcontractor_email?: string
   contact_info: string
@@ -854,6 +856,16 @@ export interface ProjectMedia {
   context: MediaContext
   uploaded_by: string
   uploaded_at: string
+}
+
+export interface ProjectNote {
+  id: number
+  project_id: number
+  author_id?: number | null
+  author_name?: string | null
+  body: string
+  created_at: string
+  updated_at?: string | null
 }
 
 export interface QuoteVariant {

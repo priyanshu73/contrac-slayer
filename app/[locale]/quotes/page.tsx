@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { FileText, Plus, Search, Trash2, ChevronDown, FolderOpen, Unlink, Mail, Phone, MapPin, CalendarDays, UserRound } from "lucide-react"
+import { FileText, Plus, Copy, Search, Trash2, ChevronDown, FolderOpen, Unlink, Mail, Phone, MapPin, CalendarDays, UserRound } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 
 interface ClientInfo {
@@ -343,6 +343,12 @@ export default function QuotesPage() {
     setDeleteDialogOpen(true)
   }
 
+  const handleCopyQuote = (e: React.MouseEvent, quote: Quote) => {
+    e.preventDefault()
+    e.stopPropagation()
+    router.push(`${basePath}/new?copyFromId=${quote.id}`)
+  }
+
   const handleDeleteConfirm = async () => {
     if (!quoteToDelete) return
 
@@ -420,6 +426,12 @@ export default function QuotesPage() {
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between md:hidden">
           <p className="text-sm text-muted-foreground">{tQuotes("listSubtitle")}</p>
           <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" variant="outline" className="w-full gap-1.5 rounded-xl sm:w-auto">
+              <a href={`${basePath}/copy`}>
+                <Copy className="h-4 w-4" />
+                Copy
+              </a>
+            </Button>
             <Button asChild size="sm" className="w-full gap-1.5 rounded-xl sm:w-auto">
               <a href={`${basePath}/new`}>
                 <Plus className="h-4 w-4" />
@@ -439,6 +451,12 @@ export default function QuotesPage() {
             <p className="text-sm text-muted-foreground mt-1.5 pl-0 sm:pl-12">{tQuotes("listSubtitle")}</p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <a href={`${basePath}/copy`}>
+                <Copy className="h-4 w-4" />
+                Copy
+              </a>
+            </Button>
             <Button asChild size="sm" className="gap-1.5">
               <a href={`${basePath}/new`}>
                 <Plus className="h-4 w-4" />
@@ -739,15 +757,26 @@ export default function QuotesPage() {
                       <span className="text-xl font-bold text-primary tabular-nums">{formatCurrency(quote.total_amount)}</span>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute -top-[5.6px] -right-[5.6px] h-5 w-5 rounded-full z-10 p-0 opacity-0 group-hover:opacity-100 group-hover:bg-background group-hover:text-muted-foreground group-hover:shadow-sm hover:bg-destructive hover:text-white transition-all"
-                    onClick={(e) => handleDeleteClick(e, quote)}
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  <div className="absolute -top-[5.6px] -right-[5.6px] z-10 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 rounded-full p-0 bg-background text-muted-foreground shadow-sm hover:bg-sky-600 hover:text-white"
+                      onClick={(e) => handleCopyQuote(e, quote)}
+                      title="Copy to new quote"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 rounded-full p-0 bg-background text-muted-foreground shadow-sm hover:bg-destructive hover:text-white"
+                      onClick={(e) => handleDeleteClick(e, quote)}
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </Card>
               </div>
             ))}

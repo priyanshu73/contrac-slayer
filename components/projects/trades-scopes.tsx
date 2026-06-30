@@ -162,7 +162,7 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                   <TableHeader>
                     <TableRow className="border-slate-200 bg-slate-50/80 hover:bg-slate-50/80">
                       <TableHead className="px-4 text-slate-600 font-medium">Trade</TableHead>
-                      <TableHead className="px-4 text-slate-600 font-medium">Crew Member</TableHead>
+                      <TableHead className="px-4 text-slate-600 font-medium">Assigned To</TableHead>
                       <TableHead className="px-4 text-slate-600 font-medium">Scope Details</TableHead>
                       <TableHead className="px-4 text-slate-600 font-medium whitespace-nowrap">Agreed Price</TableHead>
                       <TableHead className="px-4 text-slate-600 font-medium">Status</TableHead>

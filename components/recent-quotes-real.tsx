@@ -96,7 +96,7 @@ export function RecentQuotesReal() {
   }, [])
 
   return (
-    <Card className="border-slate-200 bg-white p-3 shadow-sm">
+    <Card className="flex h-full flex-col border-slate-200 bg-white p-3 shadow-sm">
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{t("recentQuotes") || "Recent Quotes"}</h2>
