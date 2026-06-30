@@ -858,6 +858,16 @@ export interface ProjectMedia {
   uploaded_at: string
 }
 
+export interface ProjectNote {
+  id: number
+  project_id: number
+  author_id?: number | null
+  author_name?: string | null
+  body: string
+  created_at: string
+  updated_at?: string | null
+}
+
 export interface QuoteVariant {
   id: number
   job_id: number

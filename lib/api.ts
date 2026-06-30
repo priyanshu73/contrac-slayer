@@ -22,6 +22,7 @@ import type {
   PaymentScheduleLineInput,
   ProjectFinancialSummary,
   ProjectScopeBilling,
+  ProjectNote,
   TeamMember,
   TeamInviteResponse,
   InviteInfo,
@@ -505,10 +506,11 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/invoice`, { method: 'POST' })
   }
 
-  async getInvoices(status?: string, skip = 0, limit = 50, jobId?: number): Promise<{ items: any[]; total: number }> {
+  async getInvoices(status?: string, skip = 0, limit = 50, jobId?: number, outstanding?: boolean): Promise<{ items: any[]; total: number }> {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
     if (jobId) params.append('job_id', jobId.toString())
+    if (outstanding) params.append('outstanding', 'true')
     params.append('skip', skip.toString())
     params.append('limit', limit.toString())
     return this.request<{ items: any[]; total: number }>(`/invoices?${params.toString()}`)
@@ -1894,8 +1896,13 @@ class ApiClient {
     return this.request(`/projects/${projectId}/tasks`)
   }
 
-  async getAllProjectTasks() {
-    return this.request('/project-tasks')
+  async getAllProjectTasks(params?: { openOnly?: boolean; limit?: number; offset?: number }) {
+    const qs = new URLSearchParams()
+    if (params?.openOnly) qs.append('open_only', 'true')
+    if (params?.limit != null) qs.append('limit', String(params.limit))
+    if (params?.offset != null) qs.append('offset', String(params.offset))
+    const query = qs.toString()
+    return this.request(`/project-tasks${query ? `?${query}` : ''}`)
   }
 
   async createProjectTask(projectId: number, data: any) {
@@ -2324,6 +2331,31 @@ class ApiClient {
       expires_in_seconds: number
       expires_at: string
     }>(`/attachments/${attachmentId}/access-url`)
+  }
+
+  // ---- Project notes ----
+  async getProjectNotes(projectId: number) {
+    return this.request<ProjectNote[]>(`/projects/${projectId}/notes`)
+  }
+
+  async createProjectNote(projectId: number, body: string) {
+    return this.request<ProjectNote>(`/projects/${projectId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    })
+  }
+
+  async updateProjectNote(projectId: number, noteId: number, body: string) {
+    return this.request<ProjectNote>(`/projects/${projectId}/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ body }),
+    })
+  }
+
+  async deleteProjectNote(projectId: number, noteId: number) {
+    await this.request(`/projects/${projectId}/notes/${noteId}`, {
+      method: 'DELETE',
+    })
   }
 
   async uploadTradeMediaPublic(tradeUuid: string, files: File[], context: string) {

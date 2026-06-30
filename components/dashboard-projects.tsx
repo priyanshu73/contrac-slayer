@@ -59,7 +59,7 @@ export function DashboardProjects() {
   }
 
   return (
-    <Card className="p-3 shadow-sm border-slate-200">
+    <Card className="flex h-full flex-col p-3 shadow-sm border-slate-200">
       {/* PROJECTS SECTION */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{tNav('projects') || "Projects"}</h2>

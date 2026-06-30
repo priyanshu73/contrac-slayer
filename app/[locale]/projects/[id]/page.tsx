@@ -10,6 +10,7 @@ import { motion } from "framer-motion"
 import { GooeyFilter } from "@/components/ui/gooey-filter"
 import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectDocuments } from "@/components/projects/project-documents"
+import { ProjectNotes } from "@/components/projects/project-notes"
 import { TradesScopes } from "@/components/projects/trades-scopes"
 import { ProjectRecords } from "@/components/projects/project-records"
 import { ProjectFinancials } from "@/components/projects/financials/project-financials"
@@ -358,6 +359,7 @@ export default function ProjectDetailPage() {
                 { value: "scope",      label: "Scope & Tasks" },
                 { value: "financials", label: t("tabs.financials") || "Financials" },
                 { value: "files",      label: "Files" },
+                { value: "notes",      label: "Notes" },
               ]
               return (
                 <div className="relative flex overflow-x-auto">
@@ -429,6 +431,11 @@ export default function ProjectDetailPage() {
             {/* Files */}
             <TabsContent value="files" className="mt-0">
               <ProjectDocuments project={project} onRefresh={refreshProject} />
+            </TabsContent>
+
+            {/* Notes */}
+            <TabsContent value="notes" className="mt-0">
+              <ProjectNotes project={project} />
             </TabsContent>
           </main>
         </div>
