@@ -1923,6 +1923,7 @@ class ApiClient {
   }
 
   async getAllSubcontractors(): Promise<Array<{
+    subcontractor_id: number
     subcontractor_name: string
     subcontractor_email: string | null
     phone_number: string | null

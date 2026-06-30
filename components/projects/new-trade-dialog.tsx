@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import { useTranslations } from "next-intl"
-import { ProjectTrade } from "@/lib/types"
+import { useTranslations, useLocale } from "next-intl"
+import Link from "next/link"
+import { ProjectTrade, TeamMember } from "@/lib/types"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -28,7 +29,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { Check, ChevronsUpDown, Loader2, PlusCircle, UploadCloud, X } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2, UploadCloud, User, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface NewTradeDialogProps {
@@ -38,6 +39,14 @@ interface NewTradeDialogProps {
     onTradeCreated: (trade: ProjectTrade) => void
 }
 
+type Assignee = {
+    kind: "team" | "crew"
+    id: number
+    name: string
+    subtitle?: string | null
+    specialty?: string | null
+}
+
 export function NewTradeDialog({
     open,
     onOpenChange,
@@ -45,17 +54,17 @@ export function NewTradeDialog({
     onTradeCreated,
 }: NewTradeDialogProps) {
     const t = useTranslations("projects.trades")
+    const locale = useLocale()
     const { toast } = useToast()
 
     const [tradeType, setTradeType] = useState("")
-    const [subcontractorName, setSubcontractorName] = useState("")
-    const [subcontractorEmail, setSubcontractorEmail] = useState("")
-    const [contactInfo, setContactInfo] = useState("")
+    const [assignee, setAssignee] = useState<Assignee | null>(null)
     const [scopeOfWork, setScopeOfWork] = useState("")
     const [materials, setMaterials] = useState("")
     const [agreedPrice, setAgreedPrice] = useState("")
 
-    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null, specialty?: string | null }>>([])
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+    const [subcontractors, setSubcontractors] = useState<Array<{ subcontractor_id: number, subcontractor_name: string, subcontractor_email: string | null, phone_number: string | null, specialty?: string | null }>>([])
     const [uploadedFiles, setUploadedFiles] = useState<{ file: File, url: string }[]>([])
     const [uploading, setUploading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
@@ -64,7 +73,7 @@ export function NewTradeDialog({
     const [searchQuery, setSearchQuery] = useState("")
 
     const tradeTypeRef = useRef<HTMLInputElement>(null)
-    const subcontractorRef = useRef<HTMLButtonElement>(null)
+    const assigneeRef = useRef<HTMLButtonElement>(null)
     const scopeRef = useRef<HTMLTextAreaElement>(null)
     const formScrollRef = useRef<HTMLDivElement>(null)
 
@@ -73,14 +82,16 @@ export function NewTradeDialog({
             api.getAllSubcontractors().then(data => {
                 setSubcontractors(data || [])
             }).catch(console.error)
+            api.listTeamMembers().then(data => {
+                // Only members who can actually own work (have an active account).
+                setTeamMembers((data || []).filter(m => m.status === "ACTIVE"))
+            }).catch(console.error)
         }
     }, [open])
 
     const resetForm = useCallback(() => {
         setTradeType("")
-        setSubcontractorName("")
-        setSubcontractorEmail("")
-        setContactInfo("")
+        setAssignee(null)
         setScopeOfWork("")
         setMaterials("")
         setAgreedPrice("")
@@ -94,15 +105,29 @@ export function NewTradeDialog({
         onOpenChange(o)
     }
 
-    const handleSubcontractorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setSubcontractorName(val);
-        const existing = subcontractors.find(s => s.subcontractor_name === val);
-        if (existing) {
-            if (existing.subcontractor_email) setSubcontractorEmail(existing.subcontractor_email);
-            if (existing.phone_number) setContactInfo(existing.phone_number);
-            if (!tradeType && existing.specialty) setTradeType(existing.specialty);
-        }
+    const teamLabel = (m: TeamMember) =>
+        m.is_you ? "Me" : (m.full_name || m.email || m.invited_email || "Team member")
+
+    const selectTeamMember = (m: TeamMember) => {
+        setAssignee({
+            kind: "team",
+            id: m.id,
+            name: teamLabel(m),
+            subtitle: m.is_you ? (m.full_name || m.email || null) : m.email,
+        })
+        setOpenCombobox(false)
+    }
+
+    const selectSubcontractor = (s: typeof subcontractors[number]) => {
+        setAssignee({
+            kind: "crew",
+            id: s.subcontractor_id,
+            name: s.subcontractor_name,
+            subtitle: [s.phone_number, s.subcontractor_email].filter(Boolean).join(" • ") || null,
+            specialty: s.specialty,
+        })
+        if (!tradeType && s.specialty) setTradeType(s.specialty)
+        setOpenCombobox(false)
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,7 +152,7 @@ export function NewTradeDialog({
     const handleSubmit = async () => {
         const missing: string[] = []
         if (!tradeType.trim()) missing.push("Trade Type")
-        if (!subcontractorName.trim()) missing.push("Crew Member Name")
+        if (!assignee) missing.push("Assign To")
         if (!scopeOfWork.trim()) missing.push("Scope of Work")
         if (missing.length > 0) {
             toast({
@@ -139,8 +164,8 @@ export function NewTradeDialog({
             requestAnimationFrame(() => {
                 const el = !tradeType.trim()
                     ? tradeTypeRef.current
-                    : !subcontractorName.trim()
-                        ? subcontractorRef.current
+                    : !assignee
+                        ? assigneeRef.current
                         : scopeRef.current
                 el?.scrollIntoView({ behavior: "smooth", block: "center" })
             })
@@ -152,9 +177,8 @@ export function NewTradeDialog({
             const created = (await api.createProjectTrade(projectId, {
                 project_id: projectId,
                 trade_type: tradeType,
-                subcontractor_name: subcontractorName,
-                subcontractor_email: subcontractorEmail || undefined,
-                contact_info: contactInfo,
+                subcontractor_id: assignee!.kind === "crew" ? assignee!.id : undefined,
+                team_member_id: assignee!.kind === "team" ? assignee!.id : undefined,
                 scope_of_work: scopeOfWork,
                 materials_required: materials.split("\n").map(m => m.trim()).filter(Boolean),
                 agreed_price: agreedPrice ? parseFloat(agreedPrice) : undefined,
@@ -208,18 +232,18 @@ export function NewTradeDialog({
                     </div>
 
                     <div className="space-y-1.5 flex flex-col">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Crew Member Name</Label>
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Assign To</Label>
                         <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                             <PopoverTrigger asChild>
                                 <Button
-                                    ref={subcontractorRef}
+                                    ref={assigneeRef}
                                     variant="outline"
                                     role="combobox"
                                     aria-expanded={openCombobox}
                                     className="w-full justify-between font-normal text-left text-slate-700 bg-white hover:bg-slate-50 border-slate-200 h-10 px-3"
                                 >
                                     <span className="truncate">
-                                        {subcontractorName ? subcontractorName : <span className="text-slate-400">Select or enter a crew member...</span>}
+                                        {assignee ? assignee.name : <span className="text-slate-400">Select yourself, a team member, or crew...</span>}
                                     </span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -227,93 +251,83 @@ export function NewTradeDialog({
                             <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
                                 <Command>
                                     <CommandInput
-                                        placeholder="Search or add new..."
+                                        placeholder="Search people or crew..."
                                         value={searchQuery}
                                         onValueChange={setSearchQuery}
                                         className="h-9"
                                     />
                                     <CommandList>
                                         <CommandEmpty>
-                                            <div className="flex flex-col items-start px-2 py-1">
-                                                <span className="text-sm text-slate-500 mb-1">No crew member found.</span>
-                                                <Button
-                                                    variant="ghost"
-                                                    className="h-auto p-1.5 px-3 text-sm flex justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full"
-                                                    onClick={() => {
-                                                        setSubcontractorName(searchQuery)
-                                                        setContactInfo("")
-                                                        setSubcontractorEmail("")
-                                                        setOpenCombobox(false)
-                                                    }}
-                                                >
-                                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                                    Create &quot;{searchQuery}&quot;
-                                                </Button>
-                                            </div>
+                                            <span className="text-sm text-slate-500 px-2 py-1.5 block">No match found.</span>
                                         </CommandEmpty>
-                                        <CommandGroup>
-                                            {subcontractors.map((s, idx) => (
-                                                <CommandItem
-                                                    key={`${s.subcontractor_name}-${idx}`}
-                                                    value={s.subcontractor_name}
-                                                    className="items-start py-2"
-                                                    onSelect={() => {
-                                                        setSubcontractorName(s.subcontractor_name)
-                                                        setSearchQuery(s.subcontractor_name)
-                                                        setSubcontractorEmail(s.subcontractor_email ?? "")
-                                                        setContactInfo(s.phone_number ?? "")
-                                                        if (!tradeType && s.specialty) {
-                                                            setTradeType(s.specialty)
-                                                        }
-                                                        setOpenCombobox(false)
-                                                    }}
-                                                >
-                                                    <Check
-                                                        className={cn(
-                                                            "mr-2 h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5",
-                                                            subcontractorName === s.subcontractor_name ? "opacity-100" : "opacity-0"
-                                                        )}
-                                                    />
-                                                    <div className="flex flex-col">
-                                                        <span>{s.subcontractor_name}</span>
-                                                        {(s.phone_number || s.subcontractor_email) && (
-                                                            <span className="text-xs text-slate-500">
-                                                                {[s.phone_number, s.subcontractor_email].filter(Boolean).join(" • ")}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
-                                            {searchQuery && !subcontractors.find(s => s.subcontractor_name.toLowerCase() === searchQuery.toLowerCase()) && (
-                                                <CommandItem
-                                                    value={`create-${searchQuery}`}
-                                                    className="py-2"
-                                                    onSelect={() => {
-                                                        setSubcontractorName(searchQuery)
-                                                        setContactInfo("")
-                                                        setSubcontractorEmail("")
-                                                        setOpenCombobox(false)
-                                                    }}
-                                                >
-                                                    <PlusCircle className="mr-2 h-4 w-4 text-blue-600" />
-                                                    <span className="text-blue-600 font-medium">Create &quot;{searchQuery}&quot;</span>
-                                                </CommandItem>
-                                            )}
-                                        </CommandGroup>
+
+                                        {teamMembers.length > 0 && (
+                                            <CommandGroup heading="Me / Team">
+                                                {teamMembers.map(m => {
+                                                    const label = teamLabel(m)
+                                                    const selected = assignee?.kind === "team" && assignee.id === m.id
+                                                    return (
+                                                        <CommandItem
+                                                            key={`team-${m.id}`}
+                                                            value={`${label} ${m.email ?? ""}`}
+                                                            className="items-start py-2"
+                                                            onSelect={() => selectTeamMember(m)}
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5", selected ? "opacity-100" : "opacity-0")} />
+                                                            <div className="flex flex-col">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    {m.is_you && <User className="h-3.5 w-3.5 text-blue-600" />}
+                                                                    {label}
+                                                                    <span className="text-xs text-slate-400">· {m.role.toLowerCase()}</span>
+                                                                </span>
+                                                                {(m.full_name || m.email) && (
+                                                                    <span className="text-xs text-slate-500">
+                                                                        {m.is_you ? (m.email ?? "") : (m.email ?? "")}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </CommandItem>
+                                                    )
+                                                })}
+                                            </CommandGroup>
+                                        )}
+
+                                        {subcontractors.length > 0 && (
+                                            <CommandGroup heading="Crew">
+                                                {subcontractors.map((s, idx) => {
+                                                    const selected = assignee?.kind === "crew" && assignee.id === s.subcontractor_id
+                                                    return (
+                                                        <CommandItem
+                                                            key={`crew-${s.subcontractor_id}-${idx}`}
+                                                            value={s.subcontractor_name}
+                                                            className="items-start py-2"
+                                                            onSelect={() => selectSubcontractor(s)}
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5", selected ? "opacity-100" : "opacity-0")} />
+                                                            <div className="flex flex-col">
+                                                                <span>{s.subcontractor_name}</span>
+                                                                {(s.phone_number || s.subcontractor_email) && (
+                                                                    <span className="text-xs text-slate-500">
+                                                                        {[s.phone_number, s.subcontractor_email].filter(Boolean).join(" • ")}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </CommandItem>
+                                                    )
+                                                })}
+                                            </CommandGroup>
+                                        )}
                                     </CommandList>
                                 </Command>
                             </PopoverContent>
                         </Popover>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Crew Member Email</Label>
-                        <Input placeholder="e.g. henry@example.com" type="email" value={subcontractorEmail} onChange={e => setSubcontractorEmail(e.target.value)} />
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Contact Phone</Label>
-                        <Input placeholder="e.g. (512) 555-0192" value={contactInfo} onChange={e => setContactInfo(e.target.value)} />
+                        <p className="text-xs text-slate-500 px-1">
+                            Don&apos;t see them? Add a new crew member on the{" "}
+                            <Link href={`/${locale}/crew`} className="text-blue-600 hover:underline" target="_blank">
+                                Crew page
+                            </Link>
+                            {" "}first.
+                        </p>
                     </div>
 
                     <div className="space-y-1.5">
@@ -348,7 +362,7 @@ export function NewTradeDialog({
                             <UploadCloud className="h-5 w-5 text-blue-500" /> Upload Prep / Reference Attachments <span className="text-slate-400 font-normal text-sm">(optional)</span>
                         </div>
                         <p className="text-sm text-slate-500 mb-4">
-                            Upload reference photos or attachments for the crew member before assigning this scope.
+                            Upload reference photos or attachments for the assignee before assigning this scope.
                         </p>
 
                         <label className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer">

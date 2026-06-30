@@ -816,7 +816,9 @@ export interface ProjectTrade {
   project_id: number
   project_title?: string
   trade_type: string
-  subcontractor_id?: number
+  subcontractor_id?: number | null
+  team_member_id?: number | null
+  is_internal?: boolean
   subcontractor_name: string
   subcontractor_email?: string
   contact_info: string
