@@ -59,7 +59,7 @@
     "heroFeatureSmsLong": "Autonomous AI CRM",
     "heroFeatureAiLong": "Voice AI Subcontractor Dispatch",
     "heroFeatureInvoicesLong": "Smart Job Costing",
-    "heroSubtitle": "Transform your contracting business with autonomous AI agents. ContractorOps AI natively handles incoming calls, automatically dispatches subcontractors via Voice AI, calculates complex job costing, and manages leads hands-free.",
+    "heroSubtitle": "Transform your contracting business with autonomous AI agents. ContractorOps natively handles incoming calls, automatically dispatches subcontractors via Voice AI, calculates complex job costing, and manages leads hands-free.",
     "heroSubtitle1": "Autonomous AI handles calls, dispatches crews, and manages financials.",
     "heroSubtitle2": "Your personal Agentic OS to scale without limits.",
     "heroFeatureSms": "Agentic CRM",
@@ -129,7 +129,7 @@
     "pricingPremium7": "On-Site Meeting Recording",
     "pricingPremium8": "Priority onboarding and CRM migration help",
     "pricingPremium9": "Quarterly workflow reviews with your team",
-    "phoneAppName": "ContractorOps AI",
+    "phoneAppName": "ContractorOps",
     "phoneMessages": "Messages",
     "phoneBubble1": "Hi, I saw your missed call. Looks like an HVAC tune-up. You can upload photos here:",
     "phoneUploadLink": "Upload Link",
@@ -195,7 +195,7 @@
     "step5Body": "AI automatically detects scheduling conversations in your SMS and helps book meetings instantly. Customers receive a calendar link to select times based on your availability—no back-and-forth needed.",
     "featuresKicker": "Core workflow",
     "featuresSectionTitle": "One clean workspace for the whole job",
-    "featuresSectionSubtitle": "ContractorOps AI keeps the front office moving: it captures leads, follows up, dispatches crews, and keeps financials organized.",
+    "featuresSectionSubtitle": "ContractorOps keeps the front office moving: it captures leads, follows up, dispatches crews, and keeps financials organized.",
     "featureLeadEyebrow": "AI Lead Capture",
     "featureEstimateEyebrow": "AI Estimating",
     "featureDispatchEyebrow": "Voice AI",
@@ -819,7 +819,7 @@
       "edit": "Edit Proposal"
     },
     "contractorOpsNumber": {
-      "title": "Your ContractorOps AI number",
+      "title": "Your ContractorOps number",
       "description": "Your dedicated AI line for customer calls, texts, and lead tracking.",
       "subtitle": "Your AI Phone Line",
       "notSet": "Not set up",
@@ -875,7 +875,7 @@
     "website": "Website",
     "businessAddress": "Business Address",
     "defaultZipCode": "Default ZIP Code",
-    "contractorOpsAiNumber": "ContractorOpsAI Number",
+    "contractorOpsAiNumber": "ContractorOps Number",
     "contractorOpsAiNumberPlaceholder": "Not set up",
     "laborChargeType": "Labor Charge Type",
     "hourlyRate": "Hourly Rate",
@@ -987,8 +987,8 @@
       "quoteTemplate": "Quote Follow-up Template",
       "quoteTemplatePlaceholder": "Hi '{customer_name}', just following up on the quote we sent...",
       "resetToDefaults": "Reset to Defaults",
-      "spNotFound": "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use follow-up settings.",
-      "spRequired": "You need a ContractorOps AI number to access follow-up settings. Add your contact in Contractor AI admin and link it to your profile to use this section.",
+      "spNotFound": "Your linked ContractorOps contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use follow-up settings.",
+      "spRequired": "You need a ContractorOps number to access follow-up settings. Add your contact in Contractor AI admin and link it to your profile to use this section.",
       "loadFailed": "Failed to load follow-up settings. Please try again.",
       "saveSuccessTitle": "Settings saved",
       "saveSuccess": "Your follow-up settings have been updated successfully.",
@@ -999,8 +999,8 @@
       "saveChanges": "Save Changes"
     },
     "list": {
-      "spNotFound": "Your linked ContractorOps AI contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use scheduled follow-ups.",
-      "spRequired": "You need a ContractorOps AI number to access scheduled follow-ups. Add your contact in Contractor AI admin and link it to your profile to use this section.",
+      "spNotFound": "Your linked ContractorOps contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use scheduled follow-ups.",
+      "spRequired": "You need a ContractorOps number to access scheduled follow-ups. Add your contact in Contractor AI admin and link it to your profile to use this section.",
       "searchPlaceholder": "Search by customer name or message...",
       "filterByType": "Filter by type",
       "filterAll": "All",
@@ -1043,7 +1043,7 @@
     "dialog": {
       "title": "Schedule Custom Follow-up",
       "description": "Send a follow-up message to a client at a specific time",
-      "spRequired": "You need a ContractorOps AI number to schedule follow-ups. Add your contact in Contractor AI admin and link it to your profile first.",
+      "spRequired": "You need a ContractorOps number to schedule follow-ups. Add your contact in Contractor AI admin and link it to your profile first.",
       "clientLabel": "Client *",
       "selectClient": "Select a client",
       "loadingClients": "Loading clients...",
@@ -1092,7 +1092,7 @@
   "clientCommunications": {
     "title": "Client Communications",
     "titleDesc": "Send reminders, updates, and messages to this client",
-    "spRequired": "Connect your ContractorOps AI profile to send messages.",
+    "spRequired": "Connect your ContractorOps profile to send messages.",
     "email": "Email",
     "message": "Message",
     "sendSms": "Send SMS",
@@ -1371,7 +1371,7 @@
     "keyboardHintCreate": "to create"
   },
   "metadata": {
-    "title": "ContractorOps AI - AI-Powered CRM for Modern Contractors",
+    "title": "ContractorOps - AI-Powered CRM for Modern Contractors",
     "description": "Communicate with clients via SMS no app downloads required. AI listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by AI "
   },
   "translation": {
@@ -1385,7 +1385,7 @@
     "messages": "messages"
   },
   "profileSetup": {
-    "welcome": "Welcome to ContractorOps AI",
+    "welcome": "Welcome to ContractorOps",
     "subtitle": "Let's set up your business profile in just a few steps",
     "step1": "Company Info & Branding",
     "step2": "OpsAI Number",
@@ -1439,7 +1439,7 @@
       "websiteUrlPlaceholder": "https://yourcompany.com"
     },
     "opsAiNumber": {
-      "title": "Your ContractorOpsAI Number",
+      "title": "Your ContractorOps Number",
       "description": "Select your preferred location and area code for your dedicated phone number",
       "state": "State",
       "selectState": "Select a state",
@@ -1450,7 +1450,7 @@
       "areaCodesSelected": "{count} area code selected",
       "areaCodesSelected_other": "{count} area codes selected",
       "whatIsThis": "What is this?",
-      "whatIsNumber": "What is ContractorOpsAI Number?",
+      "whatIsNumber": "What is ContractorOps Number?",
       "numberDescription": "A dedicated phone line for your business that uses AI to automatically handle customer calls, quote requests, and lead tracking.",
       "nextSteps": "Next Steps:",
       "nextStepsDescription": "Finish setup first. After you have access, you can choose your AI business line from the dashboard.",
@@ -1557,7 +1557,7 @@
     "success": {
       "activating": "Activating Your Subscription",
       "activatingDescription": "Please wait while we set up your account. This usually takes just a few seconds...",
-      "welcomeAboard": "Welcome to ContractorOps AI",
+      "welcomeAboard": "Welcome to ContractorOps",
       "subscriptionActive": "Your workspace is ready. Start managing leads, quotes, jobs, and invoices from one clean dashboard.",
       "trialStarted": "Your 7-day free trial is active.",
       "goToDashboard": "Go to Dashboard",

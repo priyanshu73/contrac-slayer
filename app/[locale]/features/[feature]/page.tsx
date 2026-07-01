@@ -57,12 +57,12 @@ export async function generateMetadata({
 
   if (!feature) {
     return {
-      title: "Feature | ContractorOps AI",
+      title: "Feature | ContractorOps",
     }
   }
 
   return {
-    title: `${feature.title} | ContractorOps AI`,
+    title: `${feature.title} | ContractorOps`,
     description: feature.description,
   }
 }

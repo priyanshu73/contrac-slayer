@@ -440,7 +440,7 @@ export function Navbar() {
             />
             {!collapsed && (
               <span className="truncate bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-[15px] font-extrabold leading-tight tracking-[0] text-transparent">
-                ContractorOps AI
+                ContractorOps
               </span>
             )}
           </Link>

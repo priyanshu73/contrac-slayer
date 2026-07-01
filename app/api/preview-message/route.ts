@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     `If it helps, I can send over a short overview of how we support recurring maintenance and overflow jobs.`,
     ``,
     `Best,`,
-    `ContractorOps AI sample outreach`,
+    `ContractorOps sample outreach`,
   ].join("\n")
 
   return NextResponse.json({

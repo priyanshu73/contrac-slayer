@@ -59,7 +59,7 @@
     "heroFeatureSmsLong": "Comunicación por SMS primero",
     "heroFeatureAiLong": "La IA responde llamadas y mensajes",
     "heroFeatureInvoicesLong": "Genera facturas al instante",
-    "heroSubtitle": "Comuníquese con clientes por SMS—sin descargas de apps. ContractorOps AI escucha llamadas, lee mensajes y responde automáticamente. Genere facturas al instante, capture cada prospecto y cierre más tratos con tecnología de vanguardia.",
+    "heroSubtitle": "Comuníquese con clientes por SMS—sin descargas de apps. ContractorOps escucha llamadas, lee mensajes y responde automáticamente. Genere facturas al instante, capture cada prospecto y cierre más tratos con tecnología de vanguardia.",
     "heroSubtitle1": "Comunicación por SMS—sin apps. La IA escucha llamadas, lee mensajes y responde automáticamente.",
     "heroSubtitle2": "Facturas al instante, cada prospecto capturado, más tratos cerrados.",
     "heroFeatureSms": "SMS primero",
@@ -129,7 +129,7 @@
     "pricingPremium7": "Grabación de Reuniones en Sitio",
     "pricingPremium8": "Onboarding prioritario y ayuda con migración del CRM",
     "pricingPremium9": "Revisiones trimestrales del flujo con tu equipo",
-    "phoneAppName": "ContractorOps AI",
+    "phoneAppName": "ContractorOps",
     "phoneMessages": "Mensajes",
     "phoneBubble1": "Hola, vi tu llamada perdida. Parece una revisión de HVAC. Puedes subir fotos aquí:",
     "phoneUploadLink": "Enlace para subir",
@@ -195,7 +195,7 @@
     "step5Body": "La IA detecta conversaciones de agendamiento en tus SMS y ayuda a reservar reuniones al instante. Los clientes reciben un enlace para elegir horarios según tu disponibilidad.",
     "featuresKicker": "Flujo principal",
     "featuresSectionTitle": "Un espacio limpio para todo el trabajo",
-    "featuresSectionSubtitle": "ContractorOps AI mantiene la oficina en movimiento: captura prospectos, da seguimiento, asigna cuadrillas y organiza finanzas.",
+    "featuresSectionSubtitle": "ContractorOps mantiene la oficina en movimiento: captura prospectos, da seguimiento, asigna cuadrillas y organiza finanzas.",
     "featureLeadEyebrow": "Captura IA",
     "featureEstimateEyebrow": "Estimación IA",
     "featureDispatchEyebrow": "Voz IA",
@@ -802,7 +802,7 @@
       "edit": "Editar Propuesta"
     },
     "contractorOpsNumber": {
-      "title": "Tu número ContractorOps AI",
+      "title": "Tu número ContractorOps",
       "description": "Tu línea de IA dedicada para llamadas, mensajes y seguimiento de prospectos.",
       "subtitle": "Tu Línea de IA",
       "notSet": "No configurado",
@@ -858,7 +858,7 @@
     "website": "Sitio Web",
     "businessAddress": "Dirección de la Empresa",
     "defaultZipCode": "Código Postal Predeterminado",
-    "contractorOpsAiNumber": "Número ContractorOpsAI",
+    "contractorOpsAiNumber": "Número ContractorOps",
     "contractorOpsAiNumberPlaceholder": "No configurado",
     "laborChargeType": "Tipo de Cobro de Mano de Obra",
     "hourlyRate": "Tarifa por Hora",
@@ -970,8 +970,8 @@
       "quoteTemplate": "Plantilla de Seguimiento de Cotización",
       "quoteTemplatePlaceholder": "Hola '{customer_name}', solo seguimiento sobre la cotización que enviamos...",
       "resetToDefaults": "Restablecer Valores Predeterminados",
-      "spNotFound": "No se encontró su contacto ContractorOps AI vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar la configuración de seguimientos.",
-      "spRequired": "Necesita un número ContractorOps AI para acceder a la configuración de seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
+      "spNotFound": "No se encontró su contacto ContractorOps vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar la configuración de seguimientos.",
+      "spRequired": "Necesita un número ContractorOps para acceder a la configuración de seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
       "loadFailed": "Error al cargar la configuración de seguimientos. Intente de nuevo.",
       "saveSuccessTitle": "Configuración guardada",
       "saveSuccess": "Su configuración de seguimientos se ha actualizado correctamente.",
@@ -982,8 +982,8 @@
       "saveChanges": "Guardar Cambios"
     },
     "list": {
-      "spNotFound": "No se encontró su contacto ContractorOps AI vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar seguimientos programados.",
-      "spRequired": "Necesita un número ContractorOps AI para acceder a seguimientos programados. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
+      "spNotFound": "No se encontró su contacto ContractorOps vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar seguimientos programados.",
+      "spRequired": "Necesita un número ContractorOps para acceder a seguimientos programados. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
       "searchPlaceholder": "Buscar por nombre de cliente o mensaje...",
       "filterByType": "Filtrar por tipo",
       "filterAll": "Todos",
@@ -1026,7 +1026,7 @@
     "dialog": {
       "title": "Programar Seguimiento Personalizado",
       "description": "Enviar un mensaje de seguimiento a un cliente en un momento específico",
-      "spRequired": "Necesita un número ContractorOps AI para programar seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil primero.",
+      "spRequired": "Necesita un número ContractorOps para programar seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil primero.",
       "clientLabel": "Cliente *",
       "selectClient": "Seleccionar un cliente",
       "loadingClients": "Cargando clientes...",
@@ -1075,7 +1075,7 @@
   "clientCommunications": {
     "title": "Comunicaciones con Cliente",
     "titleDesc": "Enviar recordatorios, actualizaciones y mensajes a este cliente",
-    "spRequired": "Conecte su perfil ContractorOps AI para enviar mensajes.",
+    "spRequired": "Conecte su perfil ContractorOps para enviar mensajes.",
     "email": "Correo",
     "sendSms": "Enviar SMS",
     "sendSmsDesc": "Enviar un mensaje de texto inmediato a este cliente",
@@ -1354,7 +1354,7 @@
     "keyboardHintCreate": "para crear"
   },
   "metadata": {
-    "title": "ContractorOps AI - CRM con IA para Contratistas Modernos",
+    "title": "ContractorOps - CRM con IA para Contratistas Modernos",
     "description": "Transforme su negocio de construcción con automatización inteligente. Genere facturas al instante, capture cada prospecto y cierre más negocios, todo impulsado por tecnología de inteligencia artificial de vanguardia."
   },
   "translation": {
@@ -1368,7 +1368,7 @@
     "messages": "mensajes"
   },
   "profileSetup": {
-    "welcome": "Bienvenido a ContractorOps AI",
+    "welcome": "Bienvenido a ContractorOps",
     "subtitle": "Configuremos el perfil de su negocio en solo unos pasos",
     "step1": "Info de Empresa y Marca",
     "step2": "Número OpsAI",
@@ -1422,7 +1422,7 @@
       "websiteUrlPlaceholder": "https://suempresa.com"
     },
     "opsAiNumber": {
-      "title": "Su Número ContractorOpsAI",
+      "title": "Su Número ContractorOps",
       "description": "Seleccione su ubicación y código de área preferidos para su número de teléfono dedicado",
       "state": "Estado",
       "selectState": "Seleccione un estado",
@@ -1433,7 +1433,7 @@
       "areaCodesSelected": "{count} código de área seleccionado",
       "areaCodesSelected_other": "{count} códigos de área seleccionados",
       "whatIsThis": "¿Qué es esto?",
-      "whatIsNumber": "¿Qué es el Número ContractorOpsAI?",
+      "whatIsNumber": "¿Qué es el Número ContractorOps?",
       "numberDescription": "Una línea telefónica dedicada para su negocio que usa IA para manejar automáticamente llamadas de clientes, solicitudes de cotización y seguimiento de prospectos.",
       "nextSteps": "Próximos Pasos:",
       "nextStepsDescription": "Termine la configuración primero. Cuando tenga acceso, podrá elegir su línea de IA desde el panel.",
@@ -1540,7 +1540,7 @@
     "success": {
       "activating": "Activando Su Suscripción",
       "activatingDescription": "Por favor espere mientras configuramos su cuenta. Esto generalmente toma solo unos segundos...",
-      "welcomeAboard": "Bienvenido a ContractorOps AI",
+      "welcomeAboard": "Bienvenido a ContractorOps",
       "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, cotizaciones, trabajos y facturas desde un panel limpio.",
       "trialStarted": "Su prueba gratis de 7 días está activa.",
       "goToDashboard": "Ir al Panel de Control",

@@ -5,8 +5,8 @@ import { LandingFooter } from "@/components/landing-footer"
 import { featureGroups } from "@/lib/feature-navigation"
 
 export const metadata = {
-  title: "Features | ContractorOps AI",
-  description: "Explore ContractorOps AI features for job costing, AI scheduling, SMS, calls, calendar, subcontractors, contracts, and QuickBooks-ready workflows.",
+  title: "Features | ContractorOps",
+  description: "Explore ContractorOps features for job costing, AI scheduling, SMS, calls, calendar, subcontractors, contracts, and QuickBooks-ready workflows.",
 }
 
 export default async function FeaturesPage({

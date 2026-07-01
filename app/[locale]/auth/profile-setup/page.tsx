@@ -771,7 +771,7 @@ export default function ProfileSetupPage() {
                 </div>
               )}
 
-              {/* Step 2: ContractorOpsAI Number */}
+              {/* Step 2: ContractorOps Number */}
               {step === 2 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>

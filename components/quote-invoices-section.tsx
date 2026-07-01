@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { QuoteSidebarSection } from "@/components/quote-sidebar-section"
-import { CheckCircle2, Loader2, FileText, Receipt, Plus, X, Pencil } from "lucide-react"
+import { CheckCircle2, Loader2, FileText, Wallet, Plus, X, Pencil, ArrowUpRight } from "lucide-react"
 import type {
   PaymentSchedule,
   PaymentScheduleLine,
@@ -167,6 +167,16 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
   }
 
   const { summary, contract_total, lines } = schedule
+
+  // ── Billing headline (drawn from the same schedule the list uses) ──────
+  const collected = summary.paid
+  const invoiced = summary.billed
+  const leftToInvoice = round2(contract_total - invoiced)
+  const pctOf = (n: number) =>
+    contract_total > 0 ? Math.min(100, Math.max(0, (n / contract_total) * 100)) : 0
+  const collectedPct = pctOf(collected)
+  const invoicedPct = pctOf(invoiced)
+
   const billedLines = lines.filter(isBilled)
   // Amount already locked up in billed draws — the editable draws can only fill
   // the rest of the contract.
@@ -256,8 +266,8 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
     >
       <PopoverAnchor asChild>
         <QuoteSidebarSection
-          icon={<Receipt className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
-          title="Invoices"
+          icon={<Wallet className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
+          title="Billing & Invoices"
           count={count}
           open={open}
           onToggle={() => setOpen((o) => !o)}
@@ -272,10 +282,50 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
             ) : null
           }
         >
-      {/* ── Invoice list (edits happen in the popover) ── */}
-      <ul className="divide-y divide-sky-100/60">
-            {lines.map((line) => (
-              <li key={line.id} className="px-3 py-2.5">
+      {/* ── Billing headline: contract progress (collected + invoiced) ── */}
+      <div className="border-b border-sky-100 px-3 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Contract</span>
+              <span className="text-[15px] font-bold tabular-nums text-slate-900">{fmt(contract_total)}</span>
+            </div>
+            {/* Two-segment bar: collected (green) then invoiced-not-collected (amber) */}
+            <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2 bg-emerald-500 transition-all duration-500" style={{ width: `${collectedPct}%` }} />
+              <div className="h-2 bg-amber-400 transition-all duration-500" style={{ width: `${Math.max(0, invoicedPct - collectedPct)}%` }} />
+            </div>
+            <div className="mt-2.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="flex items-center gap-1.5 text-slate-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Collected
+                </span>
+                <span className="flex items-center gap-2 tabular-nums">
+                  <span className="font-semibold text-slate-900">{fmt(collected)}</span>
+                  <span className="w-9 text-right text-slate-400">{Math.round(collectedPct)}%</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="flex items-center gap-1.5 text-slate-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Invoiced
+                </span>
+                <span className="flex items-center gap-2 tabular-nums">
+                  <span className="font-semibold text-slate-900">{fmt(invoiced)}</span>
+                  <span className="w-9 text-right text-slate-400">{Math.round(invoicedPct)}%</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="flex items-center gap-1.5 text-slate-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-200" /> Left to invoice
+                </span>
+                <span className="font-semibold tabular-nums text-slate-500">{fmt(leftToInvoice)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Invoice list — each billed draw is a clickable row (edits in popover) ── */}
+          <ul className="divide-y divide-sky-100/60">
+            {lines.map((line) => {
+              const billed = Boolean(line.invoice_id)
+              const rowInner = (
                 <div className="flex items-start gap-2">
                   <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
                   <div className="min-w-0 flex-1">
@@ -290,16 +340,17 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
                     <div className="mt-1 flex items-center justify-between gap-2">
                       <span className="flex items-center gap-1.5">
                         <StateLabel line={line} />
-                        {line.invoice_id && (
-                          <Link
-                            href={`/${locale}/invoices/${line.invoice_id}`}
-                            className="text-[10px] text-sky-600 hover:text-sky-800 hover:underline"
-                          >
-                            {line.invoice_number ?? "View"}
-                          </Link>
+                        {billed && line.invoice_number && (
+                          <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-600">
+                            {line.invoice_number}
+                          </span>
                         )}
                       </span>
-                      {line.state === "READY" || line.state === "SCHEDULED" ? (
+                      {billed ? (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400 group-hover:text-sky-600 transition-colors">
+                          View <ArrowUpRight className="h-3 w-3" />
+                        </span>
+                      ) : line.state === "READY" || line.state === "SCHEDULED" ? (
                         <Button
                           size="sm"
                           onClick={() => handleBill(line)}
@@ -312,8 +363,22 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
                     </div>
                   </div>
                 </div>
-              </li>
-            ))}
+              )
+              return (
+                <li key={line.id}>
+                  {billed ? (
+                    <Link
+                      href={`/${locale}/invoices/${line.invoice_id}`}
+                      className="group block px-3 py-2.5 transition-colors hover:bg-sky-50/70 focus:bg-sky-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-sky-500"
+                    >
+                      {rowInner}
+                    </Link>
+                  ) : (
+                    <div className="px-3 py-2.5">{rowInner}</div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
 
           {/* Add a draw for the remaining contract amount */}

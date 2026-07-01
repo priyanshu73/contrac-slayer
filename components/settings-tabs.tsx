@@ -197,7 +197,7 @@ export function SettingsTabs() {
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
 
-  // Use centralized hook for ContractorOps AI number
+  // Use centralized hook for ContractorOps number
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
 
   // Check if form has unsaved changes (dirty state)
@@ -681,7 +681,7 @@ export function SettingsTabs() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                              ContractorOpsAI Number
+                              ContractorOps Number
                             </Label>
                             <div className="relative">
                               <Input
