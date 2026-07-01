@@ -31,6 +31,7 @@ import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
 import { QuoteInvoicesSection } from "@/components/quote-invoices-section"
 import { QuoteSidebarBox, QuoteSidebarSection } from "@/components/quote-sidebar-section"
+import { QuoteBillingProgress } from "@/components/quote-billing-progress"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
@@ -1474,6 +1475,15 @@ export function PersonalizedQuoteView({
                 {/* Documents — one unified box: Proposals, Invoices, Change Orders (each collapsible) */}
                 {isContractor && (
                   <QuoteSidebarBox>
+                    {/* Billing progress: % invoiced / collected / remaining.
+                        Self-hides until the quote is a live/billable contract. */}
+                    {currentJob.id && (
+                      <QuoteBillingProgress
+                        jobId={currentJob.id}
+                        status={currentJob.status?.toString()}
+                      />
+                    )}
+
                     <QuoteProposalsSection
                       job={currentJob}
                       locale={locale}
