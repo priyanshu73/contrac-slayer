@@ -161,12 +161,18 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
     }
   }
 
-  // Only render for quotes that actually use a draw schedule.
-  if (loading || !schedule || schedule.billing_mode !== "SCHEDULED" || schedule.lines.length === 0) {
+  // Wait for the schedule to load, but render for every quote — even ones that
+  // weren't set up with draws. Lump-sum quotes get an empty state so the
+  // contractor can still start a payment schedule from here.
+  if (loading || !schedule) {
     return null
   }
 
   const { summary, contract_total, lines } = schedule
+
+  // Does this quote already bill in draws? If not, we show the empty state that
+  // lets the contractor set one up.
+  const hasDraws = schedule.billing_mode === "SCHEDULED" && lines.length > 0
 
   // ── Billing headline (drawn from the same schedule the list uses) ──────
   const collected = summary.paid
@@ -268,11 +274,11 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
         <QuoteSidebarSection
           icon={<Wallet className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
           title="Billing & Invoices"
-          count={count}
+          count={hasDraws ? count : undefined}
           open={open}
           onToggle={() => setOpen((o) => !o)}
           action={
-            !editing ? (
+            hasDraws && !editing ? (
               <button
                 onClick={() => startEditing(false)}
                 className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-sky-700 transition-colors"
@@ -282,6 +288,26 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
             ) : null
           }
         >
+      {!hasDraws ? (
+        /* ── Empty state: lump-sum quote, no schedule yet. Let the contractor
+              start billing in draws right from here. ── */
+        <div className="px-3 py-4 text-center">
+          <p className="text-[12px] text-slate-500">Billed as a single payment.</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {contract_total > 0
+              ? "Set up a schedule to bill it in draws instead."
+              : "Add line items to the quote, then bill it in draws."}
+          </p>
+          <button
+            onClick={() => startEditing(true)}
+            disabled={contract_total <= 0 || editing}
+            className="mt-2.5 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50/60 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-100/70 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-transparent disabled:text-slate-300 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Set up payment schedule
+          </button>
+        </div>
+      ) : (
+        <>
       {/* ── Billing headline: contract progress (collected + invoiced) ── */}
       <div className="border-b border-sky-100 px-3 py-3">
             <div className="flex items-baseline justify-between gap-2">
@@ -390,6 +416,8 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
             <Plus className="h-3 w-3" />
             Add draw
           </button>
+        </>
+      )}
         </QuoteSidebarSection>
       </PopoverAnchor>
 

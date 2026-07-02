@@ -558,10 +558,10 @@ export function PersonalizedQuoteView({
   ].filter(Boolean) as Array<{ label: string; value: string }>
 
   // A change order can only be spawned from a quote the customer has committed to.
-  // Mirrors the backend guard in create_change_order (ACCEPTED / IN_PROGRESS / COMPLETED).
+  // Mirrors the backend guard in create_change_order (ACCEPTED / IN_PROGRESS / COMPLETED / INVOICED).
   const canCreateChangeOrder =
     isContractor &&
-    ["ACCEPTED", "IN_PROGRESS", "COMPLETED"].includes(currentJob.status?.toString().toUpperCase() ?? "")
+    ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED"].includes(currentJob.status?.toString().toUpperCase() ?? "")
 
   const renderQuoteActionStrip = () => {
     const showInvoiceSend = currentJob.status?.toString().toUpperCase() === "INVOICED" && currentJob.qbo_invoice_id
@@ -1480,7 +1480,8 @@ export function PersonalizedQuoteView({
                       onChanged={onStatusUpdate}
                     />
 
-                    {/* Self-hides unless the quote uses a draw schedule. */}
+                    {/* Shows the draw schedule, or an empty state to set one up
+                        when the quote is billed as a single payment. */}
                     {currentJob.id && (
                       <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
                     )}
