@@ -30,11 +30,17 @@ function isOverdue(inv: Invoice): boolean {
 }
 
 function dueLabel(inv: Invoice): { text: string; overdue: boolean } | null {
-  if (!inv.due_date) return null
-  const due = new Date(inv.due_date)
-  if (Number.isNaN(due.getTime())) return null
-  const label = due.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  return isOverdue(inv) ? { text: `Overdue · ${label}`, overdue: true } : { text: `Due ${label}`, overdue: false }
+  // Overdue invoices still call out the past-due date; everything else just
+  // shows when it was created so the card reads as a recent-activity feed.
+  if (isOverdue(inv) && inv.due_date) {
+    const due = new Date(inv.due_date)
+    if (!Number.isNaN(due.getTime())) {
+      return { text: `Overdue · ${due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`, overdue: true }
+    }
+  }
+  const created = inv.created_at ? new Date(inv.created_at) : null
+  if (!created || Number.isNaN(created.getTime())) return null
+  return { text: created.toLocaleDateString("en-US", { month: "short", day: "numeric" }), overdue: false }
 }
 
 function statusBadge(inv: Invoice) {
@@ -59,10 +65,10 @@ export function DashboardInvoices() {
 
   useEffect(() => {
     let cancelled = false
-    // Server filters to outstanding balances and sorts soonest-due first, so we
-    // only pull the few rows we actually show.
+    // No outstanding filter: server returns all invoices newest-first
+    // (created_at DESC), so this card reads as a recent-activity feed.
     api
-      .getInvoices(undefined, 0, 6, undefined, true)
+      .getInvoices(undefined, 0, 6)
       .then((res: any) => {
         if (cancelled) return
         const items: Invoice[] = res?.items ?? (Array.isArray(res) ? res : [])
@@ -79,17 +85,8 @@ export function DashboardInvoices() {
     }
   }, [])
 
-  // Overdue first, then by soonest due date.
-  const sorted = [...invoices].sort((a, b) => {
-    const ao = isOverdue(a) ? 0 : 1
-    const bo = isOverdue(b) ? 0 : 1
-    if (ao !== bo) return ao - bo
-    const ad = a.due_date ? new Date(a.due_date).getTime() : Infinity
-    const bd = b.due_date ? new Date(b.due_date).getTime() : Infinity
-    return ad - bd
-  })
-
-  const totalOutstanding = invoices.reduce((sum, i) => sum + (i.balance_due ?? 0), 0)
+  // Server already returns newest-first (created_at DESC); keep that order.
+  const sorted = invoices
 
   return (
     <Card className="flex h-full flex-col p-4">
@@ -103,13 +100,7 @@ export function DashboardInvoices() {
               </span>
             ) : null}
           </h2>
-          {!loading && totalOutstanding > 0 ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              <span className="font-semibold text-rose-600">{currency(totalOutstanding)}</span> outstanding
-            </p>
-          ) : (
-            <p className="mt-0.5 text-xs text-muted-foreground">Unpaid balances</p>
-          )}
+          <p className="mt-0.5 text-xs text-muted-foreground">Recent activity</p>
         </div>
         <Link
           href={`/${locale}/invoices`}
@@ -130,8 +121,8 @@ export function DashboardInvoices() {
           <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50">
             <Receipt className="h-5 w-5 text-emerald-500" />
           </div>
-          <p className="text-sm font-medium text-slate-900">Nothing outstanding</p>
-          <p className="text-xs text-muted-foreground">Unpaid invoices will show up here.</p>
+          <p className="text-sm font-medium text-slate-900">No invoices yet</p>
+          <p className="text-xs text-muted-foreground">Invoices you create will show up here.</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -162,7 +153,7 @@ export function DashboardInvoices() {
                   </p>
                 </div>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
-                  {currency(inv.balance_due)}
+                  {currency(inv.total_amount ?? inv.balance_due)}
                 </span>
               </Link>
             )

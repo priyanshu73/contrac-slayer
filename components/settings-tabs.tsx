@@ -197,7 +197,7 @@ export function SettingsTabs() {
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
 
-  // Use centralized hook for ContractorOps AI number
+  // Use centralized hook for ContractorOps number
   const { number: contractorOpsAiNumber } = useContractorOpsNumber()
 
   // Check if form has unsaved changes (dirty state)
@@ -681,7 +681,7 @@ export function SettingsTabs() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                              ContractorOpsAI Number
+                              ContractorOps Number
                             </Label>
                             <div className="relative">
                               <Input
@@ -1298,26 +1298,10 @@ export function SettingsTabs() {
                              user.stripe_subscription_status || 'Unknown'}
                           </span>
                         </div>
-                        
-                        {user.stripe_subscription_status === 'trialing' && user.stripe_trial_end && (
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm text-slate-600">Trial ends</span>
-                            <span className="text-sm font-medium text-slate-900">
-                              {new Date(user.stripe_trial_end).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {user.stripe_current_period_end && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-600">
-                              {user.stripe_subscription_status === 'trialing' ? 'First billing date' : 'Next billing date'}
-                            </span>
-                            <span className="text-sm font-medium text-slate-900">
-                              {new Date(user.stripe_current_period_end).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
+                        {/* Billing dates (trial end / next billing) are intentionally
+                            not shown here — the source field can be unreliable across
+                            Stripe API versions. Full details live in the Stripe portal
+                            via "Manage Subscription" below. */}
                       </div>
 
                       <p className="text-sm text-slate-500">

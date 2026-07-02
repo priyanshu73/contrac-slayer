@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">1. Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              ContractorOps AI (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) operates the ContractorOps AI platform and related services (the &quot;Service&quot;). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using the Service, you agree to the collection and use of information in accordance with this policy.
+              ContractorOps (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) operates the ContractorOps platform and related services (the &quot;Service&quot;). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using the Service, you agree to the collection and use of information in accordance with this policy.
             </p>
           </section>
 
@@ -107,7 +107,7 @@ export default function PrivacyPolicyPage() {
               For privacy-related questions or requests, contact us at:
             </p>
             <p className="mt-2 text-foreground">
-              ContractorOps AI<br />
+              ContractorOps<br />
               The Green, Dover, DE 19901<br />
               Website: www.contractorops.ai<br />
               Email: support@contractorops.ai

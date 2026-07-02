@@ -25,7 +25,7 @@ export function AIConversationPreview() {
       type: 'text' as const,
       timestamp: '10:25 AM',
       content: t('leadCaptureAiMessage'),
-      sender: 'ContractorOps AI',
+      sender: 'ContractorOps',
       status: t('leadCaptureDelivered'),
     },
     {
@@ -95,7 +95,7 @@ export function AIConversationPreview() {
                   <Badge variant="outline" className="text-xs px-1.5 py-0">{msg.status}</Badge>
                 </div>
                 <div className={`rounded-lg p-3 ${
-                  msg.sender === 'ContractorOps AI' 
+                  msg.sender === 'ContractorOps' 
                     ? 'bg-primary/10 border border-primary/20 ml-4' 
                     : 'bg-muted/50 mr-4'
                 }`}>

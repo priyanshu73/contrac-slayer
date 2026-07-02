@@ -18,8 +18,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "ContractorOps AI - AI-Powered CRM for Modern Contractors",
-  description: "Communicate with clients via SMS—no app downloads required. ContractorOps AI listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by cutting edge AI technology.",
+  title: "ContractorOps - AI-Powered CRM for Modern Contractors",
+  description: "Communicate with clients via SMS—no app downloads required. ContractorOps listens to calls, reads texts, and automatically responds. Generate invoices instantly, capture every lead, and close more deals powered by cutting edge AI technology.",
   generator: "v0.app",
   icons: {
     icon: "/favicon.ico",

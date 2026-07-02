@@ -12,7 +12,7 @@ function getCacheKey(profileId: string | number | null | undefined): string {
 }
 
 /**
- * Custom hook to fetch and cache the ContractorOps AI number.
+ * Custom hook to fetch and cache the ContractorOps number.
  * Cache is keyed by current user's contractor_profile.id (or user.id) so it's profile-specific.
  */
 export function useContractorOpsNumber() {
@@ -100,7 +100,7 @@ export function useContractorOpsNumber() {
 }
 
 /**
- * Clear all profile-specific ContractorOps AI number caches from localStorage.
+ * Clear all profile-specific ContractorOps number caches from localStorage.
  * Call this on logout so the next user doesn't see the previous profile's number.
  */
 export function clearContractorOpsNumber() {

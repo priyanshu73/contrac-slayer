@@ -130,7 +130,7 @@ export function Hero() {
           </h1>
 
           <p className="text-xl text-muted-foreground text-balance max-w-3xl mb-10 leading-relaxed">
-            Communicate with clients via SMS—no app downloads required. ContractorOps AI listens to calls, reads texts, and automatically responds. 
+            Communicate with clients via SMS—no app downloads required. ContractorOps listens to calls, reads texts, and automatically responds. 
             Generate invoices instantly, capture every lead, and close more deals powered by cutting edge AI technology.
           </p>
 

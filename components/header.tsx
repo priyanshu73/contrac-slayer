@@ -224,12 +224,12 @@ export function Header() {
             : 'border border-white/18 bg-white/[0.08] shadow-none'
         }`}
       >
-        <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="ContractorOps AI home">
+        <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="ContractorOps home">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm">
             <img src="/logo.png" alt="" className="h-7 w-7 rounded-full object-contain" />
           </span>
           <span className={`text-sm font-black tracking-tight transition-colors sm:text-base ${isHeaderSolid ? 'text-slate-950' : 'text-white drop-shadow-sm'}`}>
-            ContractorOps AI
+            ContractorOps
           </span>
         </Link>
 
@@ -460,7 +460,7 @@ export function Header() {
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-base font-black tracking-tight text-slate-950">
-                      ContractorOps AI
+                      ContractorOps
                     </span>
                     <span className="mt-0.5 block text-xs font-semibold text-slate-500">
                       Menu
@@ -468,7 +468,7 @@ export function Header() {
                   </span>
                 </SheetTitle>
               ) : (
-                <SheetTitle>ContractorOps AI</SheetTitle>
+                <SheetTitle>ContractorOps</SheetTitle>
               )}
             </SheetHeader>
             <nav className={isLandingPage ? "grid min-h-0 flex-1 gap-5 overflow-y-auto px-5 py-5" : "mt-8 grid gap-2"}>

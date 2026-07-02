@@ -96,7 +96,7 @@ export default function LoginPage() {
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
               <img src="/logo.png" alt="Logo" className="h-10 w-10 rounded-full object-contain" />
             </span>
-            <span className="text-lg font-black tracking-tight">ContractorOps AI</span>
+            <span className="text-lg font-black tracking-tight">ContractorOps</span>
           </motion.div>
 
           <div className="max-w-xl">
@@ -168,7 +168,7 @@ export default function LoginPage() {
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
                   <img src="/logo.png" alt="Logo" className="h-9 w-9 rounded-full object-contain" />
                 </span>
-                <span className="text-base font-black text-slate-950">ContractorOps AI</span>
+                <span className="text-base font-black text-slate-950">ContractorOps</span>
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950">
                 {t("welcomeBack")}

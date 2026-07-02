@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Continue with logout even if API call fails
     }
     setUser(null)
-    // Clear cached ContractorOps AI number
+    // Clear cached ContractorOps number
     clearContractorOpsNumber()
     // Redirect to login with current locale
     router.push("/en/auth/login")
