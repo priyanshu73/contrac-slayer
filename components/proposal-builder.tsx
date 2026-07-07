@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Circle, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, Highlighter, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -41,6 +41,7 @@ import type {
   ProposalImageArrowAnnotation,
   ProposalImageAnnotationStroke,
   ProposalImageBlock,
+  ProposalImageShapeAnnotation,
   ProposalImageTextOverlay,
   ProposalOverviewResponse,
   ProposalPage,
@@ -492,6 +493,58 @@ function ArrowPath({
   )
 }
 
+function getAnnotationBounds(start: ProposalAnnotationPoint, end: ProposalAnnotationPoint) {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    w: Math.abs(end.x - start.x),
+    h: Math.abs(end.y - start.y),
+  }
+}
+
+function ShapeAnnotation({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageShapeAnnotation
+  width: number
+  height: number
+}) {
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2}
+        ry={h / 2}
+        fill="none"
+        stroke={annotation.color}
+        strokeWidth={annotation.width}
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill={annotation.type === "highlight" ? annotation.fill ?? annotation.color : "none"}
+      fillOpacity={annotation.type === "highlight" ? annotation.opacity ?? 0.28 : undefined}
+      stroke={annotation.color}
+      strokeWidth={annotation.width}
+      strokeLinejoin="round"
+    />
+  )
+}
+
 function ImageBlockEditor({
   block,
   readOnly,
@@ -519,11 +572,13 @@ function ImageBlockEditor({
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
   const dragStateRef = useRef<{ pointerId: number; overlayId: string } | null>(null)
-  type ImageTool = "select" | "draw" | "arrow"
+  type ImageTool = "select" | "draw" | "arrow" | "rect" | "ellipse" | "highlight"
 
   const [activeTool, setActiveTool] = useState<ImageTool>("select")
   const drawMode = activeTool === "draw"
   const arrowMode = activeTool === "arrow"
+  const shapeMode = activeTool === "rect" || activeTool === "ellipse" || activeTool === "highlight"
+  const annotationMode = drawMode || arrowMode || shapeMode
   const [strokeColor, setStrokeColor] = useState("#dc2626")
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [draftPoints, setDraftPoints] = useState<ProposalAnnotationPoint[]>([])
@@ -615,6 +670,27 @@ function ImageBlockEditor({
             ],
           })
         }
+
+        if (finishedPoints.length >= 2 && shapeMode) {
+          const bounds = getAnnotationBounds(finishedPoints[0], finishedPoints[finishedPoints.length - 1])
+
+          if (bounds.w > 0 && bounds.h > 0) {
+            onChange({
+              ...block,
+              annotations: [
+                ...block.annotations,
+                {
+                  id: createId(activeTool),
+                  type: activeTool,
+                  color: strokeColor,
+                  width: strokeWidth,
+                  ...bounds,
+                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
+                },
+              ],
+            })
+          }
+        }
       }
     }
 
@@ -624,7 +700,7 @@ function ImageBlockEditor({
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
     }
-  }, [arrowMode, block, drawMode, onChange, strokeColor, strokeWidth])
+  }, [activeTool, arrowMode, block, drawMode, onChange, shapeMode, strokeColor, strokeWidth])
 
   const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
 
@@ -707,6 +783,39 @@ function ImageBlockEditor({
           </Button>
           <Button
             type="button"
+            variant={activeTool === "rect" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "rect" ? "select" : "rect")
+            }
+          >
+            <Square className="mr-1 h-4 w-4" />
+            Rectangle
+          </Button>
+          <Button
+            type="button"
+            variant={activeTool === "ellipse" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "ellipse" ? "select" : "ellipse")
+            }
+          >
+            <Circle className="mr-1 h-4 w-4" />
+            Circle
+          </Button>
+          <Button
+            type="button"
+            variant={activeTool === "highlight" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "highlight" ? "select" : "highlight")
+            }
+          >
+            <Highlighter className="mr-1 h-4 w-4" />
+            Highlight
+          </Button>
+          <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => {
@@ -752,7 +861,7 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
-      {!readOnly && (drawMode || arrowMode) ? (
+      {!readOnly && annotationMode ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             {t("imageEditor.color")}
@@ -860,11 +969,11 @@ function ImageBlockEditor({
           className={cn(
             "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
             !readOnly && "touch-none select-none",
-            (drawMode || arrowMode) && !readOnly && "cursor-crosshair",
+            annotationMode && !readOnly && "cursor-crosshair",
           )}
           style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
           onPointerDown={(event) => {
-            if (readOnly || (!drawMode && !arrowMode) || !wrapperRef.current) return
+            if (readOnly || !annotationMode || !wrapperRef.current) return
             event.preventDefault()
             wrapperRef.current.setPointerCapture?.(event.pointerId)
             const rect = wrapperRef.current.getBoundingClientRect()
@@ -909,6 +1018,17 @@ function ImageBlockEditor({
                 )
               }
 
+              if (annotation.type === "rect" || annotation.type === "ellipse" || annotation.type === "highlight") {
+                return (
+                  <ShapeAnnotation
+                    key={annotation.id}
+                    annotation={annotation}
+                    width={block.width}
+                    height={block.height}
+                  />
+                )
+              }
+
               return null
             })}
             {draftPoints.length >= 2 && drawMode ? (
@@ -936,6 +1056,20 @@ function ImageBlockEditor({
                 markerId={`${arrowMarkerPrefix}-draft`}
               />
             ) : null}
+            {draftPoints.length >= 2 && shapeMode ? (
+              <ShapeAnnotation
+                annotation={{
+                  id: "draft",
+                  type: activeTool,
+                  color: strokeColor,
+                  width: strokeWidth,
+                  ...getAnnotationBounds(draftPoints[0], draftPoints[draftPoints.length - 1]),
+                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
+                }}
+                width={block.width}
+                height={block.height}
+              />
+            ) : null}
           </svg>
 
           {block.textOverlays.map((overlay) => (
@@ -956,7 +1090,7 @@ function ImageBlockEditor({
                 backgroundColor: "rgba(15, 23, 42, 0.55)",
               }}
               onPointerDown={(event) => {
-                if (readOnly || drawMode || arrowMode) return
+                if (readOnly || annotationMode) return
                 event.stopPropagation()
                 event.preventDefault()
                 setSelectedOverlayId(overlay.id)
