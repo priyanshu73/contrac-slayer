@@ -350,7 +350,7 @@ export interface ProposalAnnotationPoint {
 
 export interface ProposalImageAnnotationStroke {
   id: string
-  type: "stroke"
+  type?: "stroke"
   color: string
   width: number
   points: ProposalAnnotationPoint[]

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -38,6 +38,7 @@ import type {
   ProposalAnnotationPoint,
   ProposalBeforeAfterBlock,
   ProposalDocument,
+  ProposalImageArrowAnnotation,
   ProposalImageAnnotationStroke,
   ProposalImageBlock,
   ProposalImageTextOverlay,
@@ -446,6 +447,51 @@ function StrokePath({
   return <path d={d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />
 }
 
+function ArrowPath({
+  arrow,
+  width,
+  height,
+  markerId,
+}: {
+  arrow: ProposalImageArrowAnnotation
+  width: number
+  height: number
+  markerId: string
+}) {
+  const startX = arrow.start.x * width
+  const startY = arrow.start.y * height
+  const endX = arrow.end.x * width
+  const endY = arrow.end.y * height
+
+  return (
+    <g>
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="4"
+          markerHeight="4"
+          refX="3.6"
+          refY="2"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <path d="M 0 0 L 4 2 L 0 4 z" fill={arrow.color} />
+        </marker>
+      </defs>
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke={arrow.color}
+        strokeWidth={arrow.width}
+        strokeLinecap="round"
+        markerEnd={`url(#${markerId})`}
+      />
+    </g>
+  )
+}
+
 function ImageBlockEditor({
   block,
   readOnly,
@@ -468,20 +514,24 @@ function ImageBlockEditor({
   className?: string
 }) {
   const t = useTranslations("proposals")
+  const arrowMarkerPrefix = useId().replace(/:/g, "")
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
   const dragStateRef = useRef<{ pointerId: number; overlayId: string } | null>(null)
-  const [drawMode, setDrawMode] = useState(false)
+  type ImageTool = "select" | "draw" | "arrow"
+
+  const [activeTool, setActiveTool] = useState<ImageTool>("select")
+  const drawMode = activeTool === "draw"
+  const arrowMode = activeTool === "arrow"
   const [strokeColor, setStrokeColor] = useState("#dc2626")
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [draftPoints, setDraftPoints] = useState<ProposalAnnotationPoint[]>([])
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (readOnly) setDrawMode(false)
+    if (readOnly) setActiveTool("select")
   }, [readOnly])
-
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const rect = wrapperRef.current?.getBoundingClientRect()
@@ -513,10 +563,8 @@ function ImageBlockEditor({
           x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
           y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
         }
-        drawStateRef.current = {
-          ...drawStateRef.current,
-          points: [...drawStateRef.current.points, point],
-        }
+        const points = drawMode ? [...drawStateRef.current.points, point] : [drawStateRef.current.points[0], point]
+        drawStateRef.current = { ...drawStateRef.current, points }
         setDraftPoints(drawStateRef.current.points)
       }
     }
@@ -535,7 +583,7 @@ function ImageBlockEditor({
         drawStateRef.current = null
         setDraftPoints([])
 
-        if (finishedPoints.length >= 2) {
+        if (finishedPoints.length >= 2 && drawMode) {
           onChange({
             ...block,
             annotations: [
@@ -550,6 +598,23 @@ function ImageBlockEditor({
             ],
           })
         }
+
+        if (finishedPoints.length >= 2 && arrowMode) {
+          onChange({
+            ...block,
+            annotations: [
+              ...block.annotations,
+              {
+                id: createId("arrow"),
+                type: "arrow",
+                color: strokeColor,
+                width: strokeWidth,
+                start: finishedPoints[0],
+                end: finishedPoints[finishedPoints.length - 1],
+              },
+            ],
+          })
+        }
       }
     }
 
@@ -559,7 +624,7 @@ function ImageBlockEditor({
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
     }
-  }, [block, onChange, strokeColor, strokeWidth])
+  }, [arrowMode, block, drawMode, onChange, strokeColor, strokeWidth])
 
   const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
 
@@ -618,9 +683,27 @@ function ImageBlockEditor({
               )
             })}
           </div>
-          <Button type="button" variant={drawMode ? "default" : "outline"} size="sm" onClick={() => setDrawMode((value) => !value)}>
+          <Button
+            type="button"
+            variant={drawMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(drawMode ? "select" : "draw")
+            }
+          >
             <PencilLine className="mr-1 h-4 w-4" />
             {drawMode ? t("imageEditor.drawing") : t("imageEditor.draw")}
+          </Button>
+          <Button
+            type="button"
+            variant={arrowMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(arrowMode ? "select" : "arrow")
+            }
+          >
+            <ArrowUpRight className="mr-1 h-4 w-4" />
+            Arrow
           </Button>
           <Button
             type="button"
@@ -669,7 +752,7 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
-      {!readOnly && drawMode ? (
+      {!readOnly && (drawMode || arrowMode) ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             {t("imageEditor.color")}
@@ -777,11 +860,11 @@ function ImageBlockEditor({
           className={cn(
             "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
             !readOnly && "touch-none select-none",
-            drawMode && !readOnly && "cursor-crosshair",
+            (drawMode || arrowMode) && !readOnly && "cursor-crosshair",
           )}
           style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
           onPointerDown={(event) => {
-            if (readOnly || !drawMode || !wrapperRef.current) return
+            if (readOnly || (!drawMode && !arrowMode) || !wrapperRef.current) return
             event.preventDefault()
             wrapperRef.current.setPointerCapture?.(event.pointerId)
             const rect = wrapperRef.current.getBoundingClientRect()
@@ -803,18 +886,32 @@ function ImageBlockEditor({
 
           <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${block.width} ${block.height}`} preserveAspectRatio="none">
             {block.annotations.map((annotation) => {
-              if (annotation.type !== "stroke") return null
+              if (!annotation.type || annotation.type === "stroke") {
+                return (
+                  <StrokePath
+                    key={annotation.id}
+                    stroke={annotation}
+                    width={block.width}
+                    height={block.height}
+                  />
+                )
+              }
 
-              return (
-                <StrokePath
-                  key={annotation.id}
-                  stroke={annotation}
-                  width={block.width}
-                  height={block.height}
-                />
-              )
+              if (annotation.type === "arrow") {
+                return (
+                  <ArrowPath
+                    key={annotation.id}
+                    arrow={annotation}
+                    width={block.width}
+                    height={block.height}
+                    markerId={`${arrowMarkerPrefix}-${annotation.id}`}
+                  />
+                )
+              }
+
+              return null
             })}
-            {draftPoints.length >= 2 ? (
+            {draftPoints.length >= 2 && drawMode ? (
               <path
                 d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
                 fill="none"
@@ -822,6 +919,21 @@ function ImageBlockEditor({
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+              />
+            ) : null}
+            {draftPoints.length >= 2 && arrowMode ? (
+              <ArrowPath
+                arrow={{
+                  id: "draft",
+                  type: "arrow",
+                  color: strokeColor,
+                  width: strokeWidth,
+                  start: draftPoints[0],
+                  end: draftPoints[draftPoints.length - 1],
+                }}
+                width={block.width}
+                height={block.height}
+                markerId={`${arrowMarkerPrefix}-draft`}
               />
             ) : null}
           </svg>
@@ -844,7 +956,7 @@ function ImageBlockEditor({
                 backgroundColor: "rgba(15, 23, 42, 0.55)",
               }}
               onPointerDown={(event) => {
-                if (readOnly || drawMode) return
+                if (readOnly || drawMode || arrowMode) return
                 event.stopPropagation()
                 event.preventDefault()
                 setSelectedOverlayId(overlay.id)
