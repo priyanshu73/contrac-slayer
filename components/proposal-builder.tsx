@@ -1336,32 +1336,33 @@ function ImageBlockEditor({
         "flex w-full",
         block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
       )}>
-        <div
-          ref={wrapperRef}
-          className={cn(
-            "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
-            !readOnly && "touch-none select-none",
-            annotationMode && !readOnly && "cursor-crosshair",
-          )}
-          style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
-          onPointerDown={(event) => {
-            if (readOnly || !wrapperRef.current) return
-            if (!annotationMode) {
-              setSelectedAnnotationId(null)
-              setSelectedMeasurementId(null)
-              return
-            }
-            event.preventDefault()
-            wrapperRef.current.setPointerCapture?.(event.pointerId)
-            const rect = wrapperRef.current.getBoundingClientRect()
-            const point = {
-              x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-              y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-            }
-            drawStateRef.current = { pointerId: event.pointerId, points: [point] }
-            setDraftPoints([point])
-          }}
-        >
+        <div className="space-y-2" style={{ width: `${block.width}px`, maxWidth: "100%" }}>
+          <div
+            ref={wrapperRef}
+            className={cn(
+              "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
+              !readOnly && "touch-none select-none",
+              annotationMode && !readOnly && "cursor-crosshair",
+            )}
+            style={{ width: "100%", height: `${block.height}px` }}
+            onPointerDown={(event) => {
+              if (readOnly || !wrapperRef.current) return
+              if (!annotationMode) {
+                setSelectedAnnotationId(null)
+                setSelectedMeasurementId(null)
+                return
+              }
+              event.preventDefault()
+              wrapperRef.current.setPointerCapture?.(event.pointerId)
+              const rect = wrapperRef.current.getBoundingClientRect()
+              const point = {
+                x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+                y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+              }
+              drawStateRef.current = { pointerId: event.pointerId, points: [point] }
+              setDraftPoints([point])
+            }}
+          >
           <img
             src={block.url}
             alt={block.file_name || "Proposal image"}
@@ -1567,6 +1568,19 @@ function ImageBlockEditor({
                 }
               }}
             />
+          ) : null}
+          </div>
+          {!readOnly ? (
+            <Input
+              value={block.caption ?? ""}
+              onChange={(event) => onChange({ ...block, caption: event.target.value })}
+              placeholder="Caption"
+              className="bg-white text-sm"
+            />
+          ) : block.caption?.trim() ? (
+            <p className="px-1 text-center text-sm italic leading-6 text-slate-500">
+              {block.caption}
+            </p>
           ) : null}
         </div>
       </div>
