@@ -378,10 +378,21 @@ export interface ProposalImageShapeAnnotation {
   opacity?: number
 }
 
+export interface ProposalImageMeasurementAnnotation {
+  id: string
+  type: "measurement"
+  color: string
+  width: number
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+  label: string
+}
+
 export type ProposalImageAnnotation =
   | ProposalImageAnnotationStroke
   | ProposalImageArrowAnnotation
   | ProposalImageShapeAnnotation
+  | ProposalImageMeasurementAnnotation
 
 export interface ProposalImageTextOverlay {
   id: string

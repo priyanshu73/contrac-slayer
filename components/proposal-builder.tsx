@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Circle, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, Highlighter, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Circle, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, Highlighter, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Ruler, Save, Send, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -38,9 +38,11 @@ import type {
   ProposalAnnotationPoint,
   ProposalBeforeAfterBlock,
   ProposalDocument,
+  ProposalImageAnnotation,
   ProposalImageArrowAnnotation,
   ProposalImageAnnotationStroke,
   ProposalImageBlock,
+  ProposalImageMeasurementAnnotation,
   ProposalImageShapeAnnotation,
   ProposalImageTextOverlay,
   ProposalOverviewResponse,
@@ -441,11 +443,15 @@ function StrokePath({
   width: number
   height: number
 }) {
-  const d = stroke.points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
-    .join(" ")
+  const d = getStrokePath(stroke, width, height)
 
   return <path d={d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />
+}
+
+function getStrokePath(stroke: ProposalImageAnnotationStroke, width: number, height: number) {
+  return stroke.points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
+    .join(" ")
 }
 
 function ArrowPath({
@@ -490,6 +496,236 @@ function ArrowPath({
         markerEnd={`url(#${markerId})`}
       />
     </g>
+  )
+}
+
+function LineSelection({
+  start,
+  end,
+  width,
+  height,
+  strokeWidth,
+  dashed = false,
+}: {
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+  width: number
+  height: number
+  strokeWidth: number
+  dashed?: boolean
+}) {
+  return (
+    <line
+      x1={start.x * width}
+      y1={start.y * height}
+      x2={end.x * width}
+      y2={end.y * height}
+      stroke="#0ea5e9"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeDasharray={dashed ? "8 6" : undefined}
+      opacity={0.85}
+    />
+  )
+}
+
+function MeasurementAnnotation({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageMeasurementAnnotation
+  width: number
+  height: number
+}) {
+  const startX = annotation.start.x * width
+  const startY = annotation.start.y * height
+  const endX = annotation.end.x * width
+  const endY = annotation.end.y * height
+  const labelX = (startX + endX) / 2
+  const labelY = (startY + endY) / 2
+  const label = annotation.label.trim()
+
+  return (
+    <g>
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke={annotation.color}
+        strokeWidth={annotation.width}
+        strokeLinecap="round"
+      />
+      {label ? (
+        <text
+          x={labelX}
+          y={labelY}
+          fill={annotation.color}
+          fontSize={16}
+          fontWeight={700}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          paintOrder="stroke"
+          stroke="white"
+          strokeWidth={4}
+          strokeLinejoin="round"
+        >
+          {label}
+        </text>
+      ) : null}
+    </g>
+  )
+}
+
+function AnnotationSelection({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageAnnotation
+  width: number
+  height: number
+}) {
+  if (!annotation.type || annotation.type === "stroke") {
+    return (
+      <path
+        d={getStrokePath(annotation, width, height)}
+        fill="none"
+        stroke="#0ea5e9"
+        strokeWidth={Math.max(annotation.width + 4, 6)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.85}
+      />
+    )
+  }
+
+  if (annotation.type === "arrow" || annotation.type === "measurement") {
+    return (
+      <LineSelection
+        start={annotation.start}
+        end={annotation.end}
+        width={width}
+        height={height}
+        strokeWidth={Math.max(annotation.width + 4, 6)}
+        dashed={annotation.type === "measurement"}
+      />
+    )
+  }
+
+  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
+    return null
+  }
+
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+  const offset = Math.max(annotation.width / 2 + 4, 6)
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2 + offset}
+        ry={h / 2 + offset}
+        fill="none"
+        stroke="#0ea5e9"
+        strokeWidth={3}
+        strokeDasharray="8 6"
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x - offset}
+      y={y - offset}
+      width={w + offset * 2}
+      height={h + offset * 2}
+      fill="none"
+      stroke="#0ea5e9"
+      strokeWidth={3}
+      strokeDasharray="8 6"
+    />
+  )
+}
+
+function AnnotationHitTarget({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageAnnotation
+  width: number
+  height: number
+}) {
+  if (!annotation.type || annotation.type === "stroke") {
+    return (
+      <path
+        d={getStrokePath(annotation, width, height)}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pointerEvents="stroke"
+      />
+    )
+  }
+
+  if (annotation.type === "arrow" || annotation.type === "measurement") {
+    return (
+      <line
+        x1={annotation.start.x * width}
+        y1={annotation.start.y * height}
+        x2={annotation.end.x * width}
+        y2={annotation.end.y * height}
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        strokeLinecap="round"
+        pointerEvents="stroke"
+      />
+    )
+  }
+
+  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
+    return null
+  }
+
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2}
+        ry={h / 2}
+        fill="transparent"
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        pointerEvents="all"
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill="transparent"
+      stroke="transparent"
+      strokeWidth={Math.max(annotation.width + 14, 18)}
+      pointerEvents="all"
+    />
   )
 }
 
@@ -572,17 +808,20 @@ function ImageBlockEditor({
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
   const dragStateRef = useRef<{ pointerId: number; overlayId: string } | null>(null)
-  type ImageTool = "select" | "draw" | "arrow" | "rect" | "ellipse" | "highlight"
+  type ImageTool = "select" | "draw" | "arrow" | "rect" | "ellipse" | "highlight" | "measurement"
 
   const [activeTool, setActiveTool] = useState<ImageTool>("select")
   const drawMode = activeTool === "draw"
   const arrowMode = activeTool === "arrow"
+  const measurementMode = activeTool === "measurement"
   const shapeMode = activeTool === "rect" || activeTool === "ellipse" || activeTool === "highlight"
-  const annotationMode = drawMode || arrowMode || shapeMode
+  const annotationMode = drawMode || arrowMode || shapeMode || measurementMode
   const [strokeColor, setStrokeColor] = useState("#dc2626")
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [draftPoints, setDraftPoints] = useState<ProposalAnnotationPoint[]>([])
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null)
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (readOnly) setActiveTool("select")
@@ -639,12 +878,14 @@ function ImageBlockEditor({
         setDraftPoints([])
 
         if (finishedPoints.length >= 2 && drawMode) {
+          const id = createId("stroke")
+
           onChange({
             ...block,
             annotations: [
               ...block.annotations,
               {
-                id: createId("stroke"),
+                id,
                 type: "stroke",
                 color: strokeColor,
                 width: strokeWidth,
@@ -652,15 +893,20 @@ function ImageBlockEditor({
               },
             ],
           })
+          setSelectedAnnotationId(id)
+          setSelectedOverlayId(null)
+          setSelectedMeasurementId(null)
         }
 
         if (finishedPoints.length >= 2 && arrowMode) {
+          const id = createId("arrow")
+
           onChange({
             ...block,
             annotations: [
               ...block.annotations,
               {
-                id: createId("arrow"),
+                id,
                 type: "arrow",
                 color: strokeColor,
                 width: strokeWidth,
@@ -669,18 +915,23 @@ function ImageBlockEditor({
               },
             ],
           })
+          setSelectedAnnotationId(id)
+          setSelectedOverlayId(null)
+          setSelectedMeasurementId(null)
         }
 
         if (finishedPoints.length >= 2 && shapeMode) {
           const bounds = getAnnotationBounds(finishedPoints[0], finishedPoints[finishedPoints.length - 1])
 
           if (bounds.w > 0 && bounds.h > 0) {
+            const id = createId(activeTool)
+
             onChange({
               ...block,
               annotations: [
                 ...block.annotations,
                 {
-                  id: createId(activeTool),
+                  id,
                   type: activeTool,
                   color: strokeColor,
                   width: strokeWidth,
@@ -689,7 +940,33 @@ function ImageBlockEditor({
                 },
               ],
             })
+            setSelectedAnnotationId(id)
+            setSelectedOverlayId(null)
+            setSelectedMeasurementId(null)
           }
+        }
+
+        if (finishedPoints.length >= 2 && measurementMode) {
+          const id = createId("measurement")
+
+          onChange({
+            ...block,
+            annotations: [
+              ...block.annotations,
+              {
+                id,
+                type: "measurement",
+                color: strokeColor,
+                width: strokeWidth,
+                start: finishedPoints[0],
+                end: finishedPoints[finishedPoints.length - 1],
+                label: "Measurement",
+              },
+            ],
+          })
+          setSelectedAnnotationId(id)
+          setSelectedMeasurementId(id)
+          setSelectedOverlayId(null)
         }
       }
     }
@@ -700,9 +977,14 @@ function ImageBlockEditor({
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
     }
-  }, [activeTool, arrowMode, block, drawMode, onChange, shapeMode, strokeColor, strokeWidth])
+  }, [activeTool, arrowMode, block, drawMode, measurementMode, onChange, shapeMode, strokeColor, strokeWidth])
 
   const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
+  const selectedAnnotation = block.annotations.find((annotation) => annotation.id === selectedAnnotationId) || null
+  const selectedMeasurement = block.annotations.find(
+    (annotation): annotation is ProposalImageMeasurementAnnotation =>
+      annotation.type === "measurement" && annotation.id === selectedMeasurementId,
+  ) || null
 
   return (
     <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
@@ -816,6 +1098,17 @@ function ImageBlockEditor({
           </Button>
           <Button
             type="button"
+            variant={measurementMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(measurementMode ? "select" : "measurement")
+            }
+          >
+            <Ruler className="mr-1 h-4 w-4" />
+            Measurement
+          </Button>
+          <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => {
@@ -830,6 +1123,8 @@ function ImageBlockEditor({
               }
               onChange({ ...block, textOverlays: [...block.textOverlays, overlay] })
               setSelectedOverlayId(overlay.id)
+              setSelectedMeasurementId(null)
+              setSelectedAnnotationId(null)
             }}
           >
             <Type className="mr-1 h-4 w-4" />
@@ -960,6 +1255,83 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
+      {!readOnly && selectedAnnotation ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            {t("imageEditor.color")}
+            <input
+              type="color"
+              value={selectedAnnotation.color}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  annotations: block.annotations.map((annotation) =>
+                    annotation.id === selectedAnnotation.id
+                      ? {
+                          ...annotation,
+                          color: event.target.value,
+                          ...(annotation.type === "highlight" ? { fill: event.target.value } : {}),
+                        }
+                      : annotation,
+                  ),
+                })
+              }
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            {t("imageEditor.stroke")}
+            <input
+              type="range"
+              min={2}
+              max={16}
+              value={selectedAnnotation.width}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  annotations: block.annotations.map((annotation) =>
+                    annotation.id === selectedAnnotation.id ? { ...annotation, width: Number(event.target.value) } : annotation,
+                  ),
+                })
+              }
+            />
+            <span>{selectedAnnotation.width}px</span>
+          </label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => {
+              onChange({ ...block, annotations: block.annotations.filter((annotation) => annotation.id !== selectedAnnotation.id) })
+              setSelectedAnnotationId(null)
+              if (selectedMeasurementId === selectedAnnotation.id) setSelectedMeasurementId(null)
+            }}
+          >
+            <Trash2 className="mr-1 h-4 w-4" />
+            Delete annotation
+          </Button>
+        </div>
+      ) : null}
+
+      {!readOnly && selectedMeasurement ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <Input
+            value={selectedMeasurement.label}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                annotations: block.annotations.map((annotation) =>
+                  annotation.type === "measurement" && annotation.id === selectedMeasurement.id
+                    ? { ...annotation, label: event.target.value }
+                    : annotation,
+                ),
+              })
+            }
+            className="max-w-xs"
+          />
+        </div>
+      ) : null}
+
       <div className={cn(
         "flex w-full",
         block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
@@ -973,7 +1345,12 @@ function ImageBlockEditor({
           )}
           style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
           onPointerDown={(event) => {
-            if (readOnly || !annotationMode || !wrapperRef.current) return
+            if (readOnly || !wrapperRef.current) return
+            if (!annotationMode) {
+              setSelectedAnnotationId(null)
+              setSelectedMeasurementId(null)
+              return
+            }
             event.preventDefault()
             wrapperRef.current.setPointerCapture?.(event.pointerId)
             const rect = wrapperRef.current.getBoundingClientRect()
@@ -993,39 +1370,95 @@ function ImageBlockEditor({
             onDragStart={(event) => event.preventDefault()}
           />
 
-          <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${block.width} ${block.height}`} preserveAspectRatio="none">
+          <svg
+            className={cn(
+              "absolute inset-0 h-full w-full",
+              !readOnly && !annotationMode ? "pointer-events-auto" : "pointer-events-none",
+            )}
+            viewBox={`0 0 ${block.width} ${block.height}`}
+            preserveAspectRatio="none"
+          >
             {block.annotations.map((annotation) => {
+              const isSelected = selectedAnnotationId === annotation.id
+              const selectAnnotation = (event: React.PointerEvent<SVGGElement>) => {
+                if (readOnly || annotationMode) return
+                event.stopPropagation()
+                event.preventDefault()
+                setSelectedAnnotationId(annotation.id)
+                setSelectedOverlayId(null)
+                setSelectedMeasurementId(annotation.type === "measurement" ? annotation.id : null)
+              }
+
               if (!annotation.type || annotation.type === "stroke") {
                 return (
-                  <StrokePath
-                    key={annotation.id}
-                    stroke={annotation}
-                    width={block.width}
-                    height={block.height}
-                  />
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <StrokePath
+                      stroke={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
                 )
               }
 
               if (annotation.type === "arrow") {
                 return (
-                  <ArrowPath
-                    key={annotation.id}
-                    arrow={annotation}
-                    width={block.width}
-                    height={block.height}
-                    markerId={`${arrowMarkerPrefix}-${annotation.id}`}
-                  />
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <ArrowPath
+                      arrow={annotation}
+                      width={block.width}
+                      height={block.height}
+                      markerId={`${arrowMarkerPrefix}-${annotation.id}`}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
                 )
               }
 
               if (annotation.type === "rect" || annotation.type === "ellipse" || annotation.type === "highlight") {
                 return (
-                  <ShapeAnnotation
-                    key={annotation.id}
-                    annotation={annotation}
-                    width={block.width}
-                    height={block.height}
-                  />
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <ShapeAnnotation
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
+                )
+              }
+
+              if (annotation.type === "measurement") {
+                return (
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <MeasurementAnnotation
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
                 )
               }
 
@@ -1070,6 +1503,21 @@ function ImageBlockEditor({
                 height={block.height}
               />
             ) : null}
+            {draftPoints.length >= 2 && measurementMode ? (
+              <MeasurementAnnotation
+                annotation={{
+                  id: "draft",
+                  type: "measurement",
+                  color: strokeColor,
+                  width: strokeWidth,
+                  start: draftPoints[0],
+                  end: draftPoints[draftPoints.length - 1],
+                  label: "",
+                }}
+                width={block.width}
+                height={block.height}
+              />
+            ) : null}
           </svg>
 
           {block.textOverlays.map((overlay) => (
@@ -1094,6 +1542,8 @@ function ImageBlockEditor({
                 event.stopPropagation()
                 event.preventDefault()
                 setSelectedOverlayId(overlay.id)
+                setSelectedMeasurementId(null)
+                setSelectedAnnotationId(null)
                 dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
               }}
             >
