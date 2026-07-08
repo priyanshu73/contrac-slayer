@@ -16,6 +16,7 @@ import { Project, ProjectScopeBilling } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2, AlertTriangle, FileText, ArrowUpRight, CheckCircle2 } from 'lucide-react'
+import { QuickBooksInvoicesSection } from './quickbooks-invoices-section'
 
 interface ScopeBillingTabProps {
   project: Project
@@ -532,6 +533,17 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── QuickBooks reconciliation (was its own "Summary & Invoicing" tab) ──
+           LEVEL 2 TODO: unify these QBO invoices with the app-native invoices in
+           the "Payments & Invoices" section above — an app invoice synced to QBO
+           is the same invoice shown twice. Needs a backend app-invoice ↔ QBO-
+           invoice correlation before we can collapse them into one list. */}
+      <Card className="border shadow-sm">
+        <CardContent className="p-5">
+          <QuickBooksInvoicesSection project={project} />
         </CardContent>
       </Card>
     </div>

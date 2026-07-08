@@ -11,7 +11,6 @@ import { Loader2, Home, Plus } from 'lucide-react'
 import { FinancialSidebar } from './financial-sidebar'
 import { JobCostingTab } from './job-costing-tab'
 import { MaterialsPermitsTab } from './materials-permits-tab'
-import { SummaryInvoicingTab } from './summary-invoicing-tab'
 import { ScopeBillingTab } from './scope-billing-tab'
 
 interface ProjectFinancialsProps {
@@ -63,12 +62,12 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   return (
     <div className="animate-in fade-in duration-500">
       <Tabs defaultValue="scope-billing" className="w-full space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-3">
           <TabsTrigger
             value="scope-billing"
             className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
-            Scope &amp; Billing
+            Billing &amp; Invoices
           </TabsTrigger>
           <TabsTrigger
             value="job-costing"
@@ -76,17 +75,11 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
           >
             Job Costing (Labour & Subs)
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="materials"
             className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             Materials & Permits
-          </TabsTrigger>
-          <TabsTrigger 
-            value="summary"
-            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-          >
-            Summary & Invoicing
           </TabsTrigger>
         </TabsList>
 
@@ -108,10 +101,6 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
                   onRefreshTotal={refreshFinancialData}
                   onProjectMediaChanged={onProjectUpdated}
                 />
-              </TabsContent>
-
-              <TabsContent value="summary" className="p-0 m-0 border-none outline-none">
-                {summary && <SummaryInvoicingTab project={project} summary={summary} />}
               </TabsContent>
             </div>
           </div>
