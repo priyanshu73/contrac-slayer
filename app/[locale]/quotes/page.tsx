@@ -435,7 +435,7 @@ export default function QuotesPage() {
             <Button asChild size="sm" className="w-full gap-1.5 rounded-xl sm:w-auto">
               <a href={`${basePath}/new`}>
                 <Plus className="h-4 w-4" />
-                New Quote
+                {tQuotes("newQuote")}
               </a>
             </Button>
           </div>
@@ -459,8 +459,8 @@ export default function QuotesPage() {
             </Button>
             <Button asChild size="sm" className="gap-1.5">
               <a href={`${basePath}/new`}>
-                <Plus className="h-4 w-4" />
-                New Quote
+              <Plus className="h-4 w-4" />
+              {tQuotes("newQuote")}
               </a>
             </Button>
           </div>
@@ -501,8 +501,7 @@ export default function QuotesPage() {
                       >
                         <span className="flex items-center gap-2">
                           <span
-                            className={`inline-block h-2 w-2 rounded-full shrink-0 ${
-                              code === "PAID"
+                            className={`inline-block h-2 w-2 rounded-full shrink-0 ${code === "PAID"
                                 ? "bg-green-600"
                                 : code === "INVOICED"
                                   ? "bg-indigo-500"
@@ -511,7 +510,7 @@ export default function QuotesPage() {
                                     : code === "DRAFT"
                                       ? "bg-amber-500"
                                       : "bg-muted-foreground/60"
-                            }`}
+                              }`}
                           />
                           {statusLabel(code)}
                         </span>
@@ -556,10 +555,10 @@ export default function QuotesPage() {
                   onValueChange={(v) => setProjectFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
                   <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
-                    <SelectValue placeholder="All Projects" />
+                    <SelectValue placeholder={tQuotes("allProjects")}/>
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
-                    <SelectItem value="all">All Projects</SelectItem>
+                    <SelectItem value="all">{tQuotes("allProjects")}</SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={String(p.id)} textValue={p.title}>
                         <span className="truncate block">{p.title}</span>
@@ -834,7 +833,7 @@ export default function QuotesPage() {
             api.getProjects({ limit: 500 }).then((raw) => {
               const arr = Array.isArray(raw) ? raw : []
               setProjects(arr.map((p: { id: number; title: string }) => ({ id: p.id, title: p.title })).sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" })))
-            }).catch(() => {})
+            }).catch(() => { })
           }}
         />
       )}

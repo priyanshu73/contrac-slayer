@@ -350,10 +350,49 @@ export interface ProposalAnnotationPoint {
 
 export interface ProposalImageAnnotationStroke {
   id: string
+  type?: "stroke"
   color: string
   width: number
   points: ProposalAnnotationPoint[]
 }
+
+export interface ProposalImageArrowAnnotation {
+  id: string
+  type: "arrow"
+  color: string
+  width: number
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+}
+
+export interface ProposalImageShapeAnnotation {
+  id: string
+  type: "rect" | "ellipse" | "highlight"
+  color: string
+  width: number
+  x: number
+  y: number
+  w: number
+  h: number
+  fill?: string
+  opacity?: number
+}
+
+export interface ProposalImageMeasurementAnnotation {
+  id: string
+  type: "measurement"
+  color: string
+  width: number
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+  label: string
+}
+
+export type ProposalImageAnnotation =
+  | ProposalImageAnnotationStroke
+  | ProposalImageArrowAnnotation
+  | ProposalImageShapeAnnotation
+  | ProposalImageMeasurementAnnotation
 
 export interface ProposalImageTextOverlay {
   id: string
@@ -374,8 +413,9 @@ export interface ProposalImageBlock {
   width: number
   height: number
   alignment?: 'left' | 'center' | 'right'
-  annotations: ProposalImageAnnotationStroke[]
+  annotations: ProposalImageAnnotation[]
   textOverlays: ProposalImageTextOverlay[]
+  caption?: string
 }
 
 export interface ProposalBeforeAfterBlock {
@@ -519,6 +559,7 @@ export interface Job {
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
   title: string
+  proposal_document?: ProposalDocument | null
   description?: string
   status: JobStatus
   start_date?: string
@@ -702,9 +743,6 @@ export interface ProjectListItem {
   uuid: string
   title: string
   status: ProjectStatus
-  client_id?: number
-  client_name?: string | null
-  contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string
   total_trades?: number
