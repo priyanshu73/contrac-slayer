@@ -331,6 +331,21 @@ function moveBlockWithinPage(page: ProposalPage, blockId: string, direction: -1 
   }
 }
 
+function moveBlockToIndex(page: ProposalPage, blockId: string, targetIndex: number): ProposalPage {
+  const sourceIndex = page.description.findIndex((block) => block.id === blockId)
+  if (sourceIndex < 0) return page
+
+  const nextBlocks = [...page.description]
+  const [block] = nextBlocks.splice(sourceIndex, 1)
+  const boundedTargetIndex = Math.max(0, Math.min(targetIndex, nextBlocks.length))
+  nextBlocks.splice(boundedTargetIndex, 0, block)
+
+  return {
+    ...page,
+    description: nextBlocks,
+  }
+}
+
 function RichTextEditor({
   value,
   onChange,
@@ -790,6 +805,9 @@ function ImageBlockEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onDragHandleStart,
+  onDragHandleEnd,
+  isDragging,
   className,
 }: {
   block: ProposalImageBlock
@@ -800,6 +818,9 @@ function ImageBlockEditor({
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
+  onDragHandleEnd?: () => void
+  isDragging?: boolean
   className?: string
 }) {
   const t = useTranslations("proposals")
@@ -987,9 +1008,23 @@ function ImageBlockEditor({
   ) || null
 
   return (
-    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
+    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
       {!readOnly ? (
         <div className="flex flex-wrap items-center gap-2">
+          {onDragHandleStart ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              draggable
+              onDragStart={onDragHandleStart}
+              onDragEnd={onDragHandleEnd}
+              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
+              aria-label="Drag image block"
+            >
+              <GripVertical className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
             <MoveUp className="h-4 w-4" />
           </Button>
@@ -1597,6 +1632,9 @@ function BeforeAfterBlockEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onDragHandleStart,
+  onDragHandleEnd,
+  isDragging,
   className,
 }: {
   block: ProposalBeforeAfterBlock
@@ -1607,13 +1645,30 @@ function BeforeAfterBlockEditor({
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
+  onDragHandleEnd?: () => void
+  isDragging?: boolean
   className?: string
 }) {
   const t = useTranslations("proposals")
   return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
+    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
       {!readOnly ? (
         <div className="mb-2 flex items-center justify-end gap-0.5">
+          {onDragHandleStart ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              draggable
+              onDragStart={onDragHandleStart}
+              onDragEnd={onDragHandleEnd}
+              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
+              aria-label="Drag before/after block"
+            >
+              <GripVertical className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
             <MoveUp className="h-4 w-4" />
           </Button>
@@ -1868,6 +1923,8 @@ export function ProposalBuilder({
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
   const [beforeAfterBeforeUrl, setBeforeAfterBeforeUrl] = useState<string | null>(null)
   const [beforeAfterAfterUrl, setBeforeAfterAfterUrl] = useState<string | null>(null)
+  const [draggingBlock, setDraggingBlock] = useState<{ pageId: string; blockId: string } | null>(null)
+  const [dragOverBlock, setDragOverBlock] = useState<{ id: string; placement: "before" | "after" } | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -2218,6 +2275,35 @@ export function ProposalBuilder({
       return next
     })
     setDirty(true)
+  }
+
+  const startBlockDrag = (event: React.DragEvent<HTMLButtonElement>, pageId: string, blockId: string) => {
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", blockId)
+    setDraggingBlock({ pageId, blockId })
+    setDragOverBlock(null)
+  }
+
+  const allowBlockDrop = (event: React.DragEvent<HTMLElement>, pageId: string) => {
+    if (!draggingBlock || draggingBlock.pageId !== pageId) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+  }
+
+  const dropBlockAtIndex = (event: React.DragEvent<HTMLElement>, pageId: string, targetIndex: number) => {
+    if (!draggingBlock || draggingBlock.pageId !== pageId) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    updateDocument((current) =>
+      updatePage(current, pageId, (currentPage) => {
+        const sourceIndex = currentPage.description.findIndex((block) => block.id === draggingBlock.blockId)
+        const adjustedTargetIndex = sourceIndex >= 0 && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        return moveBlockToIndex(currentPage, draggingBlock.blockId, adjustedTargetIndex)
+      }),
+    )
+    setDraggingBlock(null)
+    setDragOverBlock(null)
   }
 
   const isReadOnly = publicMode || viewMode
@@ -3116,7 +3202,14 @@ export function ProposalBuilder({
                 </div>
               </div>
 
-              <div className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}>
+              <div
+                className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}
+                onDragOver={(event) => {
+                  allowBlockDrop(event, page.id)
+                  if (draggingBlock?.pageId === page.id) setDragOverBlock(null)
+                }}
+                onDrop={(event) => dropBlockAtIndex(event, page.id, page.description.length)}
+              >
                 {page.description.map((block, blockIndex) => {
                   const deleteBlock = () =>
                     updateDocument((current) =>
@@ -3134,10 +3227,62 @@ export function ProposalBuilder({
                       updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
                     )
 
+                  const isImageLikeBlock = block.type === "image" || block.type === "before_after"
+                  const isCurrentDraggingBlock = draggingBlock?.pageId === page.id && draggingBlock.blockId === block.id
+                  const dragHandleProps =
+                    !isReadOnly && isImageLikeBlock
+                      ? {
+                        onDragHandleStart: (event: React.DragEvent<HTMLButtonElement>) =>
+                          startBlockDrag(event, page.id, block.id),
+                        onDragHandleEnd: () => {
+                          setDraggingBlock(null)
+                          setDragOverBlock(null)
+                        },
+                        isDragging: isCurrentDraggingBlock,
+                      }
+                      : {}
+                  const wrapBlock = (node: React.ReactNode) => (
+                    <div
+                      key={block.id}
+                      className={cn(
+                        "transition",
+                        draggingBlock?.pageId === page.id &&
+                        draggingBlock.blockId !== block.id &&
+                        dragOverBlock?.id === block.id &&
+                        dragOverBlock.placement === "before" &&
+                        !isReadOnly &&
+                        "rounded-2xl border-t-2 border-sky-400 pt-2",
+                        draggingBlock?.pageId === page.id &&
+                        draggingBlock.blockId !== block.id &&
+                        dragOverBlock?.id === block.id &&
+                        dragOverBlock.placement === "after" &&
+                        !isReadOnly &&
+                        "rounded-2xl border-b-2 border-sky-400 pb-2",
+                      )}
+                      onDragOver={(event) => {
+                        event.stopPropagation()
+                        allowBlockDrop(event, page.id)
+                        if (draggingBlock?.pageId === page.id) {
+                          const rect = event.currentTarget.getBoundingClientRect()
+                          setDragOverBlock({
+                            id: block.id,
+                            placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before",
+                          })
+                        }
+                      }}
+                      onDrop={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        const targetIndex = event.clientY > rect.top + rect.height / 2 ? blockIndex + 1 : blockIndex
+                        dropBlockAtIndex(event, page.id, targetIndex)
+                      }}
+                    >
+                      {node}
+                    </div>
+                  )
+
                   if (block.type === "before_after") {
-                    return (
+                    return wrapBlock(
                       <BeforeAfterBlockEditor
-                        key={block.id}
                         block={block}
                         readOnly={isReadOnly}
                         canMoveUp={blockIndex > 0}
@@ -3149,15 +3294,15 @@ export function ProposalBuilder({
                           updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
                         }
                         className={proposalTheme.blockSurfaceClassName}
+                        {...dragHandleProps}
                       />
                     )
                   }
 
                   if (block.type === "text") {
                     if (isReadOnly) {
-                      return (
+                      return wrapBlock(
                         <RichTextEditor
-                          key={block.id}
                           value={block.html}
                           onChange={(value) =>
                             updateDocument((current) =>
@@ -3170,8 +3315,8 @@ export function ProposalBuilder({
                         />
                       )
                     }
-                    return (
-                      <div key={block.id} className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
+                    return wrapBlock(
+                      <div className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
                         <div className="mb-2 flex items-center justify-end gap-0.5">
                           <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
                             <MoveUp className="h-4 w-4" />
@@ -3201,9 +3346,8 @@ export function ProposalBuilder({
                   }
 
                   // image block
-                  return (
+                  return wrapBlock(
                     <ImageBlockEditor
-                      key={block.id}
                       block={block}
                       readOnly={isReadOnly}
                       canMoveUp={blockIndex > 0}
@@ -3215,6 +3359,7 @@ export function ProposalBuilder({
                         updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
                       }
                       onDelete={deleteBlock}
+                      {...dragHandleProps}
                     />
                   )
                 })}
