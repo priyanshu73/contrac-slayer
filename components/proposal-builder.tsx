@@ -439,7 +439,14 @@ function StrokePath({
   width: number
   height: number
 }) {
-  const d = stroke.points
+  // Stored proposal_document is an opaque JSON blob on the backend, so a stroke
+  // persisted by an older build (or a partial save) can arrive without `points`.
+  // A stroke needs >=2 points to draw a line anyway — skip a malformed one rather
+  // than let a single bad annotation crash the whole proposal render.
+  const points = stroke.points
+  if (!Array.isArray(points) || points.length < 2) return null
+
+  const d = points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
     .join(" ")
 
