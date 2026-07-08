@@ -1591,6 +1591,7 @@ function ImageBlockEditor({
 function BeforeAfterBlockEditor({
   block,
   readOnly,
+  onChange,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -1600,6 +1601,7 @@ function BeforeAfterBlockEditor({
 }: {
   block: ProposalBeforeAfterBlock
   readOnly: boolean
+  onChange: (block: ProposalBeforeAfterBlock) => void
   onDelete: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
@@ -1621,6 +1623,23 @@ function BeforeAfterBlockEditor({
           <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
             <Trash2 className="h-4 w-4" />
           </Button>
+        </div>
+      ) : null}
+
+      {!readOnly ? (
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <Input
+            value={block.beforeLabel ?? ""}
+            onChange={(event) => onChange({ ...block, beforeLabel: event.target.value })}
+            placeholder={t("imageEditor.before")}
+            className="bg-white text-sm"
+          />
+          <Input
+            value={block.afterLabel ?? ""}
+            onChange={(event) => onChange({ ...block, afterLabel: event.target.value })}
+            placeholder={t("imageEditor.after")}
+            className="bg-white text-sm"
+          />
         </div>
       ) : null}
 
@@ -1847,6 +1866,8 @@ export function ProposalBuilder({
     )
   )
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
+  const [beforeAfterBeforeUrl, setBeforeAfterBeforeUrl] = useState<string | null>(null)
+  const [beforeAfterAfterUrl, setBeforeAfterAfterUrl] = useState<string | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -2004,6 +2025,13 @@ export function ProposalBuilder({
       isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
     ))
   }, [isProposalMode, job?.id, job?.project_media, project?.id, project?.media])
+
+  useEffect(() => {
+    if (!imagePickerPageId) {
+      setBeforeAfterBeforeUrl(null)
+      setBeforeAfterAfterUrl(null)
+    }
+  }, [imagePickerPageId])
 
   useEffect(() => {
     const hasExistingDoc = !!proposal?.proposal_document
@@ -2538,6 +2566,31 @@ export function ProposalBuilder({
   }
 
   const subtitle = [document.companyName, document.companyAddress].filter(Boolean).join(" · ")
+  const beforeAfterImageChoices = (() => {
+    const seen = new Set<string>()
+    const choices: Array<{ url: string; label: string }> = []
+    const addChoice = (url?: string | null, label?: string | null) => {
+      if (!url || seen.has(url)) return
+      seen.add(url)
+      choices.push({ url, label: label?.trim() || `Image ${choices.length + 1}` })
+    }
+
+    document.pages.forEach((page) => {
+      page.description.forEach((block) => {
+        if (block.type === "image") addChoice(block.url, block.caption || block.file_name)
+        if (block.type === "before_after") {
+          addChoice(block.beforeUrl, block.beforeLabel ?? t("imageEditor.before"))
+          addChoice(block.afterUrl, block.afterLabel ?? t("imageEditor.after"))
+        }
+      })
+    })
+    imagePairs.forEach((pair, index) => {
+      if (!pair.beforeFile) addChoice(pair.beforePreview, t("imagePicker.beforeLabel", { number: index + 1 }))
+      addChoice(pair.afterUrl, t("imagePicker.afterLabel", { number: index + 1 }))
+    })
+
+    return choices
+  })()
 
   return (
     <div className={cn("min-h-screen print:bg-none print:bg-white", proposalTheme.canvasClassName)} style={canvasStyle}>
@@ -3092,6 +3145,9 @@ export function ProposalBuilder({
                         onMoveUp={moveUp}
                         onMoveDown={moveDown}
                         onDelete={deleteBlock}
+                        onChange={(nextBlock) =>
+                          updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
+                        }
                         className={proposalTheme.blockSurfaceClassName}
                       />
                     )
@@ -3191,7 +3247,7 @@ export function ProposalBuilder({
                     onClick={() => {
                       const hasPickable = imagePairs.some(
                         (p) => p.afterUrl || (!p.beforeFile && p.beforePreview)
-                      )
+                      ) || beforeAfterImageChoices.length >= 2
                       if (hasPickable) {
                         setImagePickerPageId(page.id)
                       } else {
@@ -3247,6 +3303,90 @@ export function ProposalBuilder({
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
+            {beforeAfterImageChoices.length >= 2 ? (
+              <div className="border-b border-slate-100 px-6 py-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <ImagePlus className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Before / After
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!beforeAfterBeforeUrl || !beforeAfterAfterUrl || beforeAfterBeforeUrl === beforeAfterAfterUrl}
+                    onClick={() => {
+                      const pageId = imagePickerPageId
+                      if (!pageId || !beforeAfterBeforeUrl || !beforeAfterAfterUrl || beforeAfterBeforeUrl === beforeAfterAfterUrl) return
+                      const beforeChoice = beforeAfterImageChoices.find((choice) => choice.url === beforeAfterBeforeUrl)
+                      const afterChoice = beforeAfterImageChoices.find((choice) => choice.url === beforeAfterAfterUrl)
+                      const block: ProposalBeforeAfterBlock = {
+                        id: createId("before-after"),
+                        type: "before_after",
+                        beforeUrl: beforeAfterBeforeUrl,
+                        afterUrl: beforeAfterAfterUrl,
+                        beforeLabel: beforeChoice?.label || t("imageEditor.before"),
+                        afterLabel: afterChoice?.label || t("imageEditor.after"),
+                      }
+                      updateDocument((current) =>
+                        updatePage(current, pageId, (p) => ({
+                          ...p,
+                          description: [...p.description, block],
+                        }))
+                      )
+                      setImagePickerPageId(null)
+                    }}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add block
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(["before", "after"] as const).map((slot) => {
+                    const selectedUrl = slot === "before" ? beforeAfterBeforeUrl : beforeAfterAfterUrl
+                    const setSelectedUrl = slot === "before" ? setBeforeAfterBeforeUrl : setBeforeAfterAfterUrl
+                    return (
+                      <div key={slot} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-600">
+                          {slot === "before" ? t("imageEditor.before") : t("imageEditor.after")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {beforeAfterImageChoices.map((choice) => {
+                            const selected = selectedUrl === choice.url
+                            const disabled =
+                              slot === "before"
+                                ? beforeAfterAfterUrl === choice.url
+                                : beforeAfterBeforeUrl === choice.url
+
+                            return (
+                              <button
+                                key={`${slot}-${choice.url}`}
+                                type="button"
+                                disabled={disabled}
+                                className={cn(
+                                  "overflow-hidden rounded-lg border bg-white text-left transition",
+                                  selected ? "border-slate-900 ring-2 ring-slate-900/10" : "border-slate-200 hover:border-slate-300",
+                                  disabled && "cursor-not-allowed opacity-40",
+                                )}
+                                onClick={() => setSelectedUrl(choice.url)}
+                              >
+                                <div className="aspect-[4/3] overflow-hidden bg-slate-100">
+                                  <img src={choice.url} alt={choice.label} className="h-full w-full object-cover" />
+                                </div>
+                                <p className="truncate px-2 py-1.5 text-[11px] font-medium text-slate-600">{choice.label}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
             {imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ? (
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="mb-3 flex items-center gap-2">
