@@ -723,6 +723,10 @@ export interface Project {
   objective?: string
   status: ProjectStatus
   contract_value?: number
+  // P&L (Costs & Margin) per-unit metric inputs
+  pnl_unit_label?: string | null
+  pnl_unit_count?: number | null
+  pnl_crew_days?: number | null
   scheduled_start_date?: string
   scheduled_end_date?: string
   actual_start_date?: string
@@ -1437,6 +1441,25 @@ export interface ProjectMaterialCreate {
 
 export type ProjectMaterialUpdate = Partial<ProjectMaterialCreate>
 
+// ── Labor: per-worker crew pay (P&L labor breakdown) ──
+export interface ProjectLaborEntry {
+  id: number
+  project_id: number
+  worker_name: string
+  amount: number
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectLaborEntryCreate {
+  worker_name: string
+  amount?: number
+  order?: number
+}
+
+export type ProjectLaborEntryUpdate = Partial<ProjectLaborEntryCreate>
+
 export interface ProjectPayment {
   id: number
   project_id: number
@@ -1473,6 +1496,27 @@ export interface ProjectFinancialSummary {
   collected_pct: number
   approved_co_total: number
   adjusted_budget: number
+
+  // --- Job P&L (Costs & Margin tab) ---
+  /** Cost items pulled from quotes. */
+  total_direct_cost?: number
+  /** Cost items entered by hand. */
+  total_indirect_cost?: number
+  /** Sum of ProjectLaborEntry amounts (crew pay). */
+  total_labor?: number
+  /** cost items + materials cost + labor. */
+  total_job_cost?: number
+  /** revenue (contract total) − total_job_cost. */
+  gross_profit?: number
+  /** gross_profit / revenue × 100. */
+  gross_margin_pct?: number
+  /** gross_profit / unit count (null if unit count unset). */
+  gp_per_unit?: number | null
+  /** gross_profit / crew days (null if crew days unset). */
+  gp_per_crew_day?: number | null
+  pnl_unit_label?: string | null
+  pnl_unit_count?: number | null
+  pnl_crew_days?: number | null
 
   // --- Contract reconciliation (single source of truth) ---
   /** Anchor quote's live grand total (scope-derived). */

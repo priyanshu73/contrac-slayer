@@ -2526,6 +2526,32 @@ class ApiClient {
     })
   }
 
+  // --- Labor (P&L labor breakdown) ---
+
+  async getProjectLaborEntries(projectId: number) {
+    return this.request<any[]>(`/projects/${projectId}/financials/labor`)
+  }
+
+  async createProjectLaborEntry(projectId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/labor`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProjectLaborEntry(projectId: number, entryId: number, data: any) {
+    return this.request(`/projects/${projectId}/financials/labor/${entryId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProjectLaborEntry(projectId: number, entryId: number) {
+    return this.request(`/projects/${projectId}/financials/labor/${entryId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async getProjectPayments(projectId: number) {
     return this.request<any[]>(`/projects/${projectId}/financials/payments`)
   }

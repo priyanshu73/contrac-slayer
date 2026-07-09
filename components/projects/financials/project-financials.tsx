@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Project, ProjectCostItem, ProjectMaterial, ProjectPayment, ProjectFinancialSummary } from '@/lib/types'
+import { Project, ProjectPayment, ProjectFinancialSummary } from '@/lib/types'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2, Home, Plus } from 'lucide-react'
 import { FinancialSidebar } from './financial-sidebar'
-import { JobCostingTab } from './job-costing-tab'
-import { MaterialsPermitsTab } from './materials-permits-tab'
+import { CostsMarginTab } from './costs-margin-tab'
 import { ScopeBillingTab } from './scope-billing-tab'
 
 interface ProjectFinancialsProps {
@@ -62,7 +61,7 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   return (
     <div className="animate-in fade-in duration-500">
       <Tabs defaultValue="scope-billing" className="w-full space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-2">
           <TabsTrigger
             value="scope-billing"
             className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
@@ -70,16 +69,10 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
             Billing &amp; Invoices
           </TabsTrigger>
           <TabsTrigger
-            value="job-costing"
+            value="costs-margin"
             className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
-            Job Costing (Labour & Subs)
-          </TabsTrigger>
-          <TabsTrigger
-            value="materials"
-            className="h-10 cursor-pointer whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-background hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-          >
-            Materials & Permits
+            Costs &amp; Margin
           </TabsTrigger>
         </TabsList>
 
@@ -91,13 +84,10 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
                 <ScopeBillingTab project={project} />
               </TabsContent>
 
-              <TabsContent value="job-costing" className="p-0 m-0 border-none outline-none">
-                <JobCostingTab project={project} onRefreshTotal={refreshFinancialData} />
-              </TabsContent>
-
-              <TabsContent value="materials" className="p-0 m-0 border-none outline-none">
-                <MaterialsPermitsTab
+              <TabsContent value="costs-margin" className="p-0 m-0 border-none outline-none">
+                <CostsMarginTab
                   project={project}
+                  summary={summary}
                   onRefreshTotal={refreshFinancialData}
                   onProjectMediaChanged={onProjectUpdated}
                 />
