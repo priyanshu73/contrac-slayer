@@ -2532,6 +2532,12 @@ class ApiClient {
     return this.request<any[]>(`/projects/${projectId}/financials/labor`)
   }
 
+  async getCrewRoster() {
+    return this.request<{ worker_name: string; last_amount: number | null }[]>(
+      `/financials/crew-roster`
+    )
+  }
+
   async createProjectLaborEntry(projectId: number, data: any) {
     return this.request(`/projects/${projectId}/financials/labor`, {
       method: 'POST',

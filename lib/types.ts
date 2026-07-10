@@ -1385,7 +1385,11 @@ export interface ProjectCostItem {
   phase_order: number
   line_item: string
   status: CostItemStatus
-  gc_cost: number
+  quantity?: number | null   // e.g. 7
+  unit?: string | null       // e.g. "days", "loads"
+  rate?: number | null       // when set, gc_cost = quantity × rate (formula row)
+  notes?: string | null
+  gc_cost: number            // the "Amount" column
   client_price: number
   owed_to_sub: number
   paid: number
@@ -1401,6 +1405,10 @@ export interface ProjectCostItemCreate {
   phase_order?: number
   line_item: string
   status?: CostItemStatus
+  quantity?: number | null
+  unit?: string | null
+  rate?: number | null
+  notes?: string | null
   gc_cost?: number
   markup_pct?: number
   owed_to_sub?: number

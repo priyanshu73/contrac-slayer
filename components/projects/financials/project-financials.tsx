@@ -21,6 +21,7 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
   const { toast } = useToast()
   
   // Shared state that multiple components might need
+  const [activeTab, setActiveTab] = useState('scope-billing')
   const [loading, setLoading] = useState(true)
   const [payments, setPayments] = useState<ProjectPayment[]>([])
   const [summary, setSummary] = useState<ProjectFinancialSummary | null>(null)
@@ -60,7 +61,7 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
 
   return (
     <div className="animate-in fade-in duration-500">
-      <Tabs defaultValue="scope-billing" className="w-full space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1.5 rounded-xl border border-border bg-muted p-1.5 shadow-sm sm:grid-cols-2">
           <TabsTrigger
             value="scope-billing"
@@ -95,16 +96,18 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
             </div>
           </div>
 
-          {/* Persistent Right Sidebar */}
-        <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
-          <FinancialSidebar 
-            project={project} 
-            payments={payments} 
-            summary={summary} 
-            onPaymentAdded={refreshFinancialData} 
-          />
+          {/* Right Sidebar (Billing & Invoices only) */}
+          {activeTab === 'scope-billing' && (
+            <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
+              <FinancialSidebar
+                project={project}
+                payments={payments}
+                summary={summary}
+                onPaymentAdded={refreshFinancialData}
+              />
+            </div>
+          )}
         </div>
-      </div>
       </Tabs>
     </div>
   )

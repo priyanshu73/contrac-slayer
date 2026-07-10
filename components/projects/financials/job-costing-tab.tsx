@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Project, ProjectCostItem, CostItemStatus, ScopeQuoteLineItem } from '@/lib/types'
+import { Project, ProjectCostItem, ScopeQuoteLineItem } from '@/lib/types'
 import { api } from '@/lib/api'
 import { QuoteItemPicker } from './quote-item-picker'
 import { useToast } from '@/components/ui/use-toast'
@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Plus, Loader2, FileDown } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -34,16 +33,22 @@ interface JobCostsSectionProps {
 const DIRECT_PHASE = 'DIRECT'
 const INDIRECT_PHASE = 'INDIRECT'
 
+/** Blank → null (a cleared Qty/Rate cell), otherwise the parsed number. */
+const parseNumOrNull = (raw: string): number | null => {
+  if (raw.trim() === '') return null
+  return parseMoney(raw)
+}
+
 /**
- * Job costs — labour & subs, cost-only (no client price / no per-sub paid; those
- * live on the billing side and the Payments sidebar). Lines are grouped into
- * DIRECT job cost (imported from quotes) and INDIRECT cost (entered directly).
+ * Job costs — P&L-sheet style line items (Line Item / Qty / Unit / Rate /
+ * Amount / Notes). Amount follows the sheet's formula: qty × rate when a rate
+ * is set; typed directly when rate is blank (the sheet's "-" rows). Lines are
+ * grouped into DIRECT job cost (from quotes or added by hand) and INDIRECT cost.
  */
 export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProps) {
   const { toast } = useToast()
   const [items, setItems] = useState<ProjectCostItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [subs, setSubs] = useState<{ id: number; name: string }[]>([])
 
   const loadData = async () => {
     try {
@@ -57,48 +62,23 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
     }
   }
 
-  // Trade-derived subs — defensive merge + fallback if the directory call fails.
-  const tradeSubsMap = () => {
-    const m = new Map<number, { id: number; name: string }>()
-    project.trades?.forEach(trade => {
-      if (trade.subcontractor_id && !m.has(trade.subcontractor_id)) {
-        m.set(trade.subcontractor_id, {
-          id: trade.subcontractor_id,
-          name: trade.subcontractor_name || trade.trade_type,
-        })
-      }
-    })
-    return m
-  }
-
-  const loadSubs = async () => {
-    try {
-      const directory = await api.getSubcontractors(0, 500)
-      const byId = tradeSubsMap()
-      ;(directory || []).forEach((s: any) => {
-        if (s?.id != null) {
-          byId.set(s.id, { id: s.id, name: s.name || s.company_name || `Sub #${s.id}` })
-        }
-      })
-      setSubs(Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name)))
-    } catch (e) {
-      setSubs(Array.from(tradeSubsMap().values()))
-    }
-  }
-
   useEffect(() => {
     loadData()
-    loadSubs()
   }, [project.id])
 
-  const directItems = items.filter(i => i.source_job_item_id != null)
-  const indirectItems = items.filter(i => i.source_job_item_id == null)
+  // Bucket by phase so manually-added direct lines (no source quote) still land
+  // in the Direct box. Legacy lines with ad-hoc phases fall through to Indirect.
+  const directItems = items.filter(i => i.phase === DIRECT_PHASE)
+  const indirectItems = items.filter(i => i.phase !== DIRECT_PHASE)
 
   const handleUpdateItem = async (itemId: number, updates: any) => {
     try {
       const updated = await api.updateProjectCostItem(project.id, itemId, updates)
       setItems(prev => prev.map(i => i.id === itemId ? (updated as ProjectCostItem) : i))
-      if (updates.gc_cost !== undefined) onRefreshTotal()
+      // Qty/rate edits recompute the amount server-side — refresh on any of them.
+      if (updates.gc_cost !== undefined || updates.quantity !== undefined || updates.rate !== undefined) {
+        onRefreshTotal()
+      }
     } catch (err: any) {
       toast({ title: 'Update failed', description: err.message, variant: 'destructive' })
     }
@@ -120,18 +100,29 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
   }
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createBucket, setCreateBucket] = useState<typeof DIRECT_PHASE | typeof INDIRECT_PHASE>(INDIRECT_PHASE)
   const [newItemName, setNewItemName] = useState('')
+  const [newItemQty, setNewItemQty] = useState('')
+  const [newItemUnit, setNewItemUnit] = useState('')
+  const [newItemRate, setNewItemRate] = useState('')
   const [newItemAmount, setNewItemAmount] = useState('')
+  const [newItemNotes, setNewItemNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null)
   const [quotePickerOpen, setQuotePickerOpen] = useState(false)
+
+  // Rate entered in the dialog → Amount is the formula qty × rate (like the sheet).
+  const newRateSet = newItemRate.trim() !== ''
+  const computedNewAmount = newRateSet ? parseMoney(newItemQty) * parseMoney(newItemRate) : null
 
   const pulledItemIds = new Set(
     items.map((i) => i.source_job_item_id).filter((x): x is number => x != null)
   )
 
   // Seed DIRECT cost lines from selected quote line items (cost → gc_cost).
+  // Qty/unit carry over from the quote; rate stays blank so the amount is the
+  // quote's cost basis exactly (no rounding drift from a derived per-unit rate).
   const handleAddFromQuote = async (lineItems: ScopeQuoteLineItem[]) => {
     const created: ProjectCostItem[] = []
     try {
@@ -139,6 +130,8 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
         const newItem = await api.createProjectCostItem(project.id, {
           phase: DIRECT_PHASE,
           line_item: li.description,
+          quantity: li.quantity || null,   // 0/absent → blank, not "0"
+          unit: li.unit_of_measure || null,
           gc_cost: li.cost,
           client_price: li.total,
           source_job_item_id: li.id,
@@ -157,23 +150,37 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
     }
   }
 
-  // Manual add → an INDIRECT cost line (never linked to a quote).
+  const openCreateDialog = (bucket: typeof DIRECT_PHASE | typeof INDIRECT_PHASE) => {
+    setCreateBucket(bucket)
+    setNewItemName('')
+    setNewItemQty('')
+    setNewItemUnit('')
+    setNewItemRate('')
+    setNewItemAmount('')
+    setNewItemNotes('')
+    setCreateDialogOpen(true)
+  }
+
+  // Manual add → a cost line (never linked to a quote) in the chosen bucket.
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemName.trim()) return
+    const amount = newRateSet ? (computedNewAmount ?? 0) : parseMoney(newItemAmount)
     try {
       setIsSubmitting(true)
       const newItem = await api.createProjectCostItem(project.id, {
-        phase: INDIRECT_PHASE,
+        phase: createBucket,
         line_item: newItemName.trim(),
-        gc_cost: parseMoney(newItemAmount),
+        quantity: parseNumOrNull(newItemQty),
+        unit: newItemUnit.trim() || null,
+        rate: parseNumOrNull(newItemRate),
+        notes: newItemNotes.trim() || null,
+        gc_cost: amount,
         client_price: 0,
       })
       setItems(prev => [...prev, newItem as ProjectCostItem])
-      setNewItemName('')
-      setNewItemAmount('')
       setCreateDialogOpen(false)
-      if (parseMoney(newItemAmount) > 0) onRefreshTotal()
+      if (amount > 0) onRefreshTotal()
     } catch (err: any) {
       toast({ title: 'Error creating cost line', description: err.message, variant: 'destructive' })
     } finally {
@@ -181,25 +188,19 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
     }
   }
 
-  const getStatusColor = (status: CostItemStatus) => {
-    switch (status) {
-      case 'COMPLETED': return 'bg-foreground/10 text-foreground'
-      case 'GC_APPROVED': return 'bg-status-active/15 text-status-active'
-      case 'IN_PROGRESS': return 'bg-primary/15 text-primary'
-      case 'SCHEDULED': return 'bg-status-pending/15 text-status-pending'
-      default: return 'bg-muted text-muted-foreground'
-    }
-  }
+  const cellInputClass = 'border-border/40 hover:border-border bg-transparent h-7 px-1.5 text-sm shadow-none focus-visible:ring-1 w-full'
 
   const renderRows = (rows: ProjectCostItem[], emptyText: string) => (
     <div className="rounded-md border overflow-hidden">
       <Table className="table-fixed w-full">
         <TableHeader className="bg-muted">
           <TableRow>
-            <TableHead className="w-[42%] text-xs uppercase tracking-wider">Line Item</TableHead>
-            <TableHead className="w-[18%] text-right text-xs uppercase tracking-wider">Cost</TableHead>
-            <TableHead className="w-[16%] text-center text-xs uppercase tracking-wider">Status</TableHead>
-            <TableHead className="w-[20%] text-right text-xs uppercase tracking-wider">Subcontractor</TableHead>
+            <TableHead className="w-[26%] text-xs uppercase tracking-wider">Line Item</TableHead>
+            <TableHead className="w-[8%] text-right text-xs uppercase tracking-wider">Qty</TableHead>
+            <TableHead className="w-[9%] text-xs uppercase tracking-wider">Unit</TableHead>
+            <TableHead className="w-[12%] text-right text-xs uppercase tracking-wider">Rate</TableHead>
+            <TableHead className="w-[13%] text-right text-xs uppercase tracking-wider">Amount</TableHead>
+            <TableHead className="w-[28%] text-xs uppercase tracking-wider">Notes</TableHead>
             <TableHead className="w-[4%]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -224,48 +225,98 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
                 />
               </TableCell>
 
-              <TableCell className="text-right align-top text-sm">
-                <MoneyInput
-                  value={item.gc_cost}
-                  onCommit={(n) => handleUpdateItem(item.id, { gc_cost: n })}
-                  className="w-full h-7 px-1.5 text-sm text-right bg-transparent border-border/40 hover:border-border shadow-none focus-visible:ring-1"
+              {/* QTY — blank allowed */}
+              <TableCell className="text-right align-top">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  className={`${cellInputClass} text-right`}
+                  defaultValue={item.quantity != null ? String(Number(item.quantity)) : ''}
+                  placeholder="-"
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                  onBlur={e => {
+                    const parsed = parseNumOrNull(e.target.value)
+                    if (parsed !== (item.quantity != null ? Number(item.quantity) : null)) {
+                      handleUpdateItem(item.id, { quantity: parsed })
+                    }
+                  }}
                 />
               </TableCell>
 
-              <TableCell className="px-1.5">
-                <Select
-                  value={item.status}
-                  onValueChange={(val) => handleUpdateItem(item.id, { status: val })}
-                >
-                  <SelectTrigger className={`h-7 min-h-0 text-[10px] w-full border-border/40 hover:border-border shadow-none bg-transparent font-semibold justify-center px-1 [&_svg]:hidden ${getStatusColor(item.status)}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="GC_APPROVED">Approved</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* UNIT */}
+              <TableCell className="align-top">
+                <Input
+                  type="text"
+                  className={cellInputClass}
+                  defaultValue={item.unit ?? ''}
+                  placeholder="-"
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                  onBlur={e => {
+                    const val = e.target.value.trim() || null
+                    if (val !== (item.unit ?? null)) handleUpdateItem(item.id, { unit: val })
+                  }}
+                />
               </TableCell>
 
-              <TableCell className="text-right">
-                <Select
-                  value={item.subcontractor_id?.toString() || 'unassigned'}
-                  onValueChange={(val) => handleUpdateItem(item.id, { subcontractor_id: val === 'unassigned' ? null : Number(val) })}
-                >
-                  <SelectTrigger className="h-7 text-[10px] w-full px-2 border-dashed bg-transparent shadow-none hover:border-border">
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {subs.map(sub => (
-                      <SelectItem key={sub.id} value={sub.id.toString()}>
-                        {sub.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* RATE — blank = "-" (amount entered directly, like the sheet) */}
+              <TableCell className="text-right align-top">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  className={`${cellInputClass} text-right`}
+                  defaultValue={item.rate != null ? String(Number(item.rate)) : ''}
+                  placeholder="-"
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                  onBlur={e => {
+                    const parsed = parseNumOrNull(e.target.value)
+                    if (parsed !== (item.rate != null ? Number(item.rate) : null)) {
+                      handleUpdateItem(item.id, { rate: parsed })
+                    }
+                  }}
+                />
+              </TableCell>
+
+              {/* AMOUNT — formula (read-only) when rate is set; editable otherwise */}
+              <TableCell className="text-right align-top text-sm">
+                {item.rate != null ? (
+                  <div
+                    className="h-7 px-1.5 flex items-center justify-end tabular-nums font-medium text-foreground"
+                    title={`${Number(item.quantity ?? 0)} × ${formatCurrency(Number(item.rate))}`}
+                  >
+                    {formatCurrency(Number(item.gc_cost))}
+                  </div>
+                ) : (
+                  <MoneyInput
+                    key={`amt-${item.id}-${item.gc_cost}`}
+                    value={Number(item.gc_cost)}
+                    onCommit={(n) => handleUpdateItem(item.id, { gc_cost: n })}
+                    className="w-full h-7 px-1.5 text-sm text-right bg-transparent border-border/40 hover:border-border shadow-none focus-visible:ring-1"
+                  />
+                )}
+              </TableCell>
+
+              {/* NOTES */}
+              <TableCell className="align-top pt-2 min-w-0 text-sm">
+                <Textarea
+                  className="border-border/40 hover:border-border bg-transparent min-h-[28px] h-auto p-1 text-sm shadow-none focus-visible:ring-1 w-full resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] text-muted-foreground italic"
+                  defaultValue={item.notes ?? ''}
+                  rows={1}
+                  ref={(el) => {
+                    if (!el) return
+                    el.style.height = 'auto'
+                    el.style.height = `${el.scrollHeight}px`
+                  }}
+                  onInput={(e) => {
+                    e.currentTarget.style.height = 'auto'
+                    e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value.trim() || null
+                    if (val !== (item.notes ?? null)) handleUpdateItem(item.id, { notes: val })
+                  }}
+                />
               </TableCell>
 
               <TableCell className="px-1">
@@ -304,7 +355,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
           ))}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-6 italic">{emptyText}</TableCell>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-6 italic">{emptyText}</TableCell>
             </TableRow>
           )}
         </TableBody>
@@ -334,8 +385,11 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
     <div className="space-y-6">
       {/* DIRECT JOB COST — imported from quotes */}
       <SectionCard title="Direct Job Cost" subtitle="Cost lines imported from your quotes." total={directTotal}>
-        {renderRows(directItems, 'No direct cost lines yet — pull them from a quote.')}
-        <div className="mt-3">
+        {renderRows(directItems, 'No direct cost lines yet — add one or pull them from a quote.')}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => openCreateDialog(DIRECT_PHASE)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
+            <Plus className="w-4 h-4 mr-1" /> Add Item
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setQuotePickerOpen(true)} className="text-muted-foreground border-border hover:bg-muted font-medium">
             <FileDown className="w-4 h-4 mr-1" /> Import from quote
           </Button>
@@ -346,16 +400,16 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
       <SectionCard title="Indirect Cost" subtitle="Cost lines you enter directly (not from a quote)." total={indirectTotal}>
         {renderRows(indirectItems, 'No indirect cost lines yet.')}
         <div className="mt-3">
-          <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
-            <Plus className="w-4 h-4 mr-1" /> Add cost line
+          <Button variant="outline" size="sm" onClick={() => openCreateDialog(INDIRECT_PHASE)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
+            <Plus className="w-4 h-4 mr-1" /> Add Item
           </Button>
         </div>
       </SectionCard>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Add indirect cost line</DialogTitle>
+            <DialogTitle>Add {createBucket === DIRECT_PHASE ? 'direct' : 'indirect'} cost line</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -368,14 +422,58 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
                 required
               />
             </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Qty</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={newItemQty}
+                  onChange={e => setNewItemQty(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="-"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Input
+                  value={newItemUnit}
+                  onChange={e => setNewItemUnit(e.target.value)}
+                  placeholder="e.g. days"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Rate</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={newItemRate}
+                  onChange={e => setNewItemRate(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="-"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label>Amount (cost)</Label>
+              <Label>Amount {newRateSet && <span className="text-xs text-muted-foreground font-normal">(qty × rate)</span>}</Label>
+              {newRateSet ? (
+                <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums font-medium">
+                  {formatCurrency(computedNewAmount ?? 0)}
+                </div>
+              ) : (
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={newItemAmount}
+                  onChange={e => setNewItemAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="0.00"
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
               <Input
-                type="text"
-                inputMode="decimal"
-                value={newItemAmount}
-                onChange={e => setNewItemAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                placeholder="0.00"
+                value={newItemNotes}
+                onChange={e => setNewItemNotes(e.target.value)}
+                placeholder="Optional"
               />
             </div>
             <div className="flex justify-end pt-4">
