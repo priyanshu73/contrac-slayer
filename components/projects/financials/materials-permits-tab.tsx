@@ -8,7 +8,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MoneyInput } from './money-input'
+import { Card, CardContent } from '@/components/ui/card'
+import { MoneyInput, parseMoney } from './money-input'
 import {
   Dialog,
   DialogContent,
@@ -166,11 +167,15 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createCategory, setCreateCategory] = useState<'JOB_MATERIAL' | 'SITE_SERVICE'>('JOB_MATERIAL')
   const [newItemName, setNewItemName] = useState('')
+  const [newItemVendor, setNewItemVendor] = useState('')
+  const [newItemCost, setNewItemCost] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const openCreateDialog = (category: 'JOB_MATERIAL' | 'SITE_SERVICE') => {
     setCreateCategory(category)
     setNewItemName('')
+    setNewItemVendor('')
+    setNewItemCost('')
     setCreateDialogOpen(true)
   }
 
@@ -222,11 +227,13 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       const newItem = await api.createProjectMaterial(project.id, {
         category: createCategory,
         item_name: newItemName.trim(),
-        cost: 0,
+        vendor: newItemVendor.trim() || null,
+        cost: parseMoney(newItemCost),
         client_price: 0
       })
       setItems(prev => [...prev, newItem as ProjectMaterial])
       setCreateDialogOpen(false)
+      if (parseMoney(newItemCost) > 0) onRefreshTotal()
     } catch(err: any) {
       toast({ title: 'Error creating item', description: err.message, variant: 'destructive' })
     } finally {
@@ -239,25 +246,21 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
   const jobMaterials = items.filter(i => i.category === 'JOB_MATERIAL')
   const siteServices = items.filter(i => i.category === 'SITE_SERVICE')
 
-  const totalCost = items.reduce((acc, i) => acc + Number(i.cost), 0)
-  const totalClientPrice = items.reduce((acc, i) => acc + Number(i.client_price), 0)
+  const jobMaterialsCost = jobMaterials.reduce((acc, i) => acc + Number(i.cost), 0)
+  const siteServicesCost = siteServices.reduce((acc, i) => acc + Number(i.cost), 0)
 
   return (
-    <div className="p-0">
+    <div className="space-y-6">
       {/* JOB MATERIALS */}
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-foreground tracking-tight">Job Materials</h2>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('JOB_MATERIAL')} className="text-muted-foreground border-border hover:bg-muted">
-              <FileDown className="w-4 h-4 mr-1" /> From quote
-            </Button>
-            <Button size="sm" onClick={() => openCreateDialog('JOB_MATERIAL')} className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-1" /> Add Material
-            </Button>
+      <Card className="border shadow-sm overflow-hidden">
+        <div className="flex items-end justify-between gap-3 border-b bg-muted/30 px-5 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Job Materials</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Materials bought for the job.</p>
           </div>
+          <span className="text-sm font-bold text-foreground tabular-nums shrink-0">{formatCurrency(jobMaterialsCost)}</span>
         </div>
-        
+        <CardContent className="p-4">
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader className="bg-muted">
@@ -266,7 +269,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                 <TableHead>Vendor</TableHead>
                 <TableHead>Detailed Notes</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right font-bold text-foreground">Client Price</TableHead>
                 <TableHead className="w-[100px] text-center">PO / Receipt</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -302,13 +304,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                       value={item.cost}
                       onCommit={(n) => handleUpdate(item.id, { cost: n })}
                       className="w-24 h-8 text-right ml-auto"
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <MoneyInput
-                      value={item.client_price}
-                      onCommit={(n) => handleUpdate(item.id, { client_price: n })}
-                      className="w-24 h-8 text-right font-bold text-foreground ml-auto"
                     />
                   </TableCell>
                   <TableCell className="text-center">
@@ -409,28 +404,33 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {jobMaterials.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-6 italic">No materials added.</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6 italic">No materials added.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-      </div>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('JOB_MATERIAL')} className="text-muted-foreground border-border hover:bg-muted">
+            <FileDown className="w-4 h-4 mr-1" /> From quote
+          </Button>
+          <Button size="sm" onClick={() => openCreateDialog('JOB_MATERIAL')} className="bg-primary hover:bg-primary/90">
+            <Plus className="w-4 h-4 mr-1" /> Add Material
+          </Button>
+        </div>
+        </CardContent>
+      </Card>
 
       {/* SITE SERVICES & PERMITS */}
-      <div className="p-6 pt-0">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-foreground tracking-tight">Site Services & Admin (Permits, Utilities)</h2>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('SITE_SERVICE')} className="text-muted-foreground border-border hover:bg-muted">
-              <FileDown className="w-4 h-4 mr-1" /> From quote
-            </Button>
-            <Button size="sm" onClick={() => openCreateDialog('SITE_SERVICE')} variant="outline" className="text-primary border-primary/30 hover:bg-primary/10">
-              <Plus className="w-4 h-4 mr-1" /> Add Service
-            </Button>
+      <Card className="border shadow-sm overflow-hidden">
+        <div className="flex items-end justify-between gap-3 border-b bg-muted/30 px-5 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Site Services &amp; Admin</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Permits, utilities, disposal &amp; admin.</p>
           </div>
+          <span className="text-sm font-bold text-foreground tabular-nums shrink-0">{formatCurrency(siteServicesCost)}</span>
         </div>
-        
+        <CardContent className="p-4">
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader className="bg-muted">
@@ -438,7 +438,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                 <TableHead>Service / Permit Name</TableHead>
                 <TableHead>Agency / Vendor</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right font-bold text-foreground">Client Price</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -465,13 +464,6 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                       value={item.cost}
                       onCommit={(n) => handleUpdate(item.id, { cost: n })}
                       className="w-24 h-8 text-right ml-auto"
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <MoneyInput
-                      value={item.client_price}
-                      onCommit={(n) => handleUpdate(item.id, { client_price: n })}
-                      className="w-24 h-8 text-right font-bold text-foreground ml-auto"
                     />
                   </TableCell>
                   <TableCell>
@@ -515,27 +507,22 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {siteServices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6 italic">No site services added.</TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6 italic">No site services added.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-      </div>
-
-      <div className="rounded-xl border bg-muted/40 p-4 flex justify-between items-center mt-2">
-        <h3 className="font-bold tracking-wider text-xs uppercase text-muted-foreground">Total Materials &amp; Permits</h3>
-        <div className="flex gap-8 text-sm">
-          <div className="text-right">
-            <span className="text-muted-foreground mr-2 text-xs uppercase">Total Cost</span>
-            <span className="font-semibold tracking-wide text-foreground">{formatCurrency(totalCost)}</span>
-          </div>
-          <div className="text-right border-l border-border pl-6">
-            <span className="text-muted-foreground mr-2 text-xs uppercase">Total Client Price</span>
-            <span className="font-bold text-lg text-status-active">{formatCurrency(totalClientPrice)}</span>
-          </div>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('SITE_SERVICE')} className="text-muted-foreground border-border hover:bg-muted">
+            <FileDown className="w-4 h-4 mr-1" /> From quote
+          </Button>
+          <Button size="sm" onClick={() => openCreateDialog('SITE_SERVICE')} variant="outline" className="text-primary border-primary/30 hover:bg-primary/10">
+            <Plus className="w-4 h-4 mr-1" /> Add Service
+          </Button>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -546,13 +533,31 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label>Item Name</Label>
-              <Input 
+              <Label>{createCategory === 'JOB_MATERIAL' ? 'Item Name' : 'Service / Permit Name'}</Label>
+              <Input
                 value={newItemName}
                 onChange={e => setNewItemName(e.target.value)}
                 placeholder={createCategory === 'JOB_MATERIAL' ? 'e.g. 2x4 Lumber' : 'e.g. City Building Permit'}
                 autoFocus
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{createCategory === 'JOB_MATERIAL' ? 'Vendor' : 'Agency / Vendor'} <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                value={newItemVendor}
+                onChange={e => setNewItemVendor(e.target.value)}
+                placeholder={createCategory === 'JOB_MATERIAL' ? 'e.g. Home Depot' : 'e.g. City of Seattle'}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cost</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={newItemCost}
+                onChange={e => setNewItemCost(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="0.00"
               />
             </div>
             <div className="flex justify-end pt-4">

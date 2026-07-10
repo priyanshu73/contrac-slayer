@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronsUpDown, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Save, Send, Sparkles, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
+import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Circle, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, Highlighter, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Ruler, Save, Send, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -38,8 +38,12 @@ import type {
   ProposalAnnotationPoint,
   ProposalBeforeAfterBlock,
   ProposalDocument,
+  ProposalImageAnnotation,
+  ProposalImageArrowAnnotation,
   ProposalImageAnnotationStroke,
   ProposalImageBlock,
+  ProposalImageMeasurementAnnotation,
+  ProposalImageShapeAnnotation,
   ProposalImageTextOverlay,
   ProposalOverviewResponse,
   ProposalPage,
@@ -51,14 +55,14 @@ import type {
 // ─── Typography ──────────────────────────────────────────────────────────────
 
 export const PROPOSAL_FONTS = [
-  { id: "inter",             name: "Inter",              stack: "Inter, system-ui, sans-serif",                    google: null },
-  { id: "playfair",          name: "Playfair Display",   stack: "'Playfair Display', Georgia, serif",              google: "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600" },
-  { id: "cormorant",         name: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif",            google: "Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
-  { id: "merriweather",      name: "Merriweather",       stack: "Merriweather, Georgia, serif",                    google: "Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400" },
-  { id: "libre-baskerville", name: "Libre Baskerville",  stack: "'Libre Baskerville', Georgia, serif",             google: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
-  { id: "lato",              name: "Lato",               stack: "Lato, Arial, sans-serif",                         google: "Lato:ital,wght@0,300;0,400;0,700;1,300;1,400" },
-  { id: "raleway",           name: "Raleway",            stack: "Raleway, Arial, sans-serif",                      google: "Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
-  { id: "source-serif",      name: "Source Serif 4",     stack: "'Source Serif 4', Georgia, serif",                google: "Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400" },
+  { id: "inter", name: "Inter", stack: "Inter, system-ui, sans-serif", google: null },
+  { id: "playfair", name: "Playfair Display", stack: "'Playfair Display', Georgia, serif", google: "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600" },
+  { id: "cormorant", name: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif", google: "Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "merriweather", name: "Merriweather", stack: "Merriweather, Georgia, serif", google: "Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "libre-baskerville", name: "Libre Baskerville", stack: "'Libre Baskerville', Georgia, serif", google: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
+  { id: "lato", name: "Lato", stack: "Lato, Arial, sans-serif", google: "Lato:ital,wght@0,300;0,400;0,700;1,300;1,400" },
+  { id: "raleway", name: "Raleway", stack: "Raleway, Arial, sans-serif", google: "Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600" },
+  { id: "source-serif", name: "Source Serif 4", stack: "'Source Serif 4', Georgia, serif", google: "Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400" },
 ] as const
 
 export type ProposalFontId = (typeof PROPOSAL_FONTS)[number]["id"]
@@ -227,9 +231,9 @@ function buildInitialProposalDocument(job: Job, contractorName: string, t: Propo
       date: job.proposal_document.date || today,
       pages: Array.isArray(job.proposal_document.pages)
         ? job.proposal_document.pages.map((page, pageIndex) => ({
-            ...page,
-            title: normalizePageTitle(page.title, pageIndex),
-          }))
+          ...page,
+          title: normalizePageTitle(page.title, pageIndex),
+        }))
         : [],
     }
   }
@@ -320,6 +324,21 @@ function moveBlockWithinPage(page: ProposalPage, blockId: string, direction: -1 
   const nextBlocks = [...page.description]
   const [block] = nextBlocks.splice(index, 1)
   nextBlocks.splice(targetIndex, 0, block)
+
+  return {
+    ...page,
+    description: nextBlocks,
+  }
+}
+
+function moveBlockToIndex(page: ProposalPage, blockId: string, targetIndex: number): ProposalPage {
+  const sourceIndex = page.description.findIndex((block) => block.id === blockId)
+  if (sourceIndex < 0) return page
+
+  const nextBlocks = [...page.description]
+  const [block] = nextBlocks.splice(sourceIndex, 1)
+  const boundedTargetIndex = Math.max(0, Math.min(targetIndex, nextBlocks.length))
+  nextBlocks.splice(boundedTargetIndex, 0, block)
 
   return {
     ...page,
@@ -439,11 +458,342 @@ function StrokePath({
   width: number
   height: number
 }) {
-  const d = stroke.points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
-    .join(" ")
+  const d = getStrokePath(stroke, width, height)
 
   return <path d={d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />
+}
+
+function getStrokePath(stroke: ProposalImageAnnotationStroke, width: number, height: number) {
+  return stroke.points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
+    .join(" ")
+}
+
+function ArrowPath({
+  arrow,
+  width,
+  height,
+  markerId,
+}: {
+  arrow: ProposalImageArrowAnnotation
+  width: number
+  height: number
+  markerId: string
+}) {
+  const startX = arrow.start.x * width
+  const startY = arrow.start.y * height
+  const endX = arrow.end.x * width
+  const endY = arrow.end.y * height
+
+  return (
+    <g>
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="4"
+          markerHeight="4"
+          refX="3.6"
+          refY="2"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <path d="M 0 0 L 4 2 L 0 4 z" fill={arrow.color} />
+        </marker>
+      </defs>
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke={arrow.color}
+        strokeWidth={arrow.width}
+        strokeLinecap="round"
+        markerEnd={`url(#${markerId})`}
+      />
+    </g>
+  )
+}
+
+function LineSelection({
+  start,
+  end,
+  width,
+  height,
+  strokeWidth,
+  dashed = false,
+}: {
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+  width: number
+  height: number
+  strokeWidth: number
+  dashed?: boolean
+}) {
+  return (
+    <line
+      x1={start.x * width}
+      y1={start.y * height}
+      x2={end.x * width}
+      y2={end.y * height}
+      stroke="#0ea5e9"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeDasharray={dashed ? "8 6" : undefined}
+      opacity={0.85}
+    />
+  )
+}
+
+function MeasurementAnnotation({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageMeasurementAnnotation
+  width: number
+  height: number
+}) {
+  const startX = annotation.start.x * width
+  const startY = annotation.start.y * height
+  const endX = annotation.end.x * width
+  const endY = annotation.end.y * height
+  const labelX = (startX + endX) / 2
+  const labelY = (startY + endY) / 2
+  const label = annotation.label.trim()
+
+  return (
+    <g>
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke={annotation.color}
+        strokeWidth={annotation.width}
+        strokeLinecap="round"
+      />
+      {label ? (
+        <text
+          x={labelX}
+          y={labelY}
+          fill={annotation.color}
+          fontSize={16}
+          fontWeight={700}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          paintOrder="stroke"
+          stroke="white"
+          strokeWidth={4}
+          strokeLinejoin="round"
+        >
+          {label}
+        </text>
+      ) : null}
+    </g>
+  )
+}
+
+function AnnotationSelection({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageAnnotation
+  width: number
+  height: number
+}) {
+  if (!annotation.type || annotation.type === "stroke") {
+    return (
+      <path
+        d={getStrokePath(annotation, width, height)}
+        fill="none"
+        stroke="#0ea5e9"
+        strokeWidth={Math.max(annotation.width + 4, 6)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.85}
+      />
+    )
+  }
+
+  if (annotation.type === "arrow" || annotation.type === "measurement") {
+    return (
+      <LineSelection
+        start={annotation.start}
+        end={annotation.end}
+        width={width}
+        height={height}
+        strokeWidth={Math.max(annotation.width + 4, 6)}
+        dashed={annotation.type === "measurement"}
+      />
+    )
+  }
+
+  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
+    return null
+  }
+
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+  const offset = Math.max(annotation.width / 2 + 4, 6)
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2 + offset}
+        ry={h / 2 + offset}
+        fill="none"
+        stroke="#0ea5e9"
+        strokeWidth={3}
+        strokeDasharray="8 6"
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x - offset}
+      y={y - offset}
+      width={w + offset * 2}
+      height={h + offset * 2}
+      fill="none"
+      stroke="#0ea5e9"
+      strokeWidth={3}
+      strokeDasharray="8 6"
+    />
+  )
+}
+
+function AnnotationHitTarget({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageAnnotation
+  width: number
+  height: number
+}) {
+  if (!annotation.type || annotation.type === "stroke") {
+    return (
+      <path
+        d={getStrokePath(annotation, width, height)}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pointerEvents="stroke"
+      />
+    )
+  }
+
+  if (annotation.type === "arrow" || annotation.type === "measurement") {
+    return (
+      <line
+        x1={annotation.start.x * width}
+        y1={annotation.start.y * height}
+        x2={annotation.end.x * width}
+        y2={annotation.end.y * height}
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        strokeLinecap="round"
+        pointerEvents="stroke"
+      />
+    )
+  }
+
+  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
+    return null
+  }
+
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2}
+        ry={h / 2}
+        fill="transparent"
+        stroke="transparent"
+        strokeWidth={Math.max(annotation.width + 14, 18)}
+        pointerEvents="all"
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill="transparent"
+      stroke="transparent"
+      strokeWidth={Math.max(annotation.width + 14, 18)}
+      pointerEvents="all"
+    />
+  )
+}
+
+function getAnnotationBounds(start: ProposalAnnotationPoint, end: ProposalAnnotationPoint) {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    w: Math.abs(end.x - start.x),
+    h: Math.abs(end.y - start.y),
+  }
+}
+
+function ShapeAnnotation({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: ProposalImageShapeAnnotation
+  width: number
+  height: number
+}) {
+  const x = annotation.x * width
+  const y = annotation.y * height
+  const w = annotation.w * width
+  const h = annotation.h * height
+
+  if (annotation.type === "ellipse") {
+    return (
+      <ellipse
+        cx={x + w / 2}
+        cy={y + h / 2}
+        rx={w / 2}
+        ry={h / 2}
+        fill="none"
+        stroke={annotation.color}
+        strokeWidth={annotation.width}
+      />
+    )
+  }
+
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill={annotation.type === "highlight" ? annotation.fill ?? annotation.color : "none"}
+      fillOpacity={annotation.type === "highlight" ? annotation.opacity ?? 0.28 : undefined}
+      stroke={annotation.color}
+      strokeWidth={annotation.width}
+      strokeLinejoin="round"
+    />
+  )
 }
 
 function ImageBlockEditor({
@@ -455,6 +805,9 @@ function ImageBlockEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onDragHandleStart,
+  onDragHandleEnd,
+  isDragging,
   className,
 }: {
   block: ProposalImageBlock
@@ -465,23 +818,35 @@ function ImageBlockEditor({
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
+  onDragHandleEnd?: () => void
+  isDragging?: boolean
   className?: string
 }) {
   const t = useTranslations("proposals")
+  const arrowMarkerPrefix = useId().replace(/:/g, "")
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
   const dragStateRef = useRef<{ pointerId: number; overlayId: string } | null>(null)
-  const [drawMode, setDrawMode] = useState(false)
+  type ImageTool = "select" | "draw" | "arrow" | "rect" | "ellipse" | "highlight" | "measurement"
+
+  const [activeTool, setActiveTool] = useState<ImageTool>("select")
+  const drawMode = activeTool === "draw"
+  const arrowMode = activeTool === "arrow"
+  const measurementMode = activeTool === "measurement"
+  const shapeMode = activeTool === "rect" || activeTool === "ellipse" || activeTool === "highlight"
+  const annotationMode = drawMode || arrowMode || shapeMode || measurementMode
   const [strokeColor, setStrokeColor] = useState("#dc2626")
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [draftPoints, setDraftPoints] = useState<ProposalAnnotationPoint[]>([])
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null)
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (readOnly) setDrawMode(false)
+    if (readOnly) setActiveTool("select")
   }, [readOnly])
-
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const rect = wrapperRef.current?.getBoundingClientRect()
@@ -513,10 +878,8 @@ function ImageBlockEditor({
           x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
           y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
         }
-        drawStateRef.current = {
-          ...drawStateRef.current,
-          points: [...drawStateRef.current.points, point],
-        }
+        const points = drawMode ? [...drawStateRef.current.points, point] : [drawStateRef.current.points[0], point]
+        drawStateRef.current = { ...drawStateRef.current, points }
         setDraftPoints(drawStateRef.current.points)
       }
     }
@@ -535,19 +898,96 @@ function ImageBlockEditor({
         drawStateRef.current = null
         setDraftPoints([])
 
-        if (finishedPoints.length >= 2) {
+        if (finishedPoints.length >= 2 && drawMode) {
+          const id = createId("stroke")
+
           onChange({
             ...block,
             annotations: [
               ...block.annotations,
               {
-                id: createId("stroke"),
+                id,
+                type: "stroke",
                 color: strokeColor,
                 width: strokeWidth,
                 points: finishedPoints,
               },
             ],
           })
+          setSelectedAnnotationId(id)
+          setSelectedOverlayId(null)
+          setSelectedMeasurementId(null)
+        }
+
+        if (finishedPoints.length >= 2 && arrowMode) {
+          const id = createId("arrow")
+
+          onChange({
+            ...block,
+            annotations: [
+              ...block.annotations,
+              {
+                id,
+                type: "arrow",
+                color: strokeColor,
+                width: strokeWidth,
+                start: finishedPoints[0],
+                end: finishedPoints[finishedPoints.length - 1],
+              },
+            ],
+          })
+          setSelectedAnnotationId(id)
+          setSelectedOverlayId(null)
+          setSelectedMeasurementId(null)
+        }
+
+        if (finishedPoints.length >= 2 && shapeMode) {
+          const bounds = getAnnotationBounds(finishedPoints[0], finishedPoints[finishedPoints.length - 1])
+
+          if (bounds.w > 0 && bounds.h > 0) {
+            const id = createId(activeTool)
+
+            onChange({
+              ...block,
+              annotations: [
+                ...block.annotations,
+                {
+                  id,
+                  type: activeTool,
+                  color: strokeColor,
+                  width: strokeWidth,
+                  ...bounds,
+                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
+                },
+              ],
+            })
+            setSelectedAnnotationId(id)
+            setSelectedOverlayId(null)
+            setSelectedMeasurementId(null)
+          }
+        }
+
+        if (finishedPoints.length >= 2 && measurementMode) {
+          const id = createId("measurement")
+
+          onChange({
+            ...block,
+            annotations: [
+              ...block.annotations,
+              {
+                id,
+                type: "measurement",
+                color: strokeColor,
+                width: strokeWidth,
+                start: finishedPoints[0],
+                end: finishedPoints[finishedPoints.length - 1],
+                label: "Measurement",
+              },
+            ],
+          })
+          setSelectedAnnotationId(id)
+          setSelectedMeasurementId(id)
+          setSelectedOverlayId(null)
         }
       }
     }
@@ -558,14 +998,33 @@ function ImageBlockEditor({
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
     }
-  }, [block, onChange, strokeColor, strokeWidth])
+  }, [activeTool, arrowMode, block, drawMode, measurementMode, onChange, shapeMode, strokeColor, strokeWidth])
 
   const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
+  const selectedAnnotation = block.annotations.find((annotation) => annotation.id === selectedAnnotationId) || null
+  const selectedMeasurement = block.annotations.find(
+    (annotation): annotation is ProposalImageMeasurementAnnotation =>
+      annotation.type === "measurement" && annotation.id === selectedMeasurementId,
+  ) || null
 
   return (
-    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
+    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
       {!readOnly ? (
         <div className="flex flex-wrap items-center gap-2">
+          {onDragHandleStart ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              draggable
+              onDragStart={onDragHandleStart}
+              onDragEnd={onDragHandleEnd}
+              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
+              aria-label="Drag image block"
+            >
+              <GripVertical className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
             <MoveUp className="h-4 w-4" />
           </Button>
@@ -596,9 +1055,9 @@ function ImageBlockEditor({
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
             {([
-              { icon: AlignLeft,   value: "left"   },
+              { icon: AlignLeft, value: "left" },
               { icon: AlignCenter, value: "center" },
-              { icon: AlignRight,  value: "right"  },
+              { icon: AlignRight, value: "right" },
             ] as const).map(({ icon: Icon, value }, i) => {
               const isActive = (block.alignment ?? "left") === value
               return (
@@ -617,9 +1076,71 @@ function ImageBlockEditor({
               )
             })}
           </div>
-          <Button type="button" variant={drawMode ? "default" : "outline"} size="sm" onClick={() => setDrawMode((value) => !value)}>
+          <Button
+            type="button"
+            variant={drawMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(drawMode ? "select" : "draw")
+            }
+          >
             <PencilLine className="mr-1 h-4 w-4" />
             {drawMode ? t("imageEditor.drawing") : t("imageEditor.draw")}
+          </Button>
+          <Button
+            type="button"
+            variant={arrowMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(arrowMode ? "select" : "arrow")
+            }
+          >
+            <ArrowUpRight className="mr-1 h-4 w-4" />
+            Arrow
+          </Button>
+          <Button
+            type="button"
+            variant={activeTool === "rect" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "rect" ? "select" : "rect")
+            }
+          >
+            <Square className="mr-1 h-4 w-4" />
+            Rectangle
+          </Button>
+          <Button
+            type="button"
+            variant={activeTool === "ellipse" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "ellipse" ? "select" : "ellipse")
+            }
+          >
+            <Circle className="mr-1 h-4 w-4" />
+            Circle
+          </Button>
+          <Button
+            type="button"
+            variant={activeTool === "highlight" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(activeTool === "highlight" ? "select" : "highlight")
+            }
+          >
+            <Highlighter className="mr-1 h-4 w-4" />
+            Highlight
+          </Button>
+          <Button
+            type="button"
+            variant={measurementMode ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setActiveTool(measurementMode ? "select" : "measurement")
+            }
+          >
+            <Ruler className="mr-1 h-4 w-4" />
+            Measurement
           </Button>
           <Button
             type="button"
@@ -637,6 +1158,8 @@ function ImageBlockEditor({
               }
               onChange({ ...block, textOverlays: [...block.textOverlays, overlay] })
               setSelectedOverlayId(overlay.id)
+              setSelectedMeasurementId(null)
+              setSelectedAnnotationId(null)
             }}
           >
             <Type className="mr-1 h-4 w-4" />
@@ -668,7 +1191,7 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
-      {!readOnly && drawMode ? (
+      {!readOnly && annotationMode ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             {t("imageEditor.color")}
@@ -767,102 +1290,334 @@ function ImageBlockEditor({
         </div>
       ) : null}
 
+      {!readOnly && selectedAnnotation ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            {t("imageEditor.color")}
+            <input
+              type="color"
+              value={selectedAnnotation.color}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  annotations: block.annotations.map((annotation) =>
+                    annotation.id === selectedAnnotation.id
+                      ? {
+                          ...annotation,
+                          color: event.target.value,
+                          ...(annotation.type === "highlight" ? { fill: event.target.value } : {}),
+                        }
+                      : annotation,
+                  ),
+                })
+              }
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            {t("imageEditor.stroke")}
+            <input
+              type="range"
+              min={2}
+              max={16}
+              value={selectedAnnotation.width}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  annotations: block.annotations.map((annotation) =>
+                    annotation.id === selectedAnnotation.id ? { ...annotation, width: Number(event.target.value) } : annotation,
+                  ),
+                })
+              }
+            />
+            <span>{selectedAnnotation.width}px</span>
+          </label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => {
+              onChange({ ...block, annotations: block.annotations.filter((annotation) => annotation.id !== selectedAnnotation.id) })
+              setSelectedAnnotationId(null)
+              if (selectedMeasurementId === selectedAnnotation.id) setSelectedMeasurementId(null)
+            }}
+          >
+            <Trash2 className="mr-1 h-4 w-4" />
+            Delete annotation
+          </Button>
+        </div>
+      ) : null}
+
+      {!readOnly && selectedMeasurement ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <Input
+            value={selectedMeasurement.label}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                annotations: block.annotations.map((annotation) =>
+                  annotation.type === "measurement" && annotation.id === selectedMeasurement.id
+                    ? { ...annotation, label: event.target.value }
+                    : annotation,
+                ),
+              })
+            }
+            className="max-w-xs"
+          />
+        </div>
+      ) : null}
+
       <div className={cn(
         "flex w-full",
         block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
       )}>
-      <div
-        ref={wrapperRef}
-        className={cn(
-          "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
-          !readOnly && "touch-none select-none",
-          drawMode && !readOnly && "cursor-crosshair",
-        )}
-        style={{ width: `${block.width}px`, height: `${block.height}px`, maxWidth: "100%" }}
-        onPointerDown={(event) => {
-          if (readOnly || !drawMode || !wrapperRef.current) return
-          event.preventDefault()
-          wrapperRef.current.setPointerCapture?.(event.pointerId)
-          const rect = wrapperRef.current.getBoundingClientRect()
-          const point = {
-            x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-            y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-          }
-          drawStateRef.current = { pointerId: event.pointerId, points: [point] }
-          setDraftPoints([point])
-        }}
-      >
-        <img
-          src={block.url}
-          alt={block.file_name || t("imageEditor.imageAlt")}
-          className="pointer-events-none h-full w-full select-none object-contain"
-          draggable={false}
-          onDragStart={(event) => event.preventDefault()}
-        />
-
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${block.width} ${block.height}`} preserveAspectRatio="none">
-          {block.annotations.map((stroke) => (
-            <StrokePath key={stroke.id} stroke={stroke} width={block.width} height={block.height} />
-          ))}
-          {draftPoints.length >= 2 ? (
-            <path
-              d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ) : null}
-        </svg>
-
-        {block.textOverlays.map((overlay) => (
+        <div className="space-y-2" style={{ width: `${block.width}px`, maxWidth: "100%" }}>
           <div
-            key={overlay.id}
+            ref={wrapperRef}
             className={cn(
-              "absolute select-none rounded-md px-3 py-1.5 shadow-lg",
-              !readOnly && "cursor-move",
-              selectedOverlayId === overlay.id && !readOnly && "ring-2 ring-sky-400",
+              "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
+              !readOnly && "touch-none select-none",
+              annotationMode && !readOnly && "cursor-crosshair",
             )}
-            style={{
-              left: `${overlay.x * 100}%`,
-              top: `${overlay.y * 100}%`,
-              transform: "translate(-50%, -50%)",
-              color: overlay.color,
-              fontSize: `${overlay.fontSize}px`,
-              fontWeight: overlay.bold ? 700 : 400,
-              backgroundColor: "rgba(15, 23, 42, 0.55)",
-            }}
+            style={{ width: "100%", height: `${block.height}px` }}
             onPointerDown={(event) => {
-              if (readOnly || drawMode) return
-              event.stopPropagation()
+              if (readOnly || !wrapperRef.current) return
+              if (!annotationMode) {
+                setSelectedAnnotationId(null)
+                setSelectedMeasurementId(null)
+                return
+              }
               event.preventDefault()
-              setSelectedOverlayId(overlay.id)
-              dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
+              wrapperRef.current.setPointerCapture?.(event.pointerId)
+              const rect = wrapperRef.current.getBoundingClientRect()
+              const point = {
+                x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+                y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+              }
+              drawStateRef.current = { pointerId: event.pointerId, points: [point] }
+              setDraftPoints([point])
             }}
           >
-            {overlay.text}
-          </div>
-        ))}
-
-        {!readOnly ? (
-          <button
-            type="button"
-            className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
-            aria-label={t("imageEditor.resizeImage")}
-            onPointerDown={(event) => {
-              event.preventDefault()
-              resizeStateRef.current = {
-                pointerId: event.pointerId,
-                startX: event.clientX,
-                startY: event.clientY,
-                width: block.width,
-                height: block.height,
-              }
-            }}
+          <img
+            src={block.url}
+            alt={block.file_name || "Proposal image"}
+            className="pointer-events-none h-full w-full select-none object-contain"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
           />
-        ) : null}
-      </div>
+
+          <svg
+            className={cn(
+              "absolute inset-0 h-full w-full",
+              !readOnly && !annotationMode ? "pointer-events-auto" : "pointer-events-none",
+            )}
+            viewBox={`0 0 ${block.width} ${block.height}`}
+            preserveAspectRatio="none"
+          >
+            {block.annotations.map((annotation) => {
+              const isSelected = selectedAnnotationId === annotation.id
+              const selectAnnotation = (event: React.PointerEvent<SVGGElement>) => {
+                if (readOnly || annotationMode) return
+                event.stopPropagation()
+                event.preventDefault()
+                setSelectedAnnotationId(annotation.id)
+                setSelectedOverlayId(null)
+                setSelectedMeasurementId(annotation.type === "measurement" ? annotation.id : null)
+              }
+
+              if (!annotation.type || annotation.type === "stroke") {
+                return (
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <StrokePath
+                      stroke={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
+                )
+              }
+
+              if (annotation.type === "arrow") {
+                return (
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <ArrowPath
+                      arrow={annotation}
+                      width={block.width}
+                      height={block.height}
+                      markerId={`${arrowMarkerPrefix}-${annotation.id}`}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
+                )
+              }
+
+              if (annotation.type === "rect" || annotation.type === "ellipse" || annotation.type === "highlight") {
+                return (
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <ShapeAnnotation
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
+                )
+              }
+
+              if (annotation.type === "measurement") {
+                return (
+                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
+                    <MeasurementAnnotation
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
+                    <AnnotationHitTarget
+                      annotation={annotation}
+                      width={block.width}
+                      height={block.height}
+                    />
+                  </g>
+                )
+              }
+
+              return null
+            })}
+            {draftPoints.length >= 2 && drawMode ? (
+              <path
+                d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : null}
+            {draftPoints.length >= 2 && arrowMode ? (
+              <ArrowPath
+                arrow={{
+                  id: "draft",
+                  type: "arrow",
+                  color: strokeColor,
+                  width: strokeWidth,
+                  start: draftPoints[0],
+                  end: draftPoints[draftPoints.length - 1],
+                }}
+                width={block.width}
+                height={block.height}
+                markerId={`${arrowMarkerPrefix}-draft`}
+              />
+            ) : null}
+            {draftPoints.length >= 2 && shapeMode ? (
+              <ShapeAnnotation
+                annotation={{
+                  id: "draft",
+                  type: activeTool,
+                  color: strokeColor,
+                  width: strokeWidth,
+                  ...getAnnotationBounds(draftPoints[0], draftPoints[draftPoints.length - 1]),
+                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
+                }}
+                width={block.width}
+                height={block.height}
+              />
+            ) : null}
+            {draftPoints.length >= 2 && measurementMode ? (
+              <MeasurementAnnotation
+                annotation={{
+                  id: "draft",
+                  type: "measurement",
+                  color: strokeColor,
+                  width: strokeWidth,
+                  start: draftPoints[0],
+                  end: draftPoints[draftPoints.length - 1],
+                  label: "",
+                }}
+                width={block.width}
+                height={block.height}
+              />
+            ) : null}
+          </svg>
+
+          {block.textOverlays.map((overlay) => (
+            <div
+              key={overlay.id}
+              className={cn(
+                "absolute select-none rounded-md px-3 py-1.5 shadow-lg",
+                !readOnly && "cursor-move",
+                selectedOverlayId === overlay.id && !readOnly && "ring-2 ring-sky-400",
+              )}
+              style={{
+                left: `${overlay.x * 100}%`,
+                top: `${overlay.y * 100}%`,
+                transform: "translate(-50%, -50%)",
+                color: overlay.color,
+                fontSize: `${overlay.fontSize}px`,
+                fontWeight: overlay.bold ? 700 : 400,
+                backgroundColor: "rgba(15, 23, 42, 0.55)",
+              }}
+              onPointerDown={(event) => {
+                if (readOnly || annotationMode) return
+                event.stopPropagation()
+                event.preventDefault()
+                setSelectedOverlayId(overlay.id)
+                setSelectedMeasurementId(null)
+                setSelectedAnnotationId(null)
+                dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
+              }}
+            >
+              {overlay.text}
+            </div>
+          ))}
+
+          {!readOnly ? (
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
+              aria-label="Resize image"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                resizeStateRef.current = {
+                  pointerId: event.pointerId,
+                  startX: event.clientX,
+                  startY: event.clientY,
+                  width: block.width,
+                  height: block.height,
+                }
+              }}
+            />
+          ) : null}
+          </div>
+          {!readOnly ? (
+            <Input
+              value={block.caption ?? ""}
+              onChange={(event) => onChange({ ...block, caption: event.target.value })}
+              placeholder="Caption"
+              className="bg-white text-sm"
+            />
+          ) : block.caption?.trim() ? (
+            <p className="px-1 text-center text-sm italic leading-6 text-slate-500">
+              {block.caption}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   )
@@ -871,27 +1626,49 @@ function ImageBlockEditor({
 function BeforeAfterBlockEditor({
   block,
   readOnly,
+  onChange,
   onDelete,
   onMoveUp,
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onDragHandleStart,
+  onDragHandleEnd,
+  isDragging,
   className,
 }: {
   block: ProposalBeforeAfterBlock
   readOnly: boolean
+  onChange: (block: ProposalBeforeAfterBlock) => void
   onDelete: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
   canMoveUp?: boolean
   canMoveDown?: boolean
+  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
+  onDragHandleEnd?: () => void
+  isDragging?: boolean
   className?: string
 }) {
   const t = useTranslations("proposals")
   return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
+    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
       {!readOnly ? (
         <div className="mb-2 flex items-center justify-end gap-0.5">
+          {onDragHandleStart ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              draggable
+              onDragStart={onDragHandleStart}
+              onDragEnd={onDragHandleEnd}
+              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
+              aria-label="Drag before/after block"
+            >
+              <GripVertical className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
             <MoveUp className="h-4 w-4" />
           </Button>
@@ -901,6 +1678,23 @@ function BeforeAfterBlockEditor({
           <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
             <Trash2 className="h-4 w-4" />
           </Button>
+        </div>
+      ) : null}
+
+      {!readOnly ? (
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <Input
+            value={block.beforeLabel ?? ""}
+            onChange={(event) => onChange({ ...block, beforeLabel: event.target.value })}
+            placeholder={t("imageEditor.before")}
+            className="bg-white text-sm"
+          />
+          <Input
+            value={block.afterLabel ?? ""}
+            onChange={(event) => onChange({ ...block, afterLabel: event.target.value })}
+            placeholder={t("imageEditor.after")}
+            className="bg-white text-sm"
+          />
         </div>
       ) : null}
 
@@ -1127,6 +1921,10 @@ export function ProposalBuilder({
     )
   )
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
+  const [beforeAfterBeforeUrl, setBeforeAfterBeforeUrl] = useState<string | null>(null)
+  const [beforeAfterAfterUrl, setBeforeAfterAfterUrl] = useState<string | null>(null)
+  const [draggingBlock, setDraggingBlock] = useState<{ pageId: string; blockId: string } | null>(null)
+  const [dragOverBlock, setDragOverBlock] = useState<{ id: string; placement: "before" | "after" } | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -1195,7 +1993,7 @@ export function ProposalBuilder({
       .then((data) => {
         if (!cancelled) setSendClient(data as Client)
       })
-      .catch(() => {})
+      .catch(() => { })
 
     return () => {
       cancelled = true
@@ -1231,7 +2029,7 @@ export function ProposalBuilder({
         description: item.custom_description ?? "",
       })),
     }
-    ;(window as any).proposalBuilderContext = ctx
+      ; (window as any).proposalBuilderContext = ctx
     window.dispatchEvent(new CustomEvent("proposal-context-updated", { detail: ctx }))
   }, [
     document.title,
@@ -1284,6 +2082,13 @@ export function ProposalBuilder({
       isProposalMode ? (project?.media ?? []) : (job?.project_media ?? [])
     ))
   }, [isProposalMode, job?.id, job?.project_media, project?.id, project?.media])
+
+  useEffect(() => {
+    if (!imagePickerPageId) {
+      setBeforeAfterBeforeUrl(null)
+      setBeforeAfterAfterUrl(null)
+    }
+  }, [imagePickerPageId])
 
   useEffect(() => {
     const hasExistingDoc = !!proposal?.proposal_document
@@ -1351,26 +2156,26 @@ export function ProposalBuilder({
       const description = opts?.description?.trim() || project?.objective || job?.job_description || job?.description || undefined
       const generated = isProposalMode && proposal && proposal.project_id
         ? await api.generateAIProposalForProject(proposal.project_id, proposal.id, {
-            description,
-            job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
-            selected_item_ids: opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
-            clarified_scope: opts?.clarifiedScope ?? null,
+          description,
+          job_id: proposal.quote_references?.[0]?.job_id ?? undefined,
+          selected_item_ids: opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+          clarified_scope: opts?.clarifiedScope ?? null,
+          proposal_title: opts?.proposalTitle?.trim() || undefined,
+          project_title: opts?.projectTitle?.trim() || undefined,
+          include_project_brief: opts?.includeProjectBriefInContext ?? true,
+          include_line_items: opts?.includeLineItemsInContext ?? true,
+        })
+        : await api.generateAIProposal(
+          job!.id,
+          description,
+          opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
+          {
             proposal_title: opts?.proposalTitle?.trim() || undefined,
             project_title: opts?.projectTitle?.trim() || undefined,
             include_project_brief: opts?.includeProjectBriefInContext ?? true,
             include_line_items: opts?.includeLineItemsInContext ?? true,
-          })
-        : await api.generateAIProposal(
-            job!.id,
-            description,
-            opts?.includeLineItemsInContext === false ? [] : opts?.selectedItemIds,
-            {
-              proposal_title: opts?.proposalTitle?.trim() || undefined,
-              project_title: opts?.projectTitle?.trim() || undefined,
-              include_project_brief: opts?.includeProjectBriefInContext ?? true,
-              include_line_items: opts?.includeLineItemsInContext ?? true,
-            }
-          )
+          }
+        )
 
       const beforeAfterQueue = [...(generated.before_after_pairs ?? [])]
       const generatedPages: ProposalPage[] = (generated.pages ?? []).map((page) => {
@@ -1472,6 +2277,35 @@ export function ProposalBuilder({
     setDirty(true)
   }
 
+  const startBlockDrag = (event: React.DragEvent<HTMLButtonElement>, pageId: string, blockId: string) => {
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", blockId)
+    setDraggingBlock({ pageId, blockId })
+    setDragOverBlock(null)
+  }
+
+  const allowBlockDrop = (event: React.DragEvent<HTMLElement>, pageId: string) => {
+    if (!draggingBlock || draggingBlock.pageId !== pageId) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+  }
+
+  const dropBlockAtIndex = (event: React.DragEvent<HTMLElement>, pageId: string, targetIndex: number) => {
+    if (!draggingBlock || draggingBlock.pageId !== pageId) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    updateDocument((current) =>
+      updatePage(current, pageId, (currentPage) => {
+        const sourceIndex = currentPage.description.findIndex((block) => block.id === draggingBlock.blockId)
+        const adjustedTargetIndex = sourceIndex >= 0 && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        return moveBlockToIndex(currentPage, draggingBlock.blockId, adjustedTargetIndex)
+      }),
+    )
+    setDraggingBlock(null)
+    setDragOverBlock(null)
+  }
+
   const isReadOnly = publicMode || viewMode
   const proposalTheme = getProposalTheme(document.themeId)
   const accentColor = normalizeHexColor(document.accentColor, proposalTheme.swatches[1])
@@ -1501,16 +2335,19 @@ export function ProposalBuilder({
   const clientName = sendClient?.name ?? job?.client?.name ?? client?.name ?? t("doc.customer")
   const emailSubject = t("review.emailSubject", { title: proposalTitle, contractor: contractorName })
 
+  const getFrontendUrl = () => {
+    return process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== "undefined" ? window.location.origin : "")
+  }
+
   const getProposalShareUrl = () => {
     if (proposalShareUrl) return proposalShareUrl
-    // Only standalone/project proposals are shareable. Quote-attached proposals
-    // are never publicly viewable, so they have no share link.
     const publicLink = isProposalMode ? proposal?.public_link : undefined
     if (!publicLink || typeof window === "undefined") return ""
-    return `${window.location.origin}/${locale}/proposals/${publicLink}`
+    return `${getFrontendUrl()}/${locale}/proposals/${publicLink}`
   }
 
   const ensureProposalShareLink = async (): Promise<string | null> => {
+
     if (!isProposalMode || !proposal) return null
 
     // A DRAFT proposal is hidden from the client portal even via a direct link,
@@ -1535,11 +2372,13 @@ export function ProposalBuilder({
           variant: "destructive",
         })
         return null
+
       }
-      const url =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/${locale}/proposals/${updated.public_link}`
-          : `/${locale}/proposals/${updated.public_link}`
+      const frontendUrl = getFrontendUrl()
+
+
+      const url = `${frontendUrl}/${locale}/proposals/${updated.public_link}`
+      console.log("Generated proposal URL:", url)
       setProposalShareUrl(url)
       return url
     } catch (err: any) {
@@ -1813,6 +2652,31 @@ export function ProposalBuilder({
   }
 
   const subtitle = [document.companyName, document.companyAddress].filter(Boolean).join(" · ")
+  const beforeAfterImageChoices = (() => {
+    const seen = new Set<string>()
+    const choices: Array<{ url: string; label: string }> = []
+    const addChoice = (url?: string | null, label?: string | null) => {
+      if (!url || seen.has(url)) return
+      seen.add(url)
+      choices.push({ url, label: label?.trim() || `Image ${choices.length + 1}` })
+    }
+
+    document.pages.forEach((page) => {
+      page.description.forEach((block) => {
+        if (block.type === "image") addChoice(block.url, block.caption || block.file_name)
+        if (block.type === "before_after") {
+          addChoice(block.beforeUrl, block.beforeLabel ?? t("imageEditor.before"))
+          addChoice(block.afterUrl, block.afterLabel ?? t("imageEditor.after"))
+        }
+      })
+    })
+    imagePairs.forEach((pair, index) => {
+      if (!pair.beforeFile) addChoice(pair.beforePreview, t("imagePicker.beforeLabel", { number: index + 1 }))
+      addChoice(pair.afterUrl, t("imagePicker.afterLabel", { number: index + 1 }))
+    })
+
+    return choices
+  })()
 
   return (
     <div className={cn("min-h-screen print:bg-none print:bg-white", proposalTheme.canvasClassName)} style={canvasStyle}>
@@ -2054,8 +2918,8 @@ export function ProposalBuilder({
                 </div>
               ) : null}
 
-      {!publicMode ? (
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {!publicMode ? (
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Button
                     type="button"
                     size="sm"
@@ -2338,7 +3202,14 @@ export function ProposalBuilder({
                 </div>
               </div>
 
-              <div className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}>
+              <div
+                className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}
+                onDragOver={(event) => {
+                  allowBlockDrop(event, page.id)
+                  if (draggingBlock?.pageId === page.id) setDragOverBlock(null)
+                }}
+                onDrop={(event) => dropBlockAtIndex(event, page.id, page.description.length)}
+              >
                 {page.description.map((block, blockIndex) => {
                   const deleteBlock = () =>
                     updateDocument((current) =>
@@ -2356,10 +3227,62 @@ export function ProposalBuilder({
                       updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
                     )
 
+                  const isImageLikeBlock = block.type === "image" || block.type === "before_after"
+                  const isCurrentDraggingBlock = draggingBlock?.pageId === page.id && draggingBlock.blockId === block.id
+                  const dragHandleProps =
+                    !isReadOnly && isImageLikeBlock
+                      ? {
+                        onDragHandleStart: (event: React.DragEvent<HTMLButtonElement>) =>
+                          startBlockDrag(event, page.id, block.id),
+                        onDragHandleEnd: () => {
+                          setDraggingBlock(null)
+                          setDragOverBlock(null)
+                        },
+                        isDragging: isCurrentDraggingBlock,
+                      }
+                      : {}
+                  const wrapBlock = (node: React.ReactNode) => (
+                    <div
+                      key={block.id}
+                      className={cn(
+                        "transition",
+                        draggingBlock?.pageId === page.id &&
+                        draggingBlock.blockId !== block.id &&
+                        dragOverBlock?.id === block.id &&
+                        dragOverBlock.placement === "before" &&
+                        !isReadOnly &&
+                        "rounded-2xl border-t-2 border-sky-400 pt-2",
+                        draggingBlock?.pageId === page.id &&
+                        draggingBlock.blockId !== block.id &&
+                        dragOverBlock?.id === block.id &&
+                        dragOverBlock.placement === "after" &&
+                        !isReadOnly &&
+                        "rounded-2xl border-b-2 border-sky-400 pb-2",
+                      )}
+                      onDragOver={(event) => {
+                        event.stopPropagation()
+                        allowBlockDrop(event, page.id)
+                        if (draggingBlock?.pageId === page.id) {
+                          const rect = event.currentTarget.getBoundingClientRect()
+                          setDragOverBlock({
+                            id: block.id,
+                            placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before",
+                          })
+                        }
+                      }}
+                      onDrop={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        const targetIndex = event.clientY > rect.top + rect.height / 2 ? blockIndex + 1 : blockIndex
+                        dropBlockAtIndex(event, page.id, targetIndex)
+                      }}
+                    >
+                      {node}
+                    </div>
+                  )
+
                   if (block.type === "before_after") {
-                    return (
+                    return wrapBlock(
                       <BeforeAfterBlockEditor
-                        key={block.id}
                         block={block}
                         readOnly={isReadOnly}
                         canMoveUp={blockIndex > 0}
@@ -2367,16 +3290,19 @@ export function ProposalBuilder({
                         onMoveUp={moveUp}
                         onMoveDown={moveDown}
                         onDelete={deleteBlock}
+                        onChange={(nextBlock) =>
+                          updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
+                        }
                         className={proposalTheme.blockSurfaceClassName}
+                        {...dragHandleProps}
                       />
                     )
                   }
 
                   if (block.type === "text") {
                     if (isReadOnly) {
-                      return (
+                      return wrapBlock(
                         <RichTextEditor
-                          key={block.id}
                           value={block.html}
                           onChange={(value) =>
                             updateDocument((current) =>
@@ -2389,8 +3315,8 @@ export function ProposalBuilder({
                         />
                       )
                     }
-                    return (
-                      <div key={block.id} className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
+                    return wrapBlock(
+                      <div className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
                         <div className="mb-2 flex items-center justify-end gap-0.5">
                           <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
                             <MoveUp className="h-4 w-4" />
@@ -2420,9 +3346,8 @@ export function ProposalBuilder({
                   }
 
                   // image block
-                  return (
+                  return wrapBlock(
                     <ImageBlockEditor
-                      key={block.id}
                       block={block}
                       readOnly={isReadOnly}
                       canMoveUp={blockIndex > 0}
@@ -2434,6 +3359,7 @@ export function ProposalBuilder({
                         updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
                       }
                       onDelete={deleteBlock}
+                      {...dragHandleProps}
                     />
                   )
                 })}
@@ -2466,7 +3392,7 @@ export function ProposalBuilder({
                     onClick={() => {
                       const hasPickable = imagePairs.some(
                         (p) => p.afterUrl || (!p.beforeFile && p.beforePreview)
-                      )
+                      ) || beforeAfterImageChoices.length >= 2
                       if (hasPickable) {
                         setImagePickerPageId(page.id)
                       } else {
@@ -2522,6 +3448,90 @@ export function ProposalBuilder({
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
+            {beforeAfterImageChoices.length >= 2 ? (
+              <div className="border-b border-slate-100 px-6 py-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <ImagePlus className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Before / After
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!beforeAfterBeforeUrl || !beforeAfterAfterUrl || beforeAfterBeforeUrl === beforeAfterAfterUrl}
+                    onClick={() => {
+                      const pageId = imagePickerPageId
+                      if (!pageId || !beforeAfterBeforeUrl || !beforeAfterAfterUrl || beforeAfterBeforeUrl === beforeAfterAfterUrl) return
+                      const beforeChoice = beforeAfterImageChoices.find((choice) => choice.url === beforeAfterBeforeUrl)
+                      const afterChoice = beforeAfterImageChoices.find((choice) => choice.url === beforeAfterAfterUrl)
+                      const block: ProposalBeforeAfterBlock = {
+                        id: createId("before-after"),
+                        type: "before_after",
+                        beforeUrl: beforeAfterBeforeUrl,
+                        afterUrl: beforeAfterAfterUrl,
+                        beforeLabel: beforeChoice?.label || t("imageEditor.before"),
+                        afterLabel: afterChoice?.label || t("imageEditor.after"),
+                      }
+                      updateDocument((current) =>
+                        updatePage(current, pageId, (p) => ({
+                          ...p,
+                          description: [...p.description, block],
+                        }))
+                      )
+                      setImagePickerPageId(null)
+                    }}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add block
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(["before", "after"] as const).map((slot) => {
+                    const selectedUrl = slot === "before" ? beforeAfterBeforeUrl : beforeAfterAfterUrl
+                    const setSelectedUrl = slot === "before" ? setBeforeAfterBeforeUrl : setBeforeAfterAfterUrl
+                    return (
+                      <div key={slot} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-600">
+                          {slot === "before" ? t("imageEditor.before") : t("imageEditor.after")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {beforeAfterImageChoices.map((choice) => {
+                            const selected = selectedUrl === choice.url
+                            const disabled =
+                              slot === "before"
+                                ? beforeAfterAfterUrl === choice.url
+                                : beforeAfterBeforeUrl === choice.url
+
+                            return (
+                              <button
+                                key={`${slot}-${choice.url}`}
+                                type="button"
+                                disabled={disabled}
+                                className={cn(
+                                  "overflow-hidden rounded-lg border bg-white text-left transition",
+                                  selected ? "border-slate-900 ring-2 ring-slate-900/10" : "border-slate-200 hover:border-slate-300",
+                                  disabled && "cursor-not-allowed opacity-40",
+                                )}
+                                onClick={() => setSelectedUrl(choice.url)}
+                              >
+                                <div className="aspect-[4/3] overflow-hidden bg-slate-100">
+                                  <img src={choice.url} alt={choice.label} className="h-full w-full object-cover" />
+                                </div>
+                                <p className="truncate px-2 py-1.5 text-[11px] font-medium text-slate-600">{choice.label}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
             {imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ? (
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="mb-3 flex items-center gap-2">
@@ -2543,6 +3553,7 @@ export function ProposalBuilder({
                         if (!pageId) return
                         const block = await createImageBlockFromUrl(url, label)
                         updateDocument((current) =>
+
                           updatePage(current, pageId, (p) => ({
                             ...p,
                             description: [...p.description, block],
@@ -2679,8 +3690,6 @@ export function ProposalBuilder({
                 quantity: item.quantity,
                 unitOfMeasure: item.unit_of_measure,
               }))}
-              jobDescription={job?.job_description || job?.description || ""}
-              jobTitle={job?.title || project?.title || ""}
               imagePairs={imagePairs}
               onImagePairsChange={setImagePairs}
             />

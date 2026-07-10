@@ -1,12 +1,24 @@
 'use client'
 
+// QuickBooks reconciliation — the QBO-synced invoices for this project's linked
+// quotes, plus "Other payments" (paid quotes recorded in the app without a QBO
+// invoice). Lifted verbatim out of the old Summary & Invoicing tab so the whole
+// money-in story lives on one tab; only the Snapshot KPIs were dropped (they now
+// live in the merged headline band).
+//
+// LEVEL 2 (needs backend): the app-native invoices in <ScopeBillingTab>'s
+// "Payments & Invoices" section and these QuickBooks invoices are still two
+// separate lists. An app invoice that's been pushed to QBO is the SAME invoice
+// showing up twice. Unifying them into one row ("INV-033 · billed in app ·
+// synced to QBO · paid") requires a backend correlation between the app invoice
+// id and the QBO invoice id. Until that exists, we render them as two adjacent
+// sections rather than inventing a client-side match that could mislabel.
+
 import { useState, useEffect, useCallback, ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { useAuth } from '@/contexts/AuthContext'
 import {
   Project,
-  ProjectFinancialSummary,
   QBOInvoiceDetail,
   QBOProjectInvoiceDetailResponse,
   ManualPaidQuoteSnapshot,
@@ -29,9 +41,8 @@ import {
   Banknote,
 } from 'lucide-react'
 
-interface SummaryInvoicingTabProps {
+interface QuickBooksInvoicesSectionProps {
   project: Project
-  summary: ProjectFinancialSummary
 }
 
 type InvoiceRow = QBOInvoiceDetail & { job_id: number }
@@ -243,10 +254,8 @@ function ManualPaidQuotesSection({
   )
 }
 
-export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabProps) {
+export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSectionProps) {
   const locale = useLocale()
-  const { user } = useAuth()
-  const companyName = user?.contractor_profile?.company_name || 'Contractor'
   const settingsIntegrationsHref = `/${locale}/settings?tab=integrations`
 
   const [qboPayload, setQboPayload] = useState<QBOProjectInvoiceDetailResponse | null>(null)
@@ -286,7 +295,6 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
   useEffect(() => {
     fetchQBODetail()
   }, [fetchQBODetail])
-
 
   let qboSectionBody: ReactNode = null
 
@@ -376,66 +384,23 @@ export function SummaryInvoicingTab({ project, summary }: SummaryInvoicingTabPro
   }
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Snapshot</h2>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Card className="bg-status-pending/10 border-status-pending/30">
-            <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-status-pending uppercase tracking-wide">Material Cost</p>
-              <p className="text-lg font-bold text-status-pending mt-1 tabular-nums">{formatCurrency(summary.total_materials)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-muted border-border">
-            <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{companyName} Cost</p>
-              <p className="text-lg font-bold text-foreground mt-1 tabular-nums">{formatCurrency(summary.total_cost_items)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-primary/10 border-primary/30">
-            <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Total Invoiced</p>
-              <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatCurrency(summary.total_invoiced)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-status-active/10 border-status-active/30">
-            <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-status-active uppercase tracking-wide">Collected</p>
-              <p className="text-lg font-bold text-status-active mt-1 tabular-nums">{formatCurrency(summary.total_paid)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-primary/10 border-primary/20">
-            <CardContent className="p-4">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">{companyName} Profit</p>
-              <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatCurrency(summary.profit_to_date)}</p>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">QuickBooks</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={fetchQBODetail}
+          disabled={qboLoading}
+          className="text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
+          title="Refresh"
+          aria-label="Refresh QuickBooks data"
+        >
+          <RefreshCw className={`w-4 h-4 ${qboLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">QuickBooks</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={fetchQBODetail}
-            disabled={qboLoading}
-            className="text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
-            title="Refresh"
-            aria-label="Refresh QuickBooks data"
-          >
-            <RefreshCw className={`w-4 h-4 ${qboLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {qboSectionBody}
-      </div>
+      {qboSectionBody}
     </div>
   )
 }

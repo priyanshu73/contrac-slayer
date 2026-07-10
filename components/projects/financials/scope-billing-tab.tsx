@@ -5,7 +5,7 @@
 // quote(s); this tab is read-only and links out to the quote for billing
 // actions, so the numbers are a single source of truth rather than re-entered.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import { Project, ProjectScopeBilling } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2, AlertTriangle, FileText, ArrowUpRight, CheckCircle2 } from 'lucide-react'
+import { QuickBooksInvoicesSection } from './quickbooks-invoices-section'
 
 interface ScopeBillingTabProps {
   project: Project
@@ -61,24 +62,51 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
 
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ProjectScopeBilling | null>(null)
+  // The draw currently being billed (its line id), so we can show a spinner on
+  // just that row and disable the rest while the invoice is created.
+  const [billingId, setBillingId] = useState<number | null>(null)
 
-  useEffect(() => {
-    let active = true
-    ;(async () => {
+  const load = useCallback(
+    async (showSpinner = true) => {
       try {
-        setLoading(true)
+        if (showSpinner) setLoading(true)
         const res = await api.getProjectScopeBilling(project.id)
-        if (active) setData(res)
+        setData(res)
       } catch (err: any) {
         toast({ title: 'Error loading scope & billing', description: err.message, variant: 'destructive' })
       } finally {
-        if (active) setLoading(false)
+        if (showSpinner) setLoading(false)
       }
-    })()
-    return () => {
-      active = false
+    },
+    [project.id],
+  )
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Bill a single draw in place: create its invoice, then silently refresh so the
+  // row flips to INVOICED and the invoices list picks it up — no page reload, no
+  // trip out to the quote.
+  const handleBillDraw = async (jobId: number, line: { id: number; label: string; computed_amount: number }) => {
+    setBillingId(line.id)
+    try {
+      const invoice = await api.billDraw(jobId, line.id)
+      toast({
+        title: 'Draw billed',
+        description: `${line.label} — invoice ${invoice?.invoice_number ?? ''} for ${formatCurrency(line.computed_amount)}.`,
+      })
+      await load(false)
+    } catch (err: any) {
+      toast({
+        title: "Couldn't bill this draw",
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setBillingId(null)
     }
-  }, [project.id])
+  }
 
   if (loading) {
     return (
@@ -295,11 +323,12 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
         </CardContent>
       </Card>
 
-      {/* ── Payment plan (collapsible; one per quote: draws, or a single payment) ── */}
+      {/* ── Payments & Invoices — the draw schedule (billable in place) and the
+           invoices those draws produce, in one place ── */}
       <Card className="border shadow-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Payment Plan
+            Payments &amp; Invoices
             {schedules.length > 1 && (
               <span className="text-muted-foreground font-medium normal-case"> · {schedules.length} quotes</span>
             )}
@@ -310,7 +339,8 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             </span>
           )}
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-5">
+          {/* ── Payment plan: draws per quote, billable in place ── */}
           {schedules.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No billing plan yet — link an accepted quote to bill against it.
@@ -336,62 +366,87 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                     </AccordionTrigger>
                     <AccordionContent className="pb-0">
                       <div className="p-3 space-y-1.5">
-                        <div className="flex justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7"
-                            onClick={() => openTab(`/quotes/${sch.job_id}`)}
-                          >
-                            {lumpSum ? 'Bill' : 'Bill draws'} <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-                          </Button>
-                        </div>
                         {lumpSum ? (
                           <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-2">
                             <span className="text-sm font-medium text-foreground">
                               Payable in full <span className="text-muted-foreground">· no draw schedule</span>
                             </span>
-                            <span className="text-sm font-semibold tabular-nums text-foreground shrink-0">
-                              {formatCurrency(sch.contract_total)}
-                            </span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {formatCurrency(sch.contract_total)}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7"
+                                onClick={() => openTab(`/quotes/${sch.job_id}`)}
+                              >
+                                Bill <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </div>
                         ) : (
-                          sch.lines.map((line) => (
-                            <div key={line.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="truncate text-sm font-medium text-foreground">{line.label}</span>
-                                <Badge variant="outline" className={DRAW_STATE_STYLES[line.state] || 'text-muted-foreground'}>{line.state}</Badge>
-                                {line.invoice_id && line.invoice_number ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => openTab(`/invoices/${line.invoice_id}`)}
-                                    className="text-xs text-primary hover:underline"
-                                  >
-                                    {line.invoice_number}
-                                  </button>
-                                ) : (
-                                  line.invoice_number && <span className="text-xs text-muted-foreground">{line.invoice_number}</span>
-                                )}
+                          sch.lines.map((line) => {
+                            const billed = line.state === 'PAID' || line.state === 'INVOICED'
+                            const billable = !billed && (line.state === 'READY' || line.state === 'SCHEDULED')
+                            return (
+                              <div key={line.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="truncate text-sm font-medium text-foreground">{line.label}</span>
+                                  <Badge variant="outline" className={DRAW_STATE_STYLES[line.state] || 'text-muted-foreground'}>{line.state}</Badge>
+                                  {line.invoice_id && line.invoice_number ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openTab(`/invoices/${line.invoice_id}`)}
+                                      className="text-xs text-primary hover:underline"
+                                    >
+                                      {line.invoice_number}
+                                    </button>
+                                  ) : (
+                                    line.invoice_number && <span className="text-xs text-muted-foreground">{line.invoice_number}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                                    {formatCurrency(line.computed_amount)}
+                                  </span>
+                                  {billable && (
+                                    <Button
+                                      size="sm"
+                                      className="h-7"
+                                      disabled={billingId !== null}
+                                      onClick={() => handleBillDraw(sch.job_id, line)}
+                                    >
+                                      {billingId === line.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Bill'}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-sm font-semibold tabular-nums text-foreground shrink-0">
-                                {formatCurrency(line.computed_amount)}
-                              </span>
-                            </div>
-                          ))
+                            )
+                          })
                         )}
                         {/* Per-quote billed/paid progress */}
                         <div className="pt-1.5">
                           <BillingBar paid={sch.summary.paid} billed={sch.summary.billed} total={sch.contract_total} className="h-1.5" />
                         </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span className="tabular-nums">
                             {lumpSum
                               ? `Payable ${formatCurrency(sch.contract_total)}`
                               : `Scheduled ${formatCurrency(sch.scheduled_total)} of ${formatCurrency(sch.contract_total)}`}
                           </span>
-                          <span className="tabular-nums">
-                            Billed {formatCurrency(sch.summary.billed)} · <span className="text-status-active">Paid {formatCurrency(sch.summary.paid)}</span>
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="tabular-nums">
+                              Billed {formatCurrency(sch.summary.billed)} · <span className="text-status-active">Paid {formatCurrency(sch.summary.paid)}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openTab(`/quotes/${sch.job_id}`)}
+                              className="inline-flex items-center text-primary hover:underline"
+                            >
+                              Edit schedule <ArrowUpRight className="ml-0.5 h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </AccordionContent>
@@ -408,26 +463,19 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
               </span>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* ── Invoices ── */}
-      <Card className="border shadow-sm">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Invoices {invoices.length > 0 && <span className="text-muted-foreground font-medium normal-case">· {invoices.length}</span>}
-          </CardTitle>
+          {/* ── Invoices raised so far (draws that have been billed + any standalone) ── */}
           {invoices.length > 0 && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              <span className="text-status-active font-semibold">{formatCurrency(invPaid)}</span> collected of {formatCurrency(invTotal)}
-            </span>
-          )}
-        </CardHeader>
-        <CardContent>
-          {invoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No invoices raised yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Invoices <span className="normal-case font-medium">· {invoices.length}</span>
+                </p>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-status-active font-semibold">{formatCurrency(invPaid)}</span> collected of {formatCurrency(invTotal)}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b">
@@ -482,8 +530,20 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── QuickBooks reconciliation (was its own "Summary & Invoicing" tab) ──
+           LEVEL 2 TODO: unify these QBO invoices with the app-native invoices in
+           the "Payments & Invoices" section above — an app invoice synced to QBO
+           is the same invoice shown twice. Needs a backend app-invoice ↔ QBO-
+           invoice correlation before we can collapse them into one list. */}
+      <Card className="border shadow-sm">
+        <CardContent className="p-5">
+          <QuickBooksInvoicesSection project={project} />
         </CardContent>
       </Card>
     </div>

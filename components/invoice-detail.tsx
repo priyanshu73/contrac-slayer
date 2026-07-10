@@ -406,7 +406,11 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
             </div>
             <div className="text-right">
               <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">INVOICE</h2>
-              <p className="text-xs sm:text-sm print:text-xs text-gray-600 font-medium">#{invoice.invoice_number}</p>
+              <p className="text-xs sm:text-sm print:text-xs text-gray-600 font-medium tracking-wide">
+                {invoice.job_id
+                  ? `Q${invoice.job_id}.${invoice.invoice_number.replace(/-/g, "").toUpperCase()}`
+                  : `#${invoice.invoice_number}`}
+              </p>
               <p className="text-xs sm:text-sm print:text-xs text-gray-500">{formatDate(invoice.issue_date)}</p>
               <div className="inline-block mt-1.5 print:hidden">
                 <Badge className={`${getStatusColor(invoice.status)} text-xs print:text-xs border-0`}>

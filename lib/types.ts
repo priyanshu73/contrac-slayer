@@ -350,10 +350,49 @@ export interface ProposalAnnotationPoint {
 
 export interface ProposalImageAnnotationStroke {
   id: string
+  type?: "stroke"
   color: string
   width: number
   points: ProposalAnnotationPoint[]
 }
+
+export interface ProposalImageArrowAnnotation {
+  id: string
+  type: "arrow"
+  color: string
+  width: number
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+}
+
+export interface ProposalImageShapeAnnotation {
+  id: string
+  type: "rect" | "ellipse" | "highlight"
+  color: string
+  width: number
+  x: number
+  y: number
+  w: number
+  h: number
+  fill?: string
+  opacity?: number
+}
+
+export interface ProposalImageMeasurementAnnotation {
+  id: string
+  type: "measurement"
+  color: string
+  width: number
+  start: ProposalAnnotationPoint
+  end: ProposalAnnotationPoint
+  label: string
+}
+
+export type ProposalImageAnnotation =
+  | ProposalImageAnnotationStroke
+  | ProposalImageArrowAnnotation
+  | ProposalImageShapeAnnotation
+  | ProposalImageMeasurementAnnotation
 
 export interface ProposalImageTextOverlay {
   id: string
@@ -374,8 +413,9 @@ export interface ProposalImageBlock {
   width: number
   height: number
   alignment?: 'left' | 'center' | 'right'
-  annotations: ProposalImageAnnotationStroke[]
+  annotations: ProposalImageAnnotation[]
   textOverlays: ProposalImageTextOverlay[]
+  caption?: string
 }
 
 export interface ProposalBeforeAfterBlock {
@@ -519,6 +559,7 @@ export interface Job {
   /** Display number for quote/job (e.g. Q-2024-001); may come from API */
   job_number?: string
   title: string
+  proposal_document?: ProposalDocument | null
   description?: string
   status: JobStatus
   start_date?: string
@@ -682,6 +723,10 @@ export interface Project {
   objective?: string
   status: ProjectStatus
   contract_value?: number
+  // P&L (Costs & Margin) per-unit metric inputs
+  pnl_unit_label?: string | null
+  pnl_unit_count?: number | null
+  pnl_crew_days?: number | null
   scheduled_start_date?: string
   scheduled_end_date?: string
   actual_start_date?: string
@@ -702,9 +747,6 @@ export interface ProjectListItem {
   uuid: string
   title: string
   status: ProjectStatus
-  client_id?: number
-  client_name?: string | null
-  contract_value?: number
   scheduled_start_date?: string
   scheduled_end_date?: string
   total_trades?: number
@@ -1399,6 +1441,25 @@ export interface ProjectMaterialCreate {
 
 export type ProjectMaterialUpdate = Partial<ProjectMaterialCreate>
 
+// ── Labor: per-worker crew pay (P&L labor breakdown) ──
+export interface ProjectLaborEntry {
+  id: number
+  project_id: number
+  worker_name: string
+  amount: number
+  order: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface ProjectLaborEntryCreate {
+  worker_name: string
+  amount?: number
+  order?: number
+}
+
+export type ProjectLaborEntryUpdate = Partial<ProjectLaborEntryCreate>
+
 export interface ProjectPayment {
   id: number
   project_id: number
@@ -1435,6 +1496,27 @@ export interface ProjectFinancialSummary {
   collected_pct: number
   approved_co_total: number
   adjusted_budget: number
+
+  // --- Job P&L (Costs & Margin tab) ---
+  /** Cost items pulled from quotes. */
+  total_direct_cost?: number
+  /** Cost items entered by hand. */
+  total_indirect_cost?: number
+  /** Sum of ProjectLaborEntry amounts (crew pay). */
+  total_labor?: number
+  /** cost items + materials cost + labor. */
+  total_job_cost?: number
+  /** revenue (contract total) − total_job_cost. */
+  gross_profit?: number
+  /** gross_profit / revenue × 100. */
+  gross_margin_pct?: number
+  /** gross_profit / unit count (null if unit count unset). */
+  gp_per_unit?: number | null
+  /** gross_profit / crew days (null if crew days unset). */
+  gp_per_crew_day?: number | null
+  pnl_unit_label?: string | null
+  pnl_unit_count?: number | null
+  pnl_crew_days?: number | null
 
   // --- Contract reconciliation (single source of truth) ---
   /** Anchor quote's live grand total (scope-derived). */
