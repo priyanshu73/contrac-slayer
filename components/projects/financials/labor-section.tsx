@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Plus, Loader2 } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
@@ -33,6 +34,9 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
   const [newWorker, setNewWorker] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Add-crew dialog: pick from previously-used crew, or type a brand-new name.
+  const [addMode, setAddMode] = useState<'existing' | 'new'>('new')
+  const [roster, setRoster] = useState<{ worker_name: string; last_amount: number | null }[]>([])
 
   const loadData = async () => {
     try {
@@ -49,6 +53,31 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
   useEffect(() => {
     loadData()
   }, [project.id])
+
+  // Names already on this project — hide them from the "existing crew" picker.
+  const existingNames = new Set(entries.map(e => e.worker_name?.trim().toLowerCase()))
+  const availableRoster = roster.filter(r => !existingNames.has(r.worker_name.trim().toLowerCase()))
+
+  const openCreate = async () => {
+    setNewWorker('')
+    setNewAmount('')
+    setCreateOpen(true)
+    try {
+      const data = await api.getCrewRoster()
+      setRoster(data || [])
+      // Default to the picker when there's a roster to pick from, else new entry.
+      setAddMode((data || []).length ? 'existing' : 'new')
+    } catch {
+      setRoster([])
+      setAddMode('new')
+    }
+  }
+
+  const handlePickExisting = (name: string) => {
+    const match = availableRoster.find(r => r.worker_name === name)
+    setNewWorker(name)
+    setNewAmount(match?.last_amount != null ? String(match.last_amount) : '')
+  }
 
   const handleUpdate = async (entryId: number, updates: any) => {
     try {
@@ -111,7 +140,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
         <Table className="table-fixed w-full">
           <TableHeader className="bg-muted">
             <TableRow>
-              <TableHead className="w-[70%] text-xs uppercase tracking-wider">Worker</TableHead>
+              <TableHead className="w-[70%] text-xs uppercase tracking-wider">Crew</TableHead>
               <TableHead className="w-[26%] text-right text-xs uppercase tracking-wider">Amount</TableHead>
               <TableHead className="w-[4%]"></TableHead>
             </TableRow>
@@ -123,7 +152,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
               </TableRow>
             ) : entries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-6 italic">No workers added.</TableCell>
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-6 italic">No crew added.</TableCell>
               </TableRow>
             ) : entries.map(entry => (
               <TableRow key={entry.id} className="group hover:bg-muted border-b">
@@ -160,8 +189,8 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       </div>
 
       <div className="mt-3">
-        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
-          <Plus className="w-4 h-4 mr-1" /> Add worker
+        <Button variant="outline" size="sm" onClick={openCreate} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
+          <Plus className="w-4 h-4 mr-1" /> Add
         </Button>
       </div>
       </CardContent>
@@ -169,18 +198,51 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add worker</DialogTitle>
+            <DialogTitle>Add crew</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-4">
+            {availableRoster.length > 0 && (
+              <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+                <button
+                  type="button"
+                  onClick={() => { setAddMode('existing'); setNewWorker(''); setNewAmount('') }}
+                  className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${addMode === 'existing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                >
+                  Existing crew
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAddMode('new'); setNewWorker(''); setNewAmount('') }}
+                  className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${addMode === 'new' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                >
+                  New crew member
+                </button>
+              </div>
+            )}
             <div className="space-y-2">
-              <Label>Worker</Label>
-              <Input
-                value={newWorker}
-                onChange={e => setNewWorker(e.target.value)}
-                placeholder="e.g. Raul"
-                autoFocus
-                required
-              />
+              <Label>Crew</Label>
+              {addMode === 'existing' && availableRoster.length > 0 ? (
+                <Select value={newWorker || undefined} onValueChange={handlePickExisting}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a crew member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRoster.map(r => (
+                      <SelectItem key={r.worker_name} value={r.worker_name}>
+                        {r.worker_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={newWorker}
+                  onChange={e => setNewWorker(e.target.value)}
+                  placeholder="e.g. Raul"
+                  autoFocus
+                  required
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>Amount (pay)</Label>
@@ -193,7 +255,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
               />
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
+              <Button type="submit" disabled={isSubmitting || !newWorker.trim()} className="bg-primary hover:bg-primary/90">
                 {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             </div>

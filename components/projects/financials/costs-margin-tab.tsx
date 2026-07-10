@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Pencil, Info } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { JobCostsSection } from './job-costing-tab'
 import { LaborSection } from './labor-section'
 import { MaterialsPermitsTab } from './materials-permits-tab'
@@ -49,10 +49,16 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
   const margin = summary?.gross_margin_pct != null ? toNum(summary.gross_margin_pct) : (revenue > 0 ? (grossProfit / revenue) * 100 : 0)
   const gpPerUnit = toNumOrNull(summary?.gp_per_unit)
   const gpPerCrewDay = toNumOrNull(summary?.gp_per_crew_day)
+  // Breakeven Day Rate (sheet: "cost/day to zero out") — the loaded crew-day
+  // cost at which GP hits zero: (Revenue − every cost except labor) ÷ crew days.
+  // Pay your crew more per day than this and the job loses money.
   const unitLabel = (summary?.pnl_unit_label || '').trim()
   const unitWord = unitLabel || 'unit'
   const unitCount = toNumOrNull(summary?.pnl_unit_count)
   const crewDays = toNumOrNull(summary?.pnl_crew_days)
+  const breakevenDayRate = crewDays != null && crewDays > 0
+    ? (revenue - (totalCost - laborCost)) / crewDays
+    : null
 
   const profitClass = grossProfit >= 0 ? 'text-status-active' : 'text-destructive'
   const plural = (n: number | null, w: string) => `${w}${n === 1 ? '' : 's'}`
@@ -87,15 +93,6 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
       <p className="mt-0.5 text-[10px] text-muted-foreground/80 tabular-nums truncate">{formula}</p>
     </div>
   )
-
-  // Cost composition: what share of Total Job Cost each bucket is.
-  const buckets = [
-    { key: 'Direct', val: directCost, cls: 'bg-primary' },
-    { key: 'Indirect', val: indirectCost, cls: 'bg-status-pending' },
-    { key: 'Labor', val: laborCost, cls: 'bg-status-active' },
-    { key: 'Materials', val: materialsCost, cls: 'bg-foreground/40' },
-  ].filter(b => b.val > 0)
-  const compDenom = totalCost > 0 ? totalCost : 1
 
   // Compact editable caption for the per-unit inputs.
   const pnlSummaryText = (unitCount != null || crewDays != null)
@@ -170,67 +167,27 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
               </div>
             </div>
 
-            {/* Secondary tiles */}
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              {tile('Revenue', formatCurrency(revenue), 'From the contract', 'text-primary')}
-              {tile('Total Job Cost', formatCurrency(totalCost), 'Direct + Indirect + Labor + Materials', 'text-foreground',
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="text-muted-foreground/60 hover:text-foreground" aria-label="Cost breakdown">
-                      <Info className="h-3 w-3" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-56 p-3">
-                    <p className="mb-2 text-xs font-semibold text-foreground">Total Job Cost</p>
-                    <div className="space-y-1 text-xs">
-                      {[
-                        ['Direct job cost', directCost],
-                        ['Indirect cost', indirectCost],
-                        ['Labor', laborCost],
-                        ['Materials & permits', materialsCost],
-                      ].map(([k, v]) => (
-                        <div key={k as string} className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">{k}</span>
-                          <span className="tabular-nums text-foreground">{formatCurrency(v as number)}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between gap-4 border-t pt-1 font-semibold">
-                        <span>Total</span>
-                        <span className="tabular-nums">{formatCurrency(totalCost)}</span>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>,
-              )}
+            {/* Per-unit tiles — the sheet's GP per Pond / GP per Crew Day / Breakeven rows */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {tile(
-                `GP per ${unitWord}`,
+                `Gross Profit per ${unitWord}`,
                 gpPerUnit != null ? formatCurrency(gpPerUnit) : '—',
                 unitCount != null ? `GP ÷ ${num(unitCount)} ${plural(unitCount, unitWord.toLowerCase())}` : 'Set # units',
               )}
               {tile(
-                'GP per Crew Day',
+                'Gross Profit per Crew Day',
                 gpPerCrewDay != null ? formatCurrency(gpPerCrewDay) : '—',
                 crewDays != null ? `GP ÷ ${num(crewDays)} crew ${plural(crewDays, 'day')}` : 'Set # crew days',
               )}
+              {tile(
+                'Breakeven Day Rate',
+                breakevenDayRate != null ? formatCurrency(breakevenDayRate) : '—',
+                breakevenDayRate != null
+                  ? 'Loaded crew-day cost above this = job loses money.'
+                  : 'Set # crew days',
+                'text-destructive',
+              )}
             </div>
-
-            {/* Cost composition bar */}
-            {totalCost > 0 && (
-              <div className="space-y-1.5">
-                <div className="flex w-full h-2.5 overflow-hidden rounded-full bg-muted">
-                  {buckets.map(b => (
-                    <div key={b.key} className={`${b.cls} transition-all duration-500`} style={{ width: `${(b.val / compDenom) * 100}%` }} title={`${b.key}: ${formatCurrency(b.val)}`} />
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-muted-foreground">
-                  {buckets.map(b => (
-                    <span key={b.key} className="inline-flex items-center gap-1.5">
-                      <span className={`h-2 w-2 rounded-full ${b.cls}`} /> {b.key} · {formatCurrency(b.val)} ({Math.round((b.val / compDenom) * 100)}%)
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -77,6 +77,12 @@ export function QuoteItemPicker({
     .flatMap((q) => q.line_items)
   const chosen = allItems.filter((li) => selected.has(li.id))
 
+  // Everything that can actually be picked (not already pulled in).
+  const selectableItems = allItems.filter((li) => !pulledItemIds.has(li.id))
+  const allSelected = selectableItems.length > 0 && selectableItems.every((li) => selected.has(li.id))
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? new Set() : new Set(selectableItems.map((li) => li.id)))
+
   const confirm = async () => {
     if (!chosen.length) return
     setSubmitting(true)
@@ -107,6 +113,20 @@ export function QuoteItemPicker({
           <p className="py-8 text-center text-sm text-muted-foreground">No quotes linked to this project.</p>
         ) : (
           <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-4">
+            {selectableItems.length > 0 && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  className="h-8 px-3 text-xs font-semibold text-primary border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary"
+                >
+                  <Check className="w-4 h-4 mr-1.5" />
+                  {allSelected ? 'Clear selection' : `Select all (${selectableItems.length})`}
+                </Button>
+              </div>
+            )}
             {scope.quotes.map((q) => (
               <div key={q.job_id}>
                 <div className="flex items-center gap-2 mb-1.5">
