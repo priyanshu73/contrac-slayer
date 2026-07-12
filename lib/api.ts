@@ -1412,19 +1412,22 @@ class ApiClient {
     return response.public_link
   }
 
-  /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected. */
-  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string): Promise<{ message: string }> {
+  /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected.
+   *  `note` is an optional personal message; the backend must read it for it to
+   *  appear in the email body. */
+  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string, note?: string): Promise<{ message: string }> {
     return this.request(`/projects/${projectId}/proposals/${proposalId}/send-email`, {
       method: 'POST',
-      body: JSON.stringify({ to, proposal_url: proposalUrl }),
+      body: JSON.stringify({ to, proposal_url: proposalUrl, note: note?.trim() || undefined }),
     })
   }
 
-  /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected. */
-  async sendQuoteEmail(jobId: number, to: string, quoteUrl: string): Promise<{ message: string }> {
+  /** Send formatted quote email to client via contractor's Gmail. Requires Gmail connected.
+   *  `note` is an optional personal message rendered in the email body. */
+  async sendQuoteEmail(jobId: number, to: string, quoteUrl: string, note?: string): Promise<{ message: string }> {
     return this.request(`/jobs/${jobId}/send-quote-email`, {
       method: 'POST',
-      body: JSON.stringify({ to, quote_url: quoteUrl }),
+      body: JSON.stringify({ to, quote_url: quoteUrl, note: note?.trim() || undefined }),
     })
   }
 

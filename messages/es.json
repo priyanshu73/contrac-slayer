@@ -1590,7 +1590,10 @@
     "status": {
       "unsaved": "Cambios sin guardar",
       "saved": "Todos los cambios guardados",
-      "readOnly": "Solo lectura"
+      "readOnly": "Solo lectura",
+      "saveErrorTitle": "No se pudieron guardar los cambios",
+      "saveErrorRetry": "Reintentar",
+      "confirmLeave": "Tienes cambios sin guardar. ¿Salir sin guardar?"
     },
     "toolbar": {
       "bold": "Negrita",
@@ -1663,7 +1666,13 @@
       "textPlaceholder": "Agrega aquí notas, fotos y anotaciones de la página.",
       "addText": "Agregar texto",
       "addImages": "Agregar imágenes",
-      "addPage": "+ Agregar página"
+      "addPage": "+ Agregar página",
+      "deletePageTitle": "¿Eliminar esta página?",
+      "deletePageBody": "Esto elimina la página y todo su contenido. No se puede deshacer.",
+      "deletePageConfirm": "Eliminar página",
+      "insertBlock": "Insertar bloque",
+      "emptyTitle": "Esta página está vacía",
+      "emptyBody": "Agrega texto o imágenes, o arrastra fotos desde tu escritorio."
     },
     "imageEditor": {
       "drawing": "Dibujando",
@@ -1721,7 +1730,9 @@
       "viewProposal": "Ver propuesta",
       "discard": "Descartar",
       "sending": "Enviando…",
-      "sendProposal": "Enviar propuesta"
+      "sendProposal": "Enviar propuesta",
+      "note": "Nota",
+      "invalidEmail": "Ingresa un correo electrónico válido"
     },
     "smsMessage": "Hola {name}, tus documentos están listos. Puedes verlos aquí: {url}",
     "toast": {

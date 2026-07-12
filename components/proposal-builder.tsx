@@ -1,16 +1,28 @@
 "use client"
 
-import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, ChevronsUpDown, Circle, Copy, ExternalLink, Eye, FileImage, GripVertical, Heading2, Highlighter, ImagePlus, Italic, List, ListOrdered, Loader2, MoveDown, MoveUp, Paintbrush, PencilLine, Plus, RemoveFormatting, Ruler, Save, Send, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, User, UserCircle } from "lucide-react"
+import { AlertTriangle, Check, Copy, ExternalLink, Eye, FileImage, GripVertical, ImagePlus, Loader2, MoveDown, MoveUp, Plus, RotateCw, Save, Send, Sparkles, Trash2, User, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +39,22 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { DEFAULT_PROPOSAL_THEME_ID, PROPOSAL_THEMES, getProposalTheme, normalizeProposalThemeId } from "@/lib/proposal-themes"
 import { cn } from "@/lib/utils"
+import { RichTextEditor } from "@/components/proposal/rich-text-editor"
+import { SortableBlock } from "@/components/proposal/sortable-block"
+import { InsertBlockBar } from "@/components/proposal/insert-block-bar"
+import { ImageBlockEditor } from "@/components/proposal/image-block-editor"
+import { BeforeAfterBlockEditor, buildBeforeAfterPairsFromMedia } from "@/components/proposal/before-after-block-editor"
+import { createId } from "@/components/proposal/utils"
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useToast } from "@/hooks/use-toast"
 import type {
   Client,
@@ -85,10 +113,6 @@ function getProposalFont(id?: string | null) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-function createId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 function formatProposalDate(value: string, locale = "en") {
   const date = value ? new Date(`${value}T00:00:00`) : new Date()
@@ -314,6 +338,18 @@ function updateBlock(
   }))
 }
 
+/** Basic email shape check, shared by the send dialog's inline error + submit guard. */
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+/** Insert blocks at a specific index (clamped), for insert-between-blocks. */
+function insertBlocksAtIndex(page: ProposalPage, index: number, blocks: ProposalPageBlock[]): ProposalPage {
+  const next = [...page.description]
+  next.splice(Math.max(0, Math.min(index, next.length)), 0, ...blocks)
+  return { ...page, description: next }
+}
+
 function moveBlockWithinPage(page: ProposalPage, blockId: string, direction: -1 | 1): ProposalPage {
   const index = page.description.findIndex((block) => block.id === blockId)
   const targetIndex = index + direction
@@ -329,1462 +365,6 @@ function moveBlockWithinPage(page: ProposalPage, blockId: string, direction: -1 
     ...page,
     description: nextBlocks,
   }
-}
-
-function moveBlockToIndex(page: ProposalPage, blockId: string, targetIndex: number): ProposalPage {
-  const sourceIndex = page.description.findIndex((block) => block.id === blockId)
-  if (sourceIndex < 0) return page
-
-  const nextBlocks = [...page.description]
-  const [block] = nextBlocks.splice(sourceIndex, 1)
-  const boundedTargetIndex = Math.max(0, Math.min(targetIndex, nextBlocks.length))
-  nextBlocks.splice(boundedTargetIndex, 0, block)
-
-  return {
-    ...page,
-    description: nextBlocks,
-  }
-}
-
-function RichTextEditor({
-  value,
-  onChange,
-  placeholder,
-  readOnly = false,
-  className,
-  toolbarClassName,
-  editorClassName,
-  readOnlyClassName,
-}: {
-  value: string
-  onChange: (value: string) => void
-  placeholder: string
-  readOnly?: boolean
-  className?: string
-  toolbarClassName?: string
-  editorClassName?: string
-  readOnlyClassName?: string
-}) {
-  const t = useTranslations("proposals")
-  const editorRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!editorRef.current || readOnly) return
-    if (editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value
-    }
-  }, [readOnly, value])
-
-  const exec = (command: string, val?: string) => {
-    const doc = document as Document & { execCommand?: (c: string, ui?: boolean, v?: string) => boolean }
-    editorRef.current?.focus()
-    doc.execCommand?.(command, false, val)
-    onChange(editorRef.current?.innerHTML || "")
-  }
-
-  const toggleHeading = () => {
-    const doc = document as Document & { queryCommandValue?: (c: string) => string }
-    const current = doc.queryCommandValue?.("formatBlock") ?? ""
-    exec("formatBlock", current.toLowerCase() === "h2" ? "p" : "h2")
-  }
-
-  if (readOnly) {
-    if (!value?.trim()) {
-      return null
-    }
-
-    return (
-      <div
-        className={cn("prose max-w-none text-[15px] leading-7", readOnlyClassName, className)}
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
-    )
-  }
-
-  const sep = <span className="mx-0.5 h-4 w-px self-center bg-slate-200" />
-
-  return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
-      <div className={cn("flex flex-wrap items-center gap-1 border-b border-slate-200 px-2 py-1.5", toolbarClassName)}>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.bold")} onMouseDown={(e) => { e.preventDefault(); exec("bold") }}>
-          <Bold className="h-3.5 w-3.5" />
-        </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.italic")} onMouseDown={(e) => { e.preventDefault(); exec("italic") }}>
-          <Italic className="h-3.5 w-3.5" />
-        </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.underline")} onMouseDown={(e) => { e.preventDefault(); exec("underline") }}>
-          <Underline className="h-3.5 w-3.5" />
-        </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.strikethrough")} onMouseDown={(e) => { e.preventDefault(); exec("strikeThrough") }}>
-          <Strikethrough className="h-3.5 w-3.5" />
-        </Button>
-        {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.heading")} onMouseDown={(e) => { e.preventDefault(); toggleHeading() }}>
-          <Heading2 className="h-3.5 w-3.5" />
-        </Button>
-        {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.bulletList")} onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList") }}>
-          <List className="h-3.5 w-3.5" />
-        </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.numberedList")} onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList") }}>
-          <ListOrdered className="h-3.5 w-3.5" />
-        </Button>
-        {sep}
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("toolbar.clearFormatting")} onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); exec("formatBlock", "p") }}>
-          <RemoveFormatting className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div
-        ref={editorRef}
-        className={cn(
-          "min-h-[140px] px-4 py-3 text-[15px] leading-7 text-slate-700 outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]",
-          editorClassName,
-        )}
-        contentEditable
-        suppressContentEditableWarning
-        data-placeholder={placeholder}
-        onInput={(event) => onChange(event.currentTarget.innerHTML)}
-      />
-    </div>
-  )
-}
-
-function StrokePath({
-  stroke,
-  width,
-  height,
-}: {
-  stroke: ProposalImageAnnotationStroke
-  width: number
-  height: number
-}) {
-  const d = getStrokePath(stroke, width, height)
-
-  return <path d={d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />
-}
-
-function getStrokePath(stroke: ProposalImageAnnotationStroke, width: number, height: number) {
-  return stroke.points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * width} ${point.y * height}`)
-    .join(" ")
-}
-
-function ArrowPath({
-  arrow,
-  width,
-  height,
-  markerId,
-}: {
-  arrow: ProposalImageArrowAnnotation
-  width: number
-  height: number
-  markerId: string
-}) {
-  const startX = arrow.start.x * width
-  const startY = arrow.start.y * height
-  const endX = arrow.end.x * width
-  const endY = arrow.end.y * height
-
-  return (
-    <g>
-      <defs>
-        <marker
-          id={markerId}
-          markerWidth="4"
-          markerHeight="4"
-          refX="3.6"
-          refY="2"
-          orient="auto"
-          markerUnits="strokeWidth"
-        >
-          <path d="M 0 0 L 4 2 L 0 4 z" fill={arrow.color} />
-        </marker>
-      </defs>
-      <line
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
-        stroke={arrow.color}
-        strokeWidth={arrow.width}
-        strokeLinecap="round"
-        markerEnd={`url(#${markerId})`}
-      />
-    </g>
-  )
-}
-
-function LineSelection({
-  start,
-  end,
-  width,
-  height,
-  strokeWidth,
-  dashed = false,
-}: {
-  start: ProposalAnnotationPoint
-  end: ProposalAnnotationPoint
-  width: number
-  height: number
-  strokeWidth: number
-  dashed?: boolean
-}) {
-  return (
-    <line
-      x1={start.x * width}
-      y1={start.y * height}
-      x2={end.x * width}
-      y2={end.y * height}
-      stroke="#0ea5e9"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeDasharray={dashed ? "8 6" : undefined}
-      opacity={0.85}
-    />
-  )
-}
-
-function MeasurementAnnotation({
-  annotation,
-  width,
-  height,
-}: {
-  annotation: ProposalImageMeasurementAnnotation
-  width: number
-  height: number
-}) {
-  const startX = annotation.start.x * width
-  const startY = annotation.start.y * height
-  const endX = annotation.end.x * width
-  const endY = annotation.end.y * height
-  const labelX = (startX + endX) / 2
-  const labelY = (startY + endY) / 2
-  const label = annotation.label.trim()
-
-  return (
-    <g>
-      <line
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
-        stroke={annotation.color}
-        strokeWidth={annotation.width}
-        strokeLinecap="round"
-      />
-      {label ? (
-        <text
-          x={labelX}
-          y={labelY}
-          fill={annotation.color}
-          fontSize={16}
-          fontWeight={700}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          paintOrder="stroke"
-          stroke="white"
-          strokeWidth={4}
-          strokeLinejoin="round"
-        >
-          {label}
-        </text>
-      ) : null}
-    </g>
-  )
-}
-
-function AnnotationSelection({
-  annotation,
-  width,
-  height,
-}: {
-  annotation: ProposalImageAnnotation
-  width: number
-  height: number
-}) {
-  if (!annotation.type || annotation.type === "stroke") {
-    return (
-      <path
-        d={getStrokePath(annotation, width, height)}
-        fill="none"
-        stroke="#0ea5e9"
-        strokeWidth={Math.max(annotation.width + 4, 6)}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={0.85}
-      />
-    )
-  }
-
-  if (annotation.type === "arrow" || annotation.type === "measurement") {
-    return (
-      <LineSelection
-        start={annotation.start}
-        end={annotation.end}
-        width={width}
-        height={height}
-        strokeWidth={Math.max(annotation.width + 4, 6)}
-        dashed={annotation.type === "measurement"}
-      />
-    )
-  }
-
-  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
-    return null
-  }
-
-  const x = annotation.x * width
-  const y = annotation.y * height
-  const w = annotation.w * width
-  const h = annotation.h * height
-  const offset = Math.max(annotation.width / 2 + 4, 6)
-
-  if (annotation.type === "ellipse") {
-    return (
-      <ellipse
-        cx={x + w / 2}
-        cy={y + h / 2}
-        rx={w / 2 + offset}
-        ry={h / 2 + offset}
-        fill="none"
-        stroke="#0ea5e9"
-        strokeWidth={3}
-        strokeDasharray="8 6"
-      />
-    )
-  }
-
-  return (
-    <rect
-      x={x - offset}
-      y={y - offset}
-      width={w + offset * 2}
-      height={h + offset * 2}
-      fill="none"
-      stroke="#0ea5e9"
-      strokeWidth={3}
-      strokeDasharray="8 6"
-    />
-  )
-}
-
-function AnnotationHitTarget({
-  annotation,
-  width,
-  height,
-}: {
-  annotation: ProposalImageAnnotation
-  width: number
-  height: number
-}) {
-  if (!annotation.type || annotation.type === "stroke") {
-    return (
-      <path
-        d={getStrokePath(annotation, width, height)}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={Math.max(annotation.width + 14, 18)}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        pointerEvents="stroke"
-      />
-    )
-  }
-
-  if (annotation.type === "arrow" || annotation.type === "measurement") {
-    return (
-      <line
-        x1={annotation.start.x * width}
-        y1={annotation.start.y * height}
-        x2={annotation.end.x * width}
-        y2={annotation.end.y * height}
-        stroke="transparent"
-        strokeWidth={Math.max(annotation.width + 14, 18)}
-        strokeLinecap="round"
-        pointerEvents="stroke"
-      />
-    )
-  }
-
-  if (annotation.type !== "rect" && annotation.type !== "ellipse" && annotation.type !== "highlight") {
-    return null
-  }
-
-  const x = annotation.x * width
-  const y = annotation.y * height
-  const w = annotation.w * width
-  const h = annotation.h * height
-
-  if (annotation.type === "ellipse") {
-    return (
-      <ellipse
-        cx={x + w / 2}
-        cy={y + h / 2}
-        rx={w / 2}
-        ry={h / 2}
-        fill="transparent"
-        stroke="transparent"
-        strokeWidth={Math.max(annotation.width + 14, 18)}
-        pointerEvents="all"
-      />
-    )
-  }
-
-  return (
-    <rect
-      x={x}
-      y={y}
-      width={w}
-      height={h}
-      fill="transparent"
-      stroke="transparent"
-      strokeWidth={Math.max(annotation.width + 14, 18)}
-      pointerEvents="all"
-    />
-  )
-}
-
-function getAnnotationBounds(start: ProposalAnnotationPoint, end: ProposalAnnotationPoint) {
-  return {
-    x: Math.min(start.x, end.x),
-    y: Math.min(start.y, end.y),
-    w: Math.abs(end.x - start.x),
-    h: Math.abs(end.y - start.y),
-  }
-}
-
-function ShapeAnnotation({
-  annotation,
-  width,
-  height,
-}: {
-  annotation: ProposalImageShapeAnnotation
-  width: number
-  height: number
-}) {
-  const x = annotation.x * width
-  const y = annotation.y * height
-  const w = annotation.w * width
-  const h = annotation.h * height
-
-  if (annotation.type === "ellipse") {
-    return (
-      <ellipse
-        cx={x + w / 2}
-        cy={y + h / 2}
-        rx={w / 2}
-        ry={h / 2}
-        fill="none"
-        stroke={annotation.color}
-        strokeWidth={annotation.width}
-      />
-    )
-  }
-
-  return (
-    <rect
-      x={x}
-      y={y}
-      width={w}
-      height={h}
-      fill={annotation.type === "highlight" ? annotation.fill ?? annotation.color : "none"}
-      fillOpacity={annotation.type === "highlight" ? annotation.opacity ?? 0.28 : undefined}
-      stroke={annotation.color}
-      strokeWidth={annotation.width}
-      strokeLinejoin="round"
-    />
-  )
-}
-
-function ImageBlockEditor({
-  block,
-  readOnly,
-  onChange,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
-  onDragHandleStart,
-  onDragHandleEnd,
-  isDragging,
-  className,
-}: {
-  block: ProposalImageBlock
-  readOnly: boolean
-  onChange: (block: ProposalImageBlock) => void
-  onDelete: () => void
-  onMoveUp?: () => void
-  onMoveDown?: () => void
-  canMoveUp?: boolean
-  canMoveDown?: boolean
-  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
-  onDragHandleEnd?: () => void
-  isDragging?: boolean
-  className?: string
-}) {
-  const t = useTranslations("proposals")
-  const arrowMarkerPrefix = useId().replace(/:/g, "")
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
-  const drawStateRef = useRef<{ pointerId: number; points: ProposalAnnotationPoint[] } | null>(null)
-  const resizeStateRef = useRef<{ pointerId: number; startX: number; startY: number; width: number; height: number } | null>(null)
-  const dragStateRef = useRef<{ pointerId: number; overlayId: string } | null>(null)
-  type ImageTool = "select" | "draw" | "arrow" | "rect" | "ellipse" | "highlight" | "measurement"
-
-  const [activeTool, setActiveTool] = useState<ImageTool>("select")
-  const drawMode = activeTool === "draw"
-  const arrowMode = activeTool === "arrow"
-  const measurementMode = activeTool === "measurement"
-  const shapeMode = activeTool === "rect" || activeTool === "ellipse" || activeTool === "highlight"
-  const annotationMode = drawMode || arrowMode || shapeMode || measurementMode
-  const [strokeColor, setStrokeColor] = useState("#dc2626")
-  const [strokeWidth, setStrokeWidth] = useState(4)
-  const [draftPoints, setDraftPoints] = useState<ProposalAnnotationPoint[]>([])
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
-  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null)
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (readOnly) setActiveTool("select")
-  }, [readOnly])
-  useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      const rect = wrapperRef.current?.getBoundingClientRect()
-      if (!rect) return
-
-      if (resizeStateRef.current && resizeStateRef.current.pointerId === event.pointerId) {
-        const deltaX = event.clientX - resizeStateRef.current.startX
-        const deltaY = event.clientY - resizeStateRef.current.startY
-        onChange({
-          ...block,
-          width: Math.max(240, Math.round(resizeStateRef.current.width + deltaX)),
-          height: Math.max(180, Math.round(resizeStateRef.current.height + deltaY)),
-        })
-      }
-
-      if (dragStateRef.current && dragStateRef.current.pointerId === event.pointerId) {
-        const x = Math.min(0.95, Math.max(0.05, (event.clientX - rect.left) / rect.width))
-        const y = Math.min(0.95, Math.max(0.05, (event.clientY - rect.top) / rect.height))
-        onChange({
-          ...block,
-          textOverlays: block.textOverlays.map((overlay) =>
-            overlay.id === dragStateRef.current?.overlayId ? { ...overlay, x, y } : overlay,
-          ),
-        })
-      }
-
-      if (drawStateRef.current && drawStateRef.current.pointerId === event.pointerId) {
-        const point = {
-          x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-          y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-        }
-        const points = drawMode ? [...drawStateRef.current.points, point] : [drawStateRef.current.points[0], point]
-        drawStateRef.current = { ...drawStateRef.current, points }
-        setDraftPoints(drawStateRef.current.points)
-      }
-    }
-
-    const handlePointerUp = (event: PointerEvent) => {
-      if (resizeStateRef.current?.pointerId === event.pointerId) {
-        resizeStateRef.current = null
-      }
-
-      if (dragStateRef.current?.pointerId === event.pointerId) {
-        dragStateRef.current = null
-      }
-
-      if (drawStateRef.current?.pointerId === event.pointerId) {
-        const finishedPoints = drawStateRef.current.points
-        drawStateRef.current = null
-        setDraftPoints([])
-
-        if (finishedPoints.length >= 2 && drawMode) {
-          const id = createId("stroke")
-
-          onChange({
-            ...block,
-            annotations: [
-              ...block.annotations,
-              {
-                id,
-                type: "stroke",
-                color: strokeColor,
-                width: strokeWidth,
-                points: finishedPoints,
-              },
-            ],
-          })
-          setSelectedAnnotationId(id)
-          setSelectedOverlayId(null)
-          setSelectedMeasurementId(null)
-        }
-
-        if (finishedPoints.length >= 2 && arrowMode) {
-          const id = createId("arrow")
-
-          onChange({
-            ...block,
-            annotations: [
-              ...block.annotations,
-              {
-                id,
-                type: "arrow",
-                color: strokeColor,
-                width: strokeWidth,
-                start: finishedPoints[0],
-                end: finishedPoints[finishedPoints.length - 1],
-              },
-            ],
-          })
-          setSelectedAnnotationId(id)
-          setSelectedOverlayId(null)
-          setSelectedMeasurementId(null)
-        }
-
-        if (finishedPoints.length >= 2 && shapeMode) {
-          const bounds = getAnnotationBounds(finishedPoints[0], finishedPoints[finishedPoints.length - 1])
-
-          if (bounds.w > 0 && bounds.h > 0) {
-            const id = createId(activeTool)
-
-            onChange({
-              ...block,
-              annotations: [
-                ...block.annotations,
-                {
-                  id,
-                  type: activeTool,
-                  color: strokeColor,
-                  width: strokeWidth,
-                  ...bounds,
-                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
-                },
-              ],
-            })
-            setSelectedAnnotationId(id)
-            setSelectedOverlayId(null)
-            setSelectedMeasurementId(null)
-          }
-        }
-
-        if (finishedPoints.length >= 2 && measurementMode) {
-          const id = createId("measurement")
-
-          onChange({
-            ...block,
-            annotations: [
-              ...block.annotations,
-              {
-                id,
-                type: "measurement",
-                color: strokeColor,
-                width: strokeWidth,
-                start: finishedPoints[0],
-                end: finishedPoints[finishedPoints.length - 1],
-                label: "Measurement",
-              },
-            ],
-          })
-          setSelectedAnnotationId(id)
-          setSelectedMeasurementId(id)
-          setSelectedOverlayId(null)
-        }
-      }
-    }
-
-    window.addEventListener("pointermove", handlePointerMove)
-    window.addEventListener("pointerup", handlePointerUp)
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("pointerup", handlePointerUp)
-    }
-  }, [activeTool, arrowMode, block, drawMode, measurementMode, onChange, shapeMode, strokeColor, strokeWidth])
-
-  const selectedOverlay = block.textOverlays.find((overlay) => overlay.id === selectedOverlayId) || null
-  const selectedAnnotation = block.annotations.find((annotation) => annotation.id === selectedAnnotationId) || null
-  const selectedMeasurement = block.annotations.find(
-    (annotation): annotation is ProposalImageMeasurementAnnotation =>
-      annotation.type === "measurement" && annotation.id === selectedMeasurementId,
-  ) || null
-
-  return (
-    <div className={cn("space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
-      {!readOnly ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {onDragHandleStart ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              draggable
-              onDragStart={onDragHandleStart}
-              onDragEnd={onDragHandleEnd}
-              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
-              aria-label="Drag image block"
-            >
-              <GripVertical className="h-4 w-4" />
-            </Button>
-          ) : null}
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-            <MoveUp className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveDown} disabled={!canMoveDown} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-            <MoveDown className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center rounded-md border border-slate-200 bg-white">
-            {([{ label: "S", width: 320 }, { label: "M", width: 520 }, { label: "L", width: 720 }] as const).map(({ label, width }, i) => {
-              const isActive = block.width >= width - 100 && block.width < width + 100
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  className={cn(
-                    "px-2.5 py-1 text-xs font-medium transition",
-                    i > 0 && "border-l border-slate-200",
-                    isActive ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                  )}
-                  onClick={() => {
-                    const ratio = block.height / block.width
-                    onChange({ ...block, width, height: Math.max(180, Math.round(width * ratio)) })
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-          <div className="flex items-center rounded-md border border-slate-200 bg-white">
-            {([
-              { icon: AlignLeft, value: "left" },
-              { icon: AlignCenter, value: "center" },
-              { icon: AlignRight, value: "right" },
-            ] as const).map(({ icon: Icon, value }, i) => {
-              const isActive = (block.alignment ?? "left") === value
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  className={cn(
-                    "p-1.5 transition",
-                    i > 0 && "border-l border-slate-200",
-                    isActive ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                  )}
-                  onClick={() => onChange({ ...block, alignment: value })}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              )
-            })}
-          </div>
-          <Button
-            type="button"
-            variant={drawMode ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(drawMode ? "select" : "draw")
-            }
-          >
-            <PencilLine className="mr-1 h-4 w-4" />
-            {drawMode ? t("imageEditor.drawing") : t("imageEditor.draw")}
-          </Button>
-          <Button
-            type="button"
-            variant={arrowMode ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(arrowMode ? "select" : "arrow")
-            }
-          >
-            <ArrowUpRight className="mr-1 h-4 w-4" />
-            Arrow
-          </Button>
-          <Button
-            type="button"
-            variant={activeTool === "rect" ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(activeTool === "rect" ? "select" : "rect")
-            }
-          >
-            <Square className="mr-1 h-4 w-4" />
-            Rectangle
-          </Button>
-          <Button
-            type="button"
-            variant={activeTool === "ellipse" ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(activeTool === "ellipse" ? "select" : "ellipse")
-            }
-          >
-            <Circle className="mr-1 h-4 w-4" />
-            Circle
-          </Button>
-          <Button
-            type="button"
-            variant={activeTool === "highlight" ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(activeTool === "highlight" ? "select" : "highlight")
-            }
-          >
-            <Highlighter className="mr-1 h-4 w-4" />
-            Highlight
-          </Button>
-          <Button
-            type="button"
-            variant={measurementMode ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              setActiveTool(measurementMode ? "select" : "measurement")
-            }
-          >
-            <Ruler className="mr-1 h-4 w-4" />
-            Measurement
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const overlay = {
-                id: createId("label"),
-                text: t("imageEditor.textOverlay"),
-                x: 0.5,
-                y: 0.88,
-                fontSize: 18,
-                color: "#ffffff",
-                bold: true,
-              }
-              onChange({ ...block, textOverlays: [...block.textOverlays, overlay] })
-              setSelectedOverlayId(overlay.id)
-              setSelectedMeasurementId(null)
-              setSelectedAnnotationId(null)
-            }}
-          >
-            <Type className="mr-1 h-4 w-4" />
-            {t("imageEditor.addLabel")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={block.annotations.length === 0}
-            onClick={() => onChange({ ...block, annotations: block.annotations.slice(0, -1) })}
-          >
-            <Undo2 className="mr-1 h-4 w-4" />
-            {t("imageEditor.undo")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={block.annotations.length === 0}
-            onClick={() => onChange({ ...block, annotations: [] })}
-          >
-            <Paintbrush className="mr-1 h-4 w-4" />
-            {t("imageEditor.clear")}
-          </Button>
-          <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : null}
-
-      {!readOnly && annotationMode ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.color")}
-            <input type="color" value={strokeColor} onChange={(event) => setStrokeColor(event.target.value)} />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.stroke")}
-            <input
-              type="range"
-              min={2}
-              max={16}
-              value={strokeWidth}
-              onChange={(event) => setStrokeWidth(Number(event.target.value))}
-            />
-            <span>{strokeWidth}px</span>
-          </label>
-        </div>
-      ) : null}
-
-      {!readOnly && selectedOverlay ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <Input
-            value={selectedOverlay.text}
-            onChange={(event) =>
-              onChange({
-                ...block,
-                textOverlays: block.textOverlays.map((overlay) =>
-                  overlay.id === selectedOverlay.id ? { ...overlay, text: event.target.value } : overlay,
-                ),
-              })
-            }
-            className="max-w-xs"
-          />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.size")}
-            <input
-              type="number"
-              min={12}
-              max={42}
-              value={selectedOverlay.fontSize}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  textOverlays: block.textOverlays.map((overlay) =>
-                    overlay.id === selectedOverlay.id ? { ...overlay, fontSize: Number(event.target.value) || 18 } : overlay,
-                  ),
-                })
-              }
-              className="w-20 rounded-md border border-slate-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.color")}
-            <input
-              type="color"
-              value={selectedOverlay.color}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  textOverlays: block.textOverlays.map((overlay) =>
-                    overlay.id === selectedOverlay.id ? { ...overlay, color: event.target.value } : overlay,
-                  ),
-                })
-              }
-            />
-          </label>
-          <Button
-            type="button"
-            variant={selectedOverlay.bold ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              onChange({
-                ...block,
-                textOverlays: block.textOverlays.map((overlay) =>
-                  overlay.id === selectedOverlay.id ? { ...overlay, bold: !overlay.bold } : overlay,
-                ),
-              })
-            }
-          >
-            <Bold className="mr-1 h-4 w-4" />
-            {t("imageEditor.bold")}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => {
-              onChange({ ...block, textOverlays: block.textOverlays.filter((overlay) => overlay.id !== selectedOverlay.id) })
-              setSelectedOverlayId(null)
-            }}
-          >
-            <Trash2 className="mr-1 h-4 w-4" />
-            {t("imageEditor.deleteLabel")}
-          </Button>
-        </div>
-      ) : null}
-
-      {!readOnly && selectedAnnotation ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.color")}
-            <input
-              type="color"
-              value={selectedAnnotation.color}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  annotations: block.annotations.map((annotation) =>
-                    annotation.id === selectedAnnotation.id
-                      ? {
-                          ...annotation,
-                          color: event.target.value,
-                          ...(annotation.type === "highlight" ? { fill: event.target.value } : {}),
-                        }
-                      : annotation,
-                  ),
-                })
-              }
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            {t("imageEditor.stroke")}
-            <input
-              type="range"
-              min={2}
-              max={16}
-              value={selectedAnnotation.width}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  annotations: block.annotations.map((annotation) =>
-                    annotation.id === selectedAnnotation.id ? { ...annotation, width: Number(event.target.value) } : annotation,
-                  ),
-                })
-              }
-            />
-            <span>{selectedAnnotation.width}px</span>
-          </label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => {
-              onChange({ ...block, annotations: block.annotations.filter((annotation) => annotation.id !== selectedAnnotation.id) })
-              setSelectedAnnotationId(null)
-              if (selectedMeasurementId === selectedAnnotation.id) setSelectedMeasurementId(null)
-            }}
-          >
-            <Trash2 className="mr-1 h-4 w-4" />
-            Delete annotation
-          </Button>
-        </div>
-      ) : null}
-
-      {!readOnly && selectedMeasurement ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <Input
-            value={selectedMeasurement.label}
-            onChange={(event) =>
-              onChange({
-                ...block,
-                annotations: block.annotations.map((annotation) =>
-                  annotation.type === "measurement" && annotation.id === selectedMeasurement.id
-                    ? { ...annotation, label: event.target.value }
-                    : annotation,
-                ),
-              })
-            }
-            className="max-w-xs"
-          />
-        </div>
-      ) : null}
-
-      <div className={cn(
-        "flex w-full",
-        block.alignment === "center" ? "justify-center" : block.alignment === "right" ? "justify-end" : "justify-start"
-      )}>
-        <div className="space-y-2" style={{ width: `${block.width}px`, maxWidth: "100%" }}>
-          <div
-            ref={wrapperRef}
-            className={cn(
-              "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
-              !readOnly && "touch-none select-none",
-              annotationMode && !readOnly && "cursor-crosshair",
-            )}
-            style={{ width: "100%", height: `${block.height}px` }}
-            onPointerDown={(event) => {
-              if (readOnly || !wrapperRef.current) return
-              if (!annotationMode) {
-                setSelectedAnnotationId(null)
-                setSelectedMeasurementId(null)
-                return
-              }
-              event.preventDefault()
-              wrapperRef.current.setPointerCapture?.(event.pointerId)
-              const rect = wrapperRef.current.getBoundingClientRect()
-              const point = {
-                x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-                y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-              }
-              drawStateRef.current = { pointerId: event.pointerId, points: [point] }
-              setDraftPoints([point])
-            }}
-          >
-          <img
-            src={block.url}
-            alt={block.file_name || "Proposal image"}
-            className="pointer-events-none h-full w-full select-none object-contain"
-            draggable={false}
-            onDragStart={(event) => event.preventDefault()}
-          />
-
-          <svg
-            className={cn(
-              "absolute inset-0 h-full w-full",
-              !readOnly && !annotationMode ? "pointer-events-auto" : "pointer-events-none",
-            )}
-            viewBox={`0 0 ${block.width} ${block.height}`}
-            preserveAspectRatio="none"
-          >
-            {block.annotations.map((annotation) => {
-              const isSelected = selectedAnnotationId === annotation.id
-              const selectAnnotation = (event: React.PointerEvent<SVGGElement>) => {
-                if (readOnly || annotationMode) return
-                event.stopPropagation()
-                event.preventDefault()
-                setSelectedAnnotationId(annotation.id)
-                setSelectedOverlayId(null)
-                setSelectedMeasurementId(annotation.type === "measurement" ? annotation.id : null)
-              }
-
-              if (!annotation.type || annotation.type === "stroke") {
-                return (
-                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
-                    <StrokePath
-                      stroke={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
-                    <AnnotationHitTarget
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                  </g>
-                )
-              }
-
-              if (annotation.type === "arrow") {
-                return (
-                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
-                    <ArrowPath
-                      arrow={annotation}
-                      width={block.width}
-                      height={block.height}
-                      markerId={`${arrowMarkerPrefix}-${annotation.id}`}
-                    />
-                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
-                    <AnnotationHitTarget
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                  </g>
-                )
-              }
-
-              if (annotation.type === "rect" || annotation.type === "ellipse" || annotation.type === "highlight") {
-                return (
-                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
-                    <ShapeAnnotation
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
-                    <AnnotationHitTarget
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                  </g>
-                )
-              }
-
-              if (annotation.type === "measurement") {
-                return (
-                  <g key={annotation.id} className="cursor-pointer" onPointerDown={selectAnnotation}>
-                    <MeasurementAnnotation
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                    {isSelected ? <AnnotationSelection annotation={annotation} width={block.width} height={block.height} /> : null}
-                    <AnnotationHitTarget
-                      annotation={annotation}
-                      width={block.width}
-                      height={block.height}
-                    />
-                  </g>
-                )
-              }
-
-              return null
-            })}
-            {draftPoints.length >= 2 && drawMode ? (
-              <path
-                d={draftPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x * block.width} ${point.y * block.height}`).join(" ")}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : null}
-            {draftPoints.length >= 2 && arrowMode ? (
-              <ArrowPath
-                arrow={{
-                  id: "draft",
-                  type: "arrow",
-                  color: strokeColor,
-                  width: strokeWidth,
-                  start: draftPoints[0],
-                  end: draftPoints[draftPoints.length - 1],
-                }}
-                width={block.width}
-                height={block.height}
-                markerId={`${arrowMarkerPrefix}-draft`}
-              />
-            ) : null}
-            {draftPoints.length >= 2 && shapeMode ? (
-              <ShapeAnnotation
-                annotation={{
-                  id: "draft",
-                  type: activeTool,
-                  color: strokeColor,
-                  width: strokeWidth,
-                  ...getAnnotationBounds(draftPoints[0], draftPoints[draftPoints.length - 1]),
-                  ...(activeTool === "highlight" ? { fill: strokeColor, opacity: 0.28 } : {}),
-                }}
-                width={block.width}
-                height={block.height}
-              />
-            ) : null}
-            {draftPoints.length >= 2 && measurementMode ? (
-              <MeasurementAnnotation
-                annotation={{
-                  id: "draft",
-                  type: "measurement",
-                  color: strokeColor,
-                  width: strokeWidth,
-                  start: draftPoints[0],
-                  end: draftPoints[draftPoints.length - 1],
-                  label: "",
-                }}
-                width={block.width}
-                height={block.height}
-              />
-            ) : null}
-          </svg>
-
-          {block.textOverlays.map((overlay) => (
-            <div
-              key={overlay.id}
-              className={cn(
-                "absolute select-none rounded-md px-3 py-1.5 shadow-lg",
-                !readOnly && "cursor-move",
-                selectedOverlayId === overlay.id && !readOnly && "ring-2 ring-sky-400",
-              )}
-              style={{
-                left: `${overlay.x * 100}%`,
-                top: `${overlay.y * 100}%`,
-                transform: "translate(-50%, -50%)",
-                color: overlay.color,
-                fontSize: `${overlay.fontSize}px`,
-                fontWeight: overlay.bold ? 700 : 400,
-                backgroundColor: "rgba(15, 23, 42, 0.55)",
-              }}
-              onPointerDown={(event) => {
-                if (readOnly || annotationMode) return
-                event.stopPropagation()
-                event.preventDefault()
-                setSelectedOverlayId(overlay.id)
-                setSelectedMeasurementId(null)
-                setSelectedAnnotationId(null)
-                dragStateRef.current = { pointerId: event.pointerId, overlayId: overlay.id }
-              }}
-            >
-              {overlay.text}
-            </div>
-          ))}
-
-          {!readOnly ? (
-            <button
-              type="button"
-              className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/80 bg-slate-900/80 shadow"
-              aria-label="Resize image"
-              onPointerDown={(event) => {
-                event.preventDefault()
-                resizeStateRef.current = {
-                  pointerId: event.pointerId,
-                  startX: event.clientX,
-                  startY: event.clientY,
-                  width: block.width,
-                  height: block.height,
-                }
-              }}
-            />
-          ) : null}
-          </div>
-          {!readOnly ? (
-            <Input
-              value={block.caption ?? ""}
-              onChange={(event) => onChange({ ...block, caption: event.target.value })}
-              placeholder="Caption"
-              className="bg-white text-sm"
-            />
-          ) : block.caption?.trim() ? (
-            <p className="px-1 text-center text-sm italic leading-6 text-slate-500">
-              {block.caption}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function BeforeAfterBlockEditor({
-  block,
-  readOnly,
-  onChange,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
-  onDragHandleStart,
-  onDragHandleEnd,
-  isDragging,
-  className,
-}: {
-  block: ProposalBeforeAfterBlock
-  readOnly: boolean
-  onChange: (block: ProposalBeforeAfterBlock) => void
-  onDelete: () => void
-  onMoveUp?: () => void
-  onMoveDown?: () => void
-  canMoveUp?: boolean
-  canMoveDown?: boolean
-  onDragHandleStart?: (event: React.DragEvent<HTMLButtonElement>) => void
-  onDragHandleEnd?: () => void
-  isDragging?: boolean
-  className?: string
-}) {
-  const t = useTranslations("proposals")
-  return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", isDragging && "opacity-60", className)}>
-      {!readOnly ? (
-        <div className="mb-2 flex items-center justify-end gap-0.5">
-          {onDragHandleStart ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              draggable
-              onDragStart={onDragHandleStart}
-              onDragEnd={onDragHandleEnd}
-              className="cursor-grab text-slate-400 hover:text-slate-700 active:cursor-grabbing"
-              aria-label="Drag before/after block"
-            >
-              <GripVertical className="h-4 w-4" />
-            </Button>
-          ) : null}
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveUp} disabled={!canMoveUp} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-            <MoveUp className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onMoveDown} disabled={!canMoveDown} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-            <MoveDown className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : null}
-
-      {!readOnly ? (
-        <div className="mb-3 grid gap-2 sm:grid-cols-2">
-          <Input
-            value={block.beforeLabel ?? ""}
-            onChange={(event) => onChange({ ...block, beforeLabel: event.target.value })}
-            placeholder={t("imageEditor.before")}
-            className="bg-white text-sm"
-          />
-          <Input
-            value={block.afterLabel ?? ""}
-            onChange={(event) => onChange({ ...block, afterLabel: event.target.value })}
-            placeholder={t("imageEditor.after")}
-            className="bg-white text-sm"
-          />
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-3">
-        {/* Before */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <img
-            src={block.beforeUrl}
-            alt={block.beforeLabel ?? t("imageEditor.before")}
-            className="aspect-[4/3] w-full object-cover"
-            draggable={false}
-          />
-          <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-slate-900 print:[backdrop-filter:none]">
-            {block.beforeLabel ?? t("imageEditor.before")}
-          </span>
-        </div>
-
-        {/* After */}
-        <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
-          <img
-            src={block.afterUrl}
-            alt={block.afterLabel ?? t("imageEditor.after")}
-            className="aspect-[4/3] w-full object-cover"
-            draggable={false}
-          />
-          <span className="absolute left-2 top-2 rounded-full bg-emerald-600/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-emerald-600 print:[backdrop-filter:none]">
-            {block.afterLabel ?? t("imageEditor.after")}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function isBeforePhotoFilename(fileName?: string | null): boolean {
-  if (!fileName) return false
-  return /^before-photo/i.test(fileName) || /^before-/i.test(fileName)
-}
-
-function isAfterRenderFilename(fileName?: string | null): boolean {
-  if (!fileName) return false
-  return /^ai-after-render(?:-\d+)?\.png$/i.test(fileName)
-}
-
-function extractBeforeAfterIndex(fileName?: string | null): number | null {
-  if (!fileName) return null
-  const beforeMatch = fileName.match(/^before-photo(?:-(\d+))?/i) || fileName.match(/^before-(\d+)/i)
-  if (beforeMatch) return beforeMatch[1] ? parseInt(beforeMatch[1], 10) : 1
-  const afterMatch = fileName.match(/^ai-after-render(?:-(\d+))?\.png$/i)
-  if (afterMatch) return afterMatch[1] ? parseInt(afterMatch[1], 10) : 1
-  return null
-}
-
-function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []): BeforeAfterImagePair[] {
-  const pairMap = new Map<number, BeforeAfterImagePair>()
-
-  for (const media of mediaItems) {
-    const index = extractBeforeAfterIndex(media.file_name)
-    if (!index) continue
-
-    const existing = pairMap.get(index) ?? {
-      id: `saved-before-after-${index}`,
-      beforePreview: "",
-      beforeFile: null,
-      beforeFileName: null,
-      afterUrl: null,
-      afterFileName: null,
-      status: "saved" as const,
-      error: null,
-    }
-
-    if (isBeforePhotoFilename(media.file_name)) {
-      existing.beforePreview = media.file_url
-      existing.beforeFileName = media.file_name
-    }
-    if (isAfterRenderFilename(media.file_name)) {
-      existing.afterUrl = media.file_url
-      existing.afterFileName = media.file_name
-    }
-
-    pairMap.set(index, existing)
-  }
-
-  return Array.from(pairMap.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([, pair]) => ({
-      ...pair,
-      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
-    }))
-    .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
 function ClientNameField({
@@ -1897,7 +477,12 @@ export function ProposalBuilder({
   })
   const [viewMode, setViewMode] = useState(publicMode)
   const [saving, setSaving] = useState(false)
+  // Set when a save fails; drives a persistent retry banner. Cleared on the next
+  // successful save. (There is no autosave, so a failed save must stay visible.)
+  const [saveError, setSaveError] = useState(false)
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null)
+  // Page currently under a file drag, for the drop-zone highlight.
+  const [fileDragPageId, setFileDragPageId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [overviewLoaded, setOverviewLoaded] = useState(false)
   const [aiProposalLoading, setAiProposalLoading] = useState(false)
@@ -1923,9 +508,20 @@ export function ProposalBuilder({
   const [imagePickerPageId, setImagePickerPageId] = useState<string | null>(null)
   const [beforeAfterBeforeUrl, setBeforeAfterBeforeUrl] = useState<string | null>(null)
   const [beforeAfterAfterUrl, setBeforeAfterAfterUrl] = useState<string | null>(null)
-  const [draggingBlock, setDraggingBlock] = useState<{ pageId: string; blockId: string } | null>(null)
-  const [dragOverBlock, setDragOverBlock] = useState<{ id: string; placement: "before" | "after" } | null>(null)
   const pageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  // Where a pending file-picker upload should land (insert-between). null = append.
+  const pendingImageInsertRef = useRef<number | null>(null)
+  const dndSensors = useSensors(
+    // 6px activation distance so a click/tap on the grip still fires buttons
+    // inside the block; PointerSensor covers both mouse and touch.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  // Identity of the currently-hydrated document. Re-hydration from props runs
+  // only when this key changes (a genuinely different proposal/quote loads),
+  // never on our own save round-trips — otherwise a save that fires while the
+  // user keeps typing would overwrite the in-flight edits with the saved copy.
+  const hydratedKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (client) setSendClient(client)
@@ -2053,6 +649,13 @@ export function ProposalBuilder({
   ])
 
   useEffect(() => {
+    // Only re-hydrate when the underlying proposal/quote identity changes. Our
+    // own saves update the `proposal` prop object (same id) and must NOT reset
+    // the document, or concurrent keystrokes would be lost.
+    const key = isProposalMode ? (proposal ? `p:${proposal.id}` : null) : (job ? `j:${job.id}` : null)
+    if (key === null || key === hydratedKeyRef.current) return
+    hydratedKeyRef.current = key
+
     if (isProposalMode && proposal) {
       const initialDocument = buildInitialProposalDocument(
         { proposal_document: proposal.proposal_document, id: proposal.id, title: proposal.title ?? "" } as any,
@@ -2277,33 +880,17 @@ export function ProposalBuilder({
     setDirty(true)
   }
 
-  const startBlockDrag = (event: React.DragEvent<HTMLButtonElement>, pageId: string, blockId: string) => {
-    event.dataTransfer.effectAllowed = "move"
-    event.dataTransfer.setData("text/plain", blockId)
-    setDraggingBlock({ pageId, blockId })
-    setDragOverBlock(null)
-  }
-
-  const allowBlockDrop = (event: React.DragEvent<HTMLElement>, pageId: string) => {
-    if (!draggingBlock || draggingBlock.pageId !== pageId) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = "move"
-  }
-
-  const dropBlockAtIndex = (event: React.DragEvent<HTMLElement>, pageId: string, targetIndex: number) => {
-    if (!draggingBlock || draggingBlock.pageId !== pageId) return
-
-    event.preventDefault()
-    event.stopPropagation()
+  const handleBlockDragEnd = (pageId: string, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     updateDocument((current) =>
       updatePage(current, pageId, (currentPage) => {
-        const sourceIndex = currentPage.description.findIndex((block) => block.id === draggingBlock.blockId)
-        const adjustedTargetIndex = sourceIndex >= 0 && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-        return moveBlockToIndex(currentPage, draggingBlock.blockId, adjustedTargetIndex)
+        const oldIndex = currentPage.description.findIndex((block) => block.id === active.id)
+        const newIndex = currentPage.description.findIndex((block) => block.id === over.id)
+        if (oldIndex < 0 || newIndex < 0) return currentPage
+        return { ...currentPage, description: arrayMove(currentPage.description, oldIndex, newIndex) }
       }),
     )
-    setDraggingBlock(null)
-    setDragOverBlock(null)
   }
 
   const isReadOnly = publicMode || viewMode
@@ -2441,9 +1028,9 @@ export function ProposalBuilder({
     setSendEmailSending(true)
     try {
       if (isProposalMode && proposal && proposal.project_id) {
-        await api.sendProposalEmail(proposal.project_id, proposal.id, to, proposalUrl)
+        await api.sendProposalEmail(proposal.project_id, proposal.id, to, proposalUrl, optionalNote)
       } else if (job) {
-        await api.sendQuoteEmail(job.id, to, proposalUrl)
+        await api.sendQuoteEmail(job.id, to, proposalUrl, optionalNote)
       }
       setSentToEmail(to)
       setSendEmailSuccess(true)
@@ -2566,8 +1153,12 @@ export function ProposalBuilder({
       const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
       onProposalUpdated?.(updated)
       setDirty(false)
+      setSaveError(false)
       if (!silent) toast({ title: t("toast.proposalSavedTitle"), description: t("toast.proposalSavedDescription") })
     } catch (error: any) {
+      // Surface a persistent banner regardless of `silent` so a failed save is
+      // never lost; still toast on explicit (manual) saves.
+      setSaveError(true)
       if (!silent) {
         toast({
           title: t("toast.saveFailedTitle"),
@@ -2584,6 +1175,61 @@ export function ProposalBuilder({
     await saveProposal(true)
     await sendAction()
   }
+
+  // Warn before leaving with unsaved changes (there is no autosave — the user
+  // must click Save).
+  useEffect(() => {
+    if (publicMode) return
+    const handler = (event: BeforeUnloadEvent) => {
+      if (!dirty) return
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [dirty, publicMode])
+
+  // ⌘/Ctrl-S saves, mirroring the manual Save button. No-op in read-only/public
+  // mode or while a save is already running.
+  useEffect(() => {
+    if (publicMode || viewMode) return
+    const handler = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return
+      event.preventDefault()
+      if (!saving) void saveProposal()
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicMode, viewMode, saving, proposal, document])
+
+  // Guard in-app (client-side) navigation with unsaved changes. The App Router
+  // has no route-change events, so intercept internal link clicks in the capture
+  // phase (before next/link handles them) and confirm before leaving. This
+  // complements the `beforeunload` guard, which only covers hard reloads/closes.
+  useEffect(() => {
+    if (publicMode || !dirty) return
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const anchor = (event.target as HTMLElement | null)?.closest?.("a")
+      if (!anchor) return
+      const href = anchor.getAttribute("href")
+      if (!href || href.startsWith("#") || anchor.target === "_blank") return
+      if (href.startsWith("mailto:") || href.startsWith("tel:")) return
+      const url = new URL(anchor.href, window.location.href)
+      if (url.origin !== window.location.origin) return
+      // Same page (or hash-only) — not a navigation away.
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return
+      if (!window.confirm(t("status.confirmLeave"))) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+    // `window.document` (not the shadowed `document` proposal-state variable).
+    window.document.addEventListener("click", onClick, true)
+    return () => window.document.removeEventListener("click", onClick, true)
+  }, [dirty, publicMode, t])
 
   const addPage = () => {
     updateDocument((current) => ({
@@ -2611,8 +1257,11 @@ export function ProposalBuilder({
     })
   }
 
-  const uploadImages = async (pageId: string, files: FileList | null) => {
-    if (!files || files.length === 0) return
+  const uploadImages = async (pageId: string, files: FileList | File[] | null, atIndex?: number) => {
+    // Drops bypass the file picker's accept="image/*", so filter here — a
+    // non-image would also hang getImageDimensions (it loads the URL as an Image).
+    const imageFiles = files ? Array.from(files).filter((file) => file.type.startsWith("image/")) : []
+    if (imageFiles.length === 0) return
     setUploadingPageId(pageId)
     try {
       // Standalone proposals have no job, so write to the project's media (same
@@ -2623,18 +1272,19 @@ export function ProposalBuilder({
       const uploadJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id
       let uploaded: ProjectMedia[]
       if (isProposalMode && proposal?.project_id) {
-        uploaded = (await api.uploadProjectMedia(proposal.project_id, Array.from(files), "PROJECT_PHOTO")) as ProjectMedia[]
+        uploaded = (await api.uploadProjectMedia(proposal.project_id, imageFiles, "PROJECT_PHOTO")) as ProjectMedia[]
       } else if (uploadJobId) {
-        uploaded = (await api.uploadQuoteMedia(uploadJobId, Array.from(files))) as ProjectMedia[]
+        uploaded = (await api.uploadQuoteMedia(uploadJobId, imageFiles)) as ProjectMedia[]
       } else {
         throw new Error(t("errors.noQuoteToUpload"))
       }
       const imageBlocks = await Promise.all(uploaded.map((media) => createImageBlock(media)))
       updateDocument((current) =>
-        updatePage(current, pageId, (page) => ({
-          ...page,
-          description: [...page.description, ...imageBlocks],
-        })),
+        updatePage(current, pageId, (page) =>
+          atIndex == null
+            ? { ...page, description: [...page.description, ...imageBlocks] }
+            : insertBlocksAtIndex(page, atIndex, imageBlocks),
+        ),
       )
       toast({
         title: t("toast.imagesAddedTitle"),
@@ -2678,13 +1328,62 @@ export function ProposalBuilder({
     return choices
   })()
 
+  // Add a freshly built block to a page, honoring a pending "insert between"
+  // position set by the InsertBlockBar; appends when none is pending. Consumes
+  // the ref so the next add falls back to appending.
+  const addBlockToPage = (pageId: string, block: ProposalPageBlock) => {
+    const at = pendingImageInsertRef.current
+    pendingImageInsertRef.current = null
+    updateDocument((current) =>
+      updatePage(current, pageId, (page) =>
+        at == null
+          ? { ...page, description: [...page.description, block] }
+          : insertBlocksAtIndex(page, at, [block]),
+      ),
+    )
+  }
+
+  // Open the image source for a page: the existing-media picker when there is
+  // pickable media, else the device file upload. `insertAt` positions the result
+  // (null = append) and is honored by both the picker and the upload onChange.
+  const openImageSource = (pageId: string, insertAt: number | null) => {
+    pendingImageInsertRef.current = insertAt
+    const hasPickable =
+      imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ||
+      beforeAfterImageChoices.length >= 2
+    if (hasPickable) {
+      setImagePickerPageId(pageId)
+    } else {
+      pageUploadRefs.current[pageId]?.click()
+    }
+  }
+
   return (
     <div className={cn("min-h-screen print:bg-none print:bg-white", proposalTheme.canvasClassName)} style={canvasStyle}>
       <div className={cn(
         "mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 print:max-w-none print:px-0 print:py-0 print:gap-0",
         isReadOnly ? "gap-4" : "gap-6",
       )}>
-        <div className="flex flex-col gap-4 rounded-[30px] border border-slate-100 bg-white px-5 py-4 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.12)] print:hidden">
+        <div className="z-30 flex flex-col gap-4 rounded-[30px] border border-slate-100 bg-white/95 px-5 py-4 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:sticky sm:top-3 print:static print:hidden">
+          {!publicMode && saveError ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5">
+              <span className="flex items-center gap-2 text-sm font-medium text-red-700">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {t("status.saveErrorTitle")}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl border-red-200 bg-white px-3 text-xs font-semibold text-red-700 hover:bg-red-50 hover:border-red-300"
+                onClick={() => void saveProposal()}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RotateCw className="mr-1 h-3.5 w-3.5" />}
+                {t("status.saveErrorRetry")}
+              </Button>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -2693,8 +1392,17 @@ export function ProposalBuilder({
                 </Badge>
                 {!publicMode ? (
                   dirty
-                    ? <span className="text-xs font-medium text-amber-600">{t("status.unsaved")}</span>
-                    : <span className="text-xs text-slate-400">{t("status.saved")}</span>
+                    ? (
+                      <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {t("status.unsaved")}
+                      </span>
+                    )
+                    : (
+                      <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        <Check className="h-3 w-3" />
+                        {t("status.saved")}
+                      </span>
+                    )
                 ) : (
                   <span className="text-xs text-slate-400">{t("status.readOnly")}</span>
                 )}
@@ -3183,187 +1891,190 @@ export function ProposalBuilder({
                       <Button type="button" variant="ghost" size="icon-sm" onClick={() => movePage(page.id, 1)} disabled={pageIndex === document.pages.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
                         <MoveDown className="h-4 w-4" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() =>
-                          updateDocument((current) => ({
-                            ...current,
-                            pages: current.pages.filter((currentPage) => currentPage.id !== page.id),
-                          }))
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                            aria-label={t("page.deletePageConfirm")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("page.deletePageTitle")}</AlertDialogTitle>
+                            <AlertDialogDescription>{t("page.deletePageBody")}</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("header.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700"
+                              onClick={() =>
+                                updateDocument((current) => ({
+                                  ...current,
+                                  pages: current.pages.filter((currentPage) => currentPage.id !== page.id),
+                                }))
+                              }
+                            >
+                              {t("page.deletePageConfirm")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   ) : null}
                 </div>
               </div>
 
-              <div
-                className={cn("space-y-4 px-5 sm:px-6", isReadOnly ? "py-4 sm:py-4" : "py-5 sm:py-6")}
-                onDragOver={(event) => {
-                  allowBlockDrop(event, page.id)
-                  if (draggingBlock?.pageId === page.id) setDragOverBlock(null)
-                }}
-                onDrop={(event) => dropBlockAtIndex(event, page.id, page.description.length)}
+              <DndContext
+                sensors={dndSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => handleBlockDragEnd(page.id, event)}
               >
-                {page.description.map((block, blockIndex) => {
-                  const deleteBlock = () =>
-                    updateDocument((current) =>
-                      updatePage(current, page.id, (currentPage) => ({
-                        ...currentPage,
-                        description: currentPage.description.filter((b) => b.id !== block.id),
-                      })),
-                    )
-                  const moveUp = () =>
-                    updateDocument((current) =>
-                      updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, -1)),
-                    )
-                  const moveDown = () =>
-                    updateDocument((current) =>
-                      updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
-                    )
+                <SortableContext
+                  items={page.description.map((block) => block.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div
+                    className={cn(
+                      "px-5 sm:px-6",
+                      // Edit mode interleaves insert bars that own the gaps; read-only keeps simple spacing.
+                      isReadOnly ? "space-y-4 py-4 sm:py-4" : "flex flex-col py-5 sm:py-6 min-h-[96px]",
+                      fileDragPageId === page.id &&
+                        "rounded-2xl outline-dashed outline-2 -outline-offset-2 outline-sky-400 bg-sky-50/50",
+                    )}
+                    // Native OS file drop → add image blocks (no "Add image" click
+                    // needed). Capture-phase so it wins over child editors that
+                    // would otherwise swallow the drop; guarded to file drags only
+                    // so text drags into inputs still work. Independent of @dnd-kit,
+                    // which is pointer-based and ignores native drag events.
+                    onDragOverCapture={(event) => {
+                      if (isReadOnly || !Array.from(event.dataTransfer.types).includes("Files")) return
+                      event.preventDefault()
+                      event.dataTransfer.dropEffect = "copy"
+                      if (fileDragPageId !== page.id) setFileDragPageId(page.id)
+                    }}
+                    onDragLeaveCapture={(event) => {
+                      if (isReadOnly || !Array.from(event.dataTransfer.types).includes("Files")) return
+                      const next = event.relatedTarget as Node | null
+                      if (!next || !event.currentTarget.contains(next)) setFileDragPageId(null)
+                    }}
+                    onDropCapture={(event) => {
+                      if (isReadOnly || !Array.from(event.dataTransfer.types).includes("Files")) return
+                      event.preventDefault()
+                      event.stopPropagation()
+                      setFileDragPageId(null)
+                      void uploadImages(page.id, event.dataTransfer.files)
+                    }}
+                  >
+                    {page.description.map((block, blockIndex) => {
+                      const deleteBlock = () =>
+                        updateDocument((current) =>
+                          updatePage(current, page.id, (currentPage) => ({
+                            ...currentPage,
+                            description: currentPage.description.filter((b) => b.id !== block.id),
+                          })),
+                        )
+                      const moveUp = () =>
+                        updateDocument((current) =>
+                          updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, -1)),
+                        )
+                      const moveDown = () =>
+                        updateDocument((current) =>
+                          updatePage(current, page.id, (currentPage) => moveBlockWithinPage(currentPage, block.id, 1)),
+                        )
 
-                  const isImageLikeBlock = block.type === "image" || block.type === "before_after"
-                  const isCurrentDraggingBlock = draggingBlock?.pageId === page.id && draggingBlock.blockId === block.id
-                  const dragHandleProps =
-                    !isReadOnly && isImageLikeBlock
-                      ? {
-                        onDragHandleStart: (event: React.DragEvent<HTMLButtonElement>) =>
-                          startBlockDrag(event, page.id, block.id),
-                        onDragHandleEnd: () => {
-                          setDraggingBlock(null)
-                          setDragOverBlock(null)
-                        },
-                        isDragging: isCurrentDraggingBlock,
+                      let content: ReactNode
+                      if (block.type === "before_after") {
+                        content = (
+                          <BeforeAfterBlockEditor
+                            block={block}
+                            readOnly={isReadOnly}
+                            onChange={(nextBlock) =>
+                              updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
+                            }
+                            className={proposalTheme.blockSurfaceClassName}
+                          />
+                        )
+                      } else if (block.type === "text") {
+                        const editor = (
+                          <RichTextEditor
+                            value={block.html}
+                            onChange={(value) =>
+                              updateDocument((current) =>
+                                updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
+                              )
+                            }
+                            readOnly={isReadOnly}
+                            readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
+                            className={!isReadOnly ? proposalTheme.richTextSurfaceClassName : undefined}
+                            toolbarClassName={proposalTheme.richTextToolbarClassName}
+                            editorClassName={proposalTheme.richTextEditorClassName}
+                            placeholder={t("page.textPlaceholder")}
+                          />
+                        )
+                        content = isReadOnly ? (
+                          editor
+                        ) : (
+                          <div className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>{editor}</div>
+                        )
+                      } else {
+                        content = (
+                          <ImageBlockEditor
+                            block={block}
+                            readOnly={isReadOnly}
+                            className={proposalTheme.blockSurfaceClassName}
+                            onChange={(nextBlock) =>
+                              updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
+                            }
+                          />
+                        )
                       }
-                      : {}
-                  const wrapBlock = (node: React.ReactNode) => (
-                    <div
-                      key={block.id}
-                      className={cn(
-                        "transition",
-                        draggingBlock?.pageId === page.id &&
-                        draggingBlock.blockId !== block.id &&
-                        dragOverBlock?.id === block.id &&
-                        dragOverBlock.placement === "before" &&
-                        !isReadOnly &&
-                        "rounded-2xl border-t-2 border-sky-400 pt-2",
-                        draggingBlock?.pageId === page.id &&
-                        draggingBlock.blockId !== block.id &&
-                        dragOverBlock?.id === block.id &&
-                        dragOverBlock.placement === "after" &&
-                        !isReadOnly &&
-                        "rounded-2xl border-b-2 border-sky-400 pb-2",
-                      )}
-                      onDragOver={(event) => {
-                        event.stopPropagation()
-                        allowBlockDrop(event, page.id)
-                        if (draggingBlock?.pageId === page.id) {
-                          const rect = event.currentTarget.getBoundingClientRect()
-                          setDragOverBlock({
-                            id: block.id,
-                            placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before",
-                          })
-                        }
-                      }}
-                      onDrop={(event) => {
-                        const rect = event.currentTarget.getBoundingClientRect()
-                        const targetIndex = event.clientY > rect.top + rect.height / 2 ? blockIndex + 1 : blockIndex
-                        dropBlockAtIndex(event, page.id, targetIndex)
-                      }}
-                    >
-                      {node}
-                    </div>
-                  )
 
-                  if (block.type === "before_after") {
-                    return wrapBlock(
-                      <BeforeAfterBlockEditor
-                        block={block}
-                        readOnly={isReadOnly}
-                        canMoveUp={blockIndex > 0}
-                        canMoveDown={blockIndex < page.description.length - 1}
-                        onMoveUp={moveUp}
-                        onMoveDown={moveDown}
-                        onDelete={deleteBlock}
-                        onChange={(nextBlock) =>
-                          updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
-                        }
-                        className={proposalTheme.blockSurfaceClassName}
-                        {...dragHandleProps}
-                      />
-                    )
-                  }
-
-                  if (block.type === "text") {
-                    if (isReadOnly) {
-                      return wrapBlock(
-                        <RichTextEditor
-                          value={block.html}
-                          onChange={(value) =>
-                            updateDocument((current) =>
-                              updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
-                            )
-                          }
-                          readOnly
-                          readOnlyClassName={proposalTheme.readOnlyRichTextClassName}
-                          placeholder={t("page.textPlaceholder")}
-                        />
+                      return (
+                        <Fragment key={block.id}>
+                          {!isReadOnly ? (
+                            <InsertBlockBar
+                              insertLabel={t("page.insertBlock")}
+                              addTextLabel={t("page.addText")}
+                              addImageLabel={t("page.addImages")}
+                              onAddText={() =>
+                                updateDocument((current) =>
+                                  updatePage(current, page.id, (p) =>
+                                    insertBlocksAtIndex(p, blockIndex, [createTextBlock("")]),
+                                  ),
+                                )
+                              }
+                              onAddImage={() => openImageSource(page.id, blockIndex)}
+                            />
+                          ) : null}
+                          <SortableBlock
+                            id={block.id}
+                            disabled={isReadOnly}
+                            onMoveUp={moveUp}
+                            onMoveDown={moveDown}
+                            onDelete={deleteBlock}
+                            canMoveUp={blockIndex > 0}
+                            canMoveDown={blockIndex < page.description.length - 1}
+                          >
+                            {content}
+                          </SortableBlock>
+                        </Fragment>
                       )
-                    }
-                    return wrapBlock(
-                      <div className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>
-                        <div className="mb-2 flex items-center justify-end gap-0.5">
-                          <Button type="button" variant="ghost" size="icon-sm" onClick={moveUp} disabled={blockIndex === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-                            <MoveUp className="h-4 w-4" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="icon-sm" onClick={moveDown} disabled={blockIndex === page.description.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">
-                            <MoveDown className="h-4 w-4" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="icon-sm" onClick={deleteBlock} className="text-red-400 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <RichTextEditor
-                          value={block.html}
-                          onChange={(value) =>
-                            updateDocument((current) =>
-                              updateBlock(current, page.id, block.id, () => ({ ...block, html: value })),
-                            )
-                          }
-                          readOnly={false}
-                          className={proposalTheme.richTextSurfaceClassName}
-                          toolbarClassName={proposalTheme.richTextToolbarClassName}
-                          editorClassName={proposalTheme.richTextEditorClassName}
-                          placeholder={t("page.textPlaceholder")}
-                        />
-                      </div>
-                    )
-                  }
+                    })}
 
-                  // image block
-                  return wrapBlock(
-                    <ImageBlockEditor
-                      block={block}
-                      readOnly={isReadOnly}
-                      canMoveUp={blockIndex > 0}
-                      canMoveDown={blockIndex < page.description.length - 1}
-                      onMoveUp={moveUp}
-                      onMoveDown={moveDown}
-                      className={proposalTheme.blockSurfaceClassName}
-                      onChange={(nextBlock) =>
-                        updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
-                      }
-                      onDelete={deleteBlock}
-                      {...dragHandleProps}
-                    />
-                  )
-                })}
-              </div>
+                    {!isReadOnly && page.description.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-200 py-10 text-center">
+                        <p className="text-sm font-medium text-slate-600">{t("page.emptyTitle")}</p>
+                        <p className="text-xs text-slate-400">{t("page.emptyBody")}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               {!isReadOnly ? (
                 <div className={cn("mx-5 mb-5 flex flex-wrap gap-2 rounded-3xl border border-dashed p-3.5 sm:mx-6 sm:mb-6", proposalTheme.addActionsClassName)}>
@@ -3389,16 +2100,7 @@ export function ProposalBuilder({
                     variant="outline"
                     size="sm"
                     disabled={uploadingPageId === page.id}
-                    onClick={() => {
-                      const hasPickable = imagePairs.some(
-                        (p) => p.afterUrl || (!p.beforeFile && p.beforePreview)
-                      ) || beforeAfterImageChoices.length >= 2
-                      if (hasPickable) {
-                        setImagePickerPageId(page.id)
-                      } else {
-                        pageUploadRefs.current[page.id]?.click()
-                      }
-                    }}
+                    onClick={() => openImageSource(page.id, null)} // footer = append
                   >
                     {uploadingPageId === page.id ? (
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -3415,7 +2117,9 @@ export function ProposalBuilder({
                     multiple
                     className="hidden"
                     onChange={(event) => {
-                      void uploadImages(page.id, event.target.files)
+                      const at = pendingImageInsertRef.current
+                      pendingImageInsertRef.current = null
+                      void uploadImages(page.id, event.target.files, at ?? undefined)
                       event.currentTarget.value = ""
                     }}
                   />
@@ -3474,12 +2178,7 @@ export function ProposalBuilder({
                         beforeLabel: beforeChoice?.label || t("imageEditor.before"),
                         afterLabel: afterChoice?.label || t("imageEditor.after"),
                       }
-                      updateDocument((current) =>
-                        updatePage(current, pageId, (p) => ({
-                          ...p,
-                          description: [...p.description, block],
-                        }))
-                      )
+                      addBlockToPage(pageId, block)
                       setImagePickerPageId(null)
                     }}
                   >
@@ -3552,13 +2251,7 @@ export function ProposalBuilder({
                         const pageId = imagePickerPageId
                         if (!pageId) return
                         const block = await createImageBlockFromUrl(url, label)
-                        updateDocument((current) =>
-
-                          updatePage(current, pageId, (p) => ({
-                            ...p,
-                            description: [...p.description, block],
-                          }))
-                        )
+                        addBlockToPage(pageId, block)
                         setImagePickerPageId(null)
                       }
 
@@ -3573,12 +2266,7 @@ export function ProposalBuilder({
                           beforeLabel: t("imageEditor.before"),
                           afterLabel: t("imageEditor.after"),
                         }
-                        updateDocument((current) =>
-                          updatePage(current, pageId, (p) => ({
-                            ...p,
-                            description: [...p.description, block],
-                          }))
-                        )
+                        addBlockToPage(pageId, block)
                         setImagePickerPageId(null)
                       }
 
@@ -3756,7 +2444,6 @@ export function ProposalBuilder({
                       <UserCircle className="h-5 w-5" />
                     </div>
                     <span className="truncate text-sm font-medium">{t("review.fromMe", { name: contractorName })}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </div>
                 </div>
 
@@ -3769,10 +2456,14 @@ export function ProposalBuilder({
                       placeholder={t("review.toPlaceholder")}
                       value={sendEmailTo}
                       onChange={(e) => setSendEmailTo(e.target.value)}
-                      className="min-h-11 w-full px-3 py-2.5 text-base"
+                      aria-invalid={sendEmailTo.trim().length > 0 && !isValidEmail(sendEmailTo)}
+                      className="min-h-11 w-full px-3 py-2.5 text-base aria-[invalid=true]:border-red-400"
                       autoComplete="email"
                       inputMode="email"
                     />
+                    {sendEmailTo.trim().length > 0 && !isValidEmail(sendEmailTo) ? (
+                      <p className="text-xs text-red-500">{t("review.invalidEmail")}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -3783,13 +2474,13 @@ export function ProposalBuilder({
                   </p>
                 </div>
 
-                <div className="flex gap-3 py-3 px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5" />
-                  <textarea
+                <div className="flex items-start gap-3 py-3 px-1">
+                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">{t("review.note")}</span>
+                  <Textarea
                     placeholder={t("review.notePlaceholder")}
                     value={optionalNote}
                     onChange={(e) => setOptionalNote(e.target.value)}
-                    className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="min-h-[80px] flex-1 resize-none text-base"
                     rows={3}
                   />
                 </div>
@@ -3824,11 +2515,7 @@ export function ProposalBuilder({
                 </Button>
                 <Button
                   onClick={() => void handleSendProposalEmail()}
-                  disabled={
-                    sendEmailSending ||
-                    !sendEmailTo.trim() ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sendEmailTo.trim())
-                  }
+                  disabled={sendEmailSending || !isValidEmail(sendEmailTo)}
                   className="order-1 sm:order-2 text-base font-medium gap-2"
                 >
                   <Send className="h-4 w-4" />

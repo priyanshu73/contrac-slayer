@@ -1213,7 +1213,6 @@
     "quoteDetails": "QUOTE DETAILS",
     "lineItems": "LINE ITEMS",
     "hour": "Hour"
-    
   },
   "forms": {
     "required": "Required",
@@ -1596,7 +1595,10 @@
     "status": {
       "unsaved": "Unsaved changes",
       "saved": "All changes saved",
-      "readOnly": "Read-only"
+      "readOnly": "Read-only",
+      "saveErrorTitle": "Couldn't save your changes",
+      "saveErrorRetry": "Retry",
+      "confirmLeave": "You have unsaved changes. Leave without saving?"
     },
     "toolbar": {
       "bold": "Bold",
@@ -1669,7 +1671,13 @@
       "textPlaceholder": "Add page notes, photos, and markups here.",
       "addText": "Add text",
       "addImages": "Add images",
-      "addPage": "+ Add Page"
+      "addPage": "+ Add Page",
+      "deletePageTitle": "Delete this page?",
+      "deletePageBody": "This removes the page and everything on it. This can't be undone.",
+      "deletePageConfirm": "Delete page",
+      "insertBlock": "Insert block",
+      "emptyTitle": "This page is empty",
+      "emptyBody": "Add text or images, or drag photos in from your desktop."
     },
     "imageEditor": {
       "drawing": "Drawing",
@@ -1727,7 +1735,9 @@
       "viewProposal": "View Proposal",
       "discard": "Discard",
       "sending": "Sending…",
-      "sendProposal": "Send Proposal"
+      "sendProposal": "Send Proposal",
+      "note": "Note",
+      "invalidEmail": "Enter a valid email address"
     },
     "smsMessage": "Hi {name}, your documents are ready. View them here: {url}",
     "toast": {
