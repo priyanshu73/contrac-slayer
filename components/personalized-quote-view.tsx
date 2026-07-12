@@ -83,6 +83,17 @@ const QUOTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "CANCELLED", label: "Cancelled" },
 ]
 
+// Acceptance is one-way (the backend rejects going back with a 409): once a
+// quote is a contract, don't offer the editable pre-acceptance statuses.
+const ACCEPTED_PLUS_STATUSES = ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"]
+
+function getStatusOptions(currentStatus: string | undefined): Array<{ value: string; label: string }> {
+  if (ACCEPTED_PLUS_STATUSES.includes(currentStatus?.toUpperCase() ?? "")) {
+    return QUOTE_STATUS_OPTIONS.filter((o) => o.value !== "DRAFT" && o.value !== "SENT")
+  }
+  return QUOTE_STATUS_OPTIONS
+}
+
 function getStatusColor(status: string): string {
   switch (status?.toUpperCase()) {
     case "DRAFT":       return "bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/25"
@@ -422,6 +433,19 @@ export function PersonalizedQuoteView({
   const subtotalWithMarkup = baseSubtotal + markupAmount
   const taxAmount = total - subtotalWithMarkup
 
+  // Sharing the quote link counts as sending it — flip a DRAFT quote to SENT,
+  // matching what Send via Email / Send via SMS already do.
+  const markQuoteSentIfDraft = async () => {
+    if (currentJob.status?.toString().toUpperCase() !== "DRAFT") return
+    try {
+      await api.updateJob(currentJob.id, { status: "SENT" })
+      setCurrentJob((prev) => ({ ...prev, status: "SENT" as JobStatus }))
+      onStatusUpdate?.()
+    } catch (err) {
+      console.error("Failed to mark quote as sent", err)
+    }
+  }
+
   const handleGeneratePublicLink = async () => {
     if (!isContractor) return
     try {
@@ -433,6 +457,7 @@ export function PersonalizedQuoteView({
           : `/${locale}/quotes/${publicLink}`
       )
       setCurrentJob((prev) => ({ ...prev, quote_public_link: publicLink }))
+      await markQuoteSentIfDraft()
     } catch (error: any) {
       toast({
         title: "Failed to generate quote link",
@@ -530,6 +555,7 @@ export function PersonalizedQuoteView({
       setCopiedLink(true)
       toast({ title: "Link Copied!", description: "Quote link copied to clipboard." })
       setTimeout(() => setCopiedLink(false), 2000)
+      await markQuoteSentIfDraft()
     } catch {
       toast({ title: "Failed to copy", description: "Please try again or copy manually.", variant: "destructive" })
     }
@@ -593,10 +619,7 @@ export function PersonalizedQuoteView({
                   )}
                 </Button>
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <DropdownMenu>
+                <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button className={inlineActionButtonClass}>
                             <Send className="mr-2 h-4 w-4 shrink-0" />
@@ -648,12 +671,6 @@ export function PersonalizedQuoteView({
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs">
-                    Send quote via Email, SMS, or copy link. Email and SMS require a generated quote link.
-                  </TooltipContent>
-                </Tooltip>
               )}
 
               {/* Create Invoice — lump-sum only. Scheduled quotes bill via the
@@ -802,7 +819,7 @@ export function PersonalizedQuoteView({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
-                  {QUOTE_STATUS_OPTIONS.map((opt) => (
+                  {getStatusOptions(currentJob.status?.toString()).map((opt) => (
                     <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(opt.value)} className="flex items-center justify-between">
                       {opt.label}
                       {opt.value === currentJob.status && <Check className="h-4 w-4 text-primary" />}
