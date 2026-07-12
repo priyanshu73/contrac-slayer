@@ -43,6 +43,8 @@ import { RichTextEditor } from "@/components/proposal/rich-text-editor"
 import { SortableBlock } from "@/components/proposal/sortable-block"
 import { InsertBlockBar } from "@/components/proposal/insert-block-bar"
 import { ImageBlockEditor } from "@/components/proposal/image-block-editor"
+import { CanvasBlockEditor, imageBlockToCanvas, type CanvasUploadResult } from "@/components/proposal/canvas-block-editor"
+import { rasterizeCanvasBlock } from "@/components/proposal/rasterize-canvas"
 import { BeforeAfterBlockEditor, buildBeforeAfterPairsFromMedia } from "@/components/proposal/before-after-block-editor"
 import { createId } from "@/components/proposal/utils"
 import {
@@ -69,6 +71,7 @@ import type {
   ProposalImageAnnotation,
   ProposalImageArrowAnnotation,
   ProposalImageAnnotationStroke,
+  ProposalCanvasBlock,
   ProposalImageBlock,
   ProposalImageMeasurementAnnotation,
   ProposalImageShapeAnnotation,
@@ -206,33 +209,68 @@ async function getImageDimensions(url: string): Promise<{ width: number; height:
   })
 }
 
-async function createImageBlock(media: ProjectMedia): Promise<ProposalImageBlock> {
-  const dimensions = await getImageDimensions(media.file_url)
+// New image inserts create a canvas block whose first element is the image
+// filling the surface — so users can immediately add more images, text, shapes,
+// and drawings on the same canvas. Legacy `type: 'image'` blocks are upgraded to
+// canvas on load (see buildInitialProposalDocument), so canvas is the only shape
+// produced going forward.
+function canvasBlockFromImage(opts: {
+  url: string
+  media_id?: number
+  file_name?: string | null
+  width: number
+  height: number
+}): ProposalCanvasBlock {
   return {
-    id: createId("image"),
-    type: "image",
-    media_id: media.id,
-    url: media.file_url,
-    file_name: media.file_name,
-    width: dimensions.width,
-    height: dimensions.height,
-    annotations: [],
-    textOverlays: [],
+    id: createId("canvas"),
+    type: "canvas",
+    width: opts.width,
+    height: opts.height,
+    background: "#ffffff",
+    caption: "",
+    elements: [
+      {
+        id: createId("el"),
+        kind: "image",
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 0,
+        url: opts.url,
+        media_id: opts.media_id,
+        file_name: opts.file_name ?? undefined,
+        objectFit: "contain",
+      },
+    ],
   }
 }
 
-async function createImageBlockFromUrl(url: string, fileName?: string | null): Promise<ProposalImageBlock> {
-  const dimensions = await getImageDimensions(url)
-  return {
-    id: createId("image"),
-    type: "image",
-    url,
-    file_name: fileName ?? undefined,
+async function createImageBlock(media: ProjectMedia): Promise<ProposalCanvasBlock> {
+  const dimensions = await getImageDimensions(media.file_url)
+  return canvasBlockFromImage({
+    url: media.file_url,
+    media_id: media.id,
+    file_name: media.file_name,
     width: dimensions.width,
     height: dimensions.height,
-    annotations: [],
-    textOverlays: [],
-  }
+  })
+}
+
+async function createImageBlockFromUrl(url: string, fileName?: string | null): Promise<ProposalCanvasBlock> {
+  const dimensions = await getImageDimensions(url)
+  return canvasBlockFromImage({
+    url,
+    file_name: fileName,
+    width: dimensions.width,
+    height: dimensions.height,
+  })
+}
+
+/** Upgrade any persisted legacy `type: 'image'` block to a canvas block. */
+function migrateBlock(block: ProposalPageBlock): ProposalPageBlock {
+  if (block.type === "image") return imageBlockToCanvas(block)
+  return block
 }
 
 function buildInitialProposalDocument(job: Job, contractorName: string, t: ProposalTranslator, client?: import("@/lib/types").Client): ProposalDocument {
@@ -257,6 +295,7 @@ function buildInitialProposalDocument(job: Job, contractorName: string, t: Propo
         ? job.proposal_document.pages.map((page, pageIndex) => ({
           ...page,
           title: normalizePageTitle(page.title, pageIndex),
+          description: Array.isArray(page.description) ? page.description.map(migrateBlock) : page.description,
         }))
         : [],
     }
@@ -947,8 +986,10 @@ export function ProposalBuilder({
 
     try {
       setGeneratingLink(true)
+      const docToSave = await flattenLocalCanvases(document)
+      if (docToSave !== document) setDocument(docToSave)
       const updated = (await persistProposal(proposal, {
-        proposal_document: document,
+        proposal_document: docToSave,
         ...(needsPromotion ? { status: "SENT" } : {}),
       })) as Proposal
       onProposalUpdated?.(updated)
@@ -1150,7 +1191,25 @@ export function ProposalBuilder({
     if (!proposal) return
     setSaving(true)
     try {
-      const updated = (await persistProposal(proposal, { proposal_document: document })) as Proposal
+      // Flatten any locally-composed canvases to single uploaded images first, so
+      // ephemeral blob: URLs are never persisted. If this fails, abort the save.
+      let docToSave = document
+      try {
+        docToSave = await flattenLocalCanvases(document)
+        if (docToSave !== document) setDocument(docToSave)
+      } catch (flattenError: any) {
+        setSaveError(true)
+        if (!silent) {
+          toast({
+            title: t("toast.saveFailedTitle"),
+            description: flattenError?.message || t("toast.uploadFailedDescription"),
+            variant: "destructive",
+          })
+        }
+        setSaving(false)
+        return
+      }
+      const updated = (await persistProposal(proposal, { proposal_document: docToSave })) as Proposal
       onProposalUpdated?.(updated)
       setDirty(false)
       setSaveError(false)
@@ -1257,6 +1316,41 @@ export function ProposalBuilder({
     })
   }
 
+  // Uploads image files to the right media table for the current context and
+  // returns the created ProjectMedia. Shared by the page-level "add image" flow
+  // and the in-canvas image add.
+  const uploadMediaFiles = async (files: File[]): Promise<ProjectMedia[]> => {
+    // Standalone proposals have no job, so write to the project's media (same
+    // attachment table the builder already reads from in proposal mode). The
+    // job path is kept for quote-linked proposals. Either way the returned
+    // ProjectMedia (id + file_url) is embedded into the document JSON, so
+    // reload identifies the image from the block, not the upload parent.
+    const uploadJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id
+    if (isProposalMode && proposal?.project_id) {
+      return (await api.uploadProjectMedia(proposal.project_id, files, "PROJECT_PHOTO")) as ProjectMedia[]
+    }
+    if (uploadJobId) {
+      return (await api.uploadQuoteMedia(uploadJobId, files)) as ProjectMedia[]
+    }
+    throw new Error(t("errors.noQuoteToUpload"))
+  }
+
+  // Reads device files into LOCAL object-URL sources for the canvas — no upload.
+  // Images placed on a canvas stay local while editing; the whole canvas is
+  // flattened to a single image (one upload) via `flattenCanvas`, either when the
+  // user clicks "Save as image" or automatically before the proposal is saved.
+  const readLocalCanvasImages = async (files: File[]): Promise<CanvasUploadResult[]> => {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"))
+    if (imageFiles.length === 0) return []
+    return Promise.all(
+      imageFiles.map(async (file) => {
+        const url = URL.createObjectURL(file)
+        const dims = await getImageDimensions(url)
+        return { url, file_name: file.name, width: dims.width, height: dims.height }
+      }),
+    )
+  }
+
   const uploadImages = async (pageId: string, files: FileList | File[] | null, atIndex?: number) => {
     // Drops bypass the file picker's accept="image/*", so filter here — a
     // non-image would also hang getImageDimensions (it loads the URL as an Image).
@@ -1264,20 +1358,7 @@ export function ProposalBuilder({
     if (imageFiles.length === 0) return
     setUploadingPageId(pageId)
     try {
-      // Standalone proposals have no job, so write to the project's media (same
-      // attachment table the builder already reads from in proposal mode). The
-      // job path is kept for quote-linked proposals. Either way the returned
-      // ProjectMedia (id + file_url) is embedded into the document JSON, so
-      // reload identifies the image from the block, not the upload parent.
-      const uploadJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id
-      let uploaded: ProjectMedia[]
-      if (isProposalMode && proposal?.project_id) {
-        uploaded = (await api.uploadProjectMedia(proposal.project_id, imageFiles, "PROJECT_PHOTO")) as ProjectMedia[]
-      } else if (uploadJobId) {
-        uploaded = (await api.uploadQuoteMedia(uploadJobId, imageFiles)) as ProjectMedia[]
-      } else {
-        throw new Error(t("errors.noQuoteToUpload"))
-      }
+      const uploaded = await uploadMediaFiles(imageFiles)
       const imageBlocks = await Promise.all(uploaded.map((media) => createImageBlock(media)))
       updateDocument((current) =>
         updatePage(current, pageId, (page) =>
@@ -1314,6 +1395,11 @@ export function ProposalBuilder({
     document.pages.forEach((page) => {
       page.description.forEach((block) => {
         if (block.type === "image") addChoice(block.url, block.caption || block.file_name)
+        if (block.type === "canvas") {
+          block.elements.forEach((el) => {
+            if (el.kind === "image") addChoice(el.url, block.caption || el.file_name)
+          })
+        }
         if (block.type === "before_after") {
           addChoice(block.beforeUrl, block.beforeLabel ?? t("imageEditor.before"))
           addChoice(block.afterUrl, block.afterLabel ?? t("imageEditor.after"))
@@ -1343,19 +1429,120 @@ export function ProposalBuilder({
     )
   }
 
-  // Open the image source for a page: the existing-media picker when there is
-  // pickable media, else the device file upload. `insertAt` positions the result
-  // (null = append) and is honored by both the picker and the upload onChange.
-  const openImageSource = (pageId: string, insertAt: number | null) => {
-    pendingImageInsertRef.current = insertAt
-    const hasPickable =
-      imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ||
-      beforeAfterImageChoices.length >= 2
-    if (hasPickable) {
-      setImagePickerPageId(pageId)
-    } else {
-      pageUploadRefs.current[pageId]?.click()
+  // Insert a fresh, editable canvas section into a page. Users compose images +
+  // text + shapes + drawings directly in the section — nothing is uploaded while
+  // editing. `insertAt` positions it (null = append); optional `files` seed it
+  // with local images (e.g. from a native drag-and-drop).
+  const insertCanvasSection = (pageId: string, insertAt: number | null, files?: File[]) => {
+    const block: ProposalCanvasBlock = {
+      id: createId("canvas"),
+      type: "canvas",
+      width: 1200,
+      height: 400,
+      background: "#ffffff",
+      caption: "",
+      elements: [],
     }
+    updateDocument((current) =>
+      updatePage(current, pageId, (page) =>
+        insertAt == null
+          ? { ...page, description: [...page.description, block] }
+          : insertBlocksAtIndex(page, insertAt, [block]),
+      ),
+    )
+    if (files?.length) void seedCanvasImages(pageId, block.id, files)
+  }
+
+  // Append local (object-URL) images to an existing canvas block.
+  const seedCanvasImages = async (pageId: string, blockId: string, files: File[]) => {
+    const results = await readLocalCanvasImages(files)
+    if (!results.length) return
+    updateDocument((current) =>
+      updateBlock(current, pageId, blockId, (block) => {
+        if (block.type !== "canvas") return block
+        let z = block.elements.reduce((max, el) => Math.max(max, el.z), 0) + 1
+        const newEls = results.map((res, index) => {
+          const aspect = res.height > 0 ? res.width / res.height : 1.5
+          const w = 0.45
+          const h = Math.min(0.9, (w / aspect) * (block.width / block.height))
+          const offset = index * 0.03
+          return {
+            id: createId("el"),
+            kind: "image" as const,
+            x: Math.min(1 - w, Math.max(0, 0.28 + offset)),
+            y: Math.min(1 - h, Math.max(0, 0.2 + offset)),
+            w,
+            h,
+            z: z++,
+            url: res.url,
+            file_name: res.file_name,
+            objectFit: "cover" as const,
+          }
+        })
+        return { ...block, elements: [...block.elements, ...newEls] }
+      }),
+    )
+  }
+
+  // Whether a page has existing images/pairs worth offering as a before/after
+  // comparison. Drives the secondary "Before / After" action.
+  const hasBeforeAfterChoices =
+    imagePairs.some((p) => p.afterUrl || (!p.beforeFile && p.beforePreview)) ||
+    beforeAfterImageChoices.length >= 2
+
+  // Rasterize a canvas block, upload the single composite image, and return the
+  // replacement flat block. Shared by the manual "Save as image" action and the
+  // automatic pre-save flatten. Throws on upload/rasterize failure.
+  const flattenCanvasBlock = async (block: ProposalCanvasBlock): Promise<ProposalCanvasBlock> => {
+    const { blob } = await rasterizeCanvasBlock(block, { fontFamily: proposalFont.stack })
+    const ext = blob.type === "image/png" ? "png" : "jpg"
+    const file = new File([blob], `canvas-${block.id}.${ext}`, { type: blob.type })
+    const uploaded = await uploadMediaFiles([file])
+    const media = uploaded[0]
+    if (!media) throw new Error(t("toast.uploadFailedDescription"))
+    const flat = canvasBlockFromImage({
+      url: media.file_url,
+      media_id: media.id,
+      file_name: media.file_name,
+      width: block.width,
+      height: block.height,
+    })
+    // Keep the block id and caption so ordering/keys stay stable across the swap.
+    return { ...flat, id: block.id, caption: block.caption }
+  }
+
+  // Manual "Save as image": flatten a section to one image in place.
+  const handleFlattenCanvas = async (pageId: string, block: ProposalCanvasBlock) => {
+    try {
+      const flat = await flattenCanvasBlock(block)
+      updateDocument((current) => updateBlock(current, pageId, block.id, () => flat))
+      toast({ title: t("toast.imagesAddedTitle"), description: t("toast.imageAddedDescriptionSingle") })
+    } catch (error: any) {
+      toast({
+        title: t("toast.uploadFailedTitle"),
+        description: error?.message || t("toast.uploadFailedDescription"),
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
+  // Before persisting, flatten any canvas still holding LOCAL (blob:) images into
+  // a single uploaded image, so ephemeral object URLs are never saved. Returns
+  // the document unchanged when nothing needs flattening.
+  const flattenLocalCanvases = async (doc: ProposalDocument): Promise<ProposalDocument> => {
+    const hasLocalImage = (b: ProposalPageBlock) =>
+      b.type === "canvas" && b.elements.some((el) => el.kind === "image" && el.url.startsWith("blob:"))
+    if (!doc.pages.some((page) => page.description.some(hasLocalImage))) return doc
+    const pages = await Promise.all(
+      doc.pages.map(async (page) => {
+        const description = await Promise.all(
+          page.description.map(async (b) => (hasLocalImage(b) && b.type === "canvas" ? flattenCanvasBlock(b) : b)),
+        )
+        return { ...page, description }
+      }),
+    )
+    return { ...doc, pages }
   }
 
   return (
@@ -1967,7 +2154,10 @@ export function ProposalBuilder({
                       event.preventDefault()
                       event.stopPropagation()
                       setFileDragPageId(null)
-                      void uploadImages(page.id, event.dataTransfer.files)
+                      // Drop the files into a new inline canvas section as LOCAL
+                      // images — they stay local until the canvas is flattened.
+                      const dropped = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith("image/"))
+                      if (dropped.length) insertCanvasSection(page.id, null, dropped)
                     }}
                   >
                     {page.description.map((block, blockIndex) => {
@@ -2021,6 +2211,21 @@ export function ProposalBuilder({
                         ) : (
                           <div className={cn("rounded-2xl border p-3", proposalTheme.blockSurfaceClassName)}>{editor}</div>
                         )
+                      } else if (block.type === "canvas") {
+                        content = (
+                          <CanvasBlockEditor
+                            block={block}
+                            readOnly={isReadOnly}
+                            className={proposalTheme.blockSurfaceClassName}
+                            onUploadImages={readLocalCanvasImages}
+                            libraryImages={beforeAfterImageChoices}
+                            onFlatten={() => handleFlattenCanvas(page.id, block)}
+                            flattenLabel={t("page.saveAsImage")}
+                            onChange={(nextBlock) =>
+                              updateDocument((current) => updateBlock(current, page.id, block.id, () => nextBlock))
+                            }
+                          />
+                        )
                       } else {
                         content = (
                           <ImageBlockEditor
@@ -2048,7 +2253,7 @@ export function ProposalBuilder({
                                   ),
                                 )
                               }
-                              onAddImage={() => openImageSource(page.id, blockIndex)}
+                              onAddImage={() => insertCanvasSection(page.id, blockIndex)}
                             />
                           ) : null}
                           <SortableBlock
@@ -2099,16 +2304,26 @@ export function ProposalBuilder({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={uploadingPageId === page.id}
-                    onClick={() => openImageSource(page.id, null)} // footer = append
+                    onClick={() => insertCanvasSection(page.id, null)} // footer = append
                   >
-                    {uploadingPageId === page.id ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImagePlus className="mr-1 h-4 w-4" />
-                    )}
+                    <ImagePlus className="mr-1 h-4 w-4" />
                     {t("page.addImages")}
                   </Button>
+
+                  {hasBeforeAfterChoices ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        pendingImageInsertRef.current = null
+                        setImagePickerPageId(page.id)
+                      }}
+                    >
+                      <Sparkles className="mr-1 h-4 w-4" />
+                      Before / After
+                    </Button>
+                  ) : null}
 
                   <input
                     ref={(el) => { pageUploadRefs.current[page.id] = el }}

@@ -1671,6 +1671,7 @@
       "textPlaceholder": "Add page notes, photos, and markups here.",
       "addText": "Add text",
       "addImages": "Add images",
+      "saveAsImage": "Save as image",
       "addPage": "+ Add Page",
       "deletePageTitle": "Delete this page?",
       "deletePageBody": "This removes the page and everything on it. This can't be undone.",

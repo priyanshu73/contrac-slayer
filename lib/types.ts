@@ -427,7 +427,101 @@ export interface ProposalBeforeAfterBlock {
   afterLabel?: string
 }
 
-export type ProposalPageBlock = ProposalTextBlock | ProposalImageBlock | ProposalBeforeAfterBlock
+/**
+ * Free-form canvas block: a fixed-aspect surface that holds any number of
+ * independently positioned elements (images, text boxes, shapes, arrows,
+ * freehand drawings). All geometry is normalized 0–1 relative to the canvas so
+ * it scales responsively; `width`/`height` are the design dimensions (a viewBox)
+ * used only to derive the aspect ratio and to size text/strokes proportionally.
+ *
+ * Every element is a box (`x`,`y`,`w`,`h` + `z` stacking order). Any internal
+ * geometry (arrow endpoints, freehand points) is stored 0–1 *relative to that
+ * box*, so a single move/resize transform works uniformly for every kind.
+ */
+export interface ProposalCanvasElementBase {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+  z: number
+  rotation?: number
+  locked?: boolean
+}
+
+export interface ProposalCanvasImageElement extends ProposalCanvasElementBase {
+  kind: 'image'
+  url: string
+  media_id?: number
+  file_name?: string
+  objectFit?: 'cover' | 'contain'
+  radius?: number
+}
+
+export interface ProposalCanvasTextElement extends ProposalCanvasElementBase {
+  kind: 'text'
+  text: string
+  /** Font size in canvas design px (scaled by the rendered/design width ratio). */
+  fontSize: number
+  color: string
+  bold?: boolean
+  italic?: boolean
+  align?: 'left' | 'center' | 'right'
+  /** Background pill color, or null/undefined for transparent. */
+  background?: string | null
+}
+
+export interface ProposalCanvasShapeElement extends ProposalCanvasElementBase {
+  kind: 'shape'
+  shape: 'rect' | 'ellipse'
+  stroke: string
+  strokeWidth: number
+  fill?: string | null
+  fillOpacity?: number
+  radius?: number
+}
+
+export interface ProposalCanvasArrowElement extends ProposalCanvasElementBase {
+  kind: 'arrow'
+  /** [start, end] as points 0–1 relative to the element box. */
+  points: [ProposalAnnotationPoint, ProposalAnnotationPoint]
+  variant?: 'arrow' | 'line'
+  color: string
+  width: number
+}
+
+export interface ProposalCanvasDrawElement extends ProposalCanvasElementBase {
+  kind: 'draw'
+  /** Freehand points 0–1 relative to the element box. */
+  points: ProposalAnnotationPoint[]
+  color: string
+  width: number
+}
+
+export type ProposalCanvasElement =
+  | ProposalCanvasImageElement
+  | ProposalCanvasTextElement
+  | ProposalCanvasShapeElement
+  | ProposalCanvasArrowElement
+  | ProposalCanvasDrawElement
+
+export interface ProposalCanvasBlock {
+  id: string
+  type: 'canvas'
+  /** Design dimensions — used for aspect ratio and proportional text/stroke sizing. */
+  width: number
+  height: number
+  alignment?: 'left' | 'center' | 'right'
+  background?: string
+  elements: ProposalCanvasElement[]
+  caption?: string
+}
+
+export type ProposalPageBlock =
+  | ProposalTextBlock
+  | ProposalImageBlock
+  | ProposalBeforeAfterBlock
+  | ProposalCanvasBlock
 
 export interface ProposalPage {
   id: string

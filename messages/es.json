@@ -1666,6 +1666,7 @@
       "textPlaceholder": "Agrega aquí notas, fotos y anotaciones de la página.",
       "addText": "Agregar texto",
       "addImages": "Agregar imágenes",
+      "saveAsImage": "Guardar como imagen",
       "addPage": "+ Agregar página",
       "deletePageTitle": "¿Eliminar esta página?",
       "deletePageBody": "Esto elimina la página y todo su contenido. No se puede deshacer.",
