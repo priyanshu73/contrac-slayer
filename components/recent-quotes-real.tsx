@@ -111,18 +111,17 @@ export function RecentQuotesReal() {
       </div>
 
       {loading ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {[1, 2, 3].map((item) => (
-            <div key={item} className="rounded-xl border border-slate-200 p-2.5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-              </div>
-              <div className="grid grid-cols-[1.2fr_1fr_auto_auto] gap-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
+            <div
+              key={item}
+              className="grid min-h-[58px] grid-cols-[56px_1fr_auto] items-center gap-3 rounded border border-slate-100 p-2.5"
+            >
+              <Skeleton className="h-8 w-12" />
+              <Skeleton className="h-4 w-32" />
+              <div className="flex flex-col items-end gap-1">
+                <Skeleton className="h-4 w-14 rounded-full" />
                 <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-16 justify-self-end" />
               </div>
             </div>
           ))}
@@ -136,53 +135,47 @@ export function RecentQuotesReal() {
           <p className="mt-1 text-sm text-slate-500">Your newest quotes will show up here once you create them.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {quotes.map((quote) => {
+            const status = quote.status?.toString().toUpperCase()
             return (
               <Link
                 key={quote.id}
                 href={`/${locale}/quotes/${quote.id}`}
-                className="block rounded-xl border border-slate-200 bg-white px-2.5 py-2 transition-all hover:border-sky-200 hover:bg-sky-50/20"
+                className="grid min-h-[58px] grid-cols-[56px_1fr_auto] items-center gap-3 rounded border border-slate-100 bg-white px-2.5 py-2 transition-all hover:border-slate-300 hover:bg-slate-50"
               >
-                <div className="grid grid-cols-[64px_1fr_auto] items-center gap-3">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.12em] text-slate-400">Quote No</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-700">#{quote.id}</p>
-                  </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-slate-400">Quote No</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-700">#{quote.id}</p>
+                </div>
 
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-slate-900">
-                      {quote.client?.name || "Unknown Client"}
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold text-slate-900">
+                    {quote.client?.name || "Unknown Client"}
+                  </p>
+                  {status === "DRAFT" && (
+                    <span className="mt-0.5 inline-block rounded bg-sky-100 px-1.5 py-0 text-[10px] font-medium text-sky-700">
+                      Add Proposal
+                    </span>
+                  )}
+                  {status === "ACCEPTED" && (
+                    <span className="mt-0.5 inline-block rounded bg-emerald-100 px-1.5 py-0 text-[10px] font-medium text-emerald-700">
+                      Create Project
+                    </span>
+                  )}
+                </div>
 
-                  <div className="text-right">
-                    <Badge
-                      variant="outline"
-                      className={`mb-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusColor(quote.status)}`}
-                    >
-                      {formatStatusLabel(quote.status)}
-                    </Badge>
-
-                    <p className="text-sm font-semibold text-slate-900">
-                      {formatCurrency(quote.total_amount)}
-                    </p>
-
-                    <div className="mt-1 flex justify-end">
-                      {quote.status?.toString().toUpperCase() === "DRAFT" && (
-                        <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100">
-                          Add Proposal
-                        </Badge>
-                      )}
-
-                      {quote.status?.toString().toUpperCase() === "ACCEPTED" && (
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                          Create Project
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  </div>
+                <div className="flex flex-col items-end gap-0.5 text-right">
+                  <Badge
+                    variant="outline"
+                    className={`shrink-0 rounded-full px-2 py-0 text-[10px] font-medium ${getStatusColor(quote.status)}`}
+                  >
+                    {formatStatusLabel(quote.status)}
+                  </Badge>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {formatCurrency(quote.total_amount)}
+                  </p>
+                </div>
               </Link>
             )
           })}
