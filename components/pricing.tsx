@@ -102,7 +102,7 @@ export function Pricing() {
               <p className="text-[14px] font-semibold text-[#888780]">{t("monthly")}</p>
               {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
               <div className="mt-6 flex items-end gap-1">
-                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$139</span>
+                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$99</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
               <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledMonthly")}</p>
@@ -129,9 +129,9 @@ export function Pricing() {
                   <span className="text-[10px] font-semibold tracking-[0.3px] text-[#0F6E56]">{t("pricingSave29")}</span>
                 </div>
               </div>
-              {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($1,188/yr = $99/mo) */}
+              {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($900/yr = $75/mo) */}
               <div className="mt-6 flex items-end gap-1">
-                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$99</span>
+                <span className="text-[52px] font-bold leading-none tracking-tight text-[#0A0A0A]">$75</span>
                 <span className="mb-2 text-[15px] font-medium text-[#888780]">/mo</span>
               </div>
               <p className="mt-3 text-[13px] font-medium text-[#888780]">{t("pricingBilledAnnuallyShort")}</p>
