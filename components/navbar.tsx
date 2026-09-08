@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Zap,
   BarChart3,
+  ListChecks,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import { forwardRef, useState, useEffect } from "react";
@@ -176,6 +177,11 @@ export function Navbar() {
           icon: Zap,
         },
         {
+          href: `/${locale}/workflows`,
+          label: "Workflows",
+          icon: ListChecks,
+        },
+        {
           href: `/${locale}/frontline`,
           label: t("yourFrontline"),
           icon: PhoneAIIcon,
@@ -212,6 +218,8 @@ export function Navbar() {
     if (currentRoute === "/clients/new") return "New Client";
     if (currentRoute.startsWith("/clients/")) return "Client Details";
     if (currentRoute === "/clients") return t("clients");
+    if (currentRoute.startsWith("/workflows/")) return "Review packet";
+    if (currentRoute === "/workflows") return "Workflows";
     if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
     if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
     if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
