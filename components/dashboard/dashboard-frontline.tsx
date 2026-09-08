@@ -86,7 +86,7 @@ export function DashboardFrontline() {
   const sentToYou = today?.sent_to_you ?? stats?.last_30d.handoffs ?? 0
 
   return (
-    <Card className="flex h-full flex-col p-4">
+    <Card className="flex flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
