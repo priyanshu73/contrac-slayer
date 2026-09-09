@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocale } from "next-intl"
-import { ChevronRight, ListChecks, RefreshCw } from "lucide-react"
+import { ChevronRight, ListChecks, Plus, RefreshCw } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { WorkflowRun } from "@/lib/types/workflow"
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { NewPacketDialog } from "@/components/workflows/new-packet-dialog"
 import { RunStatusBadge, formatWhen } from "@/components/workflows/shared"
 
 const SECTIONS: { title: string; hint: string; statuses: WorkflowRun["status"][] }[] = [
@@ -61,6 +62,7 @@ export function WorkflowInboxPage() {
   const [runs, setRuns] = useState<WorkflowRun[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const load = useCallback(async (showSpinner = true) => {
     if (showSpinner) setRuns(null)
@@ -99,10 +101,16 @@ export function WorkflowInboxPage() {
               Packets the assistant drafted for you. Nothing is created or sent until you approve it.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => load(false)}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" onClick={() => load(false)}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={() => setPickerOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New packet
+            </Button>
+          </div>
         </div>
 
         {error && <p className="mb-4 text-sm text-rose-600">{error}</p>}
@@ -121,13 +129,14 @@ export function WorkflowInboxPage() {
               </EmptyMedia>
               <EmptyTitle>No workflow runs yet</EmptyTitle>
               <EmptyDescription>
-                Open a lead and choose “Draft quote packet”, or ask the assistant to draft a quote for a lead.
+                Press New packet and pick a lead, or ask the assistant to draft a quote for a lead.
                 Turn on auto-start in Settings to draft one for every new lead.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button asChild variant="outline">
-                <Link href={`/${locale}/leads`}>Go to leads</Link>
+              <Button onClick={() => setPickerOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New packet
               </Button>
             </EmptyContent>
           </Empty>
@@ -155,6 +164,8 @@ export function WorkflowInboxPage() {
           </div>
         )}
       </main>
+
+      <NewPacketDialog open={pickerOpen} onOpenChange={setPickerOpen} />
     </div>
   )
 }
