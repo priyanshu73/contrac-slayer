@@ -30,6 +30,14 @@ import type {
 import type { AutoReplySettings, TwilioAvailableNumber, TwilioProvisionResult } from './types/twilio'
 import type { TimelineParams, TimelineResponse } from './types/timeline'
 import type {
+  WorkflowActionResponse,
+  WorkflowRun,
+  WorkflowRunCreate,
+  WorkflowRunDetail,
+  WorkflowRunStatus,
+  WorkflowStep,
+} from './types/workflow'
+import type {
   AnalyticsParams,
   AnalyticsTimeseriesParams,
   BreakdownsResponse,
@@ -2760,6 +2768,58 @@ class ApiClient {
   /** Public: a client fetches one billed invoice via its per-document public link. */
   async getInvoiceByPublicLink(publicLink: string) {
     return this.fetchPublic(`/invoices/public/${publicLink}`)
+  }
+
+  // ─── Workflow runs (draft → review → approve) ──────────────────────────────
+
+  async startWorkflowRun(data: WorkflowRunCreate): Promise<WorkflowActionResponse> {
+    return this.request<WorkflowActionResponse>('/workflows/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getWorkflowRuns(params: { status?: WorkflowRunStatus[]; kind?: string; limit?: number } = {}): Promise<WorkflowRun[]> {
+    const query = new URLSearchParams()
+    for (const s of params.status ?? []) query.append('status', s)
+    if (params.kind) query.set('kind', params.kind)
+    if (params.limit) query.set('limit', String(params.limit))
+    const qs = query.toString()
+    return this.request<WorkflowRun[]>(`/workflows/runs${qs ? `?${qs}` : ''}`)
+  }
+
+  async getWorkflowRun(runUuid: string): Promise<WorkflowRunDetail> {
+    return this.request<WorkflowRunDetail>(`/workflows/runs/${runUuid}`)
+  }
+
+  async updateWorkflowStep(
+    runUuid: string,
+    stepKey: string,
+    data: { proposal?: Record<string, any>; skipped?: boolean }
+  ): Promise<WorkflowStep> {
+    return this.request<WorkflowStep>(`/workflows/runs/${runUuid}/steps/${stepKey}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async approveWorkflowRun(runUuid: string): Promise<WorkflowActionResponse> {
+    return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/approve`, { method: 'POST' })
+  }
+
+  async rejectWorkflowRun(runUuid: string, reason?: string): Promise<WorkflowActionResponse> {
+    return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? null }),
+    })
+  }
+
+  async retryWorkflowRun(runUuid: string): Promise<WorkflowActionResponse> {
+    return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/retry`, { method: 'POST' })
+  }
+
+  async cancelWorkflowRun(runUuid: string): Promise<WorkflowActionResponse> {
+    return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/cancel`, { method: 'POST' })
   }
 }
 
