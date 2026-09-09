@@ -30,6 +30,7 @@ export type ActionType =
   | "QUOTE_EXPIRING" // quote_expiration_date within N days
   | "LEAD_UNCONTACTED" // lead NEW, no last_contacted_at
   | "TRADE_PENDING" // ProjectTrade PENDING_ACCEPTANCE blocking a start
+  | "FOLLOWUP_FAILED" // automated text could not reach the customer
 
 export type Severity = "money" | "hot" | "warn" | "info"
 
@@ -60,6 +61,7 @@ const TYPE_META: Record<ActionType, { icon: LucideIcon; label: string }> = {
   QUOTE_EXPIRING: { icon: CalendarClock, label: "Quote expiring" },
   LEAD_UNCONTACTED: { icon: UserPlus2, label: "New lead" },
   TRADE_PENDING: { icon: HardHat, label: "Trade unaccepted" },
+  FOLLOWUP_FAILED: { icon: AlertTriangle, label: "Follow-up failed" },
 }
 
 const SEVERITY_STYLES: Record<

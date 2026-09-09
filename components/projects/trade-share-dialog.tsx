@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ExternalLink, Loader2, SendIcon, UserCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { api, contractorAI } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { ProjectTrade } from "@/lib/types"
 
 function getTradeScopeLink(trade: ProjectTrade, locale = "en"): string {
@@ -329,8 +329,7 @@ export function TradeSendSmsDialog({
     if (!messageText.trim()) return
     setSending(true)
     try {
-      await contractorAI.sendImmediateSms({
-        sp_id: spId,
+      await api.sendFollowupNow({
         customer_number: trade.contact_info.trim(),
         message_text: messageText.trim(),
         reference_type: "project_trade",

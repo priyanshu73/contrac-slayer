@@ -1448,6 +1448,87 @@ class ApiClient {
   }
 
   // =========================
+  // Follow-ups (backend proxy → contractor-ai; authenticated, source=owner)
+  // =========================
+
+  async getFollowupSettings(): Promise<import('@/lib/types/followup').FollowupSettingsResponse> {
+    return this.request('/followups/settings')
+  }
+
+  async updateFollowupSettings(
+    data: import('@/lib/types/followup').FollowupSettingsUpdate,
+  ): Promise<import('@/lib/types/followup').FollowupSettingsResponse> {
+    return this.request('/followups/settings', { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async getScheduledFollowups(params?: {
+    status?: import('@/lib/types/followup').FollowupStatus | 'all'
+    limit?: number
+    customer_number?: string
+    source?: import('@/lib/types/followup').FollowupSource
+  }): Promise<{ followups: import('@/lib/types/followup').ScheduledFollowup[]; total: number }> {
+    const q = new URLSearchParams()
+    if (params?.status) q.set('status', params.status)
+    if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.customer_number) q.set('customer_number', params.customer_number)
+    if (params?.source) q.set('source', params.source)
+    const qs = q.toString()
+    return this.request(`/followups/scheduled${qs ? `?${qs}` : ''}`)
+  }
+
+  async getFollowupTimeline(params: { client_id?: number; phone?: string; limit?: number }):
+    Promise<import('@/lib/types/followup').FollowupTimeline> {
+    const q = new URLSearchParams()
+    if (params.client_id) q.set('client_id', String(params.client_id))
+    if (params.phone) q.set('phone', params.phone)
+    if (params.limit) q.set('limit', String(params.limit))
+    return this.request(`/followups/timeline?${q.toString()}`)
+  }
+
+  async getFollowupSummary(days = 30): Promise<import('@/lib/types/followup').FollowupSummary> {
+    return this.request(`/followups/summary?days=${days}`)
+  }
+
+  async scheduleFollowup(data: import('@/lib/types/followup').ScheduleFollowupRequest) {
+    return this.request<{ success: boolean; followup?: unknown; followups?: unknown[]; created?: number }>(
+      '/followups/schedule',
+      { method: 'POST', body: JSON.stringify(data) },
+    )
+  }
+
+  async sendFollowupNow(data: import('@/lib/types/followup').SendFollowupNowRequest) {
+    return this.request<{ success: boolean; followup: import('@/lib/types/followup').ScheduledFollowup; error?: string }>(
+      '/followups/send-now',
+      { method: 'POST', body: JSON.stringify(data) },
+    )
+  }
+
+  async updateFollowup(followupId: number, data: { scheduled_for?: string; message_text?: string }) {
+    return this.request<{ success: boolean; followup: import('@/lib/types/followup').ScheduledFollowup }>(
+      `/followups/${followupId}`,
+      { method: 'PUT', body: JSON.stringify(data) },
+    )
+  }
+
+  async retryFollowup(followupId: number) {
+    return this.request<{ success: boolean; followup: import('@/lib/types/followup').ScheduledFollowup }>(
+      `/followups/${followupId}/retry`,
+      { method: 'POST' },
+    )
+  }
+
+  async cancelFollowup(followupId: number) {
+    return this.request<{ success: boolean }>(`/followups/${followupId}`, { method: 'DELETE' })
+  }
+
+  async startQuoteFollowupSequence(jobId: number) {
+    return this.request<{ success: boolean; outcome: string; sequence?: unknown }>(
+      '/followups/quote-sequence',
+      { method: 'POST', body: JSON.stringify({ job_id: jobId }) },
+    )
+  }
+
+  // =========================
   // Calendar (Native Google Integration)
   // =========================
   async getCalendarBookings(month: string) {
@@ -3130,7 +3211,9 @@ class ContractorAIClient {
   }
 
   // =========================
-  // Follow-up System
+  // Follow-up System (LEGACY: direct contractor-ai calls; the app now uses
+  // `api.*Followup*` on the backend. Kept for Quote-creator until the backend
+  // trigger flag is on in prod.)
   // =========================
 
   async getFollowupSettings(spId: string) {

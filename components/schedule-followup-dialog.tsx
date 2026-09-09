@@ -36,8 +36,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
-import type { ScheduleFollowupRequest } from "@/lib/types/followup"
-import { contractorAI, api } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { Client } from "@/lib/types"
 
 /** Minimal shape needed to edit an existing pending follow-up. */
@@ -243,7 +242,7 @@ export function ScheduleFollowupDialog({
       const formattedMessage = fillTemplate(messageText, nameForTemplate, dateTime)
 
       if (isEditing) {
-        await contractorAI.updateFollowup(String(editFollowup!.id), {
+        await api.updateFollowup(editFollowup!.id, {
           scheduled_for: dateTime.toISOString(),
           message_text: formattedMessage,
         })
@@ -253,12 +252,12 @@ export function ScheduleFollowupDialog({
         })
         onUpdated?.()
       } else {
-        await contractorAI.scheduleFollowup({
-          sp_id: contractorId as number,
+        await api.scheduleFollowup({
+          client_id: client?.id,
           customer_number: recipientPhone,
+          customer_name: nameForTemplate || undefined,
           scheduled_for: dateTime.toISOString(),
           message_text: formattedMessage,
-          followup_type: selectedTemplate || "custom",
         })
         toast({
           title: t("scheduledSuccess"),

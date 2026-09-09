@@ -22,7 +22,7 @@ import { ClientDocumentNav, clientDocumentNavContentClassName } from "@/componen
 import { useClientPortalDocuments } from "@/hooks/use-client-portal-documents"
 import { buildClientDocumentNavProps } from "@/lib/client-portal-nav"
 import { cn } from "@/lib/utils"
-import { api, contractorAI } from "@/lib/api"
+import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
 import { PersonalizedQuoteView } from "@/components/personalized-quote-view"
@@ -693,9 +693,10 @@ export default function QuoteDetailPage() {
     }
     try {
       const message = `Hi ${customerName}, your documents are ready. View them here: ${quoteUrl}`
-      await contractorAI.sendImmediateSms({
-        sp_id: user.contractor_profile.contractor_ai_sp_id,
+      await api.sendFollowupNow({
+        client_id: job.client?.id,
         customer_number: customerPhone,
+        customer_name: customerName,
         message_text: message,
         reference_type: "job",
         reference_id: job.id,
@@ -770,9 +771,10 @@ export default function QuoteDetailPage() {
     const results = { sms: false, email: false }
     try {
       if (sendSms && customerPhone) {
-        await contractorAI.sendImmediateSms({
-          sp_id: user.contractor_profile.contractor_ai_sp_id,
+        await api.sendFollowupNow({
+          client_id: job.client?.id,
           customer_number: customerPhone,
+          customer_name: customerName,
           message_text: message,
           reference_type: "job",
           reference_id: job.id,

@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { SendIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
-import { contractorAI } from "@/lib/api"
+import { api } from "@/lib/api"
 
 interface ClientSendSmsDialogProps {
   open: boolean
@@ -37,7 +37,7 @@ const PRESETS: Record<string, string> = {
 export function ClientSendSmsDialog({
   open,
   onOpenChange,
-  spId,
+  spId: _spId,
   clientName,
   clientPhone,
   clientId,
@@ -60,9 +60,10 @@ export function ClientSendSmsDialog({
     }
     setIsSubmitting(true)
     try {
-      await contractorAI.sendImmediateSms({
-        sp_id: spId,
+      await api.sendFollowupNow({
+        client_id: clientId,
         customer_number: clientPhone,
+        customer_name: clientName,
         message_text: messageText.trim(),
         reference_type: "client",
         reference_id: clientId,
