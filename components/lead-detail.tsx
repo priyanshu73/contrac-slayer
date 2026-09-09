@@ -10,7 +10,7 @@ import { Attachment, Lead, Measurements } from "@/lib/types"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
-import { Languages, Loader2, RotateCcw, FolderOpen, Sparkles, User as UserIcon } from "lucide-react"
+import { Languages, Loader2, RotateCcw, FolderOpen, User as UserIcon } from "lucide-react"
 import { NewProjectDialog, FromLeadProps } from "@/components/projects/new-project-dialog"
 import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
 import { setQuotePrefill } from "@/lib/quote-prefill"
@@ -86,7 +86,6 @@ const translateWithCache = async (text: string, targetLang: string, sourceLang?:
 export function LeadDetail({ leadId }: { leadId: string }) {
   const locale = useLocale()
   const router = useRouter()
-  const [draftingPacket, setDraftingPacket] = useState(false)
   const tTranslation = useTranslations('translation')
   const tLeads = useTranslations('leads')
 
@@ -770,37 +769,6 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             >
               <FolderOpen className="mr-2 h-5 w-5" />
               Create Project
-            </Button>
-          )}
-          {!lead.converted_to_job_id && (
-            <Button
-              variant="outline"
-              size="lg"
-              disabled={draftingPacket}
-              onClick={async () => {
-                if (!lead) return
-                setDraftingPacket(true)
-                try {
-                  const res = await api.startWorkflowRun({
-                    kind: "lead_to_quote",
-                    trigger_ref_kind: "lead",
-                    trigger_ref_id: String(lead.id),
-                    context: { frontend_origin: window.location.origin, locale },
-                  })
-                  toast({ title: res.message })
-                  router.push(`/${locale}/workflows/${res.run.uuid}`)
-                } catch (e) {
-                  toast({
-                    title: "Couldn't start the draft",
-                    description: e instanceof Error ? e.message : undefined,
-                    variant: "destructive",
-                  })
-                  setDraftingPacket(false)
-                }
-              }}
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              {draftingPacket ? "Starting…" : "Draft quote packet"}
             </Button>
           )}
           {lead.converted_to_client_id && (
