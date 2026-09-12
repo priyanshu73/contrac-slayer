@@ -20,10 +20,13 @@ import {
   ChevronDown,
   Zap,
   BarChart3,
-  ListChecks,
+  // ListChecks, // Workflows hidden for now
+  Receipt,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import { forwardRef, useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import type { NavCounts } from "@/lib/types/dashboard";
 
 const PhoneAIIcon = forwardRef<SVGSVGElement, LucideProps>(
   ({ className, ...props }, ref) => (
@@ -78,6 +81,21 @@ export function Navbar() {
     work: true,
     "ai-agents": true,
   });
+  const [navCounts, setNavCounts] = useState<NavCounts | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .getDashboardNavCounts()
+      .then((counts) => {
+        if (!cancelled) setNavCounts(counts);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     setMounted(true);
@@ -142,8 +160,18 @@ export function Navbar() {
 
   const dashboardLink = {
     href: `/${locale}/dashboard`,
-    label: t("dashboard"),
+    label: "Today",
     icon: LayoutDashboard,
+  };
+
+  // Right-edge annotations: plain counts, plus an alert badge for late invoices.
+  const counts: Record<string, number | undefined> = {
+    [`/${locale}/leads`]: navCounts?.leads,
+    [`/${locale}/quotes`]: navCounts?.quotes,
+    [`/${locale}/clients`]: navCounts?.clients,
+    [`/${locale}/projects`]: navCounts?.projects,
+    [`/${locale}/tasks`]: navCounts?.tasks_open,
+    [`/${locale}/crew`]: navCounts?.crew,
   };
 
   const navGroups = [
@@ -154,6 +182,7 @@ export function Navbar() {
         { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
         { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
         { href: `/${locale}/clients`, label: t("clients"), icon: Users },
+        { href: `/${locale}/invoices`, label: t("invoices"), icon: Receipt },
         { href: `/${locale}/reports`, label: t("reports"), icon: BarChart3 },
       ],
     },
@@ -176,11 +205,12 @@ export function Navbar() {
           label: t("leadGeneratorAgent"),
           icon: Zap,
         },
-        {
-          href: `/${locale}/workflows`,
-          label: "Workflows",
-          icon: ListChecks,
-        },
+        // Workflows hidden for now
+        // {
+        //   href: `/${locale}/workflows`,
+        //   label: "Workflows",
+        //   icon: ListChecks,
+        // },
         {
           href: `/${locale}/frontline`,
           label: t("yourFrontline"),
@@ -470,6 +500,10 @@ export function Navbar() {
               }
               const Icon = link.icon;
 
+              const count = counts[link.href];
+              const lateCount =
+                link.href === `/${locale}/invoices` ? navCounts?.invoices_late : undefined;
+
               const linkContent = (
                 <Link
                   key={link.href}
@@ -483,7 +517,24 @@ export function Navbar() {
                   }`}
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span className="truncate">{link.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">{link.label}</span>
+                      {lateCount ? (
+                        <span className="shrink-0 rounded bg-rose-50 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-rose-600">
+                          {lateCount} late
+                        </span>
+                      ) : count != null && count > 0 ? (
+                        <span
+                          className={`shrink-0 font-mono text-[11px] tabular-nums ${
+                            isActive ? "text-sky-700/70" : "text-muted-foreground/60"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </Link>
               );
 

@@ -1006,6 +1006,53 @@ class ApiClient {
     return this.request(`/jobs?${params.toString()}`)
   }
 
+  // ── Dashboard (Today screen) ───────────────────────────────────────────────
+
+  async getDashboardSummary(): Promise<import('./types/dashboard').DashboardSummary> {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return this.request(`/dashboard/summary?tz=${encodeURIComponent(tz)}`)
+  }
+
+  async getDashboardNavCounts(): Promise<import('./types/dashboard').NavCounts> {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return this.request(`/dashboard/nav-counts?tz=${encodeURIComponent(tz)}`)
+  }
+
+  async getActionQueue(): Promise<import('./types/dashboard').ActionQueueResponse> {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return this.request(`/dashboard/action-queue?tz=${encodeURIComponent(tz)}`)
+  }
+
+  /** Hide the given action-queue items until `until` (ISO). Business-wide. */
+  async snoozeActionItems(keys: string[], until: string): Promise<{ snoozed: number; until: string }> {
+    return this.request('/dashboard/action-queue/snooze', {
+      method: 'POST',
+      body: JSON.stringify({ keys, until }),
+    })
+  }
+
+  async unsnoozeActionItem(key: string): Promise<{ snoozed: number; until: string }> {
+    return this.request(`/dashboard/action-queue/snooze/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /** Send a reminder about an entity (invoices today; more kinds later). */
+  async sendReminder(entityKind: 'INVOICE', entityId: number): Promise<{
+    message: string
+    reminder_count: number
+    last_reminder_sent: string
+  }> {
+    const baseUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/${document.documentElement.lang || 'en'}`
+        : undefined
+    return this.request('/reminders', {
+      method: 'POST',
+      body: JSON.stringify({ entity_kind: entityKind, entity_id: entityId, base_url: baseUrl }),
+    })
+  }
+
   async getJobStats(): Promise<{
     active_jobs: number
     total_revenue: number

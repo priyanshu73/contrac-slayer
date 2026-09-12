@@ -86,7 +86,7 @@ export function DashboardFrontline() {
   const sentToYou = today?.sent_to_you ?? stats?.last_30d.handoffs ?? 0
 
   return (
-    <Card className="flex h-full flex-col p-4">
+    <Card className="flex flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
@@ -118,21 +118,15 @@ export function DashboardFrontline() {
         </div>
       )}
 
-      {/* Recent activity */}
+      {/* Recent activity. Nothing renders with no events: the stat row already
+          says the line is quiet, so an empty placeholder only ate vertical space. */}
+      {(loading || events.length > 0) && (
       <div className="min-h-0 flex-1">
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-11 animate-pulse rounded-lg bg-slate-100" />
             ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 py-8 text-center">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50">
-              <PhoneCall className="h-4 w-4 text-slate-400" />
-            </div>
-            <p className="text-sm font-medium text-slate-900">No calls yet</p>
-            <p className="text-xs text-muted-foreground">Activity from your AI line shows here.</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -155,6 +149,7 @@ export function DashboardFrontline() {
           </div>
         )}
       </div>
+      )}
     </Card>
   )
 }
