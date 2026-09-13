@@ -27,7 +27,7 @@ import { CalendarIcon, ClockIcon, SendIcon, FileTextIcon, Loader2Icon } from "lu
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "next-intl"
-import { contractorAI, api } from "@/lib/api"
+import { api } from "@/lib/api"
 
 type FollowupType = "appointment" | "quote" | "custom"
 
@@ -74,7 +74,7 @@ function bookingStartDate(b: Booking): Date | null {
     b?.starts_at_for_client ||
     b?.start_time ||
     b?.start_at ||
-    b?.start ||
+    (b as Record<string, any>)?.start ||
     b?.scheduled_at
   if (!raw) return null
   const dt = new Date(raw)
@@ -84,7 +84,7 @@ function bookingStartDate(b: Booking): Date | null {
 export function ClientScheduleFollowupDialog({
   open,
   onOpenChange,
-  spId,
+  spId: _spId,
   clientName,
   clientPhone,
   clientEmail,
@@ -273,12 +273,12 @@ export function ClientScheduleFollowupDialog({
         const finalMessage = messageText
           .replace(/\{client_name\}/g, clientName ?? "there")
           .replace(/\{quote_link\}/g, quoteLink ?? "")
-        await contractorAI.scheduleFollowup({
-          sp_id: spId,
+        await api.scheduleFollowup({
+          client_id: clientId,
           customer_number: clientPhone,
+          customer_name: clientName,
           scheduled_for: dateTime.toISOString(),
           message_text: finalMessage.trim(),
-          followup_type: "quote",
           reference_type: "quote",
           reference_id: selectedQuote.id,
         })
@@ -337,12 +337,12 @@ export function ClientScheduleFollowupDialog({
           .replace(/\{date\}/g, dateStr)
           .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
 
-        await contractorAI.scheduleFollowup({
-          sp_id: spId,
+        await api.scheduleFollowup({
+          client_id: clientId,
           customer_number: clientPhone,
+          customer_name: clientName,
           scheduled_for: dateTime.toISOString(),
           message_text: formattedMessage,
-          followup_type: "custom",
           reference_type: "client",
           reference_id: clientId,
         })
@@ -377,14 +377,15 @@ export function ClientScheduleFollowupDialog({
 
     setIsSubmitting(true)
     try {
-      const res = await contractorAI.scheduleFollowup({
-        sp_id: spId,
+      const res = await api.scheduleFollowup({
+        client_id: clientId,
         customer_number: clientPhone,
+        customer_name: clientName,
         appointment_datetime: dateTime.toISOString(),
         reference_type: "client",
         reference_id: clientId,
-      }) as { reminders?: unknown[] }
-      const count = Array.isArray(res?.reminders) ? res.reminders.length : 0
+      }) as { followups?: unknown[]; created?: number }
+      const count = typeof res?.created === "number" ? res.created : (Array.isArray(res?.followups) ? res.followups.length : 0)
       toast({
         title: t("scheduledSuccess"),
         description:

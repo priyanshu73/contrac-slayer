@@ -34,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { BeforeAfterPanel, type BeforeAfterImagePair } from "@/components/before-after-panel"
-import { api, contractorAI, type ScopeClarifiedScope } from "@/lib/api"
+import { api, type ScopeClarifiedScope } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { DEFAULT_PROPOSAL_THEME_ID, PROPOSAL_THEMES, getProposalTheme, normalizeProposalThemeId } from "@/lib/proposal-themes"
@@ -1126,9 +1126,9 @@ export function ProposalBuilder({
     const refJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id ?? 0
     try {
       const message = t("smsMessage", { name: clientName, url: shareUrl })
-      await contractorAI.sendImmediateSms({
-        sp_id: user.contractor_profile.contractor_ai_sp_id,
+      await api.sendFollowupNow({
         customer_number: clientPhone,
+        customer_name: clientName,
         message_text: message,
         reference_type: "job",
         reference_id: refJobId,

@@ -6,31 +6,20 @@ import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CalendarPlusIcon, Loader2Icon, Settings2Icon } from "lucide-react"
 import { FollowupSettings } from "@/components/followup-settings"
-import {
-  ScheduledFollowupsList,
-  type FollowupStats,
-} from "@/components/scheduled-followups-list"
+import { ScheduledFollowupsList } from "@/components/scheduled-followups-list"
 import { ScheduleFollowupDialog, type EditFollowup } from "@/components/schedule-followup-dialog"
 import { api } from "@/lib/api"
-import { ContractorProfile } from "@/lib/types"
+import type { ContractorProfile } from "@/lib/types"
+import type { FollowupSummary } from "@/lib/types/followup"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 
-const EMPTY_STATS: FollowupStats = { total: 0, pending: 0, sent: 0, failed: 0 }
-
-function StatCard({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string
-  value: number
-  valueClassName?: string
-}) {
+function StatCard({ label, value, hint, valueClassName }: { label: string; value: number | string; hint?: string; valueClassName?: string }) {
   return (
     <Card className="gap-0 p-4">
       <div className="text-sm text-muted-foreground">{label}</div>
       <div className={cn("mt-1 text-2xl font-bold tabular-nums", valueClassName)}>{value}</div>
+      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
     </Card>
   )
 }
@@ -41,14 +30,13 @@ export function FollowupsManager() {
   const [loading, setLoading] = useState(true)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [editFollowup, setEditFollowup] = useState<EditFollowup | null>(null)
-  const [stats, setStats] = useState<FollowupStats>(EMPTY_STATS)
+  const [summary, setSummary] = useState<FollowupSummary | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await api.getMyProfile()
-        setProfile(data)
+        setProfile(await api.getMyProfile())
       } catch {
         setProfile(null)
       } finally {
@@ -58,7 +46,19 @@ export function FollowupsManager() {
     load()
   }, [])
 
-  const handleStatsChange = useCallback((next: FollowupStats) => setStats(next), [])
+  const loadSummary = useCallback(async () => {
+    try {
+      setSummary(await api.getFollowupSummary(30))
+    } catch {
+      setSummary(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSummary()
+  }, [loadSummary, refreshKey])
+
+  const bump = () => setRefreshKey((k) => k + 1)
 
   if (loading) {
     return (
@@ -68,9 +68,11 @@ export function FollowupsManager() {
     )
   }
 
+  const sent = summary?.by_status.sent ?? 0
+  const delivered = summary?.by_delivery.delivered ?? 0
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
@@ -87,15 +89,19 @@ export function FollowupsManager() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Server-side stats (last 30 days) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label={t("list.total")} value={stats.total} />
-        <StatCard label={t("list.pending")} value={stats.pending} valueClassName="text-blue-500" />
-        <StatCard label={t("list.sent")} value={stats.sent} valueClassName="text-green-500" />
-        <StatCard label={t("list.failed")} value={stats.failed} valueClassName="text-red-500" />
+        <StatCard label={t("list.pending")} value={summary?.by_status.pending ?? 0} valueClassName="text-blue-500" />
+        <StatCard
+          label={t("stats.sent30")}
+          value={sent}
+          hint={sent ? t("stats.deliveredOf", { delivered, sent }) : undefined}
+          valueClassName="text-green-500"
+        />
+        <StatCard label={t("stats.replies30")} value={summary?.replies ?? 0} hint={t("stats.repliesHint")} />
+        <StatCard label={t("list.failed")} value={summary?.by_status.failed ?? 0} valueClassName="text-red-500" />
       </div>
 
-      {/* Activity leads; automations is set-once config tucked into a tab */}
       <Tabs defaultValue="activity" className="space-y-4">
         <TabsList>
           <TabsTrigger value="activity">{t("activity")}</TabsTrigger>
@@ -109,7 +115,6 @@ export function FollowupsManager() {
           <ScheduledFollowupsList
             contractorId={profile?.contractor_ai_sp_id}
             refreshKey={refreshKey}
-            onStatsChange={handleStatsChange}
             onSchedule={() => {
               setEditFollowup(null)
               setShowScheduleDialog(true)
@@ -118,7 +123,7 @@ export function FollowupsManager() {
               setEditFollowup({
                 id: f.id,
                 customer_number: f.customer_number,
-                customer_name: f.customer_name,
+                customer_name: f.customer_name ?? undefined,
                 message_text: f.message_text,
                 scheduled_for: f.scheduled_for,
               })
@@ -142,8 +147,8 @@ export function FollowupsManager() {
           if (!o) setEditFollowup(null)
         }}
         editFollowup={editFollowup}
-        onScheduled={() => setRefreshKey((k) => k + 1)}
-        onUpdated={() => setRefreshKey((k) => k + 1)}
+        onScheduled={bump}
+        onUpdated={bump}
       />
     </div>
   )
