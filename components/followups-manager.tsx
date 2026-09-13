@@ -133,7 +133,7 @@ export function FollowupsManager() {
         </TabsContent>
 
         <TabsContent value="automations">
-          <div className="max-w-6xl">
+          <div className="max-w-4xl">
             <FollowupSettings contractorId={profile?.contractor_ai_sp_id} />
           </div>
         </TabsContent>

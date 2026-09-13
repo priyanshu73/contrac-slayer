@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
@@ -21,18 +21,13 @@ import {
   Loader2Icon,
   CalendarClockIcon,
   FileTextIcon,
-  MoonIcon,
-  BellIcon,
-  PlusIcon,
-  Trash2Icon,
   ClipboardListIcon,
   CalendarCheckIcon,
   RotateCcwIcon,
+  ChevronDownIcon,
+  PlusIcon,
+  Trash2Icon,
   CheckCircle2Icon,
-  SmartphoneIcon,
-  ClockIcon,
-  ShieldCheckIcon,
-  ZapIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -60,7 +55,7 @@ function hourLabel(h: number, locale: string): string {
 }
 
 function weekdayShort(i: number, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
+  return new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(
     new Date(Date.UTC(2024, 0, 1 + i, 12)),
   )
 }
@@ -115,29 +110,6 @@ function initialBookingSteps(s: FollowupSettingsType): BookingStep[] {
   ]
 }
 
-/** Interpolates template variables into realistic sample values for the live phone preview. */
-function interpolatePreview(
-  template: string,
-  sampleVars: Record<string, string> = {
-    customer_name: "Alex Morgan",
-    first_name: "Alex",
-    link: "contractorops.ai/u/p7k9",
-    quote_link: "contractorops.ai/q/q82m",
-    booking_link: "contractorops.ai/b/tim",
-    sp_name: "Contractor AI",
-    time: "Tomorrow at 10:00 AM",
-    date: "Sep 15",
-    datetime: "Sep 15 at 10:00 AM",
-    business_name: "Contractor AI",
-  },
-): string {
-  if (!template) return ""
-  return template.replace(
-    /\{([a-zA-Z0-9_]+)\}/g,
-    (_, key) => sampleVars[key] ?? `{${key}}`,
-  )
-}
-
 export function FollowupSettings({
   contractorId: _contractorId,
 }: FollowupSettingsProps) {
@@ -152,18 +124,20 @@ export function FollowupSettings({
   const [intakeSteps, setIntakeSteps] = useState<IntakeStep[]>([])
   const [bookingSteps, setBookingSteps] = useState<BookingStep[]>([])
 
+  const [quoteEnabled, setQuoteEnabled] = useState(true)
+  const [remindersEnabled, setRemindersEnabled] = useState(true)
+  const [actionQueueAlert, setActionQueueAlert] = useState(true)
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    intake: true,
+    quote: false,
+    booking: false,
+    reminders: false,
+  })
+
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [notLinked, setNotLinked] = useState(false)
-
-  // Navigation state
-  const [mainSection, setMainSection] = useState<
-    "sequences" | "schedule" | "notifications"
-  >("sequences")
-  const [activeSequence, setActiveSequence] = useState<
-    "intake" | "quote" | "booking" | "reminders"
-  >("intake")
-  const [previewStepIndex, setPreviewStepIndex] = useState(0)
 
   const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map())
 
@@ -177,9 +151,16 @@ export function FollowupSettings({
       setContractorTz(
         data.contractor_timezone ?? data.settings.timezone ?? null,
       )
-      setSteps(initialSteps(data.settings))
+      const initialQuote = initialSteps(data.settings)
+      setSteps(initialQuote)
+      setQuoteEnabled(initialQuote.length > 0)
       setIntakeSteps(initialIntakeSteps(data.settings))
       setBookingSteps(initialBookingSteps(data.settings))
+      setRemindersEnabled(
+        (data.settings.followup_days_before_appointment > 0 ||
+          data.settings.followup_hours_before_appointment > 0) &&
+          Boolean(data.settings.reminder_1day_template || data.settings.reminder_1hour_template)
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : ""
       if (/not linked|messaging service|contact not found/i.test(message)) {
@@ -206,6 +187,10 @@ export function FollowupSettings({
     value: FollowupSettingsType[K],
   ) => {
     setSettings((prev) => (prev ? { ...prev, [key]: value } : prev))
+  }
+
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   const insertToken = (
@@ -236,24 +221,27 @@ export function FollowupSettings({
     if (!settings) return
 
     // Validation
-    for (let i = 0; i < steps.length; i++) {
-      if (!steps[i].template.trim()) {
-        toast({
-          title: t("error"),
-          description: t("stepTemplateRequired", { step: i + 1 }),
-          variant: "destructive",
-        })
-        return
-      }
-      if (i > 0 && steps[i].day <= steps[i - 1].day) {
-        toast({
-          title: t("error"),
-          description: t("stepDaysIncreasing"),
-          variant: "destructive",
-        })
-        return
+    if (quoteEnabled) {
+      for (let i = 0; i < steps.length; i++) {
+        if (!steps[i].template.trim()) {
+          toast({
+            title: t("error"),
+            description: t("stepTemplateRequired", { step: i + 1 }),
+            variant: "destructive",
+          })
+          return
+        }
+        if (i > 0 && steps[i].day <= steps[i - 1].day) {
+          toast({
+            title: t("error"),
+            description: t("stepDaysIncreasing"),
+            variant: "destructive",
+          })
+          return
+        }
       }
     }
+
     if (settings.intake_followup_enabled) {
       for (let i = 0; i < intakeSteps.length; i++) {
         if (!intakeSteps[i].template.trim()) {
@@ -277,6 +265,7 @@ export function FollowupSettings({
         }
       }
     }
+
     if (settings.booking_followup_enabled) {
       for (let i = 0; i < bookingSteps.length; i++) {
         if (!bookingSteps[i].template.trim()) {
@@ -305,13 +294,15 @@ export function FollowupSettings({
     try {
       const payload: FollowupSettingsUpdate = {
         automatic_followup_enabled: settings.automatic_followup_enabled,
-        followup_days_before_appointment:
-          settings.followup_days_before_appointment,
-        followup_hours_before_appointment:
-          settings.followup_hours_before_appointment,
+        followup_days_before_appointment: remindersEnabled
+          ? settings.followup_days_before_appointment || 1
+          : 0,
+        followup_hours_before_appointment: remindersEnabled
+          ? settings.followup_hours_before_appointment || 2
+          : 0,
         reminder_1day_template: settings.reminder_1day_template,
         reminder_1hour_template: settings.reminder_1hour_template,
-        quote_sequence_json: steps.length ? steps : null,
+        quote_sequence_json: quoteEnabled && steps.length ? steps : null,
         followup_days_after_quote:
           steps[0]?.day ?? settings.followup_days_after_quote ?? null,
         quote_followup_template:
@@ -355,12 +346,13 @@ export function FollowupSettings({
     if (!settings) return
     const next = { ...settings, ...defaults } as FollowupSettingsType
     setSettings(next)
-    setSteps(
+    const resetQuote =
       Array.isArray(defaults.quote_sequence_json) &&
-        defaults.quote_sequence_json.length
+      defaults.quote_sequence_json.length
         ? defaults.quote_sequence_json
-        : initialSteps(next),
-    )
+        : initialSteps(next)
+    setSteps(resetQuote)
+    setQuoteEnabled(resetQuote.length > 0)
     setIntakeSteps(
       Array.isArray(defaults.intake_sequence_json) &&
         defaults.intake_sequence_json.length
@@ -375,49 +367,6 @@ export function FollowupSettings({
     )
   }
 
-  // Active preview message resolution
-  const activePreviewData = useMemo(() => {
-    if (!settings) return { title: "", text: "", timing: "" }
-    if (activeSequence === "intake") {
-      const step = intakeSteps[previewStepIndex] || intakeSteps[0]
-      return {
-        title: `Intake Step ${previewStepIndex + 1}`,
-        timing: step ? `${step.delay_minutes}m after call` : "",
-        text: step?.template || "",
-      }
-    }
-    if (activeSequence === "quote") {
-      const step = steps[previewStepIndex] || steps[0]
-      return {
-        title: `Quote Step ${previewStepIndex + 1}`,
-        timing: step ? `Day ${step.day} after quote` : "",
-        text: step?.template || "",
-      }
-    }
-    if (activeSequence === "booking") {
-      const step = bookingSteps[previewStepIndex] || bookingSteps[0]
-      return {
-        title: `Booking Step ${previewStepIndex + 1}`,
-        timing: step ? `${step.delay_hours}h after link` : "",
-        text: step?.template || "",
-      }
-    }
-    if (activeSequence === "reminders") {
-      return previewStepIndex === 0
-        ? {
-            title: "1-Day Reminder",
-            timing: `${settings.followup_days_before_appointment} day before`,
-            text: settings.reminder_1day_template || "",
-          }
-        : {
-            title: "1-Hour Reminder",
-            timing: `${settings.followup_hours_before_appointment}h before`,
-            text: settings.reminder_1hour_template || "",
-          }
-    }
-    return { title: "", text: "", timing: "" }
-  }, [settings, activeSequence, previewStepIndex, intakeSteps, steps, bookingSteps])
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
@@ -430,7 +379,7 @@ export function FollowupSettings({
   if (notLinked) {
     return (
       <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200">
-        <InfoIcon className="h-4 w-4 text-amber-600" />
+        <InfoIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
         <AlertDescription>{t("spRequired")}</AlertDescription>
       </Alert>
     )
@@ -448,40 +397,43 @@ export function FollowupSettings({
   const tzLabel = contractorTz || t("timezoneDefault")
 
   return (
-    <div className="space-y-6">
-      {/* ── Top Studio Control Header ── */}
-      <div className="flex flex-col gap-4 rounded-2xl border bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
+    <div className="space-y-8 pb-16">
+      {/* ── Header Control Bar ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+        <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              Follow-up Automations
-            </h2>
-            {isMasterEnabled ? (
-              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 gap-1.5 font-medium px-2.5 py-0.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Active
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="text-muted-foreground font-medium">
-                Paused
-              </Badge>
-            )}
+            <h1 className="text-xl font-semibold tracking-tight">Automations</h1>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                isMasterEnabled
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
+                  : "bg-muted text-muted-foreground border-border",
+              )}
+            >
+              {isMasterEnabled && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+              {isMasterEnabled ? "Running" : "Paused"}
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground sm:text-sm">
-            Automated SMS cadences sent from your ContractorOps number with quiet hours and instant pause on reply.
+          <p className="text-sm text-muted-foreground mt-1">
+            Automatic SMS follow-ups for intake forms, quotes, bookings, and reminders.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5 rounded-xl border bg-background/80 px-3.5 py-2 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 bg-muted/40 px-3 py-1.5 rounded-lg border border-border">
+            <span className="text-xs font-medium text-muted-foreground">
+              {isMasterEnabled ? "Automations On" : "Automations Off"}
+            </span>
             <Switch
-              id="master-switch"
               checked={isMasterEnabled}
-              onCheckedChange={(v) => update("automatic_followup_enabled", v)}
+              onCheckedChange={(checked) =>
+                update("automatic_followup_enabled", checked)
+              }
+              aria-label="Toggle All Automations"
             />
-            <Label htmlFor="master-switch" className="text-xs font-semibold cursor-pointer select-none">
-              {t("autoFollowups")}
-            </Label>
           </div>
 
           <Button
@@ -489,1136 +441,998 @@ export function FollowupSettings({
             size="sm"
             onClick={handleReset}
             disabled={isSaving}
-            className="text-xs"
+            className="text-xs h-9 gap-1.5"
           >
-            <RotateCcwIcon className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-            {t("resetToDefaults")}
+            <RotateCcwIcon className="h-3.5 w-3.5" />
+            Reset
           </Button>
 
           <Button
             size="sm"
             onClick={handleSave}
             disabled={isSaving}
-            className="text-xs font-medium shadow-2xs"
+            className="text-xs h-9 gap-1.5"
           >
             {isSaving ? (
-              <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <SaveIcon className="mr-1.5 h-3.5 w-3.5" />
+              <SaveIcon className="h-3.5 w-3.5" />
             )}
-            {isSaving ? t("saving") : t("saveChanges")}
+            Save Changes
           </Button>
         </div>
       </div>
 
-      {/* ── Segmented Navigation Switcher ── */}
-      <div className="flex items-center justify-between border-b pb-3">
-        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border">
-          <button
-            type="button"
-            onClick={() => setMainSection("sequences")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-              mainSection === "sequences"
-                ? "bg-background text-foreground shadow-2xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <ZapIcon className="h-3.5 w-3.5 text-primary" />
-            Cadence Sequences
-          </button>
-          <button
-            type="button"
-            onClick={() => setMainSection("schedule")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-              mainSection === "schedule"
-                ? "bg-background text-foreground shadow-2xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <MoonIcon className="h-3.5 w-3.5 text-amber-500" />
-            Delivery & Quiet Hours
-          </button>
-          <button
-            type="button"
-            onClick={() => setMainSection("notifications")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-              mainSection === "notifications"
-                ? "bg-background text-foreground shadow-2xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <BellIcon className="h-3.5 w-3.5 text-sky-500" />
-            Owner Alerts & Digest
-          </button>
+      {/* ── Master Inactive Warning ── */}
+      {!isMasterEnabled && (
+        <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200">
+          <InfoIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-xs">
+            Automations are currently paused. Enable the master switch in the top right to start sending automatic messages.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* ── Core Sequences Section ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-0.5">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Core Sequences
+          </h2>
+          <span className="text-xs text-muted-foreground">4 Workflows</span>
         </div>
 
-        <div className="hidden items-center gap-2 text-xs text-muted-foreground lg:flex">
-          <ClockIcon className="h-3.5 w-3.5" />
-          <span>Active window: {hourLabel(settings.default_send_hour, locale)} · {tzLabel}</span>
+        {/* Unified sleek container with dividing lines */}
+        <div className="border border-border rounded-xl bg-card divide-y divide-border shadow-sm overflow-hidden">
+
+          {/* ── 1. Intake Form Follow-up ── */}
+          <div>
+            <div
+              className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/40 transition-colors"
+              onClick={() => toggleExpand("intake")}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/50 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400">
+                  <FileTextIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-medium truncate">Intake Form Follow-up</h3>
+                    <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
+                      {intakeSteps.length} SMS steps · ~{intakeSteps[intakeSteps.length - 1]?.delay_minutes || 120} min span
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    Triggered after call when link is sent. Auto-stops when caller fills the form.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center gap-3 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Switch
+                  checked={settings.intake_followup_enabled && isMasterEnabled}
+                  disabled={!isMasterEnabled}
+                  onCheckedChange={(checked) =>
+                    update("intake_followup_enabled", checked)
+                  }
+                  aria-label="Toggle Intake Follow-up"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground"
+                  onClick={() => toggleExpand("intake")}
+                >
+                  <ChevronDownIcon
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      expanded.intake && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Inline Config */}
+            {expanded.intake && (
+              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                  <span className="font-medium text-foreground">Follow-up Cadence</span>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Auto-stops on form submission or STOP reply
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {intakeSteps.map((step, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">
+                          Step {idx + 1}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span>Send after</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={1440}
+                            value={step.delay_minutes}
+                            disabled={!isMasterEnabled || !settings.intake_followup_enabled}
+                            onChange={(e) => {
+                              const val = Math.max(1, Number(e.target.value) || 1)
+                              setIntakeSteps((prev) =>
+                                prev.map((s, j) =>
+                                  j === idx ? { ...s, delay_minutes: val } : s,
+                                ),
+                              )
+                            }}
+                            className="w-14 h-7 text-xs text-center font-medium"
+                          />
+                          <span>min</span>
+                          {intakeSteps.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                setIntakeSteps((prev) =>
+                                  prev.filter((_, j) => j !== idx),
+                                )
+                              }
+                            >
+                              <Trash2Icon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <Textarea
+                        rows={3}
+                        ref={(el) => {
+                          if (el) textareaRefs.current.set(`intake_${idx}`, el)
+                        }}
+                        value={step.template}
+                        disabled={!isMasterEnabled || !settings.intake_followup_enabled}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setIntakeSteps((prev) =>
+                            prev.map((s, j) =>
+                              j === idx ? { ...s, template: val } : s,
+                            ),
+                          )
+                        }}
+                        className="text-xs resize-none"
+                      />
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                        <span>Insert:</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `intake_${idx}`,
+                              "first_name",
+                              (t) =>
+                                setIntakeSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{first_name}"}
+                        </button>
+                        <span>·</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `intake_${idx}`,
+                              "link",
+                              (t) =>
+                                setIntakeSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{link}"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {intakeSteps.length < MAX_STEPS && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 gap-1.5"
+                    disabled={!isMasterEnabled || !settings.intake_followup_enabled}
+                    onClick={() => {
+                      const last = intakeSteps[intakeSteps.length - 1]
+                      const nextDelay = last ? last.delay_minutes + 60 : 30
+                      setIntakeSteps((prev) => [
+                        ...prev,
+                        {
+                          delay_minutes: nextDelay,
+                          template:
+                            "Hi {first_name}, just checking in to see if you still needed help with your project: {link}",
+                        },
+                      ])
+                    }}
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Add Step
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── 2. Sent Quote Follow-up ── */}
+          <div>
+            <div
+              className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/40 transition-colors"
+              onClick={() => toggleExpand("quote")}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                  <ClipboardListIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-medium truncate">Sent Quote Follow-up</h3>
+                    <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
+                      {steps.length} SMS steps · ~{steps[steps.length - 1]?.day || 7} days span
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    Triggered when an estimate is sent. Auto-stops when quote is accepted or rejected.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center gap-3 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Switch
+                  checked={quoteEnabled && isMasterEnabled}
+                  disabled={!isMasterEnabled}
+                  onCheckedChange={(checked) => setQuoteEnabled(checked)}
+                  aria-label="Toggle Quote Follow-up"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground"
+                  onClick={() => toggleExpand("quote")}
+                >
+                  <ChevronDownIcon
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      expanded.quote && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Inline Config */}
+            {expanded.quote && (
+              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                  <span className="font-medium text-foreground">Follow-up Cadence</span>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Auto-stops on approval, rejection, or reply
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {steps.map((step, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">Step {idx + 1}</span>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span>Day</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={60}
+                            value={step.day}
+                            disabled={!isMasterEnabled || !quoteEnabled}
+                            onChange={(e) => {
+                              const val = Math.max(1, Number(e.target.value) || 1)
+                              setSteps((prev) =>
+                                prev.map((s, j) =>
+                                  j === idx ? { ...s, day: val } : s,
+                                ),
+                              )
+                            }}
+                            className="w-12 h-7 text-xs text-center font-medium"
+                          />
+                          {steps.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                setSteps((prev) => prev.filter((_, j) => j !== idx))
+                              }
+                            >
+                              <Trash2Icon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <Textarea
+                        rows={3}
+                        ref={(el) => {
+                          if (el) textareaRefs.current.set(`quote_${idx}`, el)
+                        }}
+                        value={step.template}
+                        disabled={!isMasterEnabled || !quoteEnabled}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setSteps((prev) =>
+                            prev.map((s, j) =>
+                              j === idx ? { ...s, template: val } : s,
+                            ),
+                          )
+                        }}
+                        className="text-xs resize-none"
+                      />
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                        <span>Insert:</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `quote_${idx}`,
+                              "first_name",
+                              (t) =>
+                                setSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{first_name}"}
+                        </button>
+                        <span>·</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `quote_${idx}`,
+                              "quote_link",
+                              (t) =>
+                                setSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{quote_link}"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {steps.length < MAX_STEPS && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 gap-1.5"
+                    disabled={!isMasterEnabled || !quoteEnabled}
+                    onClick={() => {
+                      const last = steps[steps.length - 1]
+                      const nextDay = last ? last.day + 3 : 3
+                      setSteps((prev) => [
+                        ...prev,
+                        {
+                          day: nextDay,
+                          template:
+                            "Hi {first_name}, just following up on your quote. Let us know if you have any questions: {quote_link}",
+                        },
+                      ])
+                    }}
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Add Step
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── 3. Sent Booking Link Follow-up ── */}
+          <div>
+            <div
+              className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/40 transition-colors"
+              onClick={() => toggleExpand("booking")}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-900/50 flex items-center justify-center shrink-0 text-purple-600 dark:text-purple-400">
+                  <CalendarClockIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-medium truncate">Sent Booking Link Follow-up</h3>
+                    <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
+                      {bookingSteps.length} SMS steps · ~{bookingSteps[bookingSteps.length - 1]?.delay_hours || 24} hr span
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    Triggered when scheduling link is texted. Auto-stops when appointment is booked.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center gap-3 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Switch
+                  checked={settings.booking_followup_enabled && isMasterEnabled}
+                  disabled={!isMasterEnabled}
+                  onCheckedChange={(checked) =>
+                    update("booking_followup_enabled", checked)
+                  }
+                  aria-label="Toggle Booking Link Follow-up"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground"
+                  onClick={() => toggleExpand("booking")}
+                >
+                  <ChevronDownIcon
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      expanded.booking && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Inline Config */}
+            {expanded.booking && (
+              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                  <span className="font-medium text-foreground">Follow-up Cadence</span>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Auto-stops when appointment is scheduled
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {bookingSteps.map((step, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">Step {idx + 1}</span>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span>Send after</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={168}
+                            value={step.delay_hours}
+                            disabled={!isMasterEnabled || !settings.booking_followup_enabled}
+                            onChange={(e) => {
+                              const val = Math.max(1, Number(e.target.value) || 1)
+                              setBookingSteps((prev) =>
+                                prev.map((s, j) =>
+                                  j === idx ? { ...s, delay_hours: val } : s,
+                                ),
+                              )
+                            }}
+                            className="w-14 h-7 text-xs text-center font-medium"
+                          />
+                          <span>hours</span>
+                          {bookingSteps.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                setBookingSteps((prev) =>
+                                  prev.filter((_, j) => j !== idx),
+                                )
+                              }
+                            >
+                              <Trash2Icon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <Textarea
+                        rows={3}
+                        ref={(el) => {
+                          if (el) textareaRefs.current.set(`booking_${idx}`, el)
+                        }}
+                        value={step.template}
+                        disabled={!isMasterEnabled || !settings.booking_followup_enabled}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setBookingSteps((prev) =>
+                            prev.map((s, j) =>
+                              j === idx ? { ...s, template: val } : s,
+                            ),
+                          )
+                        }}
+                        className="text-xs resize-none"
+                      />
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                        <span>Insert:</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `booking_${idx}`,
+                              "first_name",
+                              (t) =>
+                                setBookingSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{first_name}"}
+                        </button>
+                        <span>·</span>
+                        <button
+                          type="button"
+                          className="hover:text-foreground underline decoration-dotted"
+                          onClick={() =>
+                            insertToken(
+                              `booking_${idx}`,
+                              "booking_link",
+                              (t) =>
+                                setBookingSteps((prev) =>
+                                  prev.map((s, j) =>
+                                    j === idx ? { ...s, template: t } : s,
+                                  ),
+                                ),
+                              step.template,
+                            )
+                          }
+                        >
+                          {"{booking_link}"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {bookingSteps.length < MAX_STEPS && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 gap-1.5"
+                    disabled={!isMasterEnabled || !settings.booking_followup_enabled}
+                    onClick={() => {
+                      const last = bookingSteps[bookingSteps.length - 1]
+                      const nextDelay = last ? last.delay_hours + 24 : 24
+                      setBookingSteps((prev) => [
+                        ...prev,
+                        {
+                          delay_hours: nextDelay,
+                          template:
+                            "Hi {first_name}, just wanted to remind you about scheduling before slots fill up: {booking_link}",
+                        },
+                      ])
+                    }}
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Add Step
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── 4. Appointment Reminders ── */}
+          <div>
+            <div
+              className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/40 transition-colors"
+              onClick={() => toggleExpand("reminders")}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/50 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
+                  <CalendarCheckIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-medium truncate">Appointment Reminders</h3>
+                    <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
+                      2 reminders (24h & 2h before)
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    Sent to customer before confirmed site visits or consultation appointments.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center gap-3 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Switch
+                  checked={remindersEnabled && isMasterEnabled}
+                  disabled={!isMasterEnabled}
+                  onCheckedChange={(checked) => setRemindersEnabled(checked)}
+                  aria-label="Toggle Appointment Reminders"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground"
+                  onClick={() => toggleExpand("reminders")}
+                >
+                  <ChevronDownIcon
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      expanded.reminders && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Inline Config */}
+            {expanded.reminders && (
+              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                  <span className="font-medium text-foreground">Reminder Cadence</span>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Sent before confirmed appointments
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 24-Hour */}
+                  <div className="p-3.5 rounded-lg border border-border bg-card space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">24 Hours Before</span>
+                      <span className="text-xs text-muted-foreground">1 day in advance</span>
+                    </div>
+
+                    <Textarea
+                      rows={3}
+                      ref={(el) => {
+                        if (el) textareaRefs.current.set("reminder_1day", el)
+                      }}
+                      value={settings.reminder_1day_template}
+                      disabled={!isMasterEnabled || !remindersEnabled}
+                      onChange={(e) => update("reminder_1day_template", e.target.value)}
+                      className="text-xs resize-none"
+                    />
+
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                      <span>Insert:</span>
+                      <button
+                        type="button"
+                        className="hover:text-foreground underline decoration-dotted"
+                        onClick={() =>
+                          insertToken(
+                            "reminder_1day",
+                            "first_name",
+                            (v) => update("reminder_1day_template", v),
+                            settings.reminder_1day_template,
+                          )
+                        }
+                      >
+                        {"{first_name}"}
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        className="hover:text-foreground underline decoration-dotted"
+                        onClick={() =>
+                          insertToken(
+                            "reminder_1day",
+                            "time",
+                            (v) => update("reminder_1day_template", v),
+                            settings.reminder_1day_template,
+                          )
+                        }
+                      >
+                        {"{time}"}
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        className="hover:text-foreground underline decoration-dotted"
+                        onClick={() =>
+                          insertToken(
+                            "reminder_1day",
+                            "date",
+                            (v) => update("reminder_1day_template", v),
+                            settings.reminder_1day_template,
+                          )
+                        }
+                      >
+                        {"{date}"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2-Hour */}
+                  <div className="p-3.5 rounded-lg border border-border bg-card space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">2 Hours Before</span>
+                      <span className="text-xs text-muted-foreground">Day of appointment</span>
+                    </div>
+
+                    <Textarea
+                      rows={3}
+                      ref={(el) => {
+                        if (el) textareaRefs.current.set("reminder_1hour", el)
+                      }}
+                      value={settings.reminder_1hour_template}
+                      disabled={!isMasterEnabled || !remindersEnabled}
+                      onChange={(e) => update("reminder_1hour_template", e.target.value)}
+                      className="text-xs resize-none"
+                    />
+
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                      <span>Insert:</span>
+                      <button
+                        type="button"
+                        className="hover:text-foreground underline decoration-dotted"
+                        onClick={() =>
+                          insertToken(
+                            "reminder_1hour",
+                            "first_name",
+                            (v) => update("reminder_1hour_template", v),
+                            settings.reminder_1hour_template,
+                          )
+                        }
+                      >
+                        {"{first_name}"}
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        className="hover:text-foreground underline decoration-dotted"
+                        onClick={() =>
+                          insertToken(
+                            "reminder_1hour",
+                            "time",
+                            (v) => update("reminder_1hour_template", v),
+                            settings.reminder_1hour_template,
+                          )
+                        }
+                      >
+                        {"{time}"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 
-      {/* ── TAB 1: CADENCE SEQUENCES ── */}
-      {mainSection === "sequences" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Left Column: Flow Selector & Timeline Builder */}
-          <div className="space-y-5 lg:col-span-7 xl:col-span-8">
-            {/* Horizontal Sequence Flow Pills */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSequence("intake")
-                  setPreviewStepIndex(0)
-                }}
-                className={cn(
-                  "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
-                  activeSequence === "intake"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-2xs"
-                    : "bg-card hover:bg-muted/40",
-                )}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <ClipboardListIcon className={cn("h-4 w-4", activeSequence === "intake" ? "text-primary" : "text-muted-foreground")} />
-                  <span className={cn("h-2 w-2 rounded-full", settings.intake_followup_enabled ? "bg-emerald-500" : "bg-muted-foreground/30")} />
-                </div>
-                <div className="text-xs font-semibold mt-1">Call & Fill</div>
-                <div className="text-[11px] text-muted-foreground line-clamp-1">Intake form follow-up</div>
-              </button>
+      {/* ── Delivery Schedule & Notifications Grid ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSequence("quote")
-                  setPreviewStepIndex(0)
-                }}
-                className={cn(
-                  "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
-                  activeSequence === "quote"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-2xs"
-                    : "bg-card hover:bg-muted/40",
-                )}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <FileTextIcon className={cn("h-4 w-4", activeSequence === "quote" ? "text-primary" : "text-muted-foreground")} />
-                  <span className={cn("h-2 w-2 rounded-full", isMasterEnabled ? "bg-emerald-500" : "bg-muted-foreground/30")} />
-                </div>
-                <div className="text-xs font-semibold mt-1">Quotes</div>
-                <div className="text-[11px] text-muted-foreground line-clamp-1">Multi-day cadence</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSequence("booking")
-                  setPreviewStepIndex(0)
-                }}
-                className={cn(
-                  "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
-                  activeSequence === "booking"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-2xs"
-                    : "bg-card hover:bg-muted/40",
-                )}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <CalendarCheckIcon className={cn("h-4 w-4", activeSequence === "booking" ? "text-primary" : "text-muted-foreground")} />
-                  <span className={cn("h-2 w-2 rounded-full", settings.booking_followup_enabled ? "bg-emerald-500" : "bg-muted-foreground/30")} />
-                </div>
-                <div className="text-xs font-semibold mt-1">Booking Link</div>
-                <div className="text-[11px] text-muted-foreground line-clamp-1">Appointment scheduling</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSequence("reminders")
-                  setPreviewStepIndex(0)
-                }}
-                className={cn(
-                  "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
-                  activeSequence === "reminders"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-2xs"
-                    : "bg-card hover:bg-muted/40",
-                )}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <CalendarClockIcon className={cn("h-4 w-4", activeSequence === "reminders" ? "text-primary" : "text-muted-foreground")} />
-                  <span className={cn("h-2 w-2 rounded-full", isMasterEnabled ? "bg-emerald-500" : "bg-muted-foreground/30")} />
-                </div>
-                <div className="text-xs font-semibold mt-1">Reminders</div>
-                <div className="text-[11px] text-muted-foreground line-clamp-1">Before appointment</div>
-              </button>
-            </div>
-
-            {/* Sequence Detail Card */}
-            <div className="rounded-2xl border bg-card p-5 sm:p-6 shadow-2xs space-y-6">
-              {/* Header with trigger description & sequence toggle */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                      Workflow Pipeline
-                    </span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {activeSequence === "intake" && "Trigger: Project upload link sent mid-call"}
-                      {activeSequence === "quote" && "Trigger: Quote delivered to customer"}
-                      {activeSequence === "booking" && "Trigger: Booking calendar link texted"}
-                      {activeSequence === "reminders" && "Trigger: Scheduled calendar appointment"}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {activeSequence === "intake" && t("intakeFollowup")}
-                    {activeSequence === "quote" && t("quoteCadence")}
-                    {activeSequence === "booking" && t("bookingFollowup")}
-                    {activeSequence === "reminders" && t("appointmentReminders")}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {activeSequence === "intake" && t("intakeFollowupDesc")}
-                    {activeSequence === "quote" && t("quoteCadenceDesc")}
-                    {activeSequence === "booking" && t("bookingFollowupDesc")}
-                    {activeSequence === "reminders" && t("appointmentRemindersDesc")}
-                  </p>
-                </div>
-
-                {activeSequence === "intake" && (
-                  <div className="flex items-center gap-2 self-start sm:self-center bg-muted/30 px-3 py-1.5 rounded-xl border">
-                    <Label htmlFor="intake-toggle" className="text-xs font-medium cursor-pointer">
-                      {settings.intake_followup_enabled ? "Enabled" : "Disabled"}
-                    </Label>
-                    <Switch
-                      id="intake-toggle"
-                      checked={settings.intake_followup_enabled}
-                      onCheckedChange={(v) => update("intake_followup_enabled", v)}
-                      disabled={!isMasterEnabled}
-                    />
-                  </div>
-                )}
-
-                {activeSequence === "booking" && (
-                  <div className="flex items-center gap-2 self-start sm:self-center bg-muted/30 px-3 py-1.5 rounded-xl border">
-                    <Label htmlFor="booking-toggle" className="text-xs font-medium cursor-pointer">
-                      {settings.booking_followup_enabled ? "Enabled" : "Disabled"}
-                    </Label>
-                    <Switch
-                      id="booking-toggle"
-                      checked={settings.booking_followup_enabled}
-                      onCheckedChange={(v) => update("booking_followup_enabled", v)}
-                      disabled={!isMasterEnabled}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ── Timeline Rail: INTAKE SEQUENCE ── */}
-              {activeSequence === "intake" && (
-                <div className="relative pl-7 before:absolute before:left-3 before:top-2 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/40 before:via-border before:to-emerald-500/40 space-y-6">
-                  {intakeSteps.map((step, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "group relative rounded-xl border p-4 transition-all",
-                        previewStepIndex === i
-                          ? "border-primary/50 bg-primary/5 shadow-2xs ring-1 ring-primary/10"
-                          : "bg-background hover:border-slate-300 dark:hover:border-slate-700",
-                      )}
-                      onClick={() => setPreviewStepIndex(i)}
-                    >
-                      {/* Timeline Step Dot */}
-                      <span className="absolute -left-[35px] top-4.5 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-primary text-[11px] font-bold text-primary shadow-2xs">
-                        0{i + 1}
-                      </span>
-
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">Step {i + 1}</span>
-                          <span className="text-muted-foreground/50">·</span>
-                          <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded-md border text-xs text-muted-foreground">
-                            <ClockIcon className="h-3 w-3" />
-                            <span>Wait</span>
-                            <Input
-                              type="number"
-                              min="5"
-                              max="1440"
-                              className="h-6 w-16 bg-background text-xs px-1 text-center font-medium"
-                              value={step.delay_minutes}
-                              disabled={!isMasterEnabled || !settings.intake_followup_enabled}
-                              onChange={(e) => {
-                                const delay_minutes = Math.max(1, parseInt(e.target.value) || 0)
-                                setIntakeSteps((prev) =>
-                                  prev.map((s, j) => (j === i ? { ...s, delay_minutes } : s)),
-                                )
-                              }}
-                            />
-                            <span>min after call</span>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors opacity-70 group-hover:opacity-100"
-                          disabled={!isMasterEnabled || !settings.intake_followup_enabled || intakeSteps.length <= 1}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setIntakeSteps((prev) => prev.filter((_, j) => j !== i))
-                            if (previewStepIndex >= i && previewStepIndex > 0) {
-                              setPreviewStepIndex(previewStepIndex - 1)
-                            }
-                          }}
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      <Textarea
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`intake_${i}`, el)
-                          else textareaRefs.current.delete(`intake_${i}`)
-                        }}
-                        rows={2}
-                        className="bg-background text-xs leading-relaxed resize-none font-normal"
-                        value={step.template}
-                        disabled={!isMasterEnabled || !settings.intake_followup_enabled}
-                        placeholder={t("intakeTemplatePlaceholder")}
-                        onChange={(e) => {
-                          const template = e.target.value
-                          setIntakeSteps((prev) =>
-                            prev.map((s, j) => (j === i ? { ...s, template } : s)),
-                          )
-                        }}
-                        onFocus={() => setPreviewStepIndex(i)}
-                      />
-
-                      {/* Clickable Variable Token Chips */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] text-muted-foreground mr-1">Insert:</span>
-                        {["first_name", "link", "business_name"].map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              insertToken(
-                                `intake_${i}`,
-                                v,
-                                (tVal) =>
-                                  setIntakeSteps((prev) =>
-                                    prev.map((s, j) => (j === i ? { ...s, template: tVal } : s)),
-                                  ),
-                                step.template,
-                              )
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          >
-                            + {`{${v}}`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Add Step Action */}
-                  <div className="pt-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isMasterEnabled || !settings.intake_followup_enabled || intakeSteps.length >= MAX_STEPS}
-                      onClick={() => {
-                        const nextStep = {
-                          delay_minutes: (intakeSteps[intakeSteps.length - 1]?.delay_minutes ?? 30) + 60,
-                          template: intakeSteps[intakeSteps.length - 1]?.template ?? "",
-                        }
-                        setIntakeSteps((prev) => [...prev, nextStep])
-                        setPreviewStepIndex(intakeSteps.length)
-                      }}
-                      className="text-xs h-8"
-                    >
-                      <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                      Add Step ({intakeSteps.length}/{MAX_STEPS})
-                    </Button>
-                  </div>
-
-                  {/* Auto-Stop Terminal Milestone */}
-                  <div className="relative rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2.5">
-                    <span className="absolute -left-[35px] top-3 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-emerald-500 text-emerald-600 shadow-2xs">
-                      <CheckCircle2Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <ShieldCheckIcon className="h-3.5 w-3.5" /> Auto-Stop Condition
-                      </div>
-                      <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                        {t("intakeCadenceStops")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Timeline Rail: QUOTE SEQUENCE ── */}
-              {activeSequence === "quote" && (
-                <div className="relative pl-7 before:absolute before:left-3 before:top-2 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/40 before:via-border before:to-emerald-500/40 space-y-6">
-                  {steps.map((step, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "group relative rounded-xl border p-4 transition-all",
-                        previewStepIndex === i
-                          ? "border-primary/50 bg-primary/5 shadow-2xs ring-1 ring-primary/10"
-                          : "bg-background hover:border-slate-300 dark:hover:border-slate-700",
-                      )}
-                      onClick={() => setPreviewStepIndex(i)}
-                    >
-                      {/* Timeline Step Dot */}
-                      <span className="absolute -left-[35px] top-4.5 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-primary text-[11px] font-bold text-primary shadow-2xs">
-                        0{i + 1}
-                      </span>
-
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">Step {i + 1}</span>
-                          <span className="text-muted-foreground/50">·</span>
-                          <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded-md border text-xs text-muted-foreground">
-                            <ClockIcon className="h-3 w-3" />
-                            <span>Day</span>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="365"
-                              className="h-6 w-14 bg-background text-xs px-1 text-center font-medium"
-                              value={step.day}
-                              disabled={!isMasterEnabled}
-                              onChange={(e) => {
-                                const day = Math.max(0, parseInt(e.target.value) || 0)
-                                setSteps((prev) =>
-                                  prev.map((s, j) => (j === i ? { ...s, day } : s)),
-                                )
-                              }}
-                            />
-                            <span>after quote</span>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors opacity-70 group-hover:opacity-100"
-                          disabled={!isMasterEnabled || steps.length <= 1}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSteps((prev) => prev.filter((_, j) => j !== i))
-                            if (previewStepIndex >= i && previewStepIndex > 0) {
-                              setPreviewStepIndex(previewStepIndex - 1)
-                            }
-                          }}
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      <Textarea
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`quote_${i}`, el)
-                          else textareaRefs.current.delete(`quote_${i}`)
-                        }}
-                        rows={2}
-                        className="bg-background text-xs leading-relaxed resize-none font-normal"
-                        value={step.template}
-                        disabled={!isMasterEnabled}
-                        placeholder={t("quoteTemplatePlaceholder")}
-                        onChange={(e) => {
-                          const template = e.target.value
-                          setSteps((prev) =>
-                            prev.map((s, j) => (j === i ? { ...s, template } : s)),
-                          )
-                        }}
-                        onFocus={() => setPreviewStepIndex(i)}
-                      />
-
-                      {/* Clickable Variable Token Chips */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] text-muted-foreground mr-1">Insert:</span>
-                        {["customer_name", "quote_link", "sp_name"].map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              insertToken(
-                                `quote_${i}`,
-                                v,
-                                (tVal) =>
-                                  setSteps((prev) =>
-                                    prev.map((s, j) => (j === i ? { ...s, template: tVal } : s)),
-                                  ),
-                                step.template,
-                              )
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          >
-                            + {`{${v}}`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Add Step Action */}
-                  <div className="pt-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isMasterEnabled || steps.length >= MAX_STEPS}
-                      onClick={() => {
-                        const nextStep = {
-                          day: (steps[steps.length - 1]?.day ?? 0) + 4,
-                          template: steps[steps.length - 1]?.template ?? "",
-                        }
-                        setSteps((prev) => [...prev, nextStep])
-                        setPreviewStepIndex(steps.length)
-                      }}
-                      className="text-xs h-8"
-                    >
-                      <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                      Add Step ({steps.length}/{MAX_STEPS})
-                    </Button>
-                  </div>
-
-                  {/* Auto-Stop Terminal Milestone */}
-                  <div className="relative rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2.5">
-                    <span className="absolute -left-[35px] top-3 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-emerald-500 text-emerald-600 shadow-2xs">
-                      <CheckCircle2Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <ShieldCheckIcon className="h-3.5 w-3.5" /> Auto-Stop Condition
-                      </div>
-                      <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                        {t("cadenceStops")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Timeline Rail: BOOKING SEQUENCE ── */}
-              {activeSequence === "booking" && (
-                <div className="relative pl-7 before:absolute before:left-3 before:top-2 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/40 before:via-border before:to-emerald-500/40 space-y-6">
-                  {bookingSteps.map((step, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "group relative rounded-xl border p-4 transition-all",
-                        previewStepIndex === i
-                          ? "border-primary/50 bg-primary/5 shadow-2xs ring-1 ring-primary/10"
-                          : "bg-background hover:border-slate-300 dark:hover:border-slate-700",
-                      )}
-                      onClick={() => setPreviewStepIndex(i)}
-                    >
-                      {/* Timeline Step Dot */}
-                      <span className="absolute -left-[35px] top-4.5 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-primary text-[11px] font-bold text-primary shadow-2xs">
-                        0{i + 1}
-                      </span>
-
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">Step {i + 1}</span>
-                          <span className="text-muted-foreground/50">·</span>
-                          <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded-md border text-xs text-muted-foreground">
-                            <ClockIcon className="h-3 w-3" />
-                            <span>Wait</span>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="168"
-                              className="h-6 w-16 bg-background text-xs px-1 text-center font-medium"
-                              value={step.delay_hours}
-                              disabled={!isMasterEnabled || !settings.booking_followup_enabled}
-                              onChange={(e) => {
-                                const delay_hours = Math.max(1, parseInt(e.target.value) || 0)
-                                setBookingSteps((prev) =>
-                                  prev.map((s, j) => (j === i ? { ...s, delay_hours } : s)),
-                                )
-                              }}
-                            />
-                            <span>hours after link</span>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors opacity-70 group-hover:opacity-100"
-                          disabled={!isMasterEnabled || !settings.booking_followup_enabled || bookingSteps.length <= 1}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setBookingSteps((prev) => prev.filter((_, j) => j !== i))
-                            if (previewStepIndex >= i && previewStepIndex > 0) {
-                              setPreviewStepIndex(previewStepIndex - 1)
-                            }
-                          }}
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      <Textarea
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`booking_${i}`, el)
-                          else textareaRefs.current.delete(`booking_${i}`)
-                        }}
-                        rows={2}
-                        className="bg-background text-xs leading-relaxed resize-none font-normal"
-                        value={step.template}
-                        disabled={!isMasterEnabled || !settings.booking_followup_enabled}
-                        placeholder={t("bookingTemplatePlaceholder")}
-                        onChange={(e) => {
-                          const template = e.target.value
-                          setBookingSteps((prev) =>
-                            prev.map((s, j) => (j === i ? { ...s, template } : s)),
-                          )
-                        }}
-                        onFocus={() => setPreviewStepIndex(i)}
-                      />
-
-                      {/* Clickable Variable Token Chips */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] text-muted-foreground mr-1">Insert:</span>
-                        {["first_name", "booking_link", "business_name"].map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              insertToken(
-                                `booking_${i}`,
-                                v,
-                                (tVal) =>
-                                  setBookingSteps((prev) =>
-                                    prev.map((s, j) => (j === i ? { ...s, template: tVal } : s)),
-                                  ),
-                                step.template,
-                              )
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          >
-                            + {`{${v}}`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Add Step Action */}
-                  <div className="pt-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isMasterEnabled || !settings.booking_followup_enabled || bookingSteps.length >= MAX_STEPS}
-                      onClick={() => {
-                        const nextStep = {
-                          delay_hours: (bookingSteps[bookingSteps.length - 1]?.delay_hours ?? 1) + 24,
-                          template: bookingSteps[bookingSteps.length - 1]?.template ?? "",
-                        }
-                        setBookingSteps((prev) => [...prev, nextStep])
-                        setPreviewStepIndex(bookingSteps.length)
-                      }}
-                      className="text-xs h-8"
-                    >
-                      <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                      Add Step ({bookingSteps.length}/{MAX_STEPS})
-                    </Button>
-                  </div>
-
-                  {/* Auto-Stop Terminal Milestone */}
-                  <div className="relative rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2.5">
-                    <span className="absolute -left-[35px] top-3 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-emerald-500 text-emerald-600 shadow-2xs">
-                      <CheckCircle2Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <ShieldCheckIcon className="h-3.5 w-3.5" /> Auto-Stop Condition
-                      </div>
-                      <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                        {t("bookingCadenceStops")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Timeline Rail: APPOINTMENT REMINDERS ── */}
-              {activeSequence === "reminders" && (
-                <div className="relative pl-7 before:absolute before:left-3 before:top-2 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/40 before:via-border before:to-emerald-500/40 space-y-6">
-                  {/* Step 1: 1-Day Reminder */}
-                  <div
-                    className={cn(
-                      "relative rounded-xl border p-4 transition-all",
-                      previewStepIndex === 0
-                        ? "border-primary/50 bg-primary/5 shadow-2xs ring-1 ring-primary/10"
-                        : "bg-background hover:border-slate-300 dark:hover:border-slate-700",
-                    )}
-                    onClick={() => setPreviewStepIndex(0)}
-                  >
-                    <span className="absolute -left-[35px] top-4.5 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-primary text-[11px] font-bold text-primary shadow-2xs">
-                      01
-                    </span>
-
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-foreground">
-                          {t("template1day")}
-                        </span>
-                        <span className="text-muted-foreground/50">·</span>
-                        <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded-md border text-xs text-muted-foreground">
-                          <ClockIcon className="h-3 w-3" />
-                          <Input
-                            type="number"
-                            min="0"
-                            max="30"
-                            className="h-6 w-14 bg-background text-xs px-1 text-center font-medium"
-                            value={settings.followup_days_before_appointment}
-                            onChange={(e) =>
-                              update(
-                                "followup_days_before_appointment",
-                                parseInt(e.target.value) || 0,
-                              )
-                            }
-                            disabled={!isMasterEnabled}
-                          />
-                          <span>days before</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Textarea
-                      ref={(el) => {
-                        if (el) textareaRefs.current.set("remind_1day", el)
-                        else textareaRefs.current.delete("remind_1day")
-                      }}
-                      rows={2}
-                      className="bg-background text-xs leading-relaxed resize-none font-normal"
-                      value={settings.reminder_1day_template ?? ""}
-                      onChange={(e) =>
-                        update("reminder_1day_template", e.target.value)
-                      }
-                      disabled={!isMasterEnabled}
-                      placeholder={t("template1dayPlaceholder")}
-                      onFocus={() => setPreviewStepIndex(0)}
-                    />
-
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground mr-1">Insert:</span>
-                      {["customer_name", "time", "date", "datetime", "sp_name"].map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            insertToken(
-                              "remind_1day",
-                              v,
-                              (tVal) => update("reminder_1day_template", tVal),
-                              settings.reminder_1day_template ?? "",
-                            )
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        >
-                          + {`{${v}}`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Step 2: 1-Hour Reminder */}
-                  <div
-                    className={cn(
-                      "relative rounded-xl border p-4 transition-all",
-                      previewStepIndex === 1
-                        ? "border-primary/50 bg-primary/5 shadow-2xs ring-1 ring-primary/10"
-                        : "bg-background hover:border-slate-300 dark:hover:border-slate-700",
-                    )}
-                    onClick={() => setPreviewStepIndex(1)}
-                  >
-                    <span className="absolute -left-[35px] top-4.5 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-primary text-[11px] font-bold text-primary shadow-2xs">
-                      02
-                    </span>
-
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-foreground">
-                          {t("template1hour")}
-                        </span>
-                        <span className="text-muted-foreground/50">·</span>
-                        <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded-md border text-xs text-muted-foreground">
-                          <ClockIcon className="h-3 w-3" />
-                          <Input
-                            type="number"
-                            min="0"
-                            max="72"
-                            className="h-6 w-14 bg-background text-xs px-1 text-center font-medium"
-                            value={settings.followup_hours_before_appointment}
-                            onChange={(e) =>
-                              update(
-                                "followup_hours_before_appointment",
-                                parseInt(e.target.value) || 0,
-                              )
-                            }
-                            disabled={!isMasterEnabled}
-                          />
-                          <span>hours before</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Textarea
-                      ref={(el) => {
-                        if (el) textareaRefs.current.set("remind_1hour", el)
-                        else textareaRefs.current.delete("remind_1hour")
-                      }}
-                      rows={2}
-                      className="bg-background text-xs leading-relaxed resize-none font-normal"
-                      value={settings.reminder_1hour_template ?? ""}
-                      onChange={(e) =>
-                        update("reminder_1hour_template", e.target.value)
-                      }
-                      disabled={!isMasterEnabled}
-                      placeholder={t("template1hourPlaceholder")}
-                      onFocus={() => setPreviewStepIndex(1)}
-                    />
-
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground mr-1">Insert:</span>
-                      {["customer_name", "time", "sp_name"].map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            insertToken(
-                              "remind_1hour",
-                              v,
-                              (tVal) => update("reminder_1hour_template", tVal),
-                              settings.reminder_1hour_template ?? "",
-                            )
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        >
-                          + {`{${v}}`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Terminal Milestone */}
-                  <div className="relative rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2.5">
-                    <span className="absolute -left-[35px] top-3 flex h-6 w-6 items-center justify-center rounded-full bg-background border-2 border-emerald-500 text-emerald-600 shadow-2xs">
-                      <CheckCircle2Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <ShieldCheckIcon className="h-3.5 w-3.5" /> Appointment Completion
-                      </div>
-                      <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                        Reminders stop automatically once the appointment starts or if the client cancels/reschedules.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* Delivery & Quiet Hours */}
+        <div className="border border-border rounded-xl p-5 bg-card space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Delivery Hours
+            </h3>
+            <span className="text-xs text-muted-foreground">{tzLabel}</span>
           </div>
 
-          {/* Right Column: Live Mobile SMS Preview Simulator */}
-          <div className="lg:col-span-5 xl:col-span-4">
-            <div className="sticky top-6 space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <SmartphoneIcon className="h-3.5 w-3.5 text-primary" />
-                  Live SMS Simulator
-                </div>
-                <Badge variant="outline" className="text-[10px] font-normal py-0">
-                  {activePreviewData.title}
-                </Badge>
-              </div>
-
-              {/* iPhone frame */}
-              <div className="w-full max-w-sm mx-auto rounded-[38px] border-[6px] border-slate-800 dark:border-slate-700 bg-slate-900 shadow-xl overflow-hidden text-slate-100 flex flex-col">
-                {/* Speaker notch */}
-                <div className="h-6 w-full flex items-center justify-center pt-1 bg-slate-900">
-                  <div className="h-4 w-28 bg-slate-950 rounded-full flex items-center justify-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-slate-900" />
-                    <div className="h-1.5 w-7 rounded-full bg-slate-800" />
-                  </div>
-                </div>
-
-                {/* Status Bar */}
-                <div className="flex items-center justify-between px-6 text-[10px] font-medium text-slate-400">
-                  <span>9:41</span>
-                  <div className="flex items-center gap-1.5">
-                    <span>5G</span>
-                    <div className="h-2.5 w-4 border border-slate-400 rounded-xs flex items-center p-0.5">
-                      <div className="h-full w-2.5 bg-slate-400 rounded-2xs" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recipient Header */}
-                <div className="border-b border-slate-800 bg-slate-900/90 px-4 py-2.5 flex flex-col items-center gap-1">
-                  <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 flex items-center justify-center text-white font-semibold text-xs shadow-xs">
-                    CO
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-slate-200">ContractorOps AI</div>
-                    <div className="text-[10px] text-slate-400">Business SMS</div>
-                  </div>
-                </div>
-
-                {/* Message Bubble Screen */}
-                <div className="flex-1 bg-slate-950 p-4 space-y-3 min-h-[260px] flex flex-col justify-end">
-                  <div className="text-center text-[10px] text-slate-500 font-medium">
-                    {activePreviewData.timing ? `Scheduled: ${activePreviewData.timing}` : "Automated Follow-up"}
-                  </div>
-
-                  {/* Incoming text bubble */}
-                  <div className="flex flex-col items-start gap-1 max-w-[85%]">
-                    <div className="bg-slate-800 text-slate-100 text-xs px-3.5 py-2.5 rounded-2xl rounded-tl-xs leading-relaxed shadow-xs whitespace-pre-wrap">
-                      {interpolatePreview(activePreviewData.text) || (
-                        <span className="italic text-slate-400">
-                          Type a template message in the editor to see it simulated here.
-                        </span>
+          <div className="space-y-4">
+            {/* Sending Days */}
+            <div>
+              <Label className="text-xs text-muted-foreground block mb-2 font-normal">
+                Active Sending Days
+              </Label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const active = settings.send_days.includes(i)
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={!isMasterEnabled}
+                      onClick={() => {
+                        const next = active
+                          ? settings.send_days.filter((d) => d !== i)
+                          : [...settings.send_days, i].sort((a, b) => a - b)
+                        if (next.length > 0) update("send_days", next)
+                      }}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-xs font-medium transition-colors border",
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/40 text-muted-foreground border-border hover:bg-muted",
                       )}
-                    </div>
-                    <span className="text-[9px] text-slate-500 pl-1">Delivered via Twilio</span>
-                  </div>
-
-                  {/* Simulated reply interaction preview */}
-                  <div className="flex flex-col items-end gap-1 max-w-[85%] self-end pt-1">
-                    <div className="bg-primary text-primary-foreground text-xs px-3 py-1.5 rounded-2xl rounded-tr-xs shadow-2xs opacity-80">
-                      Sounds good, checking it now!
-                    </div>
-                    <span className="text-[9px] text-emerald-400 pr-1 flex items-center gap-1">
-                      <CheckCircle2Icon className="h-2.5 w-2.5" /> Auto-pauses cadence
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bottom Home Indicator */}
-                <div className="h-5 bg-slate-900 flex items-center justify-center">
-                  <div className="h-1 w-28 bg-slate-600 rounded-full" />
-                </div>
-              </div>
-
-              <p className="text-center text-[11px] text-muted-foreground px-4">
-                Interpolates recipient tokens like <code className="text-[10px]">{`{first_name}`}</code> and <code className="text-[10px]">{`{link}`}</code> into real homeowner previews.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB 2: DELIVERY & QUIET HOURS ── */}
-      {mainSection === "schedule" && (
-        <div className="space-y-6 max-w-4xl">
-          {/* Sending Window Card */}
-          <div className="rounded-2xl border bg-card p-6 shadow-2xs space-y-6">
-            <div className="flex items-center gap-2.5 border-b pb-4">
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                <MoonIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-foreground">{t("sendWindow")}</h3>
-                <p className="text-xs text-muted-foreground">{t("sendWindowDesc")}</p>
+                    >
+                      {weekdayShort(i, locale)}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-foreground">{t("sendHour")}</Label>
+            {/* Quiet Hours */}
+            <div className="space-y-2 pt-1 border-t border-border">
+              <Label className="text-xs text-muted-foreground block font-normal">
+                Quiet Hours (Messages held until window opens)
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="time"
+                  value={settings.quiet_hours_start}
+                  disabled={!isMasterEnabled}
+                  onChange={(e) => update("quiet_hours_start", e.target.value)}
+                  className="w-28 h-8 text-xs font-medium"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <Input
+                  type="time"
+                  value={settings.quiet_hours_end}
+                  disabled={!isMasterEnabled}
+                  onChange={(e) => update("quiet_hours_end", e.target.value)}
+                  className="w-28 h-8 text-xs font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Default Send Hour */}
+            <div className="space-y-1.5 pt-1 border-t border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground font-normal">
+                  Standard Daily Send Hour
+                </Label>
                 <Select
                   value={String(settings.default_send_hour)}
-                  onValueChange={(v) => update("default_send_hour", parseInt(v))}
+                  disabled={!isMasterEnabled}
+                  onValueChange={(val) => update("default_send_hour", Number(val))}
                 >
-                  <SelectTrigger className="h-9 bg-background">
+                  <SelectTrigger className="w-28 h-8 text-xs font-medium">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {HOURS.map((h) => (
-                      <SelectItem key={h} value={String(h)}>
+                      <SelectItem key={h} value={String(h)} className="text-xs">
                         {hourLabel(h, locale)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">
-                  Default hour when multi-day follow-up SMS are queued and dispatched.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-foreground">{t("timezone")}</Label>
-                <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-xs font-medium text-foreground">
-                  {tzLabel}
-                </div>
-                <p className="text-[11px] text-muted-foreground">{t("timezoneHint")}</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="quiet-start" className="text-xs font-semibold text-foreground">
-                  {t("quietFrom")}
-                </Label>
-                <Input
-                  id="quiet-start"
-                  type="time"
-                  className="h-9 bg-background text-xs"
-                  value={settings.quiet_hours_start}
-                  onChange={(e) => update("quiet_hours_start", e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">Evening cutoff: texts after this are held until morning.</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="quiet-end" className="text-xs font-semibold text-foreground">
-                  {t("quietTo")}
-                </Label>
-                <Input
-                  id="quiet-end"
-                  type="time"
-                  className="h-9 bg-background text-xs"
-                  value={settings.quiet_hours_end}
-                  onChange={(e) => update("quiet_hours_end", e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">Morning release: held follow-ups resume sending.</p>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Visual 7-day pill strip */}
-            <div className="space-y-2.5 pt-2 border-t">
-              <Label className="text-xs font-semibold text-foreground">{t("sendDays")}</Label>
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: 7 }, (_, i) => i).map((d) => {
-                  const isSelected = settings.send_days?.includes(d)
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        const cur = new Set(settings.send_days ?? [])
-                        if (cur.has(d)) {
-                          if (cur.size === 1) return
-                          cur.delete(d)
-                        } else cur.add(d)
-                        update("send_days", Array.from(cur).sort((a, b) => a - b))
-                      }}
-                      className={cn(
-                        "h-9 min-w-12 rounded-xl border px-3 text-xs font-semibold transition-all shadow-2xs",
-                        isSelected
-                          ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                          : "bg-background text-muted-foreground hover:bg-muted/50",
-                      )}
-                    >
-                      {weekdayShort(d, locale)}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="text-[11px] text-muted-foreground">{t("sendDaysHint")}</p>
-            </div>
+        {/* Alerts & Actions */}
+        <div className="border border-border rounded-xl p-5 bg-card space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Alerts & Actions
+            </h3>
+          </div>
 
-            {/* Stop on reply switch */}
-            <div className="flex items-center justify-between gap-3 pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-semibold text-foreground">{t("stopOnReply")}</Label>
-                <p className="text-xs text-muted-foreground">{t("stopOnReplyDesc")}</p>
+          <div className="space-y-3.5 divide-y divide-border text-xs">
+            {/* Action Queue Alert Card */}
+            <div className="flex items-center justify-between pt-1 gap-3">
+              <div>
+                <span className="font-medium block">Action Queue Alert Card</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Prompt you to call if intake sequence finishes without form submission
+                </span>
               </div>
               <Switch
-                checked={settings.stop_on_reply}
-                onCheckedChange={(v) => update("stop_on_reply", v)}
+                checked={actionQueueAlert && isMasterEnabled}
+                disabled={!isMasterEnabled}
+                onCheckedChange={(checked) => setActionQueueAlert(checked)}
+                aria-label="Toggle Action Queue Alert"
+              />
+            </div>
+
+            {/* Stop & Notify on Reply */}
+            <div className="flex items-center justify-between pt-3 gap-3">
+              <div>
+                <span className="font-medium block">Notify on Customer Reply</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Immediate notification when a recipient replies to any follow-up
+                </span>
+              </div>
+              <Switch
+                checked={settings.notify_owner_on_reply && isMasterEnabled}
+                disabled={!isMasterEnabled}
+                onCheckedChange={(checked) => update("notify_owner_on_reply", checked)}
+                aria-label="Toggle Notify on Reply"
+              />
+            </div>
+
+            {/* Alert on Failure */}
+            <div className="flex items-center justify-between pt-3 gap-3">
+              <div>
+                <span className="font-medium block">Alert on Delivery Failure</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Receive an alert if an SMS fails carrier delivery
+                </span>
+              </div>
+              <Switch
+                checked={settings.notify_owner_on_failure && isMasterEnabled}
+                disabled={!isMasterEnabled}
+                onCheckedChange={(checked) => update("notify_owner_on_failure", checked)}
+                aria-label="Toggle Alert on Failure"
+              />
+            </div>
+
+            {/* Daily Digest */}
+            <div className="flex items-center justify-between pt-3 gap-3">
+              <div>
+                <span className="font-medium block">Daily Morning Digest</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Summary at {hourLabel(settings.digest_hour || 8, locale)} of pending responses and sent follow-ups
+                </span>
+              </div>
+              <Switch
+                checked={settings.daily_digest_enabled && isMasterEnabled}
+                disabled={!isMasterEnabled}
+                onCheckedChange={(checked) => update("daily_digest_enabled", checked)}
+                aria-label="Toggle Daily Digest"
               />
             </div>
           </div>
         </div>
-      )}
 
-      {/* ── TAB 3: OWNER ALERTS & DIGEST ── */}
-      {mainSection === "notifications" && (
-        <div className="space-y-6 max-w-4xl">
-          <div className="rounded-2xl border bg-card p-6 shadow-2xs space-y-5">
-            <div className="flex items-center gap-2.5 border-b pb-4">
-              <div className="h-9 w-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                <BellIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-foreground">{t("notifications")}</h3>
-                <p className="text-xs text-muted-foreground">{t("notificationsDesc")}</p>
-              </div>
-            </div>
-
-            <div className="divide-y">
-              {(
-                [
-                  ["notify_owner_on_failure", "notifyFailure", "notifyFailureDesc"],
-                  ["notify_owner_on_reply", "notifyReply", "notifyReplyDesc"],
-                  ["notify_owner_on_send", "notifySend", "notifySendDesc"],
-                ] as const
-              ).map(([key, label, desc]) => (
-                <div key={key} className="flex items-center justify-between gap-4 py-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium text-foreground">{t(label)}</Label>
-                    <p className="text-xs text-muted-foreground">{t(desc)}</p>
-                  </div>
-                  <Switch
-                    checked={Boolean(settings[key])}
-                    onCheckedChange={(v) => update(key, v)}
-                  />
-                </div>
-              ))}
-
-              {/* Daily Digest */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-medium text-foreground">{t("dailyDigest")}</Label>
-                  <p className="text-xs text-muted-foreground">{t("dailyDigestDesc")}</p>
-                </div>
-                <div className="flex items-center gap-2.5 self-end sm:self-center">
-                  {settings.daily_digest_enabled && (
-                    <Select
-                      value={String(settings.digest_hour)}
-                      onValueChange={(v) => update("digest_hour", parseInt(v))}
-                    >
-                      <SelectTrigger className="h-8 w-[110px] text-xs bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {HOURS.map((h) => (
-                          <SelectItem key={h} value={String(h)}>
-                            {hourLabel(h, locale)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <Switch
-                    checked={settings.daily_digest_enabled}
-                    onCheckedChange={(v) => update("daily_digest_enabled", v)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
