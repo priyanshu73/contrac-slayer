@@ -274,30 +274,67 @@ export function Navbar() {
 
   const pageTitle = getPageTitle();
 
-  const uniqueLinksByHref = <T extends { href: string }>(
-    links: Array<T | undefined>,
-  ) => {
-    const seen = new Set<string>();
-    return links.filter((link): link is T => {
-      if (!link || seen.has(link.href)) return false;
-      seen.add(link.href);
-      return true;
-    });
-  };
+  const renderMobileLink = (link: {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+  }) => {
+    let isActive = false;
+    if (link.href === `/${locale}/dashboard`) {
+      isActive = pathname === link.href;
+    } else {
+      isActive =
+        pathname === link.href || Boolean(pathname?.startsWith(`${link.href}/`));
+    }
+    const Icon = link.icon;
+    const count = counts[link.href];
+    const lateCount =
+      link.href === `/${locale}/invoices` ? navCounts?.invoices_late : undefined;
 
-  const mobilePrimaryLinks = uniqueLinksByHref([
-    allNavLinks.find((link) => link.href === `/${locale}/dashboard`),
-    allNavLinks.find((link) => link.href === `/${locale}/leads`),
-    allNavLinks.find((link) => link.href === `/${locale}/quotes`),
-    allNavLinks.find((link) => link.href === `/${locale}/clients`),
-    allNavLinks.find((link) => link.href === `/${locale}/projects`),
-    allNavLinks.find((link) => link.href === `/${locale}/tasks`),
-    allNavLinks.find((link) => link.href === `/${locale}/calendar`),
-    allNavLinks.find((link) => link.href === `/${locale}/crew`),
-  ]);
-  const mobileMenuLinks = uniqueLinksByHref([
-    ...mobilePrimaryLinks,
-  ]);
+    return (
+      <Link
+        key={link.href}
+        href={link.href}
+        onClick={() => setMobileMenuOpen(false)}
+        className={`group flex min-h-[46px] items-center gap-3 rounded-2xl px-3 py-2 text-left transition-all active:scale-[0.99] ${
+          isActive
+            ? "bg-white text-neutral-950 shadow-[0_10px_24px_rgba(0,0,0,0.25)]"
+            : "text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15"
+        }`}
+        title={link.label}
+      >
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
+            isActive
+              ? "bg-neutral-950 text-white"
+              : "bg-white/10 text-white/75 group-hover:bg-white/15 group-hover:text-white"
+          }`}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+        </span>
+        <span
+          className={`min-w-0 flex-1 truncate text-[13.5px] leading-tight tracking-[0] ${
+            isActive ? "font-bold" : "font-semibold"
+          }`}
+        >
+          {link.label}
+        </span>
+        {lateCount ? (
+          <span className="shrink-0 rounded bg-rose-500/25 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-rose-300 border border-rose-500/30">
+            {lateCount} late
+          </span>
+        ) : count != null && count > 0 ? (
+          <span
+            className={`shrink-0 font-mono text-[11px] tabular-nums ${
+              isActive ? "text-neutral-900/70 font-bold" : "text-white/50"
+            }`}
+          >
+            {count}
+          </span>
+        ) : null}
+      </Link>
+    );
+  };
 
   if (loading) {
     return (
@@ -408,50 +445,41 @@ export function Navbar() {
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
-            {mobileMenuLinks.map((link) => {
-                const isActive =
-                  pathname === link.href ||
-                  (link.href !== `/${locale}/dashboard` &&
-                    Boolean(pathname?.startsWith(`${link.href}/`)));
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`group flex min-h-[52px] items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all active:scale-[0.99] ${
-                      isActive
-                        ? "bg-[rgba(255,255,255,0.96)] text-neutral-950 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
-                        : "text-white/78 hover:bg-white/8 hover:text-white active:bg-white/12"
-                    }`}
-                    title={link.label}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                        isActive
-                          ? "bg-black text-white"
-                          : "bg-white/8 text-white/72 group-hover:bg-white/12 group-hover:text-white"
-                      }`}
-                    >
-                      <Icon className="h-[18px] w-[18px] shrink-0" />
-                    </span>
-                    <span className={`min-w-0 truncate text-[14px] leading-tight tracking-[0] ${isActive ? "font-bold" : "font-semibold"}`}>
-                      {link.label}
-                    </span>
-                  </Link>
-                );
-              })}
+          <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3.5">
+            {renderMobileLink(dashboardLink)}
+
+            {navGroups.map((group) => (
+              <div key={group.id} className="pt-2.5 mt-1 border-t border-white/10 space-y-1">
+                <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/40">
+                  {group.label}
+                </div>
+                {group.links.map(renderMobileLink)}
+              </div>
+            ))}
           </div>
-          <div className="mt-auto border-t border-white/10 bg-white/[0.03] px-3 py-3">
+          <div className="mt-auto shrink-0 border-t border-white/10 bg-black/40 px-3 py-2.5 space-y-1">
+            {companyName && (
+              <div className="px-3 py-1">
+                <p className="truncate text-xs font-bold text-white/90">
+                  {companyName}
+                </p>
+                {user.contractor_profile?.company_name && user.email && (
+                  <p className="mt-0.5 truncate text-[11px] font-medium text-white/50">
+                    {user.email}
+                  </p>
+                )}
+              </div>
+            )}
+            {renderMobileLink(settingsLink)}
             <button
               type="button"
               onClick={logout}
-              className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-rose-200 transition-all hover:bg-rose-500/10 hover:text-rose-100 active:scale-[0.99] active:bg-rose-500/15"
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-rose-200 transition-all hover:bg-rose-500/10 hover:text-rose-100 active:scale-[0.99] active:bg-rose-500/15"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/12 text-rose-200">
-                <LogOut className="h-[18px] w-[18px] shrink-0" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/12 text-rose-200">
+                <LogOut className="h-[17px] w-[17px] shrink-0" />
               </span>
-              <span className="min-w-0 truncate text-[14px] font-bold leading-tight tracking-[0]">
+              <span className="min-w-0 truncate text-[13.5px] font-bold leading-tight tracking-[0]">
                 {tAuth("logout")}
               </span>
             </button>

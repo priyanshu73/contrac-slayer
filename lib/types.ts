@@ -1091,6 +1091,10 @@ export interface Invoice {
   client_id: number
   job_id?: number
   invoice_number: string
+  title?: string | null
+  client_name?: string | null
+  client_email?: string | null
+  client_phone?: string | null
   status: InvoiceStatus
   issue_date: string
   due_date: string

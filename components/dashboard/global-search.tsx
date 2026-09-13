@@ -303,7 +303,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           placeholder="Search quotes, invoices, projects…"
           className="min-w-0 flex-1 bg-transparent text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
-        {query ? (
+        {query && (
           <button
             aria-label="Clear search"
             onClick={() => {
@@ -314,10 +314,6 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           >
             <X className="h-3.5 w-3.5" />
           </button>
-        ) : (
-          <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] text-slate-400">
-            ⌘K
-          </kbd>
         )}
         <button
           aria-label="Search filters"

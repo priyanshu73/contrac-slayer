@@ -153,11 +153,28 @@ export function DashboardWorkspaceDrawer({
     let cancelled = false
     setLoadingInvoices(true)
     api
-      .getInvoices(undefined, 0, 4)
+      .getInvoices(undefined, 0, 10)
       .then((res: any) => {
         if (cancelled) return
         const items: Invoice[] = res?.items ?? (Array.isArray(res) ? res : [])
-        setInvoices(items.slice(0, 4))
+        const sorted = [...items].sort((a, b) => {
+          const aLate =
+            a.status === "OVERDUE" ||
+            ((a.balance_due ?? 0) > 0 && a.due_date && new Date(a.due_date).getTime() < Date.now())
+          const bLate =
+            b.status === "OVERDUE" ||
+            ((b.balance_due ?? 0) > 0 && b.due_date && new Date(b.due_date).getTime() < Date.now())
+          if (aLate && !bLate) return -1
+          if (!aLate && bLate) return 1
+
+          const aUnpaid = (a.balance_due ?? 0) > 0
+          const bUnpaid = (b.balance_due ?? 0) > 0
+          if (aUnpaid && !bUnpaid) return -1
+          if (!aUnpaid && bUnpaid) return 1
+
+          return 0
+        })
+        setInvoices(sorted.slice(0, 4))
       })
       .catch(() => {
         if (!cancelled) setInvoices([])
@@ -351,7 +368,7 @@ export function DashboardWorkspaceDrawer({
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                        <span className="truncate">{quote.client?.name || "No client"}</span>
+                        <span className="truncate">{(quote as any).client_name || quote.client?.name || "No client"}</span>
                         <span className="font-mono font-bold text-slate-800">
                           {currency(quote.total_amount)}
                         </span>
@@ -396,7 +413,44 @@ export function DashboardWorkspaceDrawer({
                 invoices.map((inv) => {
                   const badge = getInvoiceStatusBadge(inv)
                   const number = inv.invoice_number || `INV-${inv.id}`
-                  const balance = inv.balance_due ?? inv.total_amount ?? 0
+                  const clientName =
+                    inv.client_name?.trim() ||
+                    inv.client?.name?.trim() ||
+                    (inv.title && inv.title !== number ? inv.title.trim() : "") ||
+                    (inv.client_id ? `Client #${inv.client_id}` : "Client")
+
+                  const isPaid = badge.label === "Paid"
+                  const isOverdue = badge.label === "Overdue"
+
+                  // Show the full invoice amount for paid invoices, or the balance due if unpaid
+                  const amount = isPaid
+                    ? (inv.total_amount || inv.amount_paid || 0)
+                    : (inv.balance_due && inv.balance_due > 0 ? inv.balance_due : (inv.total_amount || 0))
+
+                  let subtitle = inv.title && inv.title !== clientName ? inv.title : ""
+                  if (isOverdue && inv.due_date) {
+                    const d = new Date(inv.due_date)
+                    const dueStr = !Number.isNaN(d.getTime())
+                      ? `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      : ""
+                    subtitle = subtitle ? `${subtitle} · ${dueStr}` : dueStr
+                  } else if (isPaid && inv.issue_date) {
+                    const d = new Date(inv.issue_date)
+                    const dateStr = !Number.isNaN(d.getTime())
+                      ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      : ""
+                    subtitle = subtitle ? `${subtitle} · ${dateStr}` : `Paid · ${dateStr}`
+                  } else if (inv.due_date) {
+                    const d = new Date(inv.due_date)
+                    const dueStr = !Number.isNaN(d.getTime())
+                      ? `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      : ""
+                    subtitle = subtitle ? `${subtitle} · ${dueStr}` : dueStr
+                  }
+                  if (!subtitle) {
+                    subtitle = isPaid ? "Paid in full" : "Invoice"
+                  }
+
                   return (
                     <Link
                       key={inv.id}
@@ -404,7 +458,14 @@ export function DashboardWorkspaceDrawer({
                       className="block rounded-lg border border-slate-100 p-2.5 transition-colors hover:border-slate-200 hover:bg-slate-50/60"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xs font-bold text-slate-900">{number}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate text-xs font-bold text-slate-900">
+                            {clientName}
+                          </span>
+                          <span className="shrink-0 font-mono text-[10px] text-slate-400">
+                            {number}
+                          </span>
+                        </div>
                         <span
                           className={cn(
                             "shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold",
@@ -415,14 +476,14 @@ export function DashboardWorkspaceDrawer({
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                        <span className="truncate">{inv.client?.name || "Invoice"}</span>
+                        <span className="truncate">{subtitle}</span>
                         <span
                           className={cn(
                             "font-mono font-bold",
-                            badge.label === "Overdue" ? "text-rose-600" : "text-slate-800"
+                            isOverdue ? "text-rose-600" : isPaid ? "text-slate-800" : "text-slate-900"
                           )}
                         >
-                          {currency(balance)}
+                          {currency(amount)}
                         </span>
                       </div>
                     </Link>
