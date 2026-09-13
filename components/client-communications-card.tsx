@@ -34,7 +34,7 @@ import type { ScheduledFollowup, FollowupType, FollowupStatus, FollowupEvent } f
 import { api } from "@/lib/api"
 import { ClientSendSmsDialog } from "@/components/client-send-sms-dialog"
 import { ClientScheduleFollowupDialog } from "@/components/client-schedule-followup-dialog"
-import { SourceBadge, DeliveryBadge, StepLabel, useCancelReasonLabel } from "@/components/followup-badges"
+import { SourceBadge, DeliveryBadge, StepLabel, useCancelReasonLabel } from "@/components/scheduled-followups-list"
 
 interface ClientCommunicationsCardProps {
   clientId: number
