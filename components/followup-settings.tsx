@@ -34,6 +34,8 @@ import {
   PlusIcon,
   Trash2Icon,
   ReplyIcon,
+  ClipboardListIcon,
+  CalendarCheckIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -42,6 +44,8 @@ import type {
   FollowupSettings as FollowupSettingsType,
   FollowupSettingsUpdate,
   QuoteStep,
+  IntakeStep,
+  BookingStep,
 } from "@/lib/types/followup"
 import { api } from "@/lib/api"
 
@@ -70,6 +74,24 @@ function initialSteps(s: FollowupSettingsType): QuoteStep[] {
   return [{ day: s.followup_days_after_quote || 3, template: s.quote_followup_template || "" }]
 }
 
+function initialIntakeSteps(s: FollowupSettingsType): IntakeStep[] {
+  if (Array.isArray(s.intake_sequence_json) && s.intake_sequence_json.length) return s.intake_sequence_json
+  if (Array.isArray(s.intake_steps) && s.intake_steps.length) return s.intake_steps
+  return [
+    { delay_minutes: 30, template: "Hi {first_name}, just following up to make sure you got the link to share your project details: {link}" },
+    { delay_minutes: 120, template: "Hi {first_name}, we'd love to help with your project! Whenever you're ready, fill out the details here: {link}" },
+  ]
+}
+
+function initialBookingSteps(s: FollowupSettingsType): BookingStep[] {
+  if (Array.isArray(s.booking_sequence_json) && s.booking_sequence_json.length) return s.booking_sequence_json
+  if (Array.isArray(s.booking_steps) && s.booking_steps.length) return s.booking_steps
+  return [
+    { delay_hours: 1, template: "Hi {first_name}, here is the link to pick a convenient time for your appointment: {booking_link}" },
+    { delay_hours: 24, template: "Hi {first_name}, just checking in to see if you still wanted to schedule: {booking_link}" },
+  ]
+}
+
 export function FollowupSettings({ contractorId: _contractorId }: FollowupSettingsProps) {
   const t = useTranslations("scheduling.settings")
   const locale = useLocale()
@@ -77,6 +99,8 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
   const [defaults, setDefaults] = useState<Partial<FollowupSettingsType>>({})
   const [contractorTz, setContractorTz] = useState<string | null>(null)
   const [steps, setSteps] = useState<QuoteStep[]>([])
+  const [intakeSteps, setIntakeSteps] = useState<IntakeStep[]>([])
+  const [bookingSteps, setBookingSteps] = useState<BookingStep[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [notLinked, setNotLinked] = useState(false)
@@ -92,6 +116,8 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
       setDefaults(data.defaults ?? {})
       setContractorTz(data.contractor_timezone ?? data.settings.timezone ?? null)
       setSteps(initialSteps(data.settings))
+      setIntakeSteps(initialIntakeSteps(data.settings))
+      setBookingSteps(initialBookingSteps(data.settings))
     } catch (error) {
       const message = error instanceof Error ? error.message : ""
       if (/not linked|messaging service|not found/i.test(message)) {
@@ -125,6 +151,30 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
         return
       }
     }
+    if (settings.intake_followup_enabled) {
+      for (let i = 0; i < intakeSteps.length; i++) {
+        if (!intakeSteps[i].template.trim()) {
+          toast({ title: t("error"), description: t("stepTemplateRequired", { step: i + 1 }), variant: "destructive" })
+          return
+        }
+        if (i > 0 && intakeSteps[i].delay_minutes <= intakeSteps[i - 1].delay_minutes) {
+          toast({ title: t("error"), description: t("stepMinutesIncreasing"), variant: "destructive" })
+          return
+        }
+      }
+    }
+    if (settings.booking_followup_enabled) {
+      for (let i = 0; i < bookingSteps.length; i++) {
+        if (!bookingSteps[i].template.trim()) {
+          toast({ title: t("error"), description: t("stepTemplateRequired", { step: i + 1 }), variant: "destructive" })
+          return
+        }
+        if (i > 0 && bookingSteps[i].delay_hours <= bookingSteps[i - 1].delay_hours) {
+          toast({ title: t("error"), description: t("stepHoursIncreasing"), variant: "destructive" })
+          return
+        }
+      }
+    }
     setIsSaving(true)
     try {
       const payload: FollowupSettingsUpdate = {
@@ -137,6 +187,10 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
         // keep the legacy single-step fields in sync for older readers
         followup_days_after_quote: steps[0]?.day ?? settings.followup_days_after_quote ?? null,
         quote_followup_template: steps[0]?.template ?? settings.quote_followup_template,
+        intake_followup_enabled: settings.intake_followup_enabled,
+        intake_sequence_json: intakeSteps.length ? intakeSteps : null,
+        booking_followup_enabled: settings.booking_followup_enabled,
+        booking_sequence_json: bookingSteps.length ? bookingSteps : null,
         default_send_hour: settings.default_send_hour,
         quiet_hours_start: settings.quiet_hours_start,
         quiet_hours_end: settings.quiet_hours_end,
@@ -151,6 +205,8 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
       const data = await api.updateFollowupSettings(payload)
       setSettings(data.settings)
       setSteps(initialSteps(data.settings))
+      setIntakeSteps(initialIntakeSteps(data.settings))
+      setBookingSteps(initialBookingSteps(data.settings))
       setContractorTz(data.contractor_timezone ?? data.settings.timezone ?? null)
       toast({ title: t("saveSuccessTitle"), description: t("saveSuccess") })
     } catch (error) {
@@ -172,6 +228,16 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
       Array.isArray(defaults.quote_sequence_json) && defaults.quote_sequence_json.length
         ? defaults.quote_sequence_json
         : initialSteps(next),
+    )
+    setIntakeSteps(
+      Array.isArray(defaults.intake_sequence_json) && defaults.intake_sequence_json.length
+        ? defaults.intake_sequence_json
+        : initialIntakeSteps(next),
+    )
+    setBookingSteps(
+      Array.isArray(defaults.booking_sequence_json) && defaults.booking_sequence_json.length
+        ? defaults.booking_sequence_json
+        : initialBookingSteps(next),
     )
   }
 
@@ -233,6 +299,104 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
             to: settings.quiet_hours_end,
           })}
         </p>
+      </Card>
+
+      {/* Intake form follow-ups ("Call & Fill") */}
+      <Card className={cn("gap-0 p-5 transition-opacity", (!enabled || !settings.intake_followup_enabled) && "opacity-75")}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ClipboardListIcon className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <Label className="text-base font-semibold">{t("intakeFollowup")}</Label>
+              <p className="text-sm text-muted-foreground">{t("intakeFollowupDesc")}</p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.intake_followup_enabled}
+            onCheckedChange={(v) => update("intake_followup_enabled", v)}
+            disabled={!enabled}
+          />
+        </div>
+
+        {settings.intake_followup_enabled && (
+          <div className="mt-4 space-y-3">
+            <div className="text-xs text-muted-foreground">{t("intakeCadenceDesc")}</div>
+            {intakeSteps.map((step, i) => (
+              <div key={i} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {i + 1}
+                    </span>
+                    <Label htmlFor={`intake-delay-${i}`} className="text-sm">{t("minutesAfterCall")}</Label>
+                    <Input
+                      id={`intake-delay-${i}`}
+                      type="number"
+                      min="5"
+                      max="1440"
+                      className="h-8 w-24"
+                      value={step.delay_minutes}
+                      disabled={!enabled || !settings.intake_followup_enabled}
+                      onChange={(e) => {
+                        const delay_minutes = Math.max(1, parseInt(e.target.value) || 0)
+                        setIntakeSteps((prev) => prev.map((s, j) => (j === i ? { ...s, delay_minutes } : s)))
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">min</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    disabled={!enabled || !settings.intake_followup_enabled || intakeSteps.length <= 1}
+                    onClick={() => setIntakeSteps((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label={t("removeStep")}
+                  >
+                    <Trash2Icon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Textarea
+                  rows={2}
+                  className="mt-2"
+                  value={step.template}
+                  disabled={!enabled || !settings.intake_followup_enabled}
+                  placeholder={t("intakeTemplatePlaceholder")}
+                  onChange={(e) => {
+                    const template = e.target.value
+                    setIntakeSteps((prev) => prev.map((s, j) => (j === i ? { ...s, template } : s)))
+                  }}
+                />
+              </div>
+            ))}
+            {variablesHint(["first_name", "link", "business_name"])}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!enabled || !settings.intake_followup_enabled || intakeSteps.length >= MAX_STEPS}
+                onClick={() =>
+                  setIntakeSteps((prev) => [
+                    ...prev,
+                    {
+                      delay_minutes: (prev[prev.length - 1]?.delay_minutes ?? 30) + 60,
+                      template: prev[prev.length - 1]?.template ?? "",
+                    },
+                  ])
+                }
+              >
+                <PlusIcon className="mr-1.5 h-4 w-4" />
+                {t("addStep")}
+              </Button>
+              <span className="text-xs text-muted-foreground">{t("maxSteps", { max: MAX_STEPS })}</span>
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <ReplyIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {t("intakeCadenceStops")}
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Appointment reminders */}
@@ -391,6 +555,104 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
             {t("cadenceStops")}
           </p>
         </div>
+      </Card>
+
+      {/* Booking link follow-ups */}
+      <Card className={cn("gap-0 p-5 transition-opacity", (!enabled || !settings.booking_followup_enabled) && "opacity-75")}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarCheckIcon className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <Label className="text-base font-semibold">{t("bookingFollowup")}</Label>
+              <p className="text-sm text-muted-foreground">{t("bookingFollowupDesc")}</p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.booking_followup_enabled}
+            onCheckedChange={(v) => update("booking_followup_enabled", v)}
+            disabled={!enabled}
+          />
+        </div>
+
+        {settings.booking_followup_enabled && (
+          <div className="mt-4 space-y-3">
+            <div className="text-xs text-muted-foreground">{t("bookingCadenceDesc")}</div>
+            {bookingSteps.map((step, i) => (
+              <div key={i} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {i + 1}
+                    </span>
+                    <Label htmlFor={`booking-delay-${i}`} className="text-sm">{t("hoursAfterLink")}</Label>
+                    <Input
+                      id={`booking-delay-${i}`}
+                      type="number"
+                      min="1"
+                      max="168"
+                      className="h-8 w-24"
+                      value={step.delay_hours}
+                      disabled={!enabled || !settings.booking_followup_enabled}
+                      onChange={(e) => {
+                        const delay_hours = Math.max(1, parseInt(e.target.value) || 0)
+                        setBookingSteps((prev) => prev.map((s, j) => (j === i ? { ...s, delay_hours } : s)))
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">hrs</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    disabled={!enabled || !settings.booking_followup_enabled || bookingSteps.length <= 1}
+                    onClick={() => setBookingSteps((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label={t("removeStep")}
+                  >
+                    <Trash2Icon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Textarea
+                  rows={2}
+                  className="mt-2"
+                  value={step.template}
+                  disabled={!enabled || !settings.booking_followup_enabled}
+                  placeholder={t("bookingTemplatePlaceholder")}
+                  onChange={(e) => {
+                    const template = e.target.value
+                    setBookingSteps((prev) => prev.map((s, j) => (j === i ? { ...s, template } : s)))
+                  }}
+                />
+              </div>
+            ))}
+            {variablesHint(["first_name", "booking_link", "business_name"])}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!enabled || !settings.booking_followup_enabled || bookingSteps.length >= MAX_STEPS}
+                onClick={() =>
+                  setBookingSteps((prev) => [
+                    ...prev,
+                    {
+                      delay_hours: (prev[prev.length - 1]?.delay_hours ?? 1) + 24,
+                      template: prev[prev.length - 1]?.template ?? "",
+                    },
+                  ])
+                }
+              >
+                <PlusIcon className="mr-1.5 h-4 w-4" />
+                {t("addStep")}
+              </Button>
+              <span className="text-xs text-muted-foreground">{t("maxSteps", { max: MAX_STEPS })}</span>
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <ReplyIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {t("bookingCadenceStops")}
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Send window */}

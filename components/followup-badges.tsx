@@ -64,6 +64,8 @@ export function useCancelReasonLabel() {
       booking_cancelled: t("reasonBookingCancelled"),
       booking_rescheduled: t("reasonBookingRescheduled"),
       booking_passed: t("reasonBookingPassed"),
+      booking_created: t("reasonBookingCreated"),
+      form_submitted: t("reasonFormSubmitted"),
       owner_cancelled: t("reasonOwnerCancelled"),
       automation_disabled: t("reasonAutomationDisabled"),
       opted_out: t("reasonOptedOut"),

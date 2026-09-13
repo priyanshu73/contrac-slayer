@@ -74,7 +74,7 @@ function bookingStartDate(b: Booking): Date | null {
     b?.starts_at_for_client ||
     b?.start_time ||
     b?.start_at ||
-    b?.start ||
+    (b as Record<string, any>)?.start ||
     b?.scheduled_at
   if (!raw) return null
   const dt = new Date(raw)

@@ -50,6 +50,8 @@ const followupTypeIcons: Record<FollowupType, React.ReactNode> = {
   appointment_1day: <CalendarIcon className="h-4 w-4" />,
   appointment_1hour: <ClockIcon className="h-4 w-4" />,
   quote: <FileTextIcon className="h-4 w-4" />,
+  intake_step: <FileTextIcon className="h-4 w-4" />,
+  booking_step: <CalendarIcon className="h-4 w-4" />,
   custom: <MailIcon className="h-4 w-4" />,
 }
 
@@ -58,6 +60,8 @@ function getTypeLabel(type: FollowupType, t: (key: string) => string): string {
     appointment_1day: "typeAppointment1day",
     appointment_1hour: "typeAppointment1hour",
     quote: "typeQuote",
+    intake_step: "typeIntakeStep",
+    booking_step: "typeBookingStep",
     custom: "typeCustom",
   }
   return t(map[type])

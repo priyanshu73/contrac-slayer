@@ -3,7 +3,13 @@
  * `/api/followups`, backed by contractor-ai).
  */
 
-export type FollowupType = 'appointment_1day' | 'appointment_1hour' | 'quote' | 'custom'
+export type FollowupType =
+  | 'appointment_1day'
+  | 'appointment_1hour'
+  | 'quote'
+  | 'intake_step'
+  | 'booking_step'
+  | 'custom'
 export type FollowupStatus = 'pending' | 'sent' | 'failed' | 'cancelled'
 /** Who caused a follow-up. */
 export type FollowupSource = 'automation' | 'owner' | 'ai_agent' | 'frontline' | 'system'
@@ -17,6 +23,8 @@ export type CancelReason =
   | 'booking_cancelled'
   | 'booking_rescheduled'
   | 'booking_passed'
+  | 'booking_created'
+  | 'form_submitted'
   | 'owner_cancelled'
   | 'automation_disabled'
   | 'opted_out'
@@ -25,6 +33,18 @@ export type CancelReason =
 export interface QuoteStep {
   /** Days after the quote is sent. */
   day: number
+  template: string
+}
+
+export interface IntakeStep {
+  /** Delay in minutes after the intake link is sent (e.g., 30, 120). */
+  delay_minutes: number
+  template: string
+}
+
+export interface BookingStep {
+  /** Delay in hours after the booking link is sent (e.g., 1, 24). */
+  delay_hours: number
   template: string
 }
 
@@ -50,6 +70,12 @@ export interface FollowupSettings {
   quote_sequence_json: QuoteStep[] | null
   /** Effective cadence (quote_sequence_json, else the legacy single step). */
   quote_steps: QuoteStep[]
+  intake_followup_enabled: boolean
+  intake_sequence_json: IntakeStep[] | null
+  intake_steps: IntakeStep[]
+  booking_followup_enabled: boolean
+  booking_sequence_json: BookingStep[] | null
+  booking_steps: BookingStep[]
   stop_on_reply: boolean
   notify_owner_on_send: boolean
   notify_owner_on_failure: boolean
@@ -77,6 +103,10 @@ export type FollowupSettingsUpdate = Partial<
     | 'quiet_hours_end'
     | 'send_days'
     | 'quote_sequence_json'
+    | 'intake_followup_enabled'
+    | 'intake_sequence_json'
+    | 'booking_followup_enabled'
+    | 'booking_sequence_json'
     | 'stop_on_reply'
     | 'notify_owner_on_send'
     | 'notify_owner_on_failure'

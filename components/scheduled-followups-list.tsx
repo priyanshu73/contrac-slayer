@@ -109,6 +109,8 @@ const followupTypeIcons: Record<FollowupType, React.ReactNode> = {
   appointment_1day: <CalendarIcon className="h-4 w-4" />,
   appointment_1hour: <ClockIcon className="h-4 w-4" />,
   quote: <FileTextIcon className="h-4 w-4" />,
+  intake_step: <FileTextIcon className="h-4 w-4" />,
+  booking_step: <CalendarIcon className="h-4 w-4" />,
   custom: <MailIcon className="h-4 w-4" />,
 }
 
@@ -147,6 +149,8 @@ export function ScheduledFollowupsList({
     appointment_1day: t("list.typeAppointment1day"),
     appointment_1hour: t("list.typeAppointment1hour"),
     quote: t("list.typeQuote"),
+    intake_step: t("list.typeIntakeStep"),
+    booking_step: t("list.typeBookingStep"),
     custom: t("list.typeCustom"),
   }
   const sourceLabels: Record<FollowupSource, string> = {
