@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -27,7 +26,6 @@ import {
   ChevronDownIcon,
   PlusIcon,
   Trash2Icon,
-  CheckCircle2Icon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -67,7 +65,7 @@ function initialSteps(s: FollowupSettingsType): QuoteStep[] {
   return [
     {
       day: s.followup_days_after_quote || 3,
-      template: s.quote_followup_template || "",
+      template: s.quote_followup_template || "Hi {first_name}, following up on your quote: {quote_link}",
     },
   ]
 }
@@ -139,8 +137,6 @@ export function FollowupSettings({
   const [isSaving, setIsSaving] = useState(false)
   const [notLinked, setNotLinked] = useState(false)
 
-  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map())
-
   const fetchSettings = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -193,45 +189,13 @@ export function FollowupSettings({
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const insertToken = (
-    inputKey: string,
-    token: string,
-    onUpdate: (newVal: string) => void,
-    currentVal: string,
-  ) => {
-    const el = textareaRefs.current.get(inputKey)
-    const tokenStr = `{${token}}`
-    if (!el) {
-      onUpdate(currentVal ? `${currentVal} ${tokenStr}` : tokenStr)
-      return
-    }
-    const start = el.selectionStart ?? currentVal.length
-    const end = el.selectionEnd ?? currentVal.length
-    const nextVal =
-      currentVal.substring(0, start) + tokenStr + currentVal.substring(end)
-    onUpdate(nextVal)
-    setTimeout(() => {
-      el.focus()
-      const pos = start + tokenStr.length
-      el.setSelectionRange(pos, pos)
-    }, 0)
-  }
-
   const handleSave = async () => {
     if (!settings) return
 
-    // Validation
+    // Validate step sequences are increasing
     if (quoteEnabled) {
-      for (let i = 0; i < steps.length; i++) {
-        if (!steps[i].template.trim()) {
-          toast({
-            title: t("error"),
-            description: t("stepTemplateRequired", { step: i + 1 }),
-            variant: "destructive",
-          })
-          return
-        }
-        if (i > 0 && steps[i].day <= steps[i - 1].day) {
+      for (let i = 1; i < steps.length; i++) {
+        if (steps[i].day <= steps[i - 1].day) {
           toast({
             title: t("error"),
             description: t("stepDaysIncreasing"),
@@ -243,19 +207,8 @@ export function FollowupSettings({
     }
 
     if (settings.intake_followup_enabled) {
-      for (let i = 0; i < intakeSteps.length; i++) {
-        if (!intakeSteps[i].template.trim()) {
-          toast({
-            title: t("error"),
-            description: t("stepTemplateRequired", { step: i + 1 }),
-            variant: "destructive",
-          })
-          return
-        }
-        if (
-          i > 0 &&
-          intakeSteps[i].delay_minutes <= intakeSteps[i - 1].delay_minutes
-        ) {
+      for (let i = 1; i < intakeSteps.length; i++) {
+        if (intakeSteps[i].delay_minutes <= intakeSteps[i - 1].delay_minutes) {
           toast({
             title: t("error"),
             description: t("stepMinutesIncreasing"),
@@ -267,19 +220,8 @@ export function FollowupSettings({
     }
 
     if (settings.booking_followup_enabled) {
-      for (let i = 0; i < bookingSteps.length; i++) {
-        if (!bookingSteps[i].template.trim()) {
-          toast({
-            title: t("error"),
-            description: t("stepTemplateRequired", { step: i + 1 }),
-            variant: "destructive",
-          })
-          return
-        }
-        if (
-          i > 0 &&
-          bookingSteps[i].delay_hours <= bookingSteps[i - 1].delay_hours
-        ) {
+      for (let i = 1; i < bookingSteps.length; i++) {
+        if (bookingSteps[i].delay_hours <= bookingSteps[i - 1].delay_hours) {
           toast({
             title: t("error"),
             description: t("stepHoursIncreasing"),
@@ -418,7 +360,7 @@ export function FollowupSettings({
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Automatic SMS follow-ups for intake forms, quotes, bookings, and reminders.
+            Configure automatic follow-up timing and delivery schedules.
           </p>
         </div>
 
@@ -479,7 +421,7 @@ export function FollowupSettings({
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Core Sequences
           </h2>
-          <span className="text-xs text-muted-foreground">4 Workflows</span>
+          <span className="text-xs text-muted-foreground">Step & Timing Cadence</span>
         </div>
 
         {/* Unified sleek container with dividing lines */}
@@ -499,11 +441,11 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Intake Form Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {intakeSteps.length} SMS steps · ~{intakeSteps[intakeSteps.length - 1]?.delay_minutes || 120} min span
+                      {intakeSteps.length} steps · {intakeSteps.map((s) => `${s.delay_minutes}m`).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Triggered after call when link is sent. Auto-stops when caller fills the form.
+                    Sent after call when link is shared. Auto-stops when caller fills the form.
                   </p>
                 </div>
               </div>
@@ -536,123 +478,58 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config */}
+            {/* Inline Config: Pure Step & Timing */}
             {expanded.intake && (
-              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
-                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-                  <span className="font-medium text-foreground">Follow-up Cadence</span>
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2Icon className="w-3.5 h-3.5" />
-                    Auto-stops on form submission or STOP reply
-                  </span>
+              <div className="p-4 bg-muted/25 border-t border-border space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Send Delays</span>
+                  <span>Auto-stops on form submission or STOP reply</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   {intakeSteps.map((step, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                      className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span>Send after</span>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={1440}
-                            value={step.delay_minutes}
-                            disabled={!isMasterEnabled || !settings.intake_followup_enabled}
-                            onChange={(e) => {
-                              const val = Math.max(1, Number(e.target.value) || 1)
-                              setIntakeSteps((prev) =>
-                                prev.map((s, j) =>
-                                  j === idx ? { ...s, delay_minutes: val } : s,
-                                ),
-                              )
-                            }}
-                            className="w-14 h-7 text-xs text-center font-medium"
-                          />
-                          <span>min</span>
-                          {intakeSteps.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() =>
-                                setIntakeSteps((prev) =>
-                                  prev.filter((_, j) => j !== idx),
-                                )
-                              }
-                            >
-                              <Trash2Icon className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
+                        <span className="text-xs text-muted-foreground">Send after</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={1440}
+                          value={step.delay_minutes}
+                          disabled={!isMasterEnabled || !settings.intake_followup_enabled}
+                          onChange={(e) => {
+                            const val = Math.max(1, Number(e.target.value) || 1)
+                            setIntakeSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx ? { ...s, delay_minutes: val } : s,
+                              ),
+                            )
+                          }}
+                          className="w-16 h-7 text-xs text-center font-medium"
+                        />
+                        <span className="text-xs text-muted-foreground">minutes</span>
                       </div>
 
-                      <Textarea
-                        rows={3}
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`intake_${idx}`, el)
-                        }}
-                        value={step.template}
-                        disabled={!isMasterEnabled || !settings.intake_followup_enabled}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setIntakeSteps((prev) =>
-                            prev.map((s, j) =>
-                              j === idx ? { ...s, template: val } : s,
-                            ),
-                          )
-                        }}
-                        className="text-xs resize-none"
-                      />
-
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                        <span>Insert:</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
+                      {intakeSteps.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                           onClick={() =>
-                            insertToken(
-                              `intake_${idx}`,
-                              "first_name",
-                              (t) =>
-                                setIntakeSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
+                            setIntakeSteps((prev) =>
+                              prev.filter((_, j) => j !== idx),
                             )
                           }
                         >
-                          {"{first_name}"}
-                        </button>
-                        <span>·</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
-                          onClick={() =>
-                            insertToken(
-                              `intake_${idx}`,
-                              "link",
-                              (t) =>
-                                setIntakeSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
-                            )
-                          }
-                        >
-                          {"{link}"}
-                        </button>
-                      </div>
+                          <Trash2Icon className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -661,7 +538,7 @@ export function FollowupSettings({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs h-8 gap-1.5"
+                    className="text-xs h-7 gap-1.5"
                     disabled={!isMasterEnabled || !settings.intake_followup_enabled}
                     onClick={() => {
                       const last = intakeSteps[intakeSteps.length - 1]
@@ -698,11 +575,11 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Sent Quote Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {steps.length} SMS steps · ~{steps[steps.length - 1]?.day || 7} days span
+                      {steps.length} steps · Day {steps.map((s) => s.day).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Triggered when an estimate is sent. Auto-stops when quote is accepted or rejected.
+                    Sent after estimate is delivered. Auto-stops when quote is accepted or rejected.
                   </p>
                 </div>
               </div>
@@ -733,118 +610,56 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config */}
+            {/* Inline Config: Pure Step & Timing */}
             {expanded.quote && (
-              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
-                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-                  <span className="font-medium text-foreground">Follow-up Cadence</span>
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2Icon className="w-3.5 h-3.5" />
-                    Auto-stops on approval, rejection, or reply
-                  </span>
+              <div className="p-4 bg-muted/25 border-t border-border space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Send Delays</span>
+                  <span>Auto-stops on customer response or approval</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
                   {steps.map((step, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                      className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">Step {idx + 1}</span>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span>Day</span>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={60}
-                            value={step.day}
-                            disabled={!isMasterEnabled || !quoteEnabled}
-                            onChange={(e) => {
-                              const val = Math.max(1, Number(e.target.value) || 1)
-                              setSteps((prev) =>
-                                prev.map((s, j) =>
-                                  j === idx ? { ...s, day: val } : s,
-                                ),
-                              )
-                            }}
-                            className="w-12 h-7 text-xs text-center font-medium"
-                          />
-                          {steps.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() =>
-                                setSteps((prev) => prev.filter((_, j) => j !== idx))
-                              }
-                            >
-                              <Trash2Icon className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold w-14">
+                          Step {idx + 1}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Send on Day</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={step.day}
+                          disabled={!isMasterEnabled || !quoteEnabled}
+                          onChange={(e) => {
+                            const val = Math.max(1, Number(e.target.value) || 1)
+                            setSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx ? { ...s, day: val } : s,
+                              ),
+                            )
+                          }}
+                          className="w-16 h-7 text-xs text-center font-medium"
+                        />
+                        <span className="text-xs text-muted-foreground">after quote</span>
                       </div>
 
-                      <Textarea
-                        rows={3}
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`quote_${idx}`, el)
-                        }}
-                        value={step.template}
-                        disabled={!isMasterEnabled || !quoteEnabled}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setSteps((prev) =>
-                            prev.map((s, j) =>
-                              j === idx ? { ...s, template: val } : s,
-                            ),
-                          )
-                        }}
-                        className="text-xs resize-none"
-                      />
-
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                        <span>Insert:</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
+                      {steps.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                           onClick={() =>
-                            insertToken(
-                              `quote_${idx}`,
-                              "first_name",
-                              (t) =>
-                                setSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
-                            )
+                            setSteps((prev) => prev.filter((_, j) => j !== idx))
                           }
                         >
-                          {"{first_name}"}
-                        </button>
-                        <span>·</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
-                          onClick={() =>
-                            insertToken(
-                              `quote_${idx}`,
-                              "quote_link",
-                              (t) =>
-                                setSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
-                            )
-                          }
-                        >
-                          {"{quote_link}"}
-                        </button>
-                      </div>
+                          <Trash2Icon className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -853,7 +668,7 @@ export function FollowupSettings({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs h-8 gap-1.5"
+                    className="text-xs h-7 gap-1.5"
                     disabled={!isMasterEnabled || !quoteEnabled}
                     onClick={() => {
                       const last = steps[steps.length - 1]
@@ -890,11 +705,11 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Sent Booking Link Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {bookingSteps.length} SMS steps · ~{bookingSteps[bookingSteps.length - 1]?.delay_hours || 24} hr span
+                      {bookingSteps.length} steps · {bookingSteps.map((s) => `${s.delay_hours}h`).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Triggered when scheduling link is texted. Auto-stops when appointment is booked.
+                    Sent after scheduling link is sent. Auto-stops when appointment is booked.
                   </p>
                 </div>
               </div>
@@ -927,121 +742,58 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config */}
+            {/* Inline Config: Pure Step & Timing */}
             {expanded.booking && (
-              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
-                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-                  <span className="font-medium text-foreground">Follow-up Cadence</span>
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2Icon className="w-3.5 h-3.5" />
-                    Auto-stops when appointment is scheduled
-                  </span>
+              <div className="p-4 bg-muted/25 border-t border-border space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Send Delays</span>
+                  <span>Auto-stops when appointment is scheduled</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   {bookingSteps.map((step, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-lg border border-border bg-card space-y-2.5"
+                      className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">Step {idx + 1}</span>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span>Send after</span>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={168}
-                            value={step.delay_hours}
-                            disabled={!isMasterEnabled || !settings.booking_followup_enabled}
-                            onChange={(e) => {
-                              const val = Math.max(1, Number(e.target.value) || 1)
-                              setBookingSteps((prev) =>
-                                prev.map((s, j) =>
-                                  j === idx ? { ...s, delay_hours: val } : s,
-                                ),
-                              )
-                            }}
-                            className="w-14 h-7 text-xs text-center font-medium"
-                          />
-                          <span>hours</span>
-                          {bookingSteps.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() =>
-                                setBookingSteps((prev) =>
-                                  prev.filter((_, j) => j !== idx),
-                                )
-                              }
-                            >
-                              <Trash2Icon className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold w-14">
+                          Step {idx + 1}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Send after</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={168}
+                          value={step.delay_hours}
+                          disabled={!isMasterEnabled || !settings.booking_followup_enabled}
+                          onChange={(e) => {
+                            const val = Math.max(1, Number(e.target.value) || 1)
+                            setBookingSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx ? { ...s, delay_hours: val } : s,
+                              ),
+                            )
+                          }}
+                          className="w-16 h-7 text-xs text-center font-medium"
+                        />
+                        <span className="text-xs text-muted-foreground">hours</span>
                       </div>
 
-                      <Textarea
-                        rows={3}
-                        ref={(el) => {
-                          if (el) textareaRefs.current.set(`booking_${idx}`, el)
-                        }}
-                        value={step.template}
-                        disabled={!isMasterEnabled || !settings.booking_followup_enabled}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setBookingSteps((prev) =>
-                            prev.map((s, j) =>
-                              j === idx ? { ...s, template: val } : s,
-                            ),
-                          )
-                        }}
-                        className="text-xs resize-none"
-                      />
-
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                        <span>Insert:</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
+                      {bookingSteps.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                           onClick={() =>
-                            insertToken(
-                              `booking_${idx}`,
-                              "first_name",
-                              (t) =>
-                                setBookingSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
+                            setBookingSteps((prev) =>
+                              prev.filter((_, j) => j !== idx),
                             )
                           }
                         >
-                          {"{first_name}"}
-                        </button>
-                        <span>·</span>
-                        <button
-                          type="button"
-                          className="hover:text-foreground underline decoration-dotted"
-                          onClick={() =>
-                            insertToken(
-                              `booking_${idx}`,
-                              "booking_link",
-                              (t) =>
-                                setBookingSteps((prev) =>
-                                  prev.map((s, j) =>
-                                    j === idx ? { ...s, template: t } : s,
-                                  ),
-                                ),
-                              step.template,
-                            )
-                          }
-                        >
-                          {"{booking_link}"}
-                        </button>
-                      </div>
+                          <Trash2Icon className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1050,7 +802,7 @@ export function FollowupSettings({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs h-8 gap-1.5"
+                    className="text-xs h-7 gap-1.5"
                     disabled={!isMasterEnabled || !settings.booking_followup_enabled}
                     onClick={() => {
                       const last = bookingSteps[bookingSteps.length - 1]
@@ -1087,7 +839,7 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Appointment Reminders</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      2 reminders (24h & 2h before)
+                      2 reminders · 1d, 2h before
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -1122,134 +874,56 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config */}
+            {/* Inline Config: Pure Step & Timing */}
             {expanded.reminders && (
-              <div className="p-5 bg-muted/25 border-t border-border space-y-4">
-                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-                  <span className="font-medium text-foreground">Reminder Cadence</span>
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2Icon className="w-3.5 h-3.5" />
-                    Sent before confirmed appointments
-                  </span>
+              <div className="p-4 bg-muted/25 border-t border-border space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Reminder Delays</span>
+                  <span>Sent prior to appointment start time</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 24-Hour */}
-                  <div className="p-3.5 rounded-lg border border-border bg-card space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">24 Hours Before</span>
-                      <span className="text-xs text-muted-foreground">1 day in advance</span>
-                    </div>
-
-                    <Textarea
-                      rows={3}
-                      ref={(el) => {
-                        if (el) textareaRefs.current.set("reminder_1day", el)
-                      }}
-                      value={settings.reminder_1day_template}
-                      disabled={!isMasterEnabled || !remindersEnabled}
-                      onChange={(e) => update("reminder_1day_template", e.target.value)}
-                      className="text-xs resize-none"
-                    />
-
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                      <span>Insert:</span>
-                      <button
-                        type="button"
-                        className="hover:text-foreground underline decoration-dotted"
-                        onClick={() =>
-                          insertToken(
-                            "reminder_1day",
-                            "first_name",
-                            (v) => update("reminder_1day_template", v),
-                            settings.reminder_1day_template,
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold w-24">Reminder 1</span>
+                      <span className="text-xs text-muted-foreground">Send</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={14}
+                        value={settings.followup_days_before_appointment || 1}
+                        disabled={!isMasterEnabled || !remindersEnabled}
+                        onChange={(e) =>
+                          update(
+                            "followup_days_before_appointment",
+                            Math.max(1, Number(e.target.value) || 1),
                           )
                         }
-                      >
-                        {"{first_name}"}
-                      </button>
-                      <span>·</span>
-                      <button
-                        type="button"
-                        className="hover:text-foreground underline decoration-dotted"
-                        onClick={() =>
-                          insertToken(
-                            "reminder_1day",
-                            "time",
-                            (v) => update("reminder_1day_template", v),
-                            settings.reminder_1day_template,
-                          )
-                        }
-                      >
-                        {"{time}"}
-                      </button>
-                      <span>·</span>
-                      <button
-                        type="button"
-                        className="hover:text-foreground underline decoration-dotted"
-                        onClick={() =>
-                          insertToken(
-                            "reminder_1day",
-                            "date",
-                            (v) => update("reminder_1day_template", v),
-                            settings.reminder_1day_template,
-                          )
-                        }
-                      >
-                        {"{date}"}
-                      </button>
+                        className="w-16 h-7 text-xs text-center font-medium"
+                      />
+                      <span className="text-xs text-muted-foreground">day before appointment</span>
                     </div>
                   </div>
 
-                  {/* 2-Hour */}
-                  <div className="p-3.5 rounded-lg border border-border bg-card space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">2 Hours Before</span>
-                      <span className="text-xs text-muted-foreground">Day of appointment</span>
-                    </div>
-
-                    <Textarea
-                      rows={3}
-                      ref={(el) => {
-                        if (el) textareaRefs.current.set("reminder_1hour", el)
-                      }}
-                      value={settings.reminder_1hour_template}
-                      disabled={!isMasterEnabled || !remindersEnabled}
-                      onChange={(e) => update("reminder_1hour_template", e.target.value)}
-                      className="text-xs resize-none"
-                    />
-
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                      <span>Insert:</span>
-                      <button
-                        type="button"
-                        className="hover:text-foreground underline decoration-dotted"
-                        onClick={() =>
-                          insertToken(
-                            "reminder_1hour",
-                            "first_name",
-                            (v) => update("reminder_1hour_template", v),
-                            settings.reminder_1hour_template,
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold w-24">Reminder 2</span>
+                      <span className="text-xs text-muted-foreground">Send</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={settings.followup_hours_before_appointment || 2}
+                        disabled={!isMasterEnabled || !remindersEnabled}
+                        onChange={(e) =>
+                          update(
+                            "followup_hours_before_appointment",
+                            Math.max(1, Number(e.target.value) || 1),
                           )
                         }
-                      >
-                        {"{first_name}"}
-                      </button>
-                      <span>·</span>
-                      <button
-                        type="button"
-                        className="hover:text-foreground underline decoration-dotted"
-                        onClick={() =>
-                          insertToken(
-                            "reminder_1hour",
-                            "time",
-                            (v) => update("reminder_1hour_template", v),
-                            settings.reminder_1hour_template,
-                          )
-                        }
-                      >
-                        {"{time}"}
-                      </button>
+                        className="w-16 h-7 text-xs text-center font-medium"
+                      />
+                      <span className="text-xs text-muted-foreground">hours before appointment</span>
                     </div>
                   </div>
                 </div>
