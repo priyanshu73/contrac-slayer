@@ -30,23 +30,20 @@ export type CancelReason =
   | 'opted_out'
   | 'sequence_cancelled'
 
-export interface QuoteStep {
-  /** Days after the quote is sent. */
-  day: number
+export type DelayUnit = 'minutes' | 'hours' | 'days'
+
+export interface SequenceStep {
+  delay_value?: number
+  delay_unit?: DelayUnit
   template: string
+  day?: number
+  delay_minutes?: number
+  delay_hours?: number
 }
 
-export interface IntakeStep {
-  /** Delay in minutes after the intake link is sent (e.g., 30, 120). */
-  delay_minutes: number
-  template: string
-}
-
-export interface BookingStep {
-  /** Delay in hours after the booking link is sent (e.g., 1, 24). */
-  delay_hours: number
-  template: string
-}
+export type QuoteStep = SequenceStep
+export type IntakeStep = SequenceStep
+export type BookingStep = SequenceStep
 
 export interface FollowupSettings {
   id: number

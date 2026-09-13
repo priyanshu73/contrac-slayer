@@ -36,6 +36,8 @@ import type {
   QuoteStep,
   IntakeStep,
   BookingStep,
+  SequenceStep,
+  DelayUnit,
 } from "@/lib/types/followup"
 import { api } from "@/lib/api"
 
@@ -58,54 +60,115 @@ function weekdayShort(i: number, locale: string): string {
   )
 }
 
+function normalizeStep(step: SequenceStep, defaultUnit: DelayUnit = "minutes"): SequenceStep {
+  let val = step.delay_value
+  let unit = step.delay_unit
+
+  if (val === undefined || !unit) {
+    if (step.delay_minutes !== undefined && step.delay_minutes !== null) {
+      const m = step.delay_minutes
+      if (m % 1440 === 0 && m > 0) {
+        val = m / 1440
+        unit = "days"
+      } else if (m % 60 === 0 && m > 0) {
+        val = m / 60
+        unit = "hours"
+      } else {
+        val = m
+        unit = "minutes"
+      }
+    } else if (step.delay_hours !== undefined && step.delay_hours !== null) {
+      const h = step.delay_hours
+      if (h % 24 === 0 && h > 0) {
+        val = h / 24
+        unit = "days"
+      } else {
+        val = h
+        unit = "hours"
+      }
+    } else if (step.day !== undefined && step.day !== null) {
+      val = step.day
+      unit = "days"
+    } else {
+      val = 1
+      unit = defaultUnit
+    }
+  }
+
+  return {
+    ...step,
+    delay_value: val,
+    delay_unit: unit,
+  }
+}
+
+function stepToMinutes(step: SequenceStep): number {
+  const val = step.delay_value ?? 1
+  const unit = step.delay_unit ?? "minutes"
+  if (unit === "minutes") return val
+  if (unit === "hours") return val * 60
+  return val * 1440
+}
+
+function formatStepBadge(step: SequenceStep): string {
+  const val = step.delay_value ?? 1
+  const unit = step.delay_unit ?? "minutes"
+  const suffix = unit === "minutes" ? "m" : unit === "hours" ? "h" : "d"
+  return `${val}${suffix}`
+}
+
 function initialSteps(s: FollowupSettingsType): QuoteStep[] {
-  if (Array.isArray(s.quote_sequence_json) && s.quote_sequence_json.length)
-    return s.quote_sequence_json
-  if (Array.isArray(s.quote_steps) && s.quote_steps.length) return s.quote_steps
-  return [
-    {
-      day: s.followup_days_after_quote || 3,
-      template: s.quote_followup_template || "Hi {first_name}, following up on your quote: {quote_link}",
-    },
-  ]
+  const raw = (Array.isArray(s.quote_sequence_json) && s.quote_sequence_json.length)
+    ? s.quote_sequence_json
+    : (Array.isArray(s.quote_steps) && s.quote_steps.length)
+      ? s.quote_steps
+      : [
+          {
+            day: s.followup_days_after_quote || 3,
+            template: s.quote_followup_template || "Hi {first_name}, following up on your quote: {quote_link}",
+          },
+        ]
+  return raw.map((step) => normalizeStep(step, "days"))
 }
 
 function initialIntakeSteps(s: FollowupSettingsType): IntakeStep[] {
-  if (Array.isArray(s.intake_sequence_json) && s.intake_sequence_json.length)
-    return s.intake_sequence_json
-  if (Array.isArray(s.intake_steps) && s.intake_steps.length)
-    return s.intake_steps
-  return [
-    {
-      delay_minutes: 30,
-      template:
-        "Hi {first_name}, just following up to make sure you got the link to share your project details: {link}",
-    },
-    {
-      delay_minutes: 120,
-      template:
-        "Hi {first_name}, we'd love to help with your project! Whenever you're ready, fill out the details here: {link}",
-    },
-  ]
+  const raw = (Array.isArray(s.intake_sequence_json) && s.intake_sequence_json.length)
+    ? s.intake_sequence_json
+    : (Array.isArray(s.intake_steps) && s.intake_steps.length)
+      ? s.intake_steps
+      : [
+          {
+            delay_minutes: 30,
+            template:
+              "Hi {first_name}, just following up to make sure you got the link to share your project details: {link}",
+          },
+          {
+            delay_minutes: 120,
+            template:
+              "Hi {first_name}, we'd love to help with your project! Whenever you're ready, fill out the details here: {link}",
+          },
+        ]
+  return raw.map((step) => normalizeStep(step, "minutes"))
 }
 
 function initialBookingSteps(s: FollowupSettingsType): BookingStep[] {
-  if (Array.isArray(s.booking_sequence_json) && s.booking_sequence_json.length)
-    return s.booking_sequence_json
-  if (Array.isArray(s.booking_steps) && s.booking_steps.length)
-    return s.booking_steps
-  return [
-    {
-      delay_hours: 1,
-      template:
-        "Hi {first_name}, here is the link to pick a convenient time for your appointment: {booking_link}",
-    },
-    {
-      delay_hours: 24,
-      template:
-        "Hi {first_name}, just checking in to see if you still wanted to schedule: {booking_link}",
-    },
-  ]
+  const raw = (Array.isArray(s.booking_sequence_json) && s.booking_sequence_json.length)
+    ? s.booking_sequence_json
+    : (Array.isArray(s.booking_steps) && s.booking_steps.length)
+      ? s.booking_steps
+      : [
+          {
+            delay_hours: 1,
+            template:
+              "Hi {first_name}, here is the link to pick a convenient time for your appointment: {booking_link}",
+          },
+          {
+            delay_hours: 24,
+            template:
+              "Hi {first_name}, just checking in to see if you still wanted to schedule: {booking_link}",
+          },
+        ]
+  return raw.map((step) => normalizeStep(step, "hours"))
 }
 
 export function FollowupSettings({
@@ -124,6 +187,11 @@ export function FollowupSettings({
 
   const [quoteEnabled, setQuoteEnabled] = useState(true)
   const [remindersEnabled, setRemindersEnabled] = useState(true)
+  const [reminder1Value, setReminder1Value] = useState(1)
+  const [reminder1Unit, setReminder1Unit] = useState<"hours" | "days">("days")
+  const [reminder2Value, setReminder2Value] = useState(2)
+  const [reminder2Unit, setReminder2Unit] = useState<"hours" | "days">("hours")
+
   const [actionQueueAlert, setActionQueueAlert] = useState(true)
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -152,6 +220,16 @@ export function FollowupSettings({
       setQuoteEnabled(initialQuote.length > 0)
       setIntakeSteps(initialIntakeSteps(data.settings))
       setBookingSteps(initialBookingSteps(data.settings))
+
+      if (data.settings.followup_days_before_appointment) {
+        setReminder1Value(data.settings.followup_days_before_appointment)
+        setReminder1Unit("days")
+      }
+      if (data.settings.followup_hours_before_appointment) {
+        setReminder2Value(data.settings.followup_hours_before_appointment)
+        setReminder2Unit("hours")
+      }
+
       setRemindersEnabled(
         (data.settings.followup_days_before_appointment > 0 ||
           data.settings.followup_hours_before_appointment > 0) &&
@@ -192,13 +270,13 @@ export function FollowupSettings({
   const handleSave = async () => {
     if (!settings) return
 
-    // Validate step sequences are increasing
+    // Validate step sequences are increasing by total minutes
     if (quoteEnabled) {
       for (let i = 1; i < steps.length; i++) {
-        if (steps[i].day <= steps[i - 1].day) {
+        if (stepToMinutes(steps[i]) <= stepToMinutes(steps[i - 1])) {
           toast({
             title: t("error"),
-            description: t("stepDaysIncreasing"),
+            description: "Quote follow-up steps must have strictly increasing delays.",
             variant: "destructive",
           })
           return
@@ -208,10 +286,10 @@ export function FollowupSettings({
 
     if (settings.intake_followup_enabled) {
       for (let i = 1; i < intakeSteps.length; i++) {
-        if (intakeSteps[i].delay_minutes <= intakeSteps[i - 1].delay_minutes) {
+        if (stepToMinutes(intakeSteps[i]) <= stepToMinutes(intakeSteps[i - 1])) {
           toast({
             title: t("error"),
-            description: t("stepMinutesIncreasing"),
+            description: "Intake follow-up steps must have strictly increasing delays.",
             variant: "destructive",
           })
           return
@@ -221,10 +299,10 @@ export function FollowupSettings({
 
     if (settings.booking_followup_enabled) {
       for (let i = 1; i < bookingSteps.length; i++) {
-        if (bookingSteps[i].delay_hours <= bookingSteps[i - 1].delay_hours) {
+        if (stepToMinutes(bookingSteps[i]) <= stepToMinutes(bookingSteps[i - 1])) {
           toast({
             title: t("error"),
-            description: t("stepHoursIncreasing"),
+            description: "Booking follow-up steps must have strictly increasing delays.",
             variant: "destructive",
           })
           return
@@ -234,14 +312,22 @@ export function FollowupSettings({
 
     setIsSaving(true)
     try {
+      const daysBeforeAppt = remindersEnabled
+        ? reminder1Unit === "days"
+          ? reminder1Value
+          : Math.max(1, Math.round(reminder1Value / 24))
+        : 0
+
+      const hoursBeforeAppt = remindersEnabled
+        ? reminder2Unit === "hours"
+          ? reminder2Value
+          : reminder2Value * 24
+        : 0
+
       const payload: FollowupSettingsUpdate = {
         automatic_followup_enabled: settings.automatic_followup_enabled,
-        followup_days_before_appointment: remindersEnabled
-          ? settings.followup_days_before_appointment || 1
-          : 0,
-        followup_hours_before_appointment: remindersEnabled
-          ? settings.followup_hours_before_appointment || 2
-          : 0,
+        followup_days_before_appointment: daysBeforeAppt,
+        followup_hours_before_appointment: hoursBeforeAppt,
         reminder_1day_template: settings.reminder_1day_template,
         reminder_1hour_template: settings.reminder_1hour_template,
         quote_sequence_json: quoteEnabled && steps.length ? steps : null,
@@ -291,22 +377,26 @@ export function FollowupSettings({
     const resetQuote =
       Array.isArray(defaults.quote_sequence_json) &&
       defaults.quote_sequence_json.length
-        ? defaults.quote_sequence_json
+        ? defaults.quote_sequence_json.map((s) => normalizeStep(s, "days"))
         : initialSteps(next)
     setSteps(resetQuote)
     setQuoteEnabled(resetQuote.length > 0)
     setIntakeSteps(
       Array.isArray(defaults.intake_sequence_json) &&
         defaults.intake_sequence_json.length
-        ? defaults.intake_sequence_json
+        ? defaults.intake_sequence_json.map((s) => normalizeStep(s, "minutes"))
         : initialIntakeSteps(next),
     )
     setBookingSteps(
       Array.isArray(defaults.booking_sequence_json) &&
         defaults.booking_sequence_json.length
-        ? defaults.booking_sequence_json
+        ? defaults.booking_sequence_json.map((s) => normalizeStep(s, "hours"))
         : initialBookingSteps(next),
     )
+    setReminder1Value(defaults.followup_days_before_appointment || 1)
+    setReminder1Unit("days")
+    setReminder2Value(defaults.followup_hours_before_appointment || 2)
+    setReminder2Unit("hours")
   }
 
   if (isLoading) {
@@ -441,7 +531,7 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Intake Form Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {intakeSteps.length} steps · {intakeSteps.map((s) => `${s.delay_minutes}m`).join(", ")}
+                      {intakeSteps.length} steps · {intakeSteps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -478,7 +568,7 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config: Pure Step & Timing */}
+            {/* Inline Config: Step & Timing with Unit Selectors */}
             {expanded.intake && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -492,7 +582,7 @@ export function FollowupSettings({
                       key={idx}
                       className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
@@ -500,20 +590,51 @@ export function FollowupSettings({
                         <Input
                           type="number"
                           min={1}
-                          max={1440}
-                          value={step.delay_minutes}
+                          max={step.delay_unit === "minutes" ? 10080 : step.delay_unit === "hours" ? 720 : 60}
+                          value={step.delay_value ?? 1}
                           disabled={!isMasterEnabled || !settings.intake_followup_enabled}
                           onChange={(e) => {
                             const val = Math.max(1, Number(e.target.value) || 1)
                             setIntakeSteps((prev) =>
                               prev.map((s, j) =>
-                                j === idx ? { ...s, delay_minutes: val } : s,
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_value: val,
+                                      delay_minutes: s.delay_unit === "hours" ? val * 60 : s.delay_unit === "days" ? val * 1440 : val,
+                                    }
+                                  : s,
                               ),
                             )
                           }}
                           className="w-16 h-7 text-xs text-center font-medium"
                         />
-                        <span className="text-xs text-muted-foreground">minutes</span>
+                        <Select
+                          value={step.delay_unit ?? "minutes"}
+                          disabled={!isMasterEnabled || !settings.intake_followup_enabled}
+                          onValueChange={(unit: DelayUnit) => {
+                            setIntakeSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_unit: unit,
+                                      delay_minutes: unit === "hours" ? (s.delay_value || 1) * 60 : unit === "days" ? (s.delay_value || 1) * 1440 : (s.delay_value || 1),
+                                    }
+                                  : s,
+                              ),
+                            )
+                          }}
+                        >
+                          <SelectTrigger className="w-24 h-7 text-xs font-medium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
+                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
+                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {intakeSteps.length > 1 && (
@@ -542,11 +663,14 @@ export function FollowupSettings({
                     disabled={!isMasterEnabled || !settings.intake_followup_enabled}
                     onClick={() => {
                       const last = intakeSteps[intakeSteps.length - 1]
-                      const nextDelay = last ? last.delay_minutes + 60 : 30
+                      const nextDelay = last ? (last.delay_value || 1) + 1 : 1
+                      const nextUnit = last?.delay_unit || "hours"
                       setIntakeSteps((prev) => [
                         ...prev,
                         {
-                          delay_minutes: nextDelay,
+                          delay_value: nextDelay,
+                          delay_unit: nextUnit,
+                          delay_minutes: nextUnit === "hours" ? nextDelay * 60 : nextUnit === "days" ? nextDelay * 1440 : nextDelay,
                           template:
                             "Hi {first_name}, just checking in to see if you still needed help with your project: {link}",
                         },
@@ -575,7 +699,7 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Sent Quote Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {steps.length} steps · Day {steps.map((s) => s.day).join(", ")}
+                      {steps.length} steps · {steps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -610,7 +734,7 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config: Pure Step & Timing */}
+            {/* Inline Config: Step & Timing with Unit Selectors */}
             {expanded.quote && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -624,28 +748,59 @@ export function FollowupSettings({
                       key={idx}
                       className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
-                        <span className="text-xs text-muted-foreground">Send on Day</span>
+                        <span className="text-xs text-muted-foreground">Send after</span>
                         <Input
                           type="number"
                           min={1}
-                          max={60}
-                          value={step.day}
+                          max={step.delay_unit === "minutes" ? 10080 : step.delay_unit === "hours" ? 720 : 60}
+                          value={step.delay_value ?? 1}
                           disabled={!isMasterEnabled || !quoteEnabled}
                           onChange={(e) => {
                             const val = Math.max(1, Number(e.target.value) || 1)
                             setSteps((prev) =>
                               prev.map((s, j) =>
-                                j === idx ? { ...s, day: val } : s,
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_value: val,
+                                      day: s.delay_unit === "days" ? val : Math.max(1, Math.round(val / 24)),
+                                    }
+                                  : s,
                               ),
                             )
                           }}
                           className="w-16 h-7 text-xs text-center font-medium"
                         />
-                        <span className="text-xs text-muted-foreground">after quote</span>
+                        <Select
+                          value={step.delay_unit ?? "days"}
+                          disabled={!isMasterEnabled || !quoteEnabled}
+                          onValueChange={(unit: DelayUnit) => {
+                            setSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_unit: unit,
+                                      day: unit === "days" ? (s.delay_value || 1) : Math.max(1, Math.round((s.delay_value || 1) / 24)),
+                                    }
+                                  : s,
+                              ),
+                            )
+                          }}
+                        >
+                          <SelectTrigger className="w-24 h-7 text-xs font-medium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
+                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
+                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {steps.length > 1 && (
@@ -672,11 +827,14 @@ export function FollowupSettings({
                     disabled={!isMasterEnabled || !quoteEnabled}
                     onClick={() => {
                       const last = steps[steps.length - 1]
-                      const nextDay = last ? last.day + 3 : 3
+                      const nextDelay = last ? (last.delay_value || 1) + 2 : 3
+                      const nextUnit = last?.delay_unit || "days"
                       setSteps((prev) => [
                         ...prev,
                         {
-                          day: nextDay,
+                          delay_value: nextDelay,
+                          delay_unit: nextUnit,
+                          day: nextUnit === "days" ? nextDelay : Math.max(1, Math.round(nextDelay / 24)),
                           template:
                             "Hi {first_name}, just following up on your quote. Let us know if you have any questions: {quote_link}",
                         },
@@ -705,7 +863,7 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Sent Booking Link Follow-up</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      {bookingSteps.length} steps · {bookingSteps.map((s) => `${s.delay_hours}h`).join(", ")}
+                      {bookingSteps.length} steps · {bookingSteps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -742,7 +900,7 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config: Pure Step & Timing */}
+            {/* Inline Config: Step & Timing with Unit Selectors */}
             {expanded.booking && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -756,7 +914,7 @@ export function FollowupSettings({
                       key={idx}
                       className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
@@ -764,20 +922,51 @@ export function FollowupSettings({
                         <Input
                           type="number"
                           min={1}
-                          max={168}
-                          value={step.delay_hours}
+                          max={step.delay_unit === "minutes" ? 10080 : step.delay_unit === "hours" ? 720 : 60}
+                          value={step.delay_value ?? 1}
                           disabled={!isMasterEnabled || !settings.booking_followup_enabled}
                           onChange={(e) => {
                             const val = Math.max(1, Number(e.target.value) || 1)
                             setBookingSteps((prev) =>
                               prev.map((s, j) =>
-                                j === idx ? { ...s, delay_hours: val } : s,
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_value: val,
+                                      delay_hours: s.delay_unit === "days" ? val * 24 : s.delay_unit === "minutes" ? Math.max(1, Math.round(val / 60)) : val,
+                                    }
+                                  : s,
                               ),
                             )
                           }}
                           className="w-16 h-7 text-xs text-center font-medium"
                         />
-                        <span className="text-xs text-muted-foreground">hours</span>
+                        <Select
+                          value={step.delay_unit ?? "hours"}
+                          disabled={!isMasterEnabled || !settings.booking_followup_enabled}
+                          onValueChange={(unit: DelayUnit) => {
+                            setBookingSteps((prev) =>
+                              prev.map((s, j) =>
+                                j === idx
+                                  ? {
+                                      ...s,
+                                      delay_unit: unit,
+                                      delay_hours: unit === "days" ? (s.delay_value || 1) * 24 : unit === "minutes" ? Math.max(1, Math.round((s.delay_value || 1) / 60)) : (s.delay_value || 1),
+                                    }
+                                  : s,
+                              ),
+                            )
+                          }}
+                        >
+                          <SelectTrigger className="w-24 h-7 text-xs font-medium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
+                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
+                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {bookingSteps.length > 1 && (
@@ -806,11 +995,14 @@ export function FollowupSettings({
                     disabled={!isMasterEnabled || !settings.booking_followup_enabled}
                     onClick={() => {
                       const last = bookingSteps[bookingSteps.length - 1]
-                      const nextDelay = last ? last.delay_hours + 24 : 24
+                      const nextDelay = last ? (last.delay_value || 1) + 1 : 1
+                      const nextUnit = last?.delay_unit || "days"
                       setBookingSteps((prev) => [
                         ...prev,
                         {
-                          delay_hours: nextDelay,
+                          delay_value: nextDelay,
+                          delay_unit: nextUnit,
+                          delay_hours: nextUnit === "days" ? nextDelay * 24 : nextDelay,
                           template:
                             "Hi {first_name}, just wanted to remind you about scheduling before slots fill up: {booking_link}",
                         },
@@ -839,7 +1031,7 @@ export function FollowupSettings({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-medium truncate">Appointment Reminders</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      2 reminders · 1d, 2h before
+                      2 reminders · {reminder1Value}{reminder1Unit === "days" ? "d" : "h"}, {reminder2Value}{reminder2Unit === "days" ? "d" : "h"} before
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -874,7 +1066,7 @@ export function FollowupSettings({
               </div>
             </div>
 
-            {/* Inline Config: Pure Step & Timing */}
+            {/* Inline Config: Reminder Delays with Unit Selectors */}
             {expanded.reminders && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -884,46 +1076,62 @@ export function FollowupSettings({
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                       <span className="text-xs font-semibold w-24">Reminder 1</span>
                       <span className="text-xs text-muted-foreground">Send</span>
                       <Input
                         type="number"
                         min={1}
-                        max={14}
-                        value={settings.followup_days_before_appointment || 1}
+                        max={reminder1Unit === "days" ? 14 : 336}
+                        value={reminder1Value}
                         disabled={!isMasterEnabled || !remindersEnabled}
-                        onChange={(e) =>
-                          update(
-                            "followup_days_before_appointment",
-                            Math.max(1, Number(e.target.value) || 1),
-                          )
-                        }
+                        onChange={(e) => setReminder1Value(Math.max(1, Number(e.target.value) || 1))}
                         className="w-16 h-7 text-xs text-center font-medium"
                       />
-                      <span className="text-xs text-muted-foreground">day before appointment</span>
+                      <Select
+                        value={reminder1Unit}
+                        disabled={!isMasterEnabled || !remindersEnabled}
+                        onValueChange={(u: "hours" | "days") => setReminder1Unit(u)}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-xs font-medium">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hours" className="text-xs">hours</SelectItem>
+                          <SelectItem value="days" className="text-xs">days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs text-muted-foreground">before appointment</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                       <span className="text-xs font-semibold w-24">Reminder 2</span>
                       <span className="text-xs text-muted-foreground">Send</span>
                       <Input
                         type="number"
                         min={1}
-                        max={24}
-                        value={settings.followup_hours_before_appointment || 2}
+                        max={reminder2Unit === "days" ? 7 : 72}
+                        value={reminder2Value}
                         disabled={!isMasterEnabled || !remindersEnabled}
-                        onChange={(e) =>
-                          update(
-                            "followup_hours_before_appointment",
-                            Math.max(1, Number(e.target.value) || 1),
-                          )
-                        }
+                        onChange={(e) => setReminder2Value(Math.max(1, Number(e.target.value) || 1))}
                         className="w-16 h-7 text-xs text-center font-medium"
                       />
-                      <span className="text-xs text-muted-foreground">hours before appointment</span>
+                      <Select
+                        value={reminder2Unit}
+                        disabled={!isMasterEnabled || !remindersEnabled}
+                        onValueChange={(u: "hours" | "days") => setReminder2Unit(u)}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-xs font-medium">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hours" className="text-xs">hours</SelectItem>
+                          <SelectItem value="days" className="text-xs">days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs text-muted-foreground">before appointment</span>
                     </div>
                   </div>
                 </div>
