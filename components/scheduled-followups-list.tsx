@@ -271,7 +271,7 @@ export function ScheduledFollowupsList({
       reportStats(rows)
     } catch (error) {
       const message = error instanceof Error ? error.message : ""
-      if (/not linked|messaging service|not found/i.test(message)) {
+      if (/not linked|messaging service|contact not found/i.test(message)) {
         setFollowups([])
         reportStats([])
         setNotLinked(true)

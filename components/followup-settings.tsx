@@ -120,7 +120,7 @@ export function FollowupSettings({ contractorId: _contractorId }: FollowupSettin
       setBookingSteps(initialBookingSteps(data.settings))
     } catch (error) {
       const message = error instanceof Error ? error.message : ""
-      if (/not linked|messaging service|not found/i.test(message)) {
+      if (/not linked|messaging service|contact not found/i.test(message)) {
         setSettings(null)
         setNotLinked(true)
       } else {
