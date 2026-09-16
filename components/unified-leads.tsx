@@ -1348,7 +1348,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         <Button size="sm" variant="default" className="h-9 w-full rounded-lg px-3 text-sm justify-between" disabled={saveAction !== null}>
           <span className="inline-flex items-center">
             {saveAction ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-            Save Client
+            Save Lead
           </span>
           <ChevronDown className="h-3.5 w-3.5 ml-2 shrink-0" />
         </Button>
@@ -1356,7 +1356,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       <DropdownMenuContent align="end" className="w-52 p-1.5">
         <DropdownMenuItem className="items-start py-3 px-3 rounded-md" onSelect={() => void handleSaveClientAction("project")}>
           <div className="flex flex-col gap-1">
-            <span className="font-semibold text-sm">Save and Create Project</span>
+            <span className="font-semibold text-sm">Create Project</span>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
               Recommended
@@ -1364,10 +1364,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("quote")}>
-          Save and Create Quote
+          Create Quote
         </DropdownMenuItem>
         <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("client")}>
-          Save Client
+          Create Client
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

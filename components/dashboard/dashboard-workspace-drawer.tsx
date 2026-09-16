@@ -202,12 +202,12 @@ export function DashboardWorkspaceDrawer({
       {/* 2. Workspace Drawer Card: Projects / Quotes / Invoices */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 px-2 pt-1 text-xs font-semibold">
+        <div className="grid grid-cols-3 border-b border-slate-100 bg-slate-50/50 pt-1 text-xs font-semibold">
           <button
             type="button"
             onClick={() => setActiveTab("projects")}
             className={cn(
-              "flex items-center gap-1.5 border-b-2 px-3 py-2.5 transition-colors",
+              "flex items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 transition-colors",
               activeTab === "projects"
                 ? "border-sky-600 font-bold text-sky-700"
                 : "border-transparent text-slate-500 hover:text-slate-900"
@@ -221,7 +221,7 @@ export function DashboardWorkspaceDrawer({
             type="button"
             onClick={() => setActiveTab("quotes")}
             className={cn(
-              "flex items-center gap-1.5 border-b-2 px-3 py-2.5 transition-colors",
+              "flex items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 transition-colors",
               activeTab === "quotes"
                 ? "border-sky-600 font-bold text-sky-700"
                 : "border-transparent text-slate-500 hover:text-slate-900"
@@ -229,18 +229,13 @@ export function DashboardWorkspaceDrawer({
           >
             <FileText className="h-3.5 w-3.5" />
             <span>Quotes</span>
-            {awaitingReply > 0 && (
-              <span className="rounded-full bg-sky-100 px-1.5 py-0.2 font-mono text-[10px] text-sky-700">
-                {awaitingReply}
-              </span>
-            )}
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("invoices")}
             className={cn(
-              "flex items-center gap-1.5 border-b-2 px-3 py-2.5 transition-colors",
+              "flex items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 transition-colors",
               activeTab === "invoices"
                 ? "border-sky-600 font-bold text-sky-700"
                 : "border-transparent text-slate-500 hover:text-slate-900"
@@ -248,11 +243,6 @@ export function DashboardWorkspaceDrawer({
           >
             <Receipt className="h-3.5 w-3.5" />
             <span>Invoices</span>
-            {pastDue > 0 && (
-              <span className="rounded-full bg-rose-100 px-1.5 py-0.2 font-mono text-[10px] font-bold text-rose-700">
-                late
-              </span>
-            )}
           </button>
         </div>
 

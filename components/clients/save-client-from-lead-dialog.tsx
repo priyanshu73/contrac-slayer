@@ -191,7 +191,7 @@ export function SaveClientFromLeadDialog({
                         autoFocus={defaultAction === "client"}
                     >
                         {submittingAction === "client" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Client
+                        Create Client
                     </Button>
                     <Button
                         type="button"
@@ -202,7 +202,7 @@ export function SaveClientFromLeadDialog({
                         autoFocus={defaultAction === "quote"}
                     >
                         {submittingAction === "quote" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save and Create Quote
+                        Create Quote
                     </Button>
                     <Button
                         type="button"
@@ -213,7 +213,7 @@ export function SaveClientFromLeadDialog({
                     >
                         <span className="inline-flex items-center">
                             {submittingAction === "project" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save and Create Project
+                            Create Project
                         </span>
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />

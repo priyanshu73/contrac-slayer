@@ -90,7 +90,7 @@ export function FollowupsManager() {
       </div>
 
       {/* Server-side stats (last 30 days) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard label={t("list.pending")} value={summary?.by_status.pending ?? 0} valueClassName="text-blue-500" />
         <StatCard
           label={t("stats.sent30")}
@@ -99,7 +99,6 @@ export function FollowupsManager() {
           valueClassName="text-green-500"
         />
         <StatCard label={t("stats.replies30")} value={summary?.replies ?? 0} hint={t("stats.repliesHint")} />
-        <StatCard label={t("list.failed")} value={summary?.by_status.failed ?? 0} valueClassName="text-red-500" />
       </div>
 
       <Tabs defaultValue="activity" className="space-y-4">

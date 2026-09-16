@@ -23,7 +23,6 @@ import { formatPhoneForDisplay, cn } from "@/lib/utils"
 import { useLocale } from "next-intl"
 import Link from "next/link"
 import Image from "next/image"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -260,7 +259,7 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—"
     const d = new Date(dateStr)
-    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
   if (loading) {
@@ -294,25 +293,6 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
         </div>
       </Card>
     )
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "PAID":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-      case "SENT":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-      case "DRAFT":
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-      case "OVERDUE":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-      case "PARTIALLY_PAID":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-      case "CANCELLED":
-        return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-    }
   }
 
   // A draw invoice charges a % of the contract — its own line_items are just the
@@ -364,7 +344,7 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
       <Card className="bg-white shadow-lg print:shadow-none print:border-none print:rounded-none print:m-0 print:mt-0 print:pt-0 p-4 sm:p-6 md:p-8 lg:p-12 print:p-6 print:break-inside-avoid print:pt-6">
         {/* Header with Logo */}
         <div className="mb-4 sm:mb-6 pb-3 sm:pb-4 print:mb-4 print:pb-2 border-b-2 border-gray-200 print:break-inside-avoid">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 print:gap-2">
+          <div className="flex items-center gap-3 sm:gap-4 print:gap-2">
             <div className="flex items-center gap-3 sm:gap-4 print:gap-2">
               {invoice.contractor_logo_url ? (
                 <div className="relative w-12 h-12 sm:w-20 sm:h-20 md:w-24 md:h-24 print:w-12 print:h-12 rounded-lg overflow-hidden border-2 border-gray-200 print:border-gray-300">
@@ -404,20 +384,6 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">INVOICE</h2>
-              <p className="text-xs sm:text-sm print:text-xs text-gray-600 font-medium tracking-wide">
-                {invoice.job_id
-                  ? `Q${invoice.job_id}.${invoice.invoice_number.replace(/-/g, "").toUpperCase()}`
-                  : `#${invoice.invoice_number}`}
-              </p>
-              <p className="text-xs sm:text-sm print:text-xs text-gray-500">{formatDate(invoice.issue_date)}</p>
-              <div className="inline-block mt-1.5 print:hidden">
-                <Badge className={`${getStatusColor(invoice.status)} text-xs print:text-xs border-0`}>
-                  {invoice.status?.replace("_", " ")}
-                </Badge>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -448,19 +414,17 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
             </h3>
             <div className="space-y-0.5 print:space-y-0">
               <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                <span className="font-medium">Invoice #:</span> {invoice.invoice_number}
+                <span className="font-medium">Invoice:</span>{" "}
+                {invoice.job_id
+                  ? `Q${invoice.job_id}.${invoice.invoice_number.replace(/-/g, "").toUpperCase()}`
+                  : `#${invoice.invoice_number}`}
               </p>
               <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                <span className="font-medium">Issue Date:</span> {formatDate(invoice.issue_date)}
+                <span className="font-medium">Issued:</span> {formatDate(invoice.issue_date)}
               </p>
               <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                <span className="font-medium">Due Date:</span> {formatDate(invoice.due_date)}
+                <span className="font-medium">Due:</span> {formatDate(invoice.due_date)}
               </p>
-              {invoice.payment_terms && (
-                <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                  <span className="font-medium">Terms:</span> {invoice.payment_terms}
-                </p>
-              )}
             </div>
           </div>
         </div>
