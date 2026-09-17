@@ -89,12 +89,12 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
         >
-          <div className="max-w-5xl">
-            <motion.h1 variants={itemVariants} className="mx-auto max-w-4xl text-4xl font-semibold leading-[1.08] tracking-normal text-white sm:text-5xl lg:text-6xl">
+          <div className="w-full max-w-5xl min-w-0">
+            <motion.h1 variants={itemVariants} className="mx-auto max-w-4xl min-w-0 text-4xl font-semibold leading-[1.08] tracking-normal text-white sm:text-5xl lg:text-6xl [text-wrap:balance]">
               {title ?? (
                 <>
-                  <span className="block whitespace-nowrap">{t("heroHeadline")}</span>
-                  <span className="mt-1 block whitespace-nowrap text-2xl font-medium text-white/55 sm:text-3xl lg:text-4xl -translate-x-[6%]">
+                  <span className="block">{t("heroHeadline")}</span>
+                  <span className="mt-1 block translate-x-0 text-2xl font-medium text-white/55 sm:-translate-x-[6%] sm:text-3xl lg:text-4xl">
                     {t("heroHeadlineAccent")}
                   </span>
                 </>

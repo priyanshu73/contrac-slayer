@@ -62,11 +62,11 @@ function FeatureSection({
         compactTop ? "pt-6 lg:pt-8" : "pt-12 lg:pt-16"
       }`}
     >
-      <div className={`mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
+      <div className={`mx-auto grid max-w-7xl min-w-0 items-center gap-10 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
         {/* Visual — always on top on mobile (order-first), respects reverse only at lg */}
-        <Reveal className={`flex justify-center ${reverse ? "lg:order-2" : ""}`}>{visual}</Reveal>
+        <Reveal className={`min-w-0 flex justify-center ${reverse ? "lg:order-2" : ""}`}>{visual}</Reveal>
         {/* Text — always below visual on mobile */}
-        <Reveal className={`mx-auto max-w-xl text-center lg:mx-0 lg:text-left ${reverse ? "lg:order-1" : ""}`}>
+        <Reveal className={`mx-auto min-w-0 max-w-xl text-center lg:mx-0 lg:text-left ${reverse ? "lg:order-1" : ""}`}>
           <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">{eyebrow}</p>
           <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl xl:text-6xl">
             {title}
@@ -102,7 +102,7 @@ function EstimateShowcase() {
       transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 pb-5">
           <Activity className="h-5 w-5 text-sky-600" />
           <p className="text-lg font-black text-slate-950">{t("step2NewProjectEstimate")}</p>
         </div>
@@ -113,16 +113,16 @@ function EstimateShowcase() {
             [t("step2Labor"), "$1,320.00"],
             [t("step2Margin"), "$642.50"],
           ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-6">
-              <span className="text-slate-950">{label}</span>
-              <span className="font-black text-slate-950">{value}</span>
+            <div key={label} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 text-slate-950">{label}</span>
+              <span className="shrink-0 font-black text-slate-950">{value}</span>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-6 py-9">
-          <span className="text-lg font-black text-slate-950">{t("step2Total")}</span>
-          <span className="text-lg font-black text-sky-700">$3,212.50</span>
+        <div className="flex items-center justify-between gap-3 py-9">
+          <span className="min-w-0 text-lg font-black text-slate-950">{t("step2Total")}</span>
+          <span className="shrink-0 text-lg font-black text-sky-700">$3,212.50</span>
         </div>
 
         <button type="button" className="h-10 w-full rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
@@ -158,12 +158,12 @@ function DispatchShowcase() {
     >
       <div className="overflow-hidden rounded-[18px] border border-[#E8E3D6] bg-[#FFFFFF]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#F0EDE3] px-[20px] py-[16px]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0EDE3] px-[20px] py-[16px]">
           <div className="flex items-center gap-2">
             <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px] bg-[#FF7F50]/10">
               <Shield className="h-[14px] w-[14px]" stroke="#FF7F50" strokeWidth={2.5} />
             </div>
-            <p className="text-[13px] font-semibold text-[#0A0A0A]">{t("featureDispatchCardTitle")}</p>
+            <p className="min-w-0 text-[13px] font-semibold text-[#0A0A0A]">{t("featureDispatchCardTitle")}</p>
           </div>
           <div className="flex items-center gap-1.5 rounded-full bg-[#F1FAF5] px-2 py-1 text-[11px] font-semibold text-[#047857]">
             <span className="motion-safe-animate h-[5px] w-[5px] rounded-full bg-[#10B981]" style={{ animation: "subtle-pulse 2s infinite ease-in-out" }} />
@@ -193,7 +193,7 @@ function DispatchShowcase() {
           <div className="flex flex-col gap-[6px]">
             {/* Active Row */}
             <div
-              className={`relative flex items-center justify-between overflow-hidden rounded-[10px] border border-[#FF7F50] bg-[#FFFFFF] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
+              className={`relative flex items-center justify-between gap-2 overflow-hidden rounded-[10px] border border-[#FF7F50] bg-[#FFFFFF] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
               style={{ transitionDelay: show ? "0ms" : "0ms" }}
             >
               {/* Shimmer sweep effect */}
@@ -206,7 +206,7 @@ function DispatchShowcase() {
                 }}
               />
 
-              <div className="relative z-10 flex items-center gap-3">
+              <div className="relative z-10 flex min-w-0 items-center gap-3">
                 <div className="relative flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#FF7F50]/10">
                   {/* Animated pulsing ring */}
                   <div
@@ -215,13 +215,13 @@ function DispatchShowcase() {
                   />
                   <span className="text-[12px] font-bold text-[#FF7F50]">DP</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-[#0A0A0A]">{t("featureDispatchCrew1")}</p>
                   <p className="text-[12px] text-[#5F5E5A]">{t("showcaseDispatchDistancePriority1")}</p>
                 </div>
               </div>
 
-              <div className="relative z-10 flex h-[26px] items-center gap-1.5 rounded-full bg-[#FF7F50] px-3">
+              <div className="relative z-10 flex h-[26px] shrink-0 items-center gap-1.5 rounded-full bg-[#FF7F50] px-2 sm:px-3">
                 <div className="flex h-2.5 items-center gap-[2px]">
                   {[0, 1, 2].map((i) => (
                     <div
@@ -240,14 +240,14 @@ function DispatchShowcase() {
 
             {/* Standby Row */}
             <div
-              className={`flex items-center justify-between rounded-[10px] border border-[#F0EDE3] bg-[#FAFAFA] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
+              className={`flex items-center justify-between gap-2 rounded-[10px] border border-[#F0EDE3] bg-[#FAFAFA] px-[14px] py-[12px] transition-all duration-500 ${show ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
               style={{ transitionDelay: show ? "200ms" : "0ms" }}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#F1EFE8]">
                   <span className="text-[12px] font-bold text-[#888780]">AW</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-[#5F5E5A]">{t("featureDispatchCrew2")}</p>
                   <p className="text-[12px] text-[#5F5E5A]">{t("showcaseDispatchDistancePriority2")}</p>
                 </div>
@@ -284,7 +284,7 @@ function LeadAgentShowcase() {
   return (
     <m.div
       ref={containerRef}
-      className="relative w-full max-w-[480px] rounded-[22px] border border-green-100 bg-[linear-gradient(180deg,#f4faf2_0%,#ebf5e6_100%)] p-4 hover:ring-4 hover:ring-green-500/15 hover:shadow-xl mx-auto sm:mx-0"
+      className="relative mx-auto w-full max-w-[480px] rounded-[22px] border border-green-100 bg-[linear-gradient(180deg,#f4faf2_0%,#ebf5e6_100%)] p-4 hover:ring-4 hover:ring-green-500/15 hover:shadow-xl sm:mx-0"
       initial={false}
       animate={show ? { x: 0, scale: 1, opacity: 1 } : { x: -120, scale: 0.87, opacity: 0 }}
       whileHover={{ y: -4, transition: { duration: 0.25, ease: "easeOut" } }}
@@ -336,12 +336,12 @@ function LeadAgentShowcase() {
         {/* Content Section */}
         <div className="p-5 sm:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#231F20] flex items-center justify-center">
                 <Zap className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-bold text-slate-900">{t("showcaseOutreachRadarTitle")}</h3>
                 <p className="text-xs font-medium text-slate-500">{t("showcaseOutreachRadarSub")}</p>
               </div>
@@ -423,7 +423,7 @@ function CostShowcase() {
       transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="rounded-[18px] border border-slate-200/80 bg-white/95 p-5 sm:p-6">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 pb-5">
           <DollarSign className="h-5 w-5 text-[#228B22]" />
           <p className="text-lg font-black text-slate-950">{t("featuresFinTitle")}</p>
           <span className="ml-auto flex items-center gap-1.5 rounded-full bg-[#228B22]/10 px-2.5 py-1 text-xs font-bold text-[#228B22]">
@@ -439,16 +439,16 @@ function CostShowcase() {
             [t("showcaseCostMaterialsPermits"), "$4,260.00"],
             [t("showcaseCostTargetMargin"), "$7,840.00"],
           ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-6">
-              <span className="text-slate-950">{label}</span>
-              <span className="font-black text-slate-950">{value}</span>
+            <div key={label} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 text-slate-950">{label}</span>
+              <span className="shrink-0 font-black text-slate-950">{value}</span>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-6 py-9">
-          <span className="text-lg font-black text-slate-950">{t("showcaseCostContractTotal")}</span>
-          <span className="text-lg font-black text-[#228B22]">$24,500.00</span>
+        <div className="flex items-center justify-between gap-3 py-9">
+          <span className="min-w-0 text-lg font-black text-slate-950">{t("showcaseCostContractTotal")}</span>
+          <span className="shrink-0 text-lg font-black text-[#228B22]">$24,500.00</span>
         </div>
 
         <button type="button" className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#131820] text-sm font-semibold text-white transition-colors hover:bg-[#26313d]">
@@ -465,8 +465,8 @@ function FrontlineVoiceDemoSection() {
 
   return (
     <section className="scroll-mt-20 bg-[#fbf6f1] px-5 pb-12 sm:px-8 lg:pb-16">
-      <div className="mx-auto grid max-w-7xl items-center gap-10 border-y border-slate-200/80 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
-        <Reveal className="mx-auto max-w-xl text-center lg:mx-0 lg:text-left">
+      <div className="mx-auto grid max-w-7xl min-w-0 items-center gap-10 border-y border-slate-200/80 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+        <Reveal className="mx-auto min-w-0 max-w-xl text-center lg:mx-0 lg:text-left">
           <p className="text-sm font-black uppercase tracking-[0.2em] text-sky-600">
             {t("frontlineDemoEyebrow")}
           </p>
@@ -477,7 +477,7 @@ function FrontlineVoiceDemoSection() {
             {t("frontlineDemoSectionBody")}
           </p>
         </Reveal>
-        <Reveal className="flex justify-center lg:justify-end">
+        <Reveal className="min-w-0 flex justify-center lg:justify-end">
           <LandingSonicDemoCard />
         </Reveal>
       </div>

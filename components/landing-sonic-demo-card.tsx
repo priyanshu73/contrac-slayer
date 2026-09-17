@@ -555,13 +555,13 @@ export function LandingSonicDemoCard({ className }: { className?: string }) {
       )}
     >
       <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:p-6">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-700">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-700">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.55)]" />
               {t("frontlineDemoLiveLabel")}
             </div>
-            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
+            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl [text-wrap:balance]">
               {showSignupState ? t("frontlineDemoCtaTitle") : t("frontlineDemoCardTitle")}
             </h3>
           </div>
