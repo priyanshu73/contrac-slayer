@@ -1308,7 +1308,19 @@
     "quote": "QUOTE",
     "quoteDetails": "QUOTE DETAILS",
     "lineItems": "LINE ITEMS",
-    "hour": "Hour"
+    "hour": "Hour",
+    "noQuotesYet": "No quotes yet",
+    "createFirstQuote": "Create your first quote to get started.",
+    "project": "Project",
+    "createNewProject": "Create new project",
+    "unknownClient": "Unknown client",
+    "created": "Created",
+    "updated": "Updated",
+    "delete": "Delete",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page",
+    "cancel": "Cancel"
   },
   "forms": {
     "required": "Required",

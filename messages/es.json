@@ -604,7 +604,8 @@
         "punchList": "Punch list",
         "documents": "Documentos y medios",
         "changeOrders": "Órdenes de cambio",
-        "trades": "Equipo y alcances"
+        "trades": "Equipo y alcances",
+        "quotes": "Cotizaciones"
       },
       "contractValue": "Valor del contrato: ${amount}"
     },
@@ -620,6 +621,22 @@
       "acceptanceCriteria": "Criterios de aceptación",
       "acceptScope": "Aceptar alcance",
       "pricingNote": "Los precios, otros trades y márgenes internos del contratista general se gestionan en ContractorOps y no se muestran aquí."
+    },
+    "quotes": {
+      "title": "Cotizaciones",
+      "noQuotes": "Aún no se han vinculado cotizaciones a este proyecto.",
+      "linkQuote": "Vincular cotización",
+      "loading": "Cargando cotizaciones...",
+      "loadFailed": "No se pudieron cargar las cotizaciones.",
+      "empty": "No hay cotizaciones vinculadas a este proyecto.",
+      "selectQuote": "Selecciona una cotización para vincularla",
+      "noAvailableQuotes": "No hay cotizaciones sin vincular disponibles.",
+      "linkSuccess": "Cotización vinculada correctamente",
+      "linkError": "No se pudo vincular la cotización",
+      "cancel": "Cancelar",
+      "link": "Vincular",
+      "linkQuoteDialogTitle": "Vincular cotización al proyecto",
+      "linkQuoteDialogDescription": "Selecciona una cotización existente para asociarla a este proyecto. Una cotización solo puede pertenecer a un proyecto a la vez."
     }
   },
   "taskBoard": {
