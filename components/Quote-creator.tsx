@@ -32,6 +32,8 @@ import Image from "next/image"
 import { Check, ChevronsUpDown, FolderOpen, Image as ImageIcon, Loader2, Plus, X } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { consumeQuotePrefill } from "@/lib/quote-prefill"
+import { AiCapturedDescription } from "@/components/shared/ai-captured-description"
+import { callSummaryToDescription } from "@/lib/call-summary"
 import { cn } from "@/lib/utils"
 import {
   AI_ESTIMATE_LOADING_HINT,
@@ -444,6 +446,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
+  // Keep call summaries separate from the quote description until the user has
+  // reviewed the AI-refined scope in the captured-description panel.
+  const [callSummarySource, setCallSummarySource] = useState("")
+  const [refinedCallDescription, setRefinedCallDescription] = useState("")
   const [projectType, setProjectType] = useState("")
   const [projectTitle, setProjectTitle] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
@@ -1112,9 +1118,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       setClientPhone(lead.phone || "")
       setClientAddress(lead.address || "")
 
-      // Pre-fill service description if available
+      // Keep an incoming lead description separate until the user has reviewed
+      // the AI-refined scope. This also prevents call-summary labels/narration
+      // from being persisted when a quote is created directly from a lead.
       if (lead.description) {
-        setServiceDescription(lead.description)
+        setCallSummarySource(callSummaryToDescription(lead.description))
+        setRefinedCallDescription("")
+        setServiceDescription("")
       }
 
       // Pre-fill project type if available
@@ -1152,9 +1162,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       setClientPhone(lead.phone_number || phone || "")
       setClientAddress(lead.location || "")
 
-      // Pre-fill service description if available (use summary_text from call lead)
+      // Keep the raw call summary out of the customer-facing quote description.
+      // The captured-description panel refines it and lets the user review/use it.
       if (lead.summary_text) {
-        setServiceDescription(lead.summary_text)
+        setCallSummarySource(callSummaryToDescription(lead.summary_text))
+        setRefinedCallDescription("")
+        setServiceDescription("")
       }
     } catch (error) {
       console.error("Failed to fetch call lead data:", error)
@@ -1556,7 +1569,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       getRateNumber(item.rate) > 0
     )
     return {
-      job_description: serviceDescription.trim() || null,
+      job_description: serviceDescription.trim() || refinedCallDescription.trim() || null,
       customer_notes: (notesOverride !== undefined ? notesOverride : notes.trim()) || null,
       payment_terms: null,
       quote_expiration_date: dueDate || null,
@@ -1718,7 +1731,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         client_phone: clientPhone.trim() || null,
         client_address: clientAddress.trim() || null, // Address is optional
         location_zip_code: clientAddress.trim() ? extractZipCode(clientAddress) : null,
-        job_description: serviceDescription.trim() || null,
+        job_description: serviceDescription.trim() || refinedCallDescription.trim() || null,
         customer_notes: notes.trim() || null,
         payment_terms: null,
         quote_expiration_date: dueDate || null,
@@ -2051,6 +2064,26 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {callSummarySource && (
+              <div className="mt-5 space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">
+                  Incoming request for quote scope
+                </Label>
+                <AiCapturedDescription
+                  source={callSummarySource}
+                  target="quote_description"
+                  projectType={projectType || undefined}
+                  autoGenerate
+                  onUse={setServiceDescription}
+                  onCapture={setRefinedCallDescription}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Review the refined scope, then choose “Use as description” before
+                  generating the estimate.
+                </p>
               </div>
             )}
           </Card>

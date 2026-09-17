@@ -1024,16 +1024,24 @@ class ApiClient {
   }
 
   /** Hide the given action-queue items until `until` (ISO). Business-wide. */
-  async snoozeActionItems(keys: string[], until: string): Promise<{ snoozed: number; until: string }> {
+  async snoozeActionItems(keys?: string[], until?: string): Promise<{ snoozed: number; until: string }> {
+    const targetUntil = until ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     return this.request('/dashboard/action-queue/snooze', {
       method: 'POST',
-      body: JSON.stringify({ keys, until }),
+      body: JSON.stringify(keys && keys.length ? { keys, until: targetUntil } : { until: targetUntil }),
     })
   }
 
   async unsnoozeActionItem(key: string): Promise<{ snoozed: number; until: string }> {
     return this.request(`/dashboard/action-queue/snooze/${encodeURIComponent(key)}`, {
       method: 'DELETE',
+    })
+  }
+
+  async unsnoozeAllActionItems(keys?: string[]): Promise<{ snoozed: number; until: string }> {
+    return this.request('/dashboard/action-queue/unsnooze', {
+      method: 'POST',
+      body: JSON.stringify(keys ? { keys } : {}),
     })
   }
 

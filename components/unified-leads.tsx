@@ -16,12 +16,15 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Menu, Bot, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Menu, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
 import { setQuotePrefill } from "@/lib/quote-prefill"
+import { callSummaryToDescription, stripMarkdownBold } from "@/lib/call-summary"
 import { SaveClientFromLeadDialog, type SaveClientAction } from "@/components/clients/save-client-from-lead-dialog"
+import { parseApiUtcDate } from "@/lib/frontline-datetime"
+import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 
 // ============================================
 // Translation Cache Utilities (localStorage)
@@ -206,6 +209,7 @@ interface UnifiedLead {
   measurements?: Measurements
 
   // Consolidation tracking
+  consolidation_status?: 'both' | 'call_only' | 'form_only' | string
   contractor_ai_call_lead_id?: number // Reference to consolidated call lead in contractor-ai
   interaction_id?: string
   interaction_type?: 'phone_call' | 'frontline_voice' | string
@@ -224,6 +228,83 @@ interface UnifiedLead {
   }>
 
   source?: string
+}
+
+function normalizeLeadLabel(value?: string | null): string {
+  return (value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
+}
+
+function isAiOperatorCallLabel(value?: string | null): boolean {
+  const norm = normalizeLeadLabel(value)
+  return norm === 'ai operator call' || norm === 'frontline voice'
+}
+
+type LeadSourceCheck = {
+  source?: string | null
+  project_type?: string | null
+  interaction_type?: string | null
+  is_frontline_ai?: boolean | null
+  consolidation_status?: string | null
+  contractor_ai_call_lead_id?: number | null
+  contractor_ai_customer_id?: number | null
+  type?: string | null
+}
+
+function isFrontlineVoiceLead(lead?: LeadSourceCheck | null): boolean {
+  if (!lead) return false
+  const source = normalizeLeadLabel(lead.source)
+  const projectType = normalizeLeadLabel(lead.project_type)
+  const interactionType = normalizeLeadLabel(lead.interaction_type)
+  const consolidationStatus = normalizeLeadLabel(lead.consolidation_status)
+  return Boolean(
+    lead.is_frontline_ai ||
+    consolidationStatus === 'both' ||
+    consolidationStatus === 'call_only' ||
+    lead.contractor_ai_call_lead_id ||
+    lead.contractor_ai_customer_id ||
+    lead.type === 'call' ||
+    source === 'frontline' ||
+    source === 'frontline voice' ||
+    source === 'frontline_voice' ||
+    source === 'consolidated' ||
+    source === 'call' ||
+    isAiOperatorCallLabel(lead.source) ||
+    isAiOperatorCallLabel(lead.project_type) ||
+    interactionType === 'frontline voice' ||
+    interactionType === 'frontline_voice' ||
+    interactionType === 'phone call' ||
+    interactionType === 'phone_call'
+  )
+}
+
+function isQuoteRequestLead(lead: LeadSourceCheck & { has_filled_form?: boolean | null; quote_requests?: Array<unknown> | null }): boolean {
+  const normConsolidation = normalizeLeadLabel(lead.consolidation_status)
+  const normSource = normalizeLeadLabel(lead.source)
+  const normType = normalizeLeadLabel(lead.type)
+
+  return Boolean(
+    lead.has_filled_form ||
+    normConsolidation === 'both' ||
+    normConsolidation === 'form_only' ||
+    (Array.isArray(lead.quote_requests) && lead.quote_requests.length > 0) ||
+    normType === 'request' ||
+    normSource === 'website form' ||
+    normSource === 'website_form' ||
+    normSource === 'request'
+  )
+}
+
+function getLeadSourceLabel(lead: LeadSourceCheck): string {
+  if (isFrontlineVoiceLead(lead)) return 'Frontline Voice'
+  return lead.type === 'call' ? 'Frontline Voice' : 'Request'
+}
+
+function getLeadProjectLabel(value?: string | null, fallback?: string | null): string | null {
+  const cleanValue = value && isUsableProjectType(value) ? formatProjectType(value) : null
+  if (cleanValue) return cleanValue
+  const cleanFallback = fallback && isUsableProjectType(fallback) ? formatProjectType(fallback) : null
+  if (cleanFallback) return cleanFallback
+  return null
 }
 
 interface SummaryFact {
@@ -418,7 +499,7 @@ export function UnifiedLeads() {
       const mappedLeads: UnifiedLead[] = (response.leads || []).map((lead: any) => {
         const isCallOnly = lead.consolidation_status === 'call_only'
         const isBoth = lead.consolidation_status === 'both'
-        const isFrontlineVoice = lead.is_frontline_ai || lead.source === 'FRONTLINE_VOICE' || lead.interaction_type === 'frontline_voice'
+        const isFrontlineVoice = isFrontlineVoiceLead(lead)
         const callInteractionId = lead.interaction_id || lead.contractor_ai_customer_id
 
         return {
@@ -439,7 +520,7 @@ export function UnifiedLeads() {
           last_message_preview: lead.call_data?.last_message_preview,
           created_at: lead.created_at,
           last_contact_date: lead.last_contact_date || lead.created_at,
-          contractor_ai_call_lead_id: lead.contractor_ai_customer_id,
+          contractor_ai_call_lead_id: lead.contractor_ai_customer_id || lead.contractor_ai_call_lead_id,
           converted_to_job_id: lead.converted_to_job_id,
           converted_to_client_id: lead.converted_to_client_id,
           converted_to_project_id: lead.converted_to_project_id,
@@ -450,6 +531,7 @@ export function UnifiedLeads() {
           is_frontline_ai: isFrontlineVoice,
           has_sms: lead.has_sms,
           source: lead.source,
+          consolidation_status: lead.consolidation_status,
           quote_requests: lead.quote_requests || [],
           // Enrichment flags
           _needsCallDataLoad: isBoth || isCallOnly,
@@ -633,15 +715,17 @@ export function UnifiedLeads() {
     }
 
     // Return the most recent timestamp
-    return new Date(Math.max(...timestamps.map(ts => new Date(ts).getTime())))
+    return new Date(Math.max(...timestamps.map(ts => (parseApiUtcDate(ts)?.getTime() ?? 0))))
   }
 
   const filterLeads = () => {
     let filtered = leads
 
     // Filter by tab
-    if (activeTab !== 'all') {
-      filtered = filtered.filter(lead => lead.type === activeTab.slice(0, -1) as 'request' | 'call')
+    if (activeTab === 'requests') {
+      filtered = filtered.filter(lead => isQuoteRequestLead(lead))
+    } else if (activeTab === 'calls') {
+      filtered = filtered.filter(lead => isFrontlineVoiceLead(lead))
     }
 
     // Filter by status
@@ -656,7 +740,10 @@ export function UnifiedLeads() {
         lead.name.toLowerCase().includes(searchLower) ||
         lead.phone?.includes(searchTerm) ||
         lead.email?.toLowerCase().includes(searchLower) ||
-        lead.project_type?.toLowerCase().includes(searchLower) ||
+        getLeadSourceLabel(lead).toLowerCase().includes(searchLower) ||
+        (isQuoteRequestLead(lead) && 'request'.includes(searchLower)) ||
+        (isFrontlineVoiceLead(lead) && 'frontline voice'.includes(searchLower)) ||
+        (isUsableProjectType(lead.project_type ?? undefined) && lead.project_type?.toLowerCase().includes(searchLower)) ||
         lead.service_type?.toLowerCase().includes(searchLower) ||
         lead.address?.toLowerCase().includes(searchLower)
       )
@@ -689,8 +776,8 @@ export function UnifiedLeads() {
   const getCounts = () => {
     return {
       all: leads.length,
-      requests: leads.filter(l => l.type === 'request').length,
-      calls: leads.filter(l => l.type === 'call').length,
+      requests: leads.filter(l => isQuoteRequestLead(l)).length,
+      calls: leads.filter(l => isFrontlineVoiceLead(l)).length,
       new: leads.filter(l => l.status === 'NEW').length,
       contacted: leads.filter(l => l.status === 'CONTACTED').length,
       quoted: leads.filter(l => l.status === 'QUOTED').length,
@@ -717,7 +804,8 @@ export function UnifiedLeads() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return ""
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
 
@@ -806,13 +894,10 @@ export function UnifiedLeads() {
 
   const counts = getCounts()
 
-  const getLeadSourceLabel = (lead: UnifiedLead) => {
-    if (lead.is_frontline_ai) return 'Frontline'
-    return lead.type === 'call' ? 'Call' : 'Request'
-  }
-
   const renderLeadRow = (lead: UnifiedLead) => {
     const active = selectedLeadId === lead.id
+    const isFrontlineVoice = isFrontlineVoiceLead(lead)
+    const hasQuoteRequest = isQuoteRequestLead(lead)
     const sourceLabel = getLeadSourceLabel(lead)
     const initial = (lead.name || 'C').charAt(0).toUpperCase()
 
@@ -838,7 +923,7 @@ export function UnifiedLeads() {
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border text-sm font-semibold transition-colors ${
               active
                 ? 'border-primary/40 bg-primary text-primary-foreground'
-                : lead.is_frontline_ai
+                : isFrontlineVoice
                   ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300'
                   : 'border-border bg-secondary text-secondary-foreground'
             }`}
@@ -857,27 +942,38 @@ export function UnifiedLeads() {
                 {formatTime(lead.created_at)}
               </span>
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {lead.project_type || lead.service_type || "General inquiry"}
-              {lead.phone ? ` · ${formatPhoneForDisplay(lead.phone)}` : ''}
-            </p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(lead.status)} border-current/20`}>
-                <span className="h-1 w-1 rounded-full bg-current" />
-                {lead.status}
-              </span>
-              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                lead.is_frontline_ai
-                  ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300'
-                  : 'border-border bg-background text-muted-foreground'
-              }`}>
-                {lead.is_frontline_ai ? <Bot className="h-2.5 w-2.5" /> : <Link2 className="h-2.5 w-2.5" />}
-                {sourceLabel}
-              </span>
-              {lead.has_sms && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-medium">
-                  <MessageSquare className="h-2.5 w-2.5" />
-                  Text
+            {lead.phone ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {formatPhoneForDisplay(lead.phone)}
+              </p>
+            ) : lead.email ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {lead.email}
+              </p>
+            ) : null}
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+              {lead.status && normalizeLeadLabel(lead.status) !== 'converted' && (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 ${getStatusColor(lead.status)} border-current/20`}>
+                  <span className="h-1 w-1 rounded-full bg-current" />
+                  {lead.status}
+                </span>
+              )}
+              {isFrontlineVoice && (
+                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  Frontline Voice
+                </span>
+              )}
+              {hasQuoteRequest && (
+                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 border-border bg-background text-muted-foreground">
+                  <FileText className="h-2.5 w-2.5" />
+                  Request
+                </span>
+              )}
+              {!isFrontlineVoice && !hasQuoteRequest && (
+                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 border-border bg-background text-muted-foreground">
+                  <Link2 className="h-2.5 w-2.5" />
+                  {sourceLabel}
                 </span>
               )}
             </div>
@@ -1202,7 +1298,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return ""
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
 
@@ -1229,10 +1326,19 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
     }
   }
 
-  const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai
-  const sourceLabel = lead.is_frontline_ai ? 'Frontline' : lead.type === 'call' ? 'Call' : 'Request'
+  const isFrontlineVoice = isFrontlineVoiceLead(lead)
+  const hasQuoteRequest = isQuoteRequestLead(lead)
+  const sourceLabel = getLeadSourceLabel(lead)
+  const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id || isFrontlineVoice
+  const projectTypeLabel = getLeadProjectLabel(lead.project_type, lead.service_type)
   const quoteHref = lead.converted_to_job_id ? `/quotes/${lead.converted_to_job_id}` : null
   const requestLeadId = lead.id.startsWith('request-') ? Number(lead.id.replace('request-', '')) : null
+  // Call-only leads expose the raw call summary as `description`; clean that
+  // narration before handing it to the review/refinement dialog. Consolidated
+  // quote-request leads keep their separately submitted description.
+  const descriptionForPrefill = lead.type === 'call' || lead.is_frontline_ai
+    ? callSummaryToDescription(lead.summary_text || lead.description)
+    : lead.description || callSummaryToDescription(lead.summary_text)
 
   const tryRecoverExistingClient = useCallback(async (): Promise<number | null> => {
     if (resolvedClientId) return resolvedClientId
@@ -1483,14 +1589,24 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               <span className="h-1 w-1 rounded-full bg-current" />
               {lead.status}
             </span>
-            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 ${
-              lead.is_frontline_ai
-                ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300'
-                : 'border-border bg-background text-muted-foreground'
-            }`}>
-              {lead.is_frontline_ai ? <Bot className="h-2.5 w-2.5" /> : <Link2 className="h-2.5 w-2.5" />}
-              {sourceLabel}
-            </span>
+            {isFrontlineVoice && (
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+                <Sparkles className="h-2.5 w-2.5" />
+                Frontline Voice
+              </span>
+            )}
+            {hasQuoteRequest && (
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 border-border bg-background text-muted-foreground">
+                <FileText className="h-2.5 w-2.5" />
+                Request
+              </span>
+            )}
+            {!isFrontlineVoice && !hasQuoteRequest && (
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 border-border bg-background text-muted-foreground">
+                <Link2 className="h-2.5 w-2.5" />
+                {sourceLabel}
+              </span>
+            )}
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
             {lead.phone && (
@@ -1553,7 +1669,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       {/* Main Content Area - conversation extends to action bar; minimal bottom gap on mobile */}
       <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-y-auto lg:overflow-hidden overflow-x-hidden min-h-0 pb-1 lg:pb-0 bg-muted/20">
         {/* Show call lead layout for call leads, legacy-consolidated leads, and Frontline-enriched form leads */}
-        {(lead.type === 'call' || (lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai))) ? (
+        {(lead.type === 'call' || (lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || isFrontlineVoice))) ? (
           <>
             {/* Conversation History - On mobile: only content, full height; minimal gap below header */}
             <div className={`order-1 lg:order-1 flex flex-col min-h-0 overflow-hidden ${isMobile ? 'flex-1 bg-background' : 'flex-shrink-0 lg:w-[350px] xl:w-[370px] bg-muted/20'}`}>
@@ -1675,7 +1791,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               })()}
 
               {/* Quote Request card (for consolidated + Frontline-enriched form leads) */}
-              {lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || lead.is_frontline_ai) && (lead.description || lead.project_type) && (
+              {lead.type === 'request' && ((lead as any).contractor_ai_call_lead_id || isFrontlineVoice) && (lead.description || projectTypeLabel) && (
                 <div className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm">
                   {/* Header */}
                   <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-800/40">
@@ -1687,9 +1803,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
                           Quote Request
                         </p>
-                        {lead.project_type && (
+                        {projectTypeLabel && (
                           <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
-                            {lead.project_type.replace(/_/g, ' ')}
+                            {projectTypeLabel.replace(/_/g, ' ')}
                           </p>
                         )}
                       </div>
@@ -1748,11 +1864,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       </span>
                       <div className="min-w-0">
                         <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                          Previous Quote Request {qr.created_at ? `· ${new Date(qr.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                          Previous Quote Request {qr.created_at ? `· ${parseApiUtcDate(qr.created_at)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? ''}` : ''}
                         </p>
-                        {qr.project_type && (
+                        {getLeadProjectLabel(qr.project_type) && (
                           <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
-                            {qr.project_type.replace(/_/g, ' ')}
+                            {getLeadProjectLabel(qr.project_type)!.replace(/_/g, ' ')}
                           </p>
                         )}
                       </div>
@@ -2114,7 +2230,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             )}
 
             {/* Quote Request card — all form leads */}
-            {lead.type === 'request' && (lead.description || lead.project_type) && (
+            {lead.type === 'request' && (lead.description || projectTypeLabel) && (
               <div className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-card overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-800/40">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -2125,9 +2241,9 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
                         Quote Request
                       </p>
-                      {lead.project_type && (
+                      {projectTypeLabel && (
                         <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
-                          {lead.project_type.replace(/_/g, ' ')}
+                          {projectTypeLabel.replace(/_/g, ' ')}
                         </p>
                       )}
                     </div>
@@ -2185,11 +2301,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     </span>
                     <div className="min-w-0">
                       <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                        Previous Quote Request {qr.created_at ? `· ${new Date(qr.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                        Previous Quote Request {qr.created_at ? `· ${parseApiUtcDate(qr.created_at)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? ''}` : ''}
                       </p>
-                      {qr.project_type && (
+                      {getLeadProjectLabel(qr.project_type) && (
                         <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
-                          {qr.project_type.replace(/_/g, ' ')}
+                          {getLeadProjectLabel(qr.project_type)!.replace(/_/g, ' ')}
                         </p>
                       )}
                     </div>
@@ -2260,11 +2376,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           email: lead.email,
           phone: lead.phone,
           address: lead.address,
-          projectType: lead.project_type || lead.service_type,
+          projectType: projectTypeLabel || (isFrontlineVoice ? undefined : lead.service_type),
           // Quote-request description first; for call leads fall back to the call summary,
           // cleaned so it prefills as a project description rather than a call log.
-          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
-          // Auto-enhance only quote-request text; call summaries are prefilled as-is (no AI).
+          description: descriptionForPrefill,
+          // Refine both quote-request descriptions and call summaries before they
+          // become the saved project objective.
           enhanceOnOpen: !!(lead.description || lead.summary_text),
           estimatedValue: lead.estimated_value,
         } : undefined}
@@ -2282,10 +2399,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           email: lead.email,
           phone: lead.phone,
           address: lead.address,
-          projectType: lead.project_type || lead.service_type,
-          description: lead.description || callSummaryToProjectDescription(lead.summary_text),
+          projectType: projectTypeLabel || (isFrontlineVoice ? undefined : lead.service_type),
+          description: descriptionForPrefill,
           measurements: lead.measurements,
-          // Auto-enhance only quote-request text; call summaries are prefilled as-is.
+          // Refine both quote-request descriptions and call summaries before they
+          // become the saved quote description.
           enhanceOnOpen: !!(lead.description || lead.summary_text),
         }}
         onConfirm={(ctx) => {
@@ -2372,19 +2490,6 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 // Conversation Messages Component for Call Leads
 interface ConversationMessagesProps {
   phoneNumber: string
-}
-
-function stripMarkdownBold(text: string): string {
-  return text.replace(/\*\*([^*]*)\*\*/g, '$1').replace(/\*\*/g, '')
-}
-
-// Turn a call lead's AI summary into a plain prefill for a project description:
-// strip the "Call Summary" heading and markdown so it doesn't read as a call log.
-function callSummaryToProjectDescription(text?: string): string {
-  if (!text) return ""
-  return stripMarkdownBold(text)
-    .replace(/^\s*call summary\s*:?\s*\n*/i, "")
-    .trim()
 }
 
 function extractUrls(text: string): { cleanText: string; urls: Array<{ href: string; label: string }> } {
@@ -2566,7 +2671,7 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
         })) || []
 
         // Sort chronologically (oldest first)
-        apiMessages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        apiMessages.sort((a: any, b: any) => (parseApiUtcDate(a.timestamp)?.getTime() ?? 0) - (parseApiUtcDate(b.timestamp)?.getTime() ?? 0))
 
         console.log('✅ Loaded', apiMessages.length, 'messages')
         setMessages(apiMessages)
@@ -2584,7 +2689,8 @@ function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
   }
 
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
+    const date = parseApiUtcDate(timestamp)
+    if (!date) return ""
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
@@ -2912,7 +3018,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
             formatted_transcript_text: lead.formatted_transcript_text,
             summary_text: lead.summary_text,
             phone_number: lead.phone_number, // Keep phone number for verification
-            is_frontline_ai: !!lead.is_frontline_ai || lead.source === 'FRONTLINE_VOICE' || lead.interaction_type === 'frontline_voice',
+            is_frontline_ai: isFrontlineVoiceLead(lead),
             source: lead.source,
           }
         })
@@ -2931,7 +3037,7 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           return hasTranscript
         })
         .sort((a: CallHistoryItem, b: CallHistoryItem) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          (parseApiUtcDate(b.created_at)?.getTime() ?? 0) - (parseApiUtcDate(a.created_at)?.getTime() ?? 0)
         )
 
       console.log('✅ Final call history items for phone', phoneNumber, ':', historyItems.map(item => ({
@@ -2992,7 +3098,8 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
   }, [phoneNumber, loadCallHistory, lastPhoneNumber])
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return { date: '', time: '', full: '' }
     return {
       date: date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
       time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -3095,8 +3202,8 @@ function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionPr
           </Badge>
           {callHistory.some(call => call.is_frontline_ai) && (
             <Badge variant="outline" className="flex items-center gap-1 rounded-full border-sky-200 bg-sky-50 text-[10px] text-sky-700">
-              <Bot className="h-3 w-3" />
-              Frontline
+              <Sparkles className="h-3 w-3" />
+              Frontline Voice
             </Badge>
           )}
         </div>

@@ -8,6 +8,7 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
+import { parseApiUtcDate } from "@/lib/frontline-datetime"
 
 interface Lead {
   id: number
@@ -66,7 +67,8 @@ export function RecentLeadsReal() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return ""
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     

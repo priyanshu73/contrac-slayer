@@ -6,6 +6,7 @@ import { api, contractorAI } from "@/lib/api"
 import { CustomerRequestForm } from "@/components/customer-request-form"
 import { Card } from "@/components/ui/card"
 import Image from "next/image"
+import { callSummaryToDescription } from "@/lib/call-summary"
 
 export interface PrefillData {
   name?: string
@@ -44,7 +45,7 @@ export default function PublicQuoteRequestPage() {
                 name: summary.caller_name || '',
                 phone: summary.caller_phone || '',
                 address: summary.caller_address || '',
-                description: summary.project_summary || '',
+                description: callSummaryToDescription(summary.project_summary),
               })
             }
           } catch (prefillErr) {
@@ -58,7 +59,7 @@ export default function PublicQuoteRequestPage() {
             const summary = await contractorAI.getInteractionProjectSummary(interactionId)
             if (summary.project_summary) {
               setPrefillData({
-                description: summary.project_summary,
+                description: callSummaryToDescription(summary.project_summary),
                 project_type: summary.project_type || '',
                 phone: summary.customer_number || '',
               })
@@ -128,4 +129,3 @@ export default function PublicQuoteRequestPage() {
     </div>
   )
 }
-

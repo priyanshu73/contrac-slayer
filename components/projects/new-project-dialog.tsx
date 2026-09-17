@@ -29,6 +29,7 @@ import { Calendar, Loader2, FileText, User, ChevronsUpDown, UserPlus, Check } fr
 import { AiCapturedDescription } from "@/components/shared/ai-captured-description"
 import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 import { buildInitialProjectBrief } from "@/lib/project-brief"
+import { callSummaryToDescription } from "@/lib/call-summary"
 import { AddClientForm, type CreatedClient } from "@/components/add-client-form"
 import { cn } from "@/lib/utils"
 
@@ -53,8 +54,8 @@ export interface FromLeadProps {
     projectType?: string
     description?: string
     estimatedValue?: number
-    // When true (quote-request leads), auto-enhance the description on open instead of
-    // waiting for the "View enhanced" button. Call leads leave this false (plain prefill).
+    // When true, refine the incoming request/call summary on open instead of
+    // waiting for the user to start capture manually.
     enhanceOnOpen?: boolean
 }
 
@@ -103,7 +104,9 @@ export function NewProjectDialog({
     // Only feed a real work type into the AI as context — not call placeholders.
     const projectType = isUsableProjectType(rawProjectType) ? rawProjectType : undefined
     // Raw text the AI-captured-description panel refines (lead request / quote objective).
-    const aiSource = fromLead?.description ?? fromQuote?.objective ?? ""
+    const aiSource = fromLead
+        ? callSummaryToDescription(fromLead.description)
+        : fromQuote?.objective ?? ""
 
     // Derive a relevant title from the raw request when the lead has no usable project
     // type (e.g. call leads). Best-effort and silent — keeps the fallback title on failure.
@@ -139,8 +142,8 @@ export function NewProjectDialog({
 
                 // No usable project type (e.g. call leads, where it's "AI Operator Call") →
                 // derive a relevant title from the request text instead of the generic fallback.
-                if (fromLead.enhanceOnOpen && (fromLead.description || "").trim() && !usableType) {
-                    void requestTitle(fromLead.description!)
+                if (fromLead.enhanceOnOpen && aiSource.trim() && !usableType) {
+                    void requestTitle(aiSource)
                 }
             } else if (fromQuote) {
                 setTitle(fromQuote.title || "")

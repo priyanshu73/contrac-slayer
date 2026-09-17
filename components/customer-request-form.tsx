@@ -15,6 +15,7 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
+import { callSummaryToDescription } from "@/lib/call-summary"
 
 interface PrefillData {
   name?: string
@@ -51,7 +52,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         phone: prefillData.phone || prev.phone,
         address: prefillData.address || prev.address,
         project_type: prefillData.project_type || prev.project_type,
-        description: prefillData.description || prev.description,
+        description: callSummaryToDescription(prefillData.description) || prev.description,
       }))
       setHasPrefilled(true)
     }

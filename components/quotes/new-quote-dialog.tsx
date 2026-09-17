@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { User, ArrowRight } from "lucide-react"
 import { AiCapturedDescription } from "@/components/shared/ai-captured-description"
 import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
+import { callSummaryToDescription } from "@/lib/call-summary"
 
 export interface QuoteFromLeadProps {
     leadId?: number
@@ -27,8 +28,8 @@ export interface QuoteFromLeadProps {
     projectType?: string
     description?: string
     measurements?: any
-    // When true (quote-request leads), auto-enhance the description on open instead
-    // of waiting for the "Enhance description" button. Call leads leave this false.
+    // When true, refine the incoming request/call summary on open instead of
+    // waiting for the user to start capture manually.
     enhanceOnOpen?: boolean
 }
 
@@ -59,7 +60,7 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
     // Only feed a real work type into the AI as context — not call placeholders.
     const projectType = isUsableProjectType(fromLead?.projectType) ? fromLead?.projectType : undefined
-    const aiSource = fromLead?.description ?? ""
+    const aiSource = callSummaryToDescription(fromLead?.description)
 
     // Derive a relevant title from the raw request when the lead has no usable project
     // type (e.g. call leads). Best-effort and silent — keeps the fallback title on failure.
@@ -90,8 +91,8 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
             // No usable project type (e.g. call leads, where it's "AI Operator Call") →
             // derive a relevant title from the request text instead of the generic fallback.
-            if (fromLead.enhanceOnOpen && (fromLead.description || "").trim() && !usableType) {
-                void requestTitle(fromLead.description!)
+            if (fromLead.enhanceOnOpen && aiSource.trim() && !usableType) {
+                void requestTitle(aiSource)
             }
         } else if (!open && initializedRef.current) {
             initializedRef.current = false
