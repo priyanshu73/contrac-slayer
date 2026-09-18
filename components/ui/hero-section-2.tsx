@@ -90,18 +90,18 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="w-full max-w-5xl min-w-0">
-            <motion.h1 variants={itemVariants} className="mx-auto max-w-full min-w-0 text-4xl font-semibold leading-[1.08] tracking-normal text-white sm:text-5xl lg:max-w-none lg:text-6xl [text-wrap:balance]">
+            <motion.h1 variants={itemVariants} className="mx-auto max-w-full min-w-0 text-3xl font-semibold leading-[1.12] tracking-normal text-white sm:text-5xl lg:max-w-none lg:text-6xl [text-wrap:balance]">
               {title ?? (
                 <>
-                  <span className="block lg:whitespace-nowrap">{t("heroHeadline")}</span>
-                  <span className="mt-1 block translate-x-0 text-2xl font-medium text-white/55 sm:text-3xl lg:-translate-x-[6%] lg:text-4xl lg:whitespace-nowrap">
+                  <span className="block">{t("heroHeadline")}</span>
+                  <span className="mt-2 block text-xl font-medium text-white/60 sm:text-2xl md:text-3xl lg:text-4xl leading-snug [text-wrap:balance]">
                     {t("heroHeadlineAccent")}
                   </span>
                 </>
               )}
             </motion.h1>
 
-            <motion.p variants={itemVariants} className="mx-auto mt-6 max-w-2xl text-base font-medium leading-7 text-white/70 [text-shadow:0_2px_18px_rgba(0,0,0,0.62)] sm:text-lg">
+            <motion.p variants={itemVariants} className="mx-auto mt-6 max-w-2xl px-2 text-sm font-medium leading-relaxed text-white/70 [text-shadow:0_2px_18px_rgba(0,0,0,0.62)] sm:text-base md:text-lg">
               {subtitle ?? t("heroBody")}
             </motion.p>
 
