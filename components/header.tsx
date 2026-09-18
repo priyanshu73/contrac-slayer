@@ -229,7 +229,7 @@ export function Header() {
             <img src="/logo.png" alt="" className="h-7 w-7 rounded-full object-contain" />
           </span>
           <span className={`text-sm font-black tracking-tight transition-colors sm:text-base ${isHeaderSolid ? 'text-slate-950' : 'text-white drop-shadow-sm'}`}>
-            ContractorOps AI
+            ContractorOps
           </span>
         </Link>
 
