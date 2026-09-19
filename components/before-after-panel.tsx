@@ -1212,7 +1212,7 @@ export function BeforeAfterPanel({
                       />
                     </div>
                     <span className="absolute bottom-2 left-2 rounded-md bg-emerald-600/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-sm">
-                      After · Master Render
+                      After · AI-generated preview
                     </span>
                   </div>
                 </div>

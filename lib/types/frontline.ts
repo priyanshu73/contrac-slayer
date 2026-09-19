@@ -128,11 +128,27 @@ export interface FrontlineVoiceTrainingSession {
   transcript_text: string | null
   transcript_json: Array<{ role: string; text: string; at?: string }> | null
   intake_summary: string | null
+  objective_type?: 'business_fact' | 'customer_scenario' | 'recurring_issue' | null
+  owner_goal?: string | null
+  proposals?: FrontlineTrainingProposal[]
+  review_status?: 'pending' | 'pending_review' | 'published' | 'failed' | string
+  publish_result?: Record<string, unknown> | null
   failure_reason: string | null
   started_at: string | null
   ended_at: string | null
   created_at: string | null
   updated_at: string | null
+}
+
+export interface FrontlineTrainingProposal {
+  id: string
+  kind: 'core_fact' | 'global_policy' | 'scenario_playbook' | 'reference_fact' | 'discard'
+  title: string
+  content: string
+  evidence: string
+  core_field?: string
+  value?: unknown
+  reason?: string
 }
 
 export interface FrontlineVoiceTrainingSessionStart {
@@ -223,11 +239,21 @@ export interface FrontlineTeachNote {
 }
 
 export interface FrontlineCanonicalFieldReview {
-  field: "service_area" | "hours" | "pricing_basics" | "escalation" | "services"
+  field:
+    | "service_area"
+    | "regular_hours"
+    | "after_hours"
+    | "free_estimates"
+    | "callout_fee"
+    | "rate_info"
+    | "escalation_when"
+    | "services_offered"
+    | "services_not_offered"
   message: string
 }
 
-export interface FrontlineTeachResponse extends FrontlineTeachNote {
+export interface FrontlineTeachResponse extends Partial<FrontlineTeachNote> {
+  disposition?: "preview" | "training" | "core"
   knowledge?: { action?: string; superseded_ids?: number[] }
   canonical_field_review?: FrontlineCanonicalFieldReview
 }

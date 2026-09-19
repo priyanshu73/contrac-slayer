@@ -2069,6 +2069,8 @@
       "phonePlaceholder": "+1 555 123 4567",
       "businessFacts": "Datos del negocio",
       "businessFactsDesc": "Estos son los datos canónicos que Frontline proporciona directamente a sus asistentes de SMS y voz. Manténgalos actualizados; las notas de entrenamiento son conocimiento recuperado por separado.",
+      "viewBusinessFacts": "Ver datos del negocio",
+      "backToSettings": "Volver a configuración",
       "businessFactsSaved": "Datos del negocio guardados.",
       "businessFactsSaveError": "No se pudieron guardar los datos del negocio.",
       "businessNameRequired": "El nombre del negocio es obligatorio.",
