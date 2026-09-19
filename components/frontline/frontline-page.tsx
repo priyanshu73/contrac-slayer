@@ -134,10 +134,23 @@ type CoreFactsDraft = {
 type CoreFactSuggestion = {
   field: keyof Pick<
     CoreFactsDraft,
-    "service_area" | "regular_hours" | "rate_info" | "escalation_when" | "services_offered"
+    | "service_area"
+    | "regular_hours"
+    | "after_hours"
+    | "free_estimates"
+    | "callout_fee"
+    | "rate_info"
+    | "escalation_when"
+    | "services_offered"
+    | "services_not_offered"
   >;
   label: string;
   value: string;
+  correction: {
+    question: string;
+    bad_answer: string;
+    corrected_answer: string;
+  };
 };
 
 const EMPTY_CORE_FACTS: CoreFactsDraft = {
@@ -1063,6 +1076,7 @@ export function FrontlinePage() {
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
   const [coreFacts, setCoreFacts] = useState<CoreFactsDraft>(EMPTY_CORE_FACTS);
   const [coreFactsEditing, setCoreFactsEditing] = useState(false);
+  const [businessFactsOpen, setBusinessFactsOpen] = useState(false);
   const [chunks, setChunks] = useState<FrontlineKnowledgeChunkItem[]>([]);
   const [trainingIntake, setTrainingIntake] = useState("");
   const [intakeResult, setIntakeResult] = useState<FrontlineKnowledgeIntakeResponse | null>(null);
@@ -1176,13 +1190,23 @@ export function FrontlinePage() {
 
   const applySuggestedCoreFact = async () => {
     if (!coreFactSuggestion) return;
-    const nextFacts = { ...coreFacts, [coreFactSuggestion.field]: coreFactSuggestion.value };
+    const nextFacts = { ...coreFacts };
+    if (coreFactSuggestion.field === "free_estimates") {
+      nextFacts.free_estimates = !/\b(no|not|don't|dont|never|without)\b/i.test(coreFactSuggestion.value);
+    } else {
+      nextFacts[coreFactSuggestion.field] = coreFactSuggestion.value;
+    }
     try {
       setSaving(true);
       setError(null);
       const updated = await api.saveFrontlineCoreFields(
         coreFactsPayload(nextFacts, settings?.escalation_number || ""),
       );
+      await api.frontlineTeach({
+        ...coreFactSuggestion.correction,
+        source: "sandbox",
+        disposition: "core",
+      });
       setCoreFacts(nextFacts);
       setSettings(updated);
       setCoreFactSuggestion(null);
@@ -1239,27 +1263,37 @@ export function FrontlinePage() {
   const submitTeach = async () => {
     if (!teachGood.trim()) return;
     const correction = teachGood.trim();
+    const payload = {
+      question: sandboxQ || "Sandbox correction",
+      bad_answer: teachBad || sandboxA?.answer || "",
+      corrected_answer: correction,
+      source: "sandbox",
+    } as const;
     try {
       setSaving(true);
       setError(null);
       const result = await api.frontlineTeach({
-        question: sandboxQ || "Sandbox correction",
-        bad_answer: teachBad || sandboxA?.answer || "",
-        corrected_answer: correction,
-        source: "sandbox",
+        ...payload,
+        disposition: "preview",
       });
-      setTeachGood("");
-      const suggestionMap: Record<NonNullable<typeof result.canonical_field_review>["field"], Omit<CoreFactSuggestion, "value">> = {
+      const suggestionMap: Record<NonNullable<typeof result.canonical_field_review>["field"], Omit<CoreFactSuggestion, "value" | "correction">> = {
         service_area: { field: "service_area", label: "Service area" },
-        hours: { field: "regular_hours", label: "Regular hours" },
-        pricing_basics: { field: "rate_info", label: "Pricing guidance" },
-        escalation: { field: "escalation_when", label: "Escalate when" },
-        services: { field: "services_offered", label: "Services offered" },
+        regular_hours: { field: "regular_hours", label: "Regular hours" },
+        after_hours: { field: "after_hours", label: "After-hours policy" },
+        free_estimates: { field: "free_estimates", label: "Free estimates" },
+        callout_fee: { field: "callout_fee", label: "Callout or after-hours fee" },
+        rate_info: { field: "rate_info", label: "Pricing guidance" },
+        escalation_when: { field: "escalation_when", label: "Escalate when" },
+        services_offered: { field: "services_offered", label: "Services offered" },
+        services_not_offered: { field: "services_not_offered", label: "Services not offered" },
       };
       const review = result.canonical_field_review;
       if (review) {
-        setCoreFactSuggestion({ ...suggestionMap[review.field], value: correction });
+        setTeachGood("");
+        setCoreFactSuggestion({ ...suggestionMap[review.field], value: correction, correction: payload });
       } else {
+        await api.frontlineTeach({ ...payload, disposition: "training" });
+        setTeachGood("");
         flashSuccess(tToast("correctionSaved"));
       }
       await load();
@@ -1464,9 +1498,9 @@ export function FrontlinePage() {
         )}
 
         {view === "settings" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-            <div className="space-y-6">
-              <Surface>
+          <div className={cx("grid gap-6", businessFactsOpen ? "max-w-4xl" : "lg:grid-cols-[1fr_360px] lg:items-start")}>
+            <div className="flex flex-col gap-6">
+              <Surface className={businessFactsOpen ? "" : "order-2"}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
@@ -1477,10 +1511,19 @@ export function FrontlinePage() {
                       {tSettings("businessFactsDesc")}
                     </p>
                   </div>
-                  {!coreFactsEditing ? (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setCoreFactsEditing(true)} className="rounded-xl">
-                      <PenLine className="mr-2 h-4 w-4" />{tSettings("edit")}
+                  {!businessFactsOpen ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setBusinessFactsOpen(true)} className="rounded-xl">
+                      <ClipboardList className="mr-2 h-4 w-4" />{tSettings("viewBusinessFacts")}
                     </Button>
+                  ) : !coreFactsEditing ? (
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setBusinessFactsOpen(false)} className="rounded-xl">
+                        {tSettings("backToSettings")}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setCoreFactsEditing(true)} className="rounded-xl">
+                      <PenLine className="mr-2 h-4 w-4" />{tSettings("edit")}
+                      </Button>
+                    </div>
                   ) : (
                     <div className="flex gap-2">
                       <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => {
@@ -1495,7 +1538,7 @@ export function FrontlinePage() {
                   )}
                 </div>
 
-                <fieldset disabled={!coreFactsEditing} className="mt-5 space-y-4 disabled:opacity-75">
+                {businessFactsOpen && <fieldset disabled={!coreFactsEditing} className="mt-5 space-y-4 disabled:opacity-75">
                   <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                     <h3 className="text-sm font-semibold text-slate-950">{tSettings("servicesCoverage")}</h3>
                     <p className="mt-1 text-xs leading-5 text-slate-500">{tSettings("servicesCoverageDesc")}</p>
@@ -1581,10 +1624,10 @@ export function FrontlinePage() {
                       />
                     </div>
                   </section>
-                </fieldset>
+                </fieldset>}
               </Surface>
 
-              <Surface>
+              {!businessFactsOpen && <Surface className="order-1">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
@@ -1813,11 +1856,11 @@ export function FrontlinePage() {
                     </div>
                   </div>
                 )}
-              </Surface>
+              </Surface>}
 
             </div>
 
-            <div className="space-y-6">
+            {!businessFactsOpen && <div className="space-y-6">
               <Surface className="bg-gradient-to-br from-white to-sky-50/50">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                   <Sparkles className="h-4 w-4 text-sky-500" />
@@ -1841,7 +1884,7 @@ export function FrontlinePage() {
                   {tSettings("statsMovedNote")}
                 </p>
               </Surface>
-            </div>
+            </div>}
           </div>
         )}
       </div>
@@ -1861,7 +1904,33 @@ export function FrontlinePage() {
             aria-label="Suggested core business fact"
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCoreFactSuggestion(null)} disabled={saving}>Keep as training note only</Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => {
+                if (!coreFactSuggestion) return;
+                void (async () => {
+                  try {
+                    setSaving(true);
+                    await api.frontlineTeach({
+                      ...coreFactSuggestion.correction,
+                      source: "sandbox",
+                      disposition: "training",
+                    });
+                    setCoreFactSuggestion(null);
+                    flashSuccess(tToast("correctionSaved"));
+                    await load();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : tToast("saveCorrectionError"));
+                  } finally {
+                    setSaving(false);
+                  }
+                })();
+              }}
+            >
+              Keep as training note only
+            </Button>
             <Button type="button" onClick={() => void applySuggestedCoreFact()} disabled={saving || !coreFactSuggestion?.value.trim()}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update business fact

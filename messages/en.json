@@ -2069,6 +2069,8 @@
       "phonePlaceholder": "+1 555 123 4567",
       "businessFacts": "Business facts",
       "businessFactsDesc": "These are the canonical facts Frontline supplies directly to its SMS and voice assistants. Keep them current; training notes are separate retrieved knowledge.",
+      "viewBusinessFacts": "View business facts",
+      "backToSettings": "Back to settings",
       "businessFactsSaved": "Business facts saved.",
       "businessFactsSaveError": "Unable to save business facts.",
       "businessNameRequired": "Business name is required.",

@@ -786,6 +786,7 @@ class ApiClient {
     question?: string
     bad_answer?: string
     source?: string
+    disposition?: 'preview' | 'training' | 'core'
   }): Promise<FrontlineTeachResponse> {
     return this.request('/contractors/profile/frontline/teach', {
       method: 'POST',

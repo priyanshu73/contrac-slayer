@@ -223,11 +223,21 @@ export interface FrontlineTeachNote {
 }
 
 export interface FrontlineCanonicalFieldReview {
-  field: "service_area" | "hours" | "pricing_basics" | "escalation" | "services"
+  field:
+    | "service_area"
+    | "regular_hours"
+    | "after_hours"
+    | "free_estimates"
+    | "callout_fee"
+    | "rate_info"
+    | "escalation_when"
+    | "services_offered"
+    | "services_not_offered"
   message: string
 }
 
-export interface FrontlineTeachResponse extends FrontlineTeachNote {
+export interface FrontlineTeachResponse extends Partial<FrontlineTeachNote> {
+  disposition?: "preview" | "training" | "core"
   knowledge?: { action?: string; superseded_ids?: number[] }
   canonical_field_review?: FrontlineCanonicalFieldReview
 }
