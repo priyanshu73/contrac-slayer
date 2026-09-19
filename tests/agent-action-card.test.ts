@@ -158,7 +158,8 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
       ...sampleMessage,
       actionCard: {
         ...sampleMessage.actionCard!,
-        status: "completed",
+        // The approval API returns this value in uppercase.
+        status: "COMPLETED" as any,
         replayed: true,
       },
     };
@@ -209,6 +210,67 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
     assert.match(badge.textContent || "", /✕ Action Cancelled/);
     assert.equal(queryByTestId("action-card-button-approve-action"), null);
 
+    cleanup();
+  });
+
+  it("offers View Project after a completed project command", () => {
+    const viewed: string[] = [];
+    const projectMessage: Message = {
+      ...sampleMessage,
+      actionCard: {
+        ...sampleMessage.actionCard!,
+        action: "create_project",
+        status: "COMPLETED" as any,
+        result: { entity: { project_id: 314, title: "David Butler Project" } },
+      },
+    };
+
+    const { getByTestId } = render(
+      React.createElement(AgentActionCard, {
+        message: projectMessage,
+        executingCommandId: null,
+        onActionClick: () => {},
+        onViewProject: (projectId) => viewed.push(projectId),
+      })
+    );
+
+    fireEvent.click(getByTestId("action-card-view-project"));
+    assert.deepEqual(viewed, ["314"]);
+    cleanup();
+  });
+
+  it("lets the contractor edit a project name before approving", () => {
+    const approvals: Message[] = [];
+    const projectMessage: Message = {
+      ...sampleMessage,
+      actionCard: {
+        ...sampleMessage.actionCard!,
+        action: "create_project",
+        entity: { title: "Johnson Project" },
+        status: "pending",
+      },
+    };
+
+    const { getByTestId } = render(
+      React.createElement(AgentActionCard, {
+        message: projectMessage,
+        executingCommandId: null,
+        onActionClick: (message) => {
+          approvals.push(message);
+        },
+      })
+    );
+
+    const title = getByTestId("action-card-project-title") as HTMLInputElement;
+    assert.equal(title.value, "Johnson Project");
+    fireEvent.input(title, { target: { value: "Johnson Kitchen Remodel" } });
+    assert.equal(title.value, "Johnson Kitchen Remodel");
+    fireEvent.click(getByTestId("action-card-button-approve-action"));
+
+    assert.equal(approvals.length, 1);
+    assert.deepEqual(approvals[0].actionCard?.editedPayload, {
+      title: "Johnson Kitchen Remodel",
+    });
     cleanup();
   });
 

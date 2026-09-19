@@ -1507,7 +1507,7 @@ class ApiClient {
   /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected.
    *  `note` is an optional personal message; the backend must read it for it to
    *  appear in the email body. */
-  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string, note?: string): Promise<{ message: string }> {
+  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string, note?: string): Promise<{ message: string; proposal?: import('@/lib/types').Proposal }> {
     return this.request(`/projects/${projectId}/proposals/${proposalId}/send-email`, {
       method: 'POST',
       body: JSON.stringify({ to, proposal_url: proposalUrl, note: note?.trim() || undefined }),
@@ -3046,7 +3046,7 @@ class ApiClient {
     return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/cancel`, { method: 'POST' })
   }
 
-  async approveAgentCommand(commandId: number | string, approvalToken: string): Promise<{
+  async approveAgentCommand(commandId: number | string, approvalToken: string, editedPayload?: Record<string, unknown>): Promise<{
     command_id: number
     action: string
     status: string
@@ -3056,7 +3056,7 @@ class ApiClient {
   }> {
     return this.request(`/agent/commands/${commandId}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ approval_token: approvalToken }),
+      body: JSON.stringify({ approval_token: approvalToken, edited_payload: editedPayload }),
     })
   }
 
@@ -3508,7 +3508,7 @@ class ContractorAIClient {
     })
   }
 
-  async approveAgentCommand(commandId: number | string, approvalToken: string): Promise<{
+  async approveAgentCommand(commandId: number | string, approvalToken: string, editedPayload?: Record<string, unknown>): Promise<{
     command_id: number
     action: string
     status: string
@@ -3518,7 +3518,7 @@ class ContractorAIClient {
   }> {
     return this.request(`/agent/commands/${commandId}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ approval_token: approvalToken }),
+      body: JSON.stringify({ approval_token: approvalToken, edited_payload: editedPayload }),
     })
   }
 

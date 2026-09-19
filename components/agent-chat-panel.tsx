@@ -506,6 +506,7 @@ export interface ActionCard {
     approvalToken?: string
     status?: "pending" | "approved" | "rejected" | "executing" | "completed" | "failed"
     result?: Record<string, unknown>
+    editedPayload?: Record<string, unknown>
     replayed?: boolean
 }
 
@@ -1453,57 +1454,90 @@ export function AgentChatPanel() {
                                 })
                             )
 
-                            // Check for action card in tool result
-                            if (parsed.result) {
-                                const resultObj = typeof parsed.result === "string"
-                                    ? (() => { try { return JSON.parse(parsed.result) } catch { return null } })()
-                                    : parsed.result
+                            // Check for action card or client-side action in tool result
+                            const rawResult = parsed.result ?? parsed.content
+                            if (rawResult) {
+                                const resultObj = typeof rawResult === "string"
+                                    ? (() => { try { return JSON.parse(rawResult) } catch { return null } })()
+                                    : rawResult
 
-                                if (resultObj && typeof resultObj === "object" && resultObj.action_card) {
-                                    const cardData = resultObj.action_card
-                                    const actionCard: ActionCard = {
-                                        action: cardData.action,
-                                        title: cardData.title || "Confirm Action",
-                                        description: cardData.description,
-                                        options: cardData.options || [
-                                            { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
-                                            { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
-                                        ],
-                                        entity: cardData.entity,
-                                        interruptId: cardData.interruptId,
-                                        commandId: cardData.command_id || cardData.commandId,
-                                        approvalToken: cardData.approval_token || cardData.approvalToken,
-                                        status: "pending",
-                                    }
-                                    setMessages((prev) => {
-                                        const last = prev[prev.length - 1]
-                                        if (last && last.id === assistantId) {
-                                            return [...prev.slice(0, -1), { ...last, actionCard }]
+                                if (resultObj && typeof resultObj === "object") {
+                                    // 1. Client-Side Actions (AG-UI Agent UI Control)
+                                    if (resultObj.client_action) {
+                                        if (resultObj.action === "navigate" && typeof resultObj.route === "string") {
+                                            const cleanRoute = resultObj.route.startsWith("/") ? resultObj.route : `/${resultObj.route}`
+                                            const targetUrl = `/${locale}${cleanRoute}`
+                                            router.push(targetUrl)
+                                        } else if (resultObj.action === "copy_to_clipboard" && typeof resultObj.text === "string") {
+                                            if (typeof navigator !== "undefined" && navigator.clipboard) {
+                                                void navigator.clipboard.writeText(resultObj.text)
+                                                toast({
+                                                    title: "Copied to clipboard",
+                                                    description: resultObj.text,
+                                                })
+                                            }
+                                        } else if (resultObj.action === "patch_state" && Array.isArray(resultObj.delta)) {
+                                            agUiState.dispatch({
+                                                entityType: (resultObj.entity_type as string) || "quote",
+                                                delta: resultObj.delta as any,
+                                                reason: resultObj.reason as string | undefined,
+                                            })
                                         }
-                                        return prev.map((m) =>
-                                            m.id === assistantId
-                                                ? { ...m, actionCard }
-                                                : m
-                                        )
-                                    })
-                                }
+                                    }
 
-                                // Show toast on success/failure if message is present
-                                if (resultObj && typeof resultObj === "object" && resultObj.message) {
-                                    if (parsed.error || resultObj.status === "failed") {
-                                        toast({
-                                            title: "Action Failed",
-                                            description: resultObj.message || "The requested action could not be completed.",
-                                            variant: "destructive",
+                                    // 2. Action Card (Confirmation / Human in the Loop)
+                                    if (resultObj.action_card) {
+                                        const cardData = resultObj.action_card
+                                        const actionCard: ActionCard = {
+                                            action: cardData.action,
+                                            title: cardData.title || "Confirm Action",
+                                            description: cardData.description,
+                                            options: cardData.options || [
+                                                { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
+                                                { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                            ],
+                                            entity: cardData.entity,
+                                            interruptId: cardData.interruptId,
+                                            commandId: cardData.command_id || cardData.commandId,
+                                            approvalToken: cardData.approval_token || cardData.approvalToken,
+                                            status: "pending",
+                                        }
+                                        setMessages((prev) => {
+                                            const last = prev[prev.length - 1]
+                                            if (last && last.id === assistantId) {
+                                                return [...prev.slice(0, -1), { ...last, actionCard }]
+                                            }
+                                            return prev.map((m) =>
+                                                m.id === assistantId
+                                                    ? { ...m, actionCard }
+                                                    : m
+                                            )
                                         })
-                                    } else if (resultObj.status === "completed" || resultObj.success) {
-                                        toast({
-                                            title: "Action Completed",
-                                            description: resultObj.message,
-                                        })
+                                    }
+
+                                    // 3. Show toast on success/failure if message is present (skip for navigation)
+                                    if (resultObj.message && !resultObj.client_action) {
+                                        if (parsed.error || resultObj.status === "failed") {
+                                            toast({
+                                                title: "Action Failed",
+                                                description: resultObj.message || "The requested action could not be completed.",
+                                                variant: "destructive",
+                                            })
+                                        } else if (resultObj.status === "completed" || resultObj.success) {
+                                            toast({
+                                                title: "Action Completed",
+                                                description: resultObj.message,
+                                            })
+                                        }
                                     }
                                 }
                             }
+                        } else if (parsed.type === "STATE_DELTA" && Array.isArray(parsed.delta)) {
+                            agUiState.dispatch({
+                                entityType: (parsed.entityType as string) || "quote",
+                                delta: parsed.delta as any,
+                                reason: parsed.reason as string | undefined,
+                            })
                         } else if (parsed.type === "TOOL_CALL_CHUNK") {
                             // Streaming tool args - can be ignored or used for progress
                         } else if (parsed.type === "TEXT_MESSAGE_CONTENT" || parsed.type === "TEXT_MESSAGE_CHUNK") {
@@ -1746,7 +1780,11 @@ export function AgentChatPanel() {
                         description: "The command was successfully rejected.",
                     })
                 } else {
-                    const res = await api.approveAgentCommand(card.commandId, card.approvalToken)
+                    const res = await api.approveAgentCommand(
+                        card.commandId,
+                        card.approvalToken,
+                        card.editedPayload,
+                    )
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === message.id && m.actionCard
@@ -1754,7 +1792,7 @@ export function AgentChatPanel() {
                                     ...m,
                                     actionCard: {
                                         ...m.actionCard,
-                                        status: (res.status as any) || "completed",
+                                        status: String(res.status || "completed").toLowerCase() as ActionCard["status"],
                                         result: res.result,
                                         replayed: res.replayed,
                                     },
@@ -2810,6 +2848,10 @@ export function AgentChatPanel() {
                                                     executingCommandId={executingCommandId}
                                                     isLoading={isLoading}
                                                     onActionClick={handleActionCardClick}
+                                                    onViewProject={(projectId) => {
+                                                        setIsOpen(false)
+                                                        router.push(`/${locale}/projects/${projectId}`)
+                                                    }}
                                                 />
                                             )}
                                         </>
