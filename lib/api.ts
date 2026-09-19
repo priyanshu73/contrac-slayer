@@ -824,9 +824,22 @@ class ApiClient {
     return this.request('/contractors/profile/frontline/voice/training/eligibility')
   }
 
-  async startFrontlineVoiceTrainingSession(): Promise<FrontlineVoiceTrainingSessionStart> {
+  async startFrontlineVoiceTrainingSession(payload?: {
+    objective_type: 'business_fact' | 'customer_scenario' | 'recurring_issue'
+    owner_goal?: string
+  }): Promise<FrontlineVoiceTrainingSessionStart> {
     return this.request('/contractors/profile/frontline/voice/training/session', {
       method: 'POST',
+      body: JSON.stringify(payload ?? { objective_type: 'business_fact' }),
+    })
+  }
+
+  async publishFrontlineVoiceTrainingSession(sessionUuid: string, payload: {
+    selected_ids: string[]
+    proposals: import('@/lib/types/frontline').FrontlineTrainingProposal[]
+  }): Promise<FrontlineVoiceTrainingSession> {
+    return this.request(`/contractors/profile/frontline/voice/training/session/${sessionUuid}/publish`, {
+      method: 'POST', body: JSON.stringify(payload),
     })
   }
 

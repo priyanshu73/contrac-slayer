@@ -128,11 +128,27 @@ export interface FrontlineVoiceTrainingSession {
   transcript_text: string | null
   transcript_json: Array<{ role: string; text: string; at?: string }> | null
   intake_summary: string | null
+  objective_type?: 'business_fact' | 'customer_scenario' | 'recurring_issue' | null
+  owner_goal?: string | null
+  proposals?: FrontlineTrainingProposal[]
+  review_status?: 'pending' | 'pending_review' | 'published' | 'failed' | string
+  publish_result?: Record<string, unknown> | null
   failure_reason: string | null
   started_at: string | null
   ended_at: string | null
   created_at: string | null
   updated_at: string | null
+}
+
+export interface FrontlineTrainingProposal {
+  id: string
+  kind: 'core_fact' | 'global_policy' | 'scenario_playbook' | 'reference_fact' | 'discard'
+  title: string
+  content: string
+  evidence: string
+  core_field?: string
+  value?: unknown
+  reason?: string
 }
 
 export interface FrontlineVoiceTrainingSessionStart {

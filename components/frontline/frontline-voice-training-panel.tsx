@@ -21,6 +21,7 @@ import type {
   FrontlineKnowledgeIntakeResponse,
   FrontlineVoiceTrainingEligibility,
   FrontlineVoiceTrainingSession,
+  FrontlineTrainingProposal,
 } from "@/lib/types/frontline"
 
 import { VoiceTrainingOrb } from "@/components/frontline/voice-training-orb"
@@ -63,6 +64,10 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
   const [liveUserText, setLiveUserText] = useState("")
   const [liveAssistantText, setLiveAssistantText] = useState("")
   const [waitingForResponse, setWaitingForResponse] = useState(false)
+  const [objectiveType, setObjectiveType] = useState<'business_fact' | 'customer_scenario' | 'recurring_issue'>('business_fact')
+  const [ownerGoal, setOwnerGoal] = useState('')
+  const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([])
+  const [publishing, setPublishing] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -261,7 +266,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
     setVoiceState("connecting")
 
     try {
-      const started = await api.startFrontlineVoiceTrainingSession()
+      const started = await api.startFrontlineVoiceTrainingSession({ objective_type: objectiveType, owner_goal: ownerGoal })
       setSession(started.session)
 
       const player = new PcmStreamPlayer(FRONTLINE_VOICE_OUTPUT_RATE)
@@ -386,9 +391,7 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
               ? summary || t("skippedFallback")
               : summary,
           )
-          if (knowledge && !skipped) {
-            onKnowledgeSaved?.(savedSession?.intake_summary)
-          }
+          if (knowledge && !skipped) setSelectedProposalIds((savedSession?.proposals || []).filter((p: FrontlineTrainingProposal) => p.kind !== 'discard').map((p: FrontlineTrainingProposal) => p.id))
           cleanupAudio()
           setVoiceState("completed")
           void loadEligibility()
@@ -428,6 +431,26 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
 
   const busy = voiceState === "connecting" || voiceState === "recording" || voiceState === "saving"
 
+  const publishSelected = async () => {
+    if (!session || selectedProposalIds.length === 0) return
+    setPublishing(true)
+    try {
+      const published = await api.publishFrontlineVoiceTrainingSession(session.uuid, {
+        selected_ids: selectedProposalIds,
+        proposals: session.proposals || [],
+      })
+      setSession(published)
+      setIntakeSummary('Approved training is now live.')
+      onKnowledgeSaved?.(published.intake_summary)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unable to publish training.'
+      setLocalError(msg)
+      onError?.(msg)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const orbMode =
     voiceState === "connecting"
       ? "connecting"
@@ -449,6 +472,18 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
       </div>
 
       <VoiceTrainingOrb mode={orbMode} energy={busy ? orbEnergy : 0} />
+
+      {(voiceState === 'idle' || voiceState === 'completed' || voiceState === 'failed') && session?.review_status !== 'pending_review' && (
+        <div className="mx-auto mt-3 max-w-md space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+          <label className="block font-medium text-slate-700">What would you like to work on?</label>
+          <select value={objectiveType} onChange={(e) => setObjectiveType(e.target.value as typeof objectiveType)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+            <option value="business_fact">Teach a business fact</option>
+            <option value="customer_scenario">Practice a customer scenario</option>
+            <option value="recurring_issue">Improve a recurring issue</option>
+          </select>
+          <textarea value={ownerGoal} onChange={(e) => setOwnerGoal(e.target.value)} placeholder="Optional: describe the fact or situation to practice" className="min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
+        </div>
+      )}
 
       {voiceState === "recording" &&
         (liveUserText || liveAssistantText || waitingForResponse) && (
@@ -535,6 +570,21 @@ export function FrontlineVoiceTrainingPanel({ onKnowledgeSaved, onError }: Props
         >
           {intakeSummary.startsWith("Skipped:") ? intakeSummary : t("saved", { summary: intakeSummary })}
         </p>
+      )}
+
+      {session?.review_status === 'pending_review' && (session.proposals || []).length > 0 && (
+        <div className="mt-4 space-y-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+          <div><p className="font-semibold text-indigo-950">Review training before it goes live</p><p className="text-sm text-indigo-800">Only checked proposals will be published.</p></div>
+          {(session.proposals || []).map((proposal) => (
+            <label key={proposal.id} className="block rounded-lg border border-indigo-100 bg-white p-3">
+              <div className="flex gap-2"><input type="checkbox" checked={selectedProposalIds.includes(proposal.id)} disabled={proposal.kind === 'discard'} onChange={() => setSelectedProposalIds((ids) => ids.includes(proposal.id) ? ids.filter((id) => id !== proposal.id) : [...ids, proposal.id])} /><span className="font-medium capitalize">{proposal.kind.replace('_', ' ')} — {proposal.title}</span></div>
+              <textarea value={proposal.content} onChange={(e) => setSession((current) => current ? {...current, proposals: (current.proposals || []).map((item) => item.id === proposal.id ? {...item, content: e.target.value} : item)} : current)} className="mt-2 min-h-20 w-full rounded border border-slate-200 p-2 text-sm" />
+              <p className="mt-1 text-xs text-slate-500">Owner evidence: {proposal.evidence}</p>
+              {proposal.core_field && <p className="mt-1 text-xs font-medium text-indigo-700">Updates core field: {proposal.core_field}</p>}
+            </label>
+          ))}
+          <Button onClick={() => void publishSelected()} disabled={publishing || selectedProposalIds.length === 0} className="w-full bg-indigo-700 text-white hover:bg-indigo-800">{publishing ? 'Publishing…' : 'Approve selected training'}</Button>
+        </div>
       )}
 
       {transcript.length > 0 && (
