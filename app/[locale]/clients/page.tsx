@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ClientsSearch } from "@/components/clients-search"
 import { ClientsList } from "@/components/clients-list"
 import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
@@ -19,15 +19,19 @@ export default function ClientsPage() {
   const [createAppointmentClientId, setCreateAppointmentClientId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [viewMode, setViewMode] = useState<ClientsViewMode>("list")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined])
+  const [nextCursor, setNextCursor] = useState<string | undefined>()
   const tClients = useTranslations("clients")
   const tCommon = useTranslations("common")
   const locale = useLocale()
 
   useEffect(() => {
-    fetchClients()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArchived])
+    const timeout = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
+    return () => clearTimeout(timeout)
+  }, [searchQuery])
 
   useEffect(() => {
     let cancelled = false
@@ -44,29 +48,31 @@ export default function ClientsPage() {
     }
   }, [])
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async (cursor?: string) => {
     try {
       setLoading(true)
-      const data = await api.getClients(0, 100, showArchived ? "ARCHIVED" : undefined)
-      setClients(Array.isArray(data) ? data : [])
+      const data = await api.getClientList({
+        cursor,
+        limit: 25,
+        status: showArchived ? "ARCHIVED" : undefined,
+        search: debouncedSearch || undefined,
+      })
+      setClients(data.items ?? [])
+      setNextCursor(data.next_cursor)
     } catch (error) {
       console.error("Failed to fetch clients:", error)
       setClients([])
+      setNextCursor(undefined)
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, showArchived])
 
-  // Client-side filtering
-  const filteredClients = clients.filter((client) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    const name = (client.name || client.full_name || "").toLowerCase()
-    const email = (client.email || "").toLowerCase()
-    const phone = (client.phone || "").toLowerCase()
-    const address = (client.address || "").toLowerCase()
-    return name.includes(query) || email.includes(query) || phone.includes(query) || address.includes(query)
-  })
+  useEffect(() => {
+    setCurrentPage(1)
+    setPageCursors([undefined])
+    void fetchClients()
+  }, [fetchClients])
 
   const clientsForAppointment: CreateAppointmentClient[] = clients.map((c) => ({
     id: c.id,
@@ -78,6 +84,15 @@ export default function ClientsPage() {
   const handleScheduleClick = (client: { id: number; name?: string; email?: string }) => {
     setCreateAppointmentClientId(String(client.id))
     setCreateAppointmentOpen(true)
+  }
+
+  const changePage = (page: number, cursor?: string) => {
+    setCurrentPage(page)
+    if (page > currentPage && cursor) {
+      setPageCursors((previous) => [...previous.slice(0, page - 1), cursor])
+    }
+    void fetchClients(cursor)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
@@ -95,7 +110,7 @@ export default function ClientsPage() {
                   <div className="min-w-0">
                     <h1 className="hidden truncate text-2xl font-bold tracking-tight text-slate-900 md:block">{tClients("title") || "Clients"}</h1>
                     <p className="mt-0.5 text-xs font-medium text-slate-500 md:hidden">
-                      {loading ? tCommon("loading") : `${filteredClients.length} ${tClients("title") || "Clients"}`}
+                      {loading ? tCommon("loading") : `${clients.length} ${tClients("title") || "Clients"}`}
                     </p>
                   </div>
                 </div>
@@ -159,12 +174,33 @@ export default function ClientsPage() {
       <main className="px-4 pt-4 pb-8 sm:px-8 sm:py-6 sm:pb-24 md:px-12 md:pb-6 lg:px-16">
         <div className="max-w-7xl mx-auto">
           <ClientsList
-            clients={filteredClients}
+            clients={clients}
             loading={loading}
             viewMode={viewMode}
             onScheduleClick={handleScheduleClick}
-            onClientArchived={fetchClients}
+            onClientArchived={() => void fetchClients(pageCursors[currentPage - 1])}
           />
+          {(currentPage > 1 || nextCursor) && (
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1 || loading}
+                onClick={() => changePage(currentPage - 1, pageCursors[currentPage - 2])}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-slate-500">Page {currentPage}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!nextCursor || loading}
+                onClick={() => nextCursor && changePage(currentPage + 1, nextCursor)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
 
         <CreateAppointmentDialog
@@ -173,7 +209,7 @@ export default function ClientsPage() {
           clients={clientsForAppointment}
           profile={profile}
           preSelectedClientId={createAppointmentClientId}
-          onClientCreated={fetchClients}
+          onClientCreated={() => void fetchClients()}
         />
       </main>
     </div>

@@ -1006,6 +1006,26 @@ class ApiClient {
     return this.request(`/jobs?${params.toString()}`)
   }
 
+  async getQuoteList(params?: {
+    limit?: number
+    cursor?: string
+    statuses?: string[]
+    clientId?: number
+    projectId?: number
+    search?: string
+    hasProposal?: boolean
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.cursor) searchParams.set('cursor', params.cursor)
+    if (params?.statuses?.length) searchParams.set('statuses', params.statuses.join(','))
+    if (params?.clientId != null) searchParams.set('client_id', String(params.clientId))
+    if (params?.projectId != null) searchParams.set('project_id', String(params.projectId))
+    if (params?.search?.trim()) searchParams.set('search', params.search.trim())
+    if (params?.hasProposal != null) searchParams.set('has_proposal', String(params.hasProposal))
+    return this.request<{ items: any[]; next_cursor?: string }>(`/jobs/list?${searchParams.toString()}`)
+  }
+
   // ── Dashboard (Today screen) ───────────────────────────────────────────────
 
   async getDashboardSummary(): Promise<import('./types/dashboard').DashboardSummary> {
@@ -1354,6 +1374,15 @@ class ApiClient {
       if (res && Array.isArray(res.items)) return { ...res, items: res.items.filter(isNotArchived) }
     }
     return res
+  }
+
+  async getClientList(params?: { limit?: number; cursor?: string; status?: string; search?: string }) {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.cursor) searchParams.set('cursor', params.cursor)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search?.trim()) searchParams.set('search', params.search.trim())
+    return this.request<{ items: any[]; next_cursor?: string }>(`/clients/list?${searchParams.toString()}`)
   }
 
   async getClient(clientId: number) {
@@ -1942,6 +1971,15 @@ class ApiClient {
     if (typeof params?.limit === 'number') searchParams.append('limit', params.limit.toString())
     const qs = searchParams.toString()
     return this.request(`/projects${qs ? `?${qs}` : ''}`)
+  }
+
+  async getProjectList(params?: { status?: string; search?: string; limit?: number; cursor?: string }) {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.set('status_filter', params.status)
+    if (params?.search?.trim()) searchParams.set('search', params.search.trim())
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.cursor) searchParams.set('cursor', params.cursor)
+    return this.request<{ items: any[]; next_cursor?: string }>(`/projects/list?${searchParams.toString()}`)
   }
 
   async getTimeline(params?: TimelineParams): Promise<TimelineResponse> {

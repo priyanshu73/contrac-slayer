@@ -8,13 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -36,6 +29,8 @@ import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { FileText, Plus, Copy, Search, Trash2, ChevronDown, FolderOpen, Unlink, Mail, Phone, MapPin, CalendarDays, UserRound } from "lucide-react"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 
 interface ClientInfo {
   id: number
@@ -60,6 +55,88 @@ interface Quote {
   has_proposal?: boolean
   created_by_name?: string | null
   created_by_user_id?: number | null
+}
+
+type ListFilterOption = { id: number; label: string; description?: string }
+
+async function findClientOptions(search: string): Promise<ListFilterOption[]> {
+  const page = await api.getClientList({ limit: 25, search: search || undefined })
+  return (page.items ?? []).map((client: { id: number; name: string; email?: string }) => ({
+    id: client.id,
+    label: client.name,
+    description: client.email,
+  }))
+}
+
+async function findProjectOptions(search: string): Promise<ListFilterOption[]> {
+  const page = await api.getProjectList({ limit: 25, search: search || undefined })
+  return (page.items ?? []).map((project: { id: number; title: string; client_name?: string }) => ({
+    id: project.id,
+    label: project.title,
+    description: project.client_name,
+  }))
+}
+
+function AsyncListFilterPicker({
+  allLabel,
+  placeholder,
+  valueLabel,
+  fetchOptions,
+  onSelect,
+}: {
+  allLabel: string
+  placeholder: string
+  valueLabel?: string
+  fetchOptions: (search: string) => Promise<ListFilterOption[]>
+  onSelect: (option?: ListFilterOption) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const [options, setOptions] = useState<ListFilterOption[]>([])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      fetchOptions(query)
+        .then((next) => { if (!cancelled) setOptions(next) })
+        .catch(() => { if (!cancelled) setOptions([]) })
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [fetchOptions, open, query])
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-11 w-full min-w-[180px] justify-between rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-md md:bg-transparent">
+          <span className="truncate">{valueLabel || allLabel}</span>
+          <ChevronDown className="h-4 w-4 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[300px] p-0">
+        <Command shouldFilter={false}>
+          <CommandInput value={query} onValueChange={setQuery} placeholder={placeholder} />
+          <CommandList>
+            <CommandItem value="all" onSelect={() => { onSelect(); setOpen(false); setQuery("") }}>
+              {allLabel}
+            </CommandItem>
+            <CommandEmpty>No matches found.</CommandEmpty>
+            {options.map((option) => (
+              <CommandItem key={option.id} value={String(option.id)} onSelect={() => { onSelect(option); setOpen(false); setQuery("") }}>
+                <span className="min-w-0">
+                  <span className="block truncate">{option.label}</span>
+                  {option.description && <span className="block truncate text-xs text-muted-foreground">{option.description}</span>}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 const ITEMS_PER_PAGE = 10
@@ -156,8 +233,9 @@ export default function QuotesPage() {
   const [projectFilterId, setProjectFilterId] = useState<number | undefined>(undefined)
   const [searchInput, setSearchInput] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [clients, setClients] = useState<ClientInfo[]>([])
   const [projects, setProjects] = useState<{ id: number; title: string }[]>([])
+  const [clientFilterLabel, setClientFilterLabel] = useState<string>()
+  const [projectFilterLabel, setProjectFilterLabel] = useState<string>()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -165,6 +243,8 @@ export default function QuotesPage() {
   const [createProjectForQuote, setCreateProjectForQuote] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined])
+  const [nextCursor, setNextCursor] = useState<string | undefined>()
 
   const basePath = `/${locale}/quotes`
 
@@ -176,34 +256,10 @@ export default function QuotesPage() {
   useEffect(() => {
     let cancelled = false
     api
-      .getClients(0, 500)
+      .getProjectList({ limit: 25 })
       .then((raw) => {
         if (cancelled) return
-        const arr = Array.isArray(raw) ? raw : []
-        const mapped: ClientInfo[] = arr.map((c: { id: number; name: string; email: string; phone?: string }) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-        }))
-        mapped.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
-        setClients(mapped)
-      })
-      .catch(() => {
-        if (!cancelled) setClients([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    api
-      .getProjects({ limit: 500 })
-      .then((raw) => {
-        if (cancelled) return
-        const arr = Array.isArray(raw) ? raw : []
+        const arr = raw.items ?? []
         const mapped = arr
           .map((p: { id: number; title: string }) => ({ id: p.id, title: p.title }))
           .sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }))
@@ -218,63 +274,26 @@ export default function QuotesPage() {
   }, [])
 
   const loadPage = useCallback(
-    async (page: number) => {
+    async (page: number, cursor?: string) => {
       try {
         setLoading(true)
-        const skip = (page - 1) * ITEMS_PER_PAGE
-        const selectedStatuses = STATUS_ORDER.filter((code) => activeStatuses.includes(code))
-
-        const proposalParam = hasProposalFilter ? true : undefined
-
-        if (selectedStatuses.length <= 1) {
-          const statusFilter = selectedStatuses[0]
-          const data = (await api.getMyJobs(
-            statusFilter,
-            skip,
-            ITEMS_PER_PAGE + 1,
-            clientFilterId,
-            debouncedSearch || undefined,
-            projectFilterId,
-            proposalParam
-          )) as Quote[]
-
-          if (data.length > ITEMS_PER_PAGE) {
-            setHasMore(true)
-            setQuotes(data.slice(0, ITEMS_PER_PAGE))
-          } else {
-            setHasMore(false)
-            setQuotes(data)
-          }
-          return
-        }
-
-        const batchSize = 100
-        const maxBatches = 10
-        let cursor = 0
-        let allJobs: Quote[] = []
-
-        for (let i = 0; i < maxBatches; i++) {
-          const chunk = (await api.getMyJobs(
-            undefined,
-            cursor,
-            batchSize,
-            clientFilterId,
-            debouncedSearch || undefined,
-            projectFilterId,
-            proposalParam
-          )) as Quote[]
-          allJobs = allJobs.concat(chunk)
-          if (chunk.length < batchSize) break
-          cursor += batchSize
-        }
-
-        const filtered = allJobs.filter((quote) =>
-          selectedStatuses.some((statusCode) => statusCode === String(quote.status).toUpperCase())
-        )
-        setQuotes(filtered.slice(skip, skip + ITEMS_PER_PAGE))
-        setHasMore(skip + ITEMS_PER_PAGE < filtered.length)
+        const data = await api.getQuoteList({
+          cursor,
+          limit: ITEMS_PER_PAGE,
+          statuses: activeStatuses,
+          clientId: clientFilterId,
+          projectId: projectFilterId,
+          search: debouncedSearch || undefined,
+          hasProposal: hasProposalFilter || undefined,
+        })
+        setQuotes((data.items ?? []) as Quote[])
+        setNextCursor(data.next_cursor)
+        setHasMore(Boolean(data.next_cursor))
       } catch (error) {
         console.error("Failed to fetch quotes:", error)
+        setQuotes([])
+        setNextCursor(undefined)
+        setHasMore(false)
       } finally {
         setLoading(false)
       }
@@ -284,12 +303,18 @@ export default function QuotesPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-    loadPage(1)
+    setPageCursors([undefined])
+    void loadPage(1)
   }, [activeStatuses, debouncedSearch, clientFilterId, projectFilterId, hasProposalFilter, loadPage])
 
   const handlePageChange = (page: number) => {
+    const cursor = page > currentPage ? nextCursor : pageCursors[page - 1]
+    if (page > currentPage && !cursor) return
     setCurrentPage(page)
-    loadPage(page)
+    if (page > currentPage && cursor) {
+      setPageCursors((previous) => [...previous.slice(0, page - 1), cursor])
+    }
+    void loadPage(page, cursor)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -300,6 +325,8 @@ export default function QuotesPage() {
     setHasProposalFilter(false)
     setClientFilterId(undefined)
     setProjectFilterId(undefined)
+    setClientFilterLabel(undefined)
+    setProjectFilterLabel(undefined)
     setSearchInput("")
     setDebouncedSearch("")
   }
@@ -364,9 +391,9 @@ export default function QuotesPage() {
       if (quotes.length === 1 && currentPage > 1) {
         const p = currentPage - 1
         setCurrentPage(p)
-        loadPage(p)
+        void loadPage(p, pageCursors[p - 1])
       } else {
-        loadPage(currentPage)
+        void loadPage(currentPage, pageCursors[currentPage - 1])
       }
     } catch (error) {
       console.error("Failed to delete quote:", error)
@@ -531,41 +558,28 @@ export default function QuotesPage() {
                 </DropdownMenu>
               </div>
               <div className="min-w-[180px] flex-1 md:flex-none">
-                <Select
-                  value={clientFilterId != null ? String(clientFilterId) : "all"}
-                  onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
-                >
-                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
-                    <SelectValue placeholder="Client" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[280px]">
-                    <SelectItem value="all">{tQuotes("allClients")}</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)} textValue={c.name}>
-                        <span className="truncate block">{c.name}</span>
-                        <span className="text-muted-foreground text-xs truncate block">{c.email}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AsyncListFilterPicker
+                  allLabel={tQuotes("allClients")}
+                  placeholder="Search clients..."
+                  valueLabel={clientFilterLabel}
+                  fetchOptions={findClientOptions}
+                  onSelect={(option) => {
+                    setClientFilterId(option?.id)
+                    setClientFilterLabel(option?.label)
+                  }}
+                />
               </div>
               <div className="min-w-[180px] flex-1 md:flex-none">
-                <Select
-                  value={projectFilterId != null ? String(projectFilterId) : "all"}
-                  onValueChange={(v) => setProjectFilterId(v === "all" ? undefined : parseInt(v, 10))}
-                >
-                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-md md:bg-transparent">
-                    <SelectValue placeholder={tQuotes("allProjects")}/>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[280px]">
-                    <SelectItem value="all">{tQuotes("allProjects")}</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)} textValue={p.title}>
-                        <span className="truncate block">{p.title}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AsyncListFilterPicker
+                  allLabel={tQuotes("allProjects")}
+                  placeholder="Search projects..."
+                  valueLabel={projectFilterLabel}
+                  fetchOptions={findProjectOptions}
+                  onSelect={(option) => {
+                    setProjectFilterId(option?.id)
+                    setProjectFilterLabel(option?.label)
+                  }}
+                />
               </div>
               {hasActiveFilters && (
                 <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-md" onClick={clearFilters}>
@@ -830,8 +844,8 @@ export default function QuotesPage() {
             )
             setCreateProjectForQuote(false)
             setQuoteForProject(null)
-            api.getProjects({ limit: 500 }).then((raw) => {
-              const arr = Array.isArray(raw) ? raw : []
+            api.getProjectList({ limit: 25 }).then((raw) => {
+              const arr = raw.items ?? []
               setProjects(arr.map((p: { id: number; title: string }) => ({ id: p.id, title: p.title })).sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" })))
             }).catch(() => { })
           }}
