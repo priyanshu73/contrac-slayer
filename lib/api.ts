@@ -47,6 +47,7 @@ import type {
 } from './types/analytics'
 import type {
   FrontlineActivityEvent,
+  FrontlineCoreFields,
   FrontlineKnowledgeResponse,
   FrontlineKnowledgeIntakeResponse,
   FrontlineReplyApproval,
@@ -56,7 +57,7 @@ import type {
   FrontlineSetupGenerateResponse,
   FrontlineSetupPreview,
   FrontlineStats,
-  FrontlineTeachNote,
+  FrontlineTeachResponse,
   FrontlineVoiceDevStatus,
   FrontlineVoiceDemoSessionStart,
   FrontlineVoiceTrainingEligibility,
@@ -707,11 +708,11 @@ class ApiClient {
     })
   }
 
-  async getFrontlineCoreFields(): Promise<{ core_fields: Record<string, any>; initial_setup_done: boolean }> {
+  async getFrontlineCoreFields(): Promise<{ core_fields: FrontlineCoreFields; initial_setup_done: boolean }> {
     return this.request('/contractors/profile/frontline/core-fields')
   }
 
-  async saveFrontlineCoreFields(core_fields: Record<string, any>): Promise<FrontlineSettings> {
+  async saveFrontlineCoreFields(core_fields: FrontlineCoreFields): Promise<FrontlineSettings> {
     const frontend_origin =
       typeof window !== 'undefined' ? window.location.origin : undefined
     return this.request('/contractors/profile/frontline/core-fields', {
@@ -785,7 +786,7 @@ class ApiClient {
     question?: string
     bad_answer?: string
     source?: string
-  }): Promise<FrontlineTeachNote> {
+  }): Promise<FrontlineTeachResponse> {
     return this.request('/contractors/profile/frontline/teach', {
       method: 'POST',
       body: JSON.stringify(payload),

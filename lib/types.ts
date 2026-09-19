@@ -206,6 +206,8 @@ export interface ContractorProfile {
   website_url?: string
   contractor_ai_sp_id?: number
   calendar_link?: string
+  service_radius_miles?: number
+  service_area_notes?: string
   created_at: string
   updated_at?: string
 }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react"
 import { NeedsYouCard } from "@/components/dashboard/needs-you-card"
 import { TodayHeader } from "@/components/dashboard/today-header"
 import { DashboardWeekStrip } from "@/components/dashboard-week-strip"
+import { DashboardContractorOpsNumber } from "@/components/dashboard-contractor-ops-number"
 import { DashboardWorkspaceDrawer } from "@/components/dashboard/dashboard-workspace-drawer"
 import { OpsAiNumberSetupPrompt } from "@/components/ops-ai-number-setup-prompt"
 import { api } from "@/lib/api"
@@ -49,6 +50,11 @@ export default function DashboardPage() {
 
         {/* 1. Header with Date and Quick Actions */}
         <TodayHeader summary={summary} queue={queue} />
+
+        {/* Keep the assigned ContractorOps number immediately accessible from the dashboard. */}
+        <div className="mt-5">
+          <DashboardContractorOpsNumber />
+        </div>
 
         {/* 2. Prominent Calendar / Week Strip at the Top */}
         <div className="mt-5">

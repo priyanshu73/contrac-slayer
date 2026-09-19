@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { LanguageSelector } from "@/components/language-selector"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
-import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare, Users, CalendarClock } from "lucide-react"
+import { LogOut, CreditCard, ExternalLink, Copy, Building2, Globe, Phone, MapPin, DollarSign, Percent, Info, Pencil, Link2, Unlink, X, MessageSquare, Users, CalendarClock, RefreshCw } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -198,7 +198,12 @@ export function SettingsTabs() {
   const [manualAddress, setManualAddress] = useState(false)
 
   // Use centralized hook for ContractorOps number
-  const { number: contractorOpsAiNumber } = useContractorOpsNumber()
+  const {
+    number: contractorOpsAiNumber,
+    loading: contractorOpsNumberLoading,
+    error: contractorOpsNumberError,
+    refresh: refreshContractorOpsNumber,
+  } = useContractorOpsNumber()
 
   // Check if form has unsaved changes (dirty state)
   const isDirty = useMemo(() => {
@@ -338,7 +343,11 @@ export function SettingsTabs() {
   const loadProfile = async () => {
     try {
       setIsLoading(true)
-      const data = await api.getMyProfile()
+      const [data, frontlineCore] = await Promise.all([
+        api.getMyProfile(),
+        api.getFrontlineCoreFields().catch(() => null),
+      ])
+      const coreServiceArea = frontlineCore?.core_fields?.service_area?.trim() || ""
       setProfile(data)
       // Clean address for display: strip zip codes and country, keep street/city/state
       let displayAddress = data.address || ""
@@ -356,8 +365,11 @@ export function SettingsTabs() {
         address: displayAddress,
         website_url: data.website_url || "",
         default_zip_code: data.default_zip_code || "",
-        service_radius_miles: "",
-        service_area_notes: "",
+        service_radius_miles: data.service_radius_miles?.toString() || "",
+        // Prefer the canonical Frontline fact when it exists. The backend also
+        // synchronizes it, but this preserves existing Frontline setups while
+        // they are being brought into sync.
+        service_area_notes: coreServiceArea || data.service_area_notes || "",
         default_labor_charge_type: data.default_labor_charge_type || LaborChargeType.HOURLY,
         default_labor_rate_value: data.default_labor_rate_value?.toString() || "",
         default_labor_unit_type: (data.default_labor_unit_type || "") as UnitType | "",
@@ -371,6 +383,9 @@ export function SettingsTabs() {
       setFormData(newFormData)
       setInitialFormData(newFormData)
       setLogoPreview(data.logo_url || null)
+      // Recheck after the live profile arrives: its ContractorAI link may have
+      // been created after the auth session was initialized.
+      void refreshContractorOpsNumber()
     } catch (err: any) {
       setError(err.message || "Failed to load profile")
     } finally {
@@ -680,13 +695,24 @@ export function SettingsTabs() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                              ContractorOps Number
-                            </Label>
+                            <div className="flex items-center justify-between gap-2">
+                              <Label htmlFor="contractorops-number" className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                                ContractorOps Number
+                              </Label>
+                              <button
+                                type="button"
+                                onClick={() => void refreshContractorOpsNumber()}
+                                disabled={contractorOpsNumberLoading}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 transition hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <RefreshCw className={`h-3.5 w-3.5 ${contractorOpsNumberLoading ? "animate-spin" : ""}`} />
+                                Refresh
+                              </button>
+                            </div>
                             <div className="relative">
                               <Input
                                 id="contractorops-number"
-                                value={contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
+                                value={contractorOpsNumberLoading ? "Loading number…" : contractorOpsAiNumber ? formatPhoneForDisplay(contractorOpsAiNumber) : "Not assigned yet"}
                                 readOnly
                                 disabled
                                 className="h-10 bg-blue-50 border-blue-200 text-slate-900 font-mono font-medium pr-10"
@@ -702,6 +728,9 @@ export function SettingsTabs() {
                                 </button>
                               )}
                             </div>
+                            {contractorOpsNumberError && (
+                              <p className="text-xs text-amber-700">Could not load the number. Refresh to try again.</p>
+                            )}
                           </div>
                         </div>
 

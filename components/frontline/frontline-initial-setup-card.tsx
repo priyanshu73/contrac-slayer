@@ -52,7 +52,6 @@ const ESCALATION_OPTION_KEYS: Record<string, string> = {
 }
 
 type CoreFields = {
-  business_name: string
   services_offered: string
   services_not_offered: string
   service_area: string
@@ -68,7 +67,6 @@ type CoreFields = {
 }
 
 const DEFAULTS: CoreFields = {
-  business_name: "",
   services_offered: "",
   services_not_offered: "",
   service_area: "",
@@ -89,7 +87,6 @@ function prefillFromApi(data: Record<string, any>): CoreFields {
   const escalation = data.escalation || {}
   const toStr = (v: any) => Array.isArray(v) ? v.join(", ") : (v || "")
   return {
-    business_name: data.business_name || "",
     services_offered: toStr(data.services_offered),
     services_not_offered: toStr(data.services_not_offered),
     service_area: data.service_area || "",
@@ -107,7 +104,6 @@ function prefillFromApi(data: Record<string, any>): CoreFields {
 
 function buildPayload(f: CoreFields, operatorName: string, voiceId: string) {
   return {
-    business_name: f.business_name.trim(),
     services_offered: f.services_offered.split(",").map(s => s.trim()).filter(Boolean),
     services_not_offered: f.services_not_offered.split(",").map(s => s.trim()).filter(Boolean),
     service_area: f.service_area.trim(),
@@ -247,7 +243,6 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
   const back = () => { if (stepIndex > 0) go(STEPS[stepIndex - 1] as Step) }
 
   const save = async () => {
-    if (!fields.business_name.trim()) { onError?.(t("businessNameRequired")); return }
     try {
       setSaving(true)
       await api.updateFrontlineSettings({ operator_display_name: operator.name, operator_voice_id: operator.voiceId })
@@ -349,11 +344,6 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
                 <p className="mt-1 text-[13px] text-zinc-400">{t("businessKnowDesc", { operatorName: operator.name })}</p>
               </div>
               <div className="space-y-4">
-                <Field label={t("businessName")}>
-                  <Input value={fields.business_name} onChange={e => set("business_name", e.target.value)}
-                    placeholder={t("businessNamePlaceholder")} autoFocus
-                    className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] focus:bg-white" />
-                </Field>
                 <Field label={t("servicesOffered")} hint={t("separateCommas")}>
                   <Input value={fields.services_offered} onChange={e => set("services_offered", e.target.value)}
                     placeholder={t("servicesOfferedPlaceholder")}
@@ -512,7 +502,7 @@ export function FrontlineInitialSetupCard({ onComplete, onError }: Props) {
 
   const isVoice = step === "voice"
   const isLast = step === "escalation"
-  const canNext = step !== "business" || fields.business_name.trim().length > 0
+  const canNext = true
 
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-zinc-200/80 bg-white shadow-[0_4px_32px_-8px_rgb(0_0_0/0.1)]">
