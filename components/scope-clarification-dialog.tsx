@@ -75,9 +75,10 @@ export function ScopeClarificationDialog({ open, projectId, trigger, onComplete,
     setError(null)
     try {
       const answerList: ScopeQuestionAnswer[] = questions.map((q) => ({
+        ...(answers[q.id] ?? {}),
         question_id: q.id,
-        ...(answers[q.id] ?? { question_id: q.id }),
       }))
+
       const scope = await api.submitScopeAnswers(projectId, {
         answers: answerList,
         questions,

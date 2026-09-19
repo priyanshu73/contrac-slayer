@@ -23,6 +23,9 @@ export type CampaignFormState = {
   smsEnabled: boolean
   emailInstructions: string
   segments: SegmentForm[]
+  maxZipCodes?: number
+  startDate?: string
+  endDate?: string
 }
 
 export const DEFAULT_DAILY_LIMIT = 20
@@ -44,7 +47,11 @@ export const INITIAL_FORM: CampaignFormState = {
   smsEnabled: false,
   emailInstructions: "",
   segments: [{ type: "property_manager" }],
+  maxZipCodes: 10,
+  startDate: "",
+  endDate: "",
 }
+
 
 export function buildPayload(form: CampaignFormState): CampaignPayload {
   return {

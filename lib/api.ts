@@ -2230,6 +2230,9 @@ class ApiClient {
     afterImageDescription: string
     userPrompt?: string
     includeProjectContext?: boolean
+    mode?: 'batch' | 'multi_angle' | 'single_item'
+    heroIndex?: number
+    itemIndex?: number
     lineItems?: Array<{
       title?: string
       description?: string
@@ -2244,6 +2247,7 @@ class ApiClient {
       before_file_name?: string | null
       after_file_name?: string | null
       before_image_url?: string | null
+      before_image_urls?: string[] | null
       after_image_url?: string | null
       before_media_id?: number | null
       after_media_id?: number | null
@@ -2261,6 +2265,15 @@ class ApiClient {
       'include_project_context',
       String(params.includeProjectContext ?? true),
     )
+    if (params.mode) {
+      formData.append('mode', params.mode)
+    }
+    if (params.heroIndex !== undefined) {
+      formData.append('hero_index', String(params.heroIndex))
+    }
+    if (params.itemIndex !== undefined) {
+      formData.append('item_index', String(params.itemIndex))
+    }
 
     const response = await fetch(`${this.baseURL}/jobs/${jobId}/generate-after-images`, {
       method: 'POST',
@@ -2274,6 +2287,43 @@ class ApiClient {
     }
 
     return response.json()
+  }
+
+  async saveBeforeAfter(
+    jobId: number | string,
+    params: {
+      itemIndex?: number
+      beforeImageUrl: string
+      afterImageUrl: string
+      beforeImageUrls?: string[]
+      description?: string
+    }
+  ): Promise<{ success: boolean; saved_count: number; media_ids: number[] }> {
+    return this.request<{ success: boolean; saved_count: number; media_ids: number[] }>(
+      `/jobs/${jobId}/save-before-after`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          item_index: params.itemIndex ?? 1,
+          before_image_url: params.beforeImageUrl,
+          after_image_url: params.afterImageUrl,
+          before_image_urls: params.beforeImageUrls,
+          description: params.description || '',
+        }),
+      }
+    )
+  }
+
+  async deleteBeforeAfter(
+    jobId: number | string,
+    itemIndex: number = 1
+  ): Promise<{ success: boolean; deleted_count: number }> {
+    return this.request<{ success: boolean; deleted_count: number }>(
+      `/jobs/${jobId}/before-after/${itemIndex}`,
+      {
+        method: 'DELETE',
+      }
+    )
   }
 
   async createProjectTrade(projectId: number, data: any) {
@@ -2957,6 +3007,54 @@ class ApiClient {
   async cancelWorkflowRun(runUuid: string): Promise<WorkflowActionResponse> {
     return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/cancel`, { method: 'POST' })
   }
+
+  async approveAgentCommand(commandId: number | string, approvalToken: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    result?: any
+    replayed?: boolean
+    message?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken }),
+    })
+  }
+
+  async rejectAgentCommand(commandId: number | string, approvalToken: string, reason?: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    completed_at?: string
+    run_id?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, reason }),
+    })
+  }
+
+  async getAgentRunRecovery(runId: string): Promise<{
+    run_id: string
+    contractor_id: number
+    conversation_id: number
+    status: string
+    state_revision: number
+    terminal_outcome?: any
+    cancellation_requested_at?: string | null
+    events: Array<{
+      id: number
+      revision?: number
+      event_type: string
+      payload: any
+      created_at?: string
+    }>
+  }> {
+    return this.request(`/agent/runs/${runId}/recovery`, {
+      method: 'GET',
+    })
+  }
 }
 
 class ContractorAIClient {
@@ -3372,8 +3470,55 @@ class ContractorAIClient {
     })
   }
 
+  async approveAgentCommand(commandId: number | string, approvalToken: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    result?: any
+    replayed?: boolean
+    message?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken }),
+    })
+  }
 
+  async rejectAgentCommand(commandId: number | string, approvalToken: string, reason?: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    completed_at?: string
+    run_id?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, reason }),
+    })
+  }
+
+  async getAgentRunRecovery(runId: string): Promise<{
+    run_id: string
+    contractor_id: number
+    conversation_id: number
+    status: string
+    state_revision: number
+    terminal_outcome?: any
+    cancellation_requested_at?: string | null
+    events: Array<{
+      id: number
+      revision?: number
+      event_type: string
+      payload: any
+      created_at?: string
+    }>
+  }> {
+    return this.request(`/agent/runs/${runId}/recovery`, {
+      method: 'GET',
+    })
+  }
 }
+
 
 export const api = new ApiClient(API_URL!)
 export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)

@@ -40,6 +40,7 @@ import {
   AI_ESTIMATE_LOADING_INTERVAL_MS,
   AI_ESTIMATE_LOADING_MESSAGES,
 } from "@/lib/ai-estimate-loading"
+import { agUiState, applyJsonPatch } from "@/lib/ag-ui-state"
 
 interface LineItem {
   title?: string
@@ -633,6 +634,66 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     return a.project_type.localeCompare(b.project_type)
   })
 
+  // ── AG-UI Real-Time Shared State Sync ──
+  const quoteStateRef = useRef({
+    items,
+    markupPercentage,
+    serviceDescription,
+    notes,
+    projectTitle,
+    taxRate,
+  })
+
+  useEffect(() => {
+    quoteStateRef.current = {
+      items,
+      markupPercentage,
+      serviceDescription,
+      notes,
+      projectTitle,
+      taxRate,
+    }
+  }, [items, markupPercentage, serviceDescription, notes, projectTitle, taxRate])
+
+  useEffect(() => {
+    const unsubscribe = agUiState.subscribe((event) => {
+      if (event.entityType && event.entityType !== "quote") return
+
+      try {
+        const currentDoc = quoteStateRef.current
+        const nextDoc = applyJsonPatch(currentDoc, event.delta) as typeof currentDoc
+
+        if (nextDoc.items !== undefined && Array.isArray(nextDoc.items)) {
+          setItems(nextDoc.items)
+        }
+        if (typeof nextDoc.markupPercentage === "number") {
+          setMarkupPercentage(nextDoc.markupPercentage)
+        }
+        if (typeof nextDoc.serviceDescription === "string") {
+          setServiceDescription(nextDoc.serviceDescription)
+        }
+        if (typeof nextDoc.notes === "string") {
+          setNotes(nextDoc.notes)
+        }
+        if (typeof nextDoc.projectTitle === "string") {
+          setProjectTitle(nextDoc.projectTitle)
+        }
+        if (typeof nextDoc.taxRate === "number") {
+          setTaxRate(nextDoc.taxRate)
+        }
+
+        toast({
+          title: "Form updated by Bob AI",
+          description: event.reason || "Updated quote live via Bob AI",
+        })
+      } catch (err) {
+        console.error("Failed to apply state patch in QuoteCreator:", err)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [toast])
+
   // Fetch contractor profile to get default markup and tax rate
   useEffect(() => {
     // Always fetch profile to get current default tax rate (needed for tracking changes)
@@ -983,12 +1044,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
       // Load attached project media
       if (initialData.project_media && initialData.project_media.length > 0) {
-        setUploadedImages(initialData.project_media.map((media: any) => ({
-          url: media.file_url,
-          name: media.file_name || "attachment",
-          size: media.file_size || 0,
-          mediaId: media.id,
-        })))
+        setUploadedImages(
+          initialData.project_media.map((media: any) => ({
+            url: media.file_url,
+            name: media.file_name || "attachment",
+            size: media.file_size || 0,
+            mediaId: media.id,
+          }))
+        )
       } else {
         // Clear if no media
         setUploadedImages([])
@@ -2182,9 +2245,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                                   "✏️ Custom Project"
                                 ) : selectedTemplateId ? (
                                   (() => {
-                                    const template = templates.find((t) => t.id === selectedTemplateId)
-                                    return template ? `${template.project_type} (${template.trade})` : "Select project..."
+                                    const t = templates.find((item) => item.id === selectedTemplateId)
+                                    return t ? `${(t as TemplateListItem).project_type} (${(t as TemplateListItem).trade})` : "Select project..."
                                   })()
+
                                 ) : (
                                   "Select project..."
                                 )}
@@ -2249,7 +2313,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                             </div>
                           ) : (
                             <div className="space-y-1.5">
-                              {selectedTemplate.variables.map((v) => (
+                              {selectedTemplate?.variables?.map((v) => (
                                 <div key={v.id}>
                                   <Label htmlFor={`var-mobile-${v.variable_name}`} className="text-xs font-medium">
                                     {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
@@ -3027,28 +3091,43 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
             {uploadedImages.length > 0 && (
               <div className="mb-4 flex flex-wrap gap-4 p-4 border border-dashed rounded-lg bg-slate-50/50">
-                {uploadedImages.map((img, i) => (
-                  <div key={i} className="relative w-24 h-24 border rounded-md overflow-hidden bg-white shadow-sm group">
-                    <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const img = uploadedImages[i]
-                        if (img.mediaId && quoteId) {
-                          try {
-                            await api.deleteJobMedia(parseInt(quoteId), img.mediaId)
-                          } catch (err) {
-                            console.error("Failed to delete attachment:", err)
+                {uploadedImages.map((img, i) => {
+                  const isBefore = Boolean(img.name && (/^before-photo/i.test(img.name) || /^before-\d+/i.test(img.name)))
+                  const isAfter = Boolean(img.name && /^ai-after-render/i.test(img.name))
+                  return (
+                    <div key={i} className="relative w-24 h-24 border rounded-md overflow-hidden bg-white shadow-sm group">
+                      <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
+                      {isBefore && (
+                        <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-white pointer-events-none">
+                          Before
+                        </span>
+                      )}
+                      {isAfter && (
+                        <span className="absolute bottom-1 left-1 rounded bg-emerald-700/85 px-1.5 py-0.5 text-[9px] font-semibold text-white pointer-events-none">
+                          After
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const item = uploadedImages[i]
+                          if (item.mediaId && quoteId) {
+                            try {
+                              await api.deleteJobMedia(parseInt(quoteId), item.mediaId)
+                            } catch (err) {
+                              console.error("Failed to delete attachment:", err)
+                            }
                           }
-                        }
-                        setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))
-                      }}
-                      className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                          setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))
+                        }}
+                        className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        title="Delete image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
@@ -3196,9 +3275,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                               "✏️ Custom Project"
                             ) : selectedTemplateId ? (
                               (() => {
-                                const template = templates.find((t) => t.id === selectedTemplateId)
-                                return template ? `${template.project_type} (${template.trade})` : "Select a project type..."
+                                const t = templates.find((item) => item.id === selectedTemplateId)
+                                return t ? `${(t as TemplateListItem).project_type} (${(t as TemplateListItem).trade})` : "Select a project type..."
                               })()
+
                             ) : (
                               "Select a project type..."
                             )}
@@ -3263,7 +3343,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       </div>
                     ) : (
                       <div className="space-y-1.5">
-                        {selectedTemplate.variables.map((v) => (
+                        {selectedTemplate?.variables?.map((v) => (
+
                           <div key={v.id}>
                             <Label htmlFor={`var-${v.variable_name}`} className="text-xs font-medium">
                               {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}

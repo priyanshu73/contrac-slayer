@@ -45,7 +45,7 @@ export default function PublicQuoteRequestPage() {
                 name: summary.caller_name || '',
                 phone: summary.caller_phone || '',
                 address: summary.caller_address || '',
-                description: callSummaryToDescription(summary.project_summary),
+                description: callSummaryToDescription(summary.project_summary ?? undefined),
               })
             }
           } catch (prefillErr) {
@@ -59,7 +59,7 @@ export default function PublicQuoteRequestPage() {
             const summary = await contractorAI.getInteractionProjectSummary(interactionId)
             if (summary.project_summary) {
               setPrefillData({
-                description: callSummaryToDescription(summary.project_summary),
+                description: callSummaryToDescription(summary.project_summary ?? undefined),
                 project_type: summary.project_type || '',
                 phone: summary.customer_number || '',
               })

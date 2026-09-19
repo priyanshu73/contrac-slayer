@@ -82,7 +82,9 @@ export interface Attachment {
   context: string
   public_url?: string
   thumbnail_url?: string
+  description?: string
 }
+
 
 export interface AttachmentCreate {
   file_url: string
@@ -247,7 +249,9 @@ export interface Lead {
   attachments?: Attachment[]
   measurements?: Measurements
   contractor_ai_call_lead_id?: number
+  interaction_id?: number | string
 }
+
 
 export interface LeadCreate {
   name: string
@@ -422,6 +426,7 @@ export interface ProposalBeforeAfterBlock {
   id: string
   type: 'before_after'
   beforeUrl: string
+  beforeAngles?: string[]
   afterUrl: string
   beforeLabel?: string
   afterLabel?: string
@@ -846,7 +851,14 @@ export interface ProjectListItem {
   total_trades?: number
   accepted_trades?: number
   pending_trades?: number
+  client_name?: string | null
+  client_id?: number | null
+  quote_id?: number | null
+  contract_value?: number | null
+  tasks_count?: number
+  completed_tasks_count?: number
 }
+
 
 export interface ClientPortalQuoteItem {
   id: number

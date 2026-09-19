@@ -187,7 +187,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                       >
                         {row.title}
                       </Link>
-                      {row.projectTitle && row.kind !== "embedded" ? (
+                      {row.kind === "project" && row.projectTitle ? (
                         <div className="mt-1">
                           <span className="truncate rounded-full bg-emerald-100 px-1.5 py-0 text-[9px] font-medium text-emerald-700" title={row.projectTitle}>
                             {row.projectTitle}

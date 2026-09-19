@@ -26,11 +26,12 @@ interface PrefillData {
 }
 
 interface CustomerRequestFormProps {
-  contractorUuid: string
-  contractor: any
+  contractorUuid?: string
+  contractor?: any
   prefillData?: PrefillData | null
   prefillLoading?: boolean
 }
+
 
 export function CustomerRequestForm({ contractorUuid, contractor, prefillData, prefillLoading }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
@@ -96,7 +97,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         ...formData,
         ...(addressData && { address_data: addressData })
       }
-      await api.submitQuoteRequest(contractorUuid, submissionData, uploadedFiles, measurements)
+      await api.submitQuoteRequest(contractorUuid || "", submissionData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")

@@ -18,7 +18,9 @@ interface Lead {
   project_type: string | null
   status: string
   created_at: string
+  interaction_id?: number | string | null
 }
+
 
 export function RecentLeadsReal() {
   const { user } = useAuth()

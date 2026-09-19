@@ -58,8 +58,19 @@ function extractBeforeAfterIndex(fileName?: string | null): number | null {
 
 function buildBeforeAfterPairsFromMedia(mediaItems: Job["project_media"] = []): BeforeAfterImagePair[] {
   const pairMap = new Map<number, BeforeAfterImagePair>()
+  const anglesMap = new Map<number, string[]>()
 
   for (const media of mediaItems || []) {
+    const fname = media.file_name || ""
+    const angleMatch = fname.match(/^before-photo(?:-(\d+))?-angle-(\d+)/i)
+    if (angleMatch) {
+      const idx = angleMatch[1] ? parseInt(angleMatch[1], 10) : 1
+      const list = anglesMap.get(idx) ?? []
+      list.push(media.file_url)
+      anglesMap.set(idx, list)
+      continue
+    }
+
     const index = extractBeforeAfterIndex(media.file_name)
     if (!index) continue
 
@@ -89,10 +100,15 @@ function buildBeforeAfterPairsFromMedia(mediaItems: Job["project_media"] = []): 
 
   return Array.from(pairMap.entries())
     .sort((left, right) => left[0] - right[0])
-    .map(([, pair]) => ({
-      ...pair,
-      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
-    }))
+    .map(([idx, pair]) => {
+      const supporting = anglesMap.get(idx) ?? []
+      const allAngles = pair.beforePreview ? [pair.beforePreview, ...supporting] : supporting
+      return {
+        ...pair,
+        beforeAngles: allAngles,
+        status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+      }
+    })
     .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }
 
@@ -1119,6 +1135,18 @@ export default function QuoteDetailPage() {
               }))}
               imagePairs={beforeAfterImagePairs}
               onImagePairsChange={setBeforeAfterImagePairs}
+              onSavedChange={async () => {
+                try {
+                  const updated = await api.getJob(job.id)
+                  if (updated) {
+                    setJob(updated as Job)
+                    setBeforeAfterImagePairs(buildBeforeAfterPairsFromMedia((updated as Job).project_media || []))
+                  }
+
+                } catch (err) {
+                  console.error("Failed to refresh job after before/after change:", err)
+                }
+              }}
             />
           )}
         </DialogContent>
