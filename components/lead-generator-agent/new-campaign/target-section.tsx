@@ -20,7 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { CampaignFormState, SegmentForm } from "@/components/lead-generator-agent/new-campaign/types"
+import type { CampaignExecutionMode } from "@/lib/types"
 import { EXECUTION_MODE_OPTIONS, SEGMENT_OPTIONS, sentenceCase } from "@/components/lead-generator-agent/shared"
+
 
 const SEGMENT_META: Record<string, { icon: ComponentType<{ className?: string }>; hint: string }> = {
   property_manager: { icon: Building2, hint: "Recurring building work" },
@@ -99,7 +101,7 @@ export function TargetSection({
               <button
                 key={option.value}
                 type="button"
-                onClick={() => updateField("executionMode", option.value)}
+                onClick={() => updateField("executionMode", option.value as CampaignExecutionMode)}
                 className={cn(
                   "rounded-2xl border p-4 text-left transition-colors",
                   active ? "border-sky-500 bg-sky-50 shadow-sm" : "border-slate-200 bg-white hover:bg-slate-50"

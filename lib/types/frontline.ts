@@ -23,6 +23,21 @@ export interface FrontlineSettings {
   updated_at: string | null
 }
 
+/** Structured, canonical business facts supplied directly to Frontline. */
+export interface FrontlineCoreFields {
+  business_name?: string
+  services_offered?: string[]
+  services_not_offered?: string[]
+  service_area?: string
+  hours?: { regular?: string; after_hours?: string; emergency?: string }
+  pricing_basics?: { free_estimates?: boolean | null; callout_fee?: string | null; rate_info?: string | null }
+  booking_behavior?: string
+  intake_fields?: string[]
+  escalation?: { when?: string[]; number?: string }
+  operator_display_name?: string
+  operator_voice_id?: string
+}
+
 export interface FrontlineSetupPreview {
   business_display_name: string
   business_snapshot: Record<string, string>
@@ -205,4 +220,14 @@ export interface FrontlineTeachNote {
   corrected_answer: string
   source: string
   created_at: string | null
+}
+
+export interface FrontlineCanonicalFieldReview {
+  field: "service_area" | "hours" | "pricing_basics" | "escalation" | "services"
+  message: string
+}
+
+export interface FrontlineTeachResponse extends FrontlineTeachNote {
+  knowledge?: { action?: string; superseded_ids?: number[] }
+  canonical_field_review?: FrontlineCanonicalFieldReview
 }

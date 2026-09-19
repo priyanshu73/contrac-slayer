@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { useTranslations } from "next-intl"
 
 import { Input } from "@/components/ui/input"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { BeforeAfterImagePair } from "@/components/before-after-panel"
 import { cn } from "@/lib/utils"
 import type { ProjectMedia, ProposalBeforeAfterBlock } from "@/lib/types"
@@ -19,6 +21,11 @@ export function BeforeAfterBlockEditor({
   className?: string
 }) {
   const t = useTranslations("proposals")
+  const [selectedAngleIndex, setSelectedAngleIndex] = useState(0)
+
+  const angles = block.beforeAngles && block.beforeAngles.length > 0 ? block.beforeAngles : [block.beforeUrl]
+  const currentBeforeUrl = angles[selectedAngleIndex] ?? block.beforeUrl
+
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-slate-50/80 p-3", className)}>
       {!readOnly ? (
@@ -42,14 +49,65 @@ export function BeforeAfterBlockEditor({
         {/* Before */}
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <img
-            src={block.beforeUrl}
+            src={currentBeforeUrl}
             alt={block.beforeLabel ?? t("imageEditor.before")}
             className="aspect-[4/3] w-full object-cover"
             draggable={false}
           />
           <span className="absolute left-2 top-2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm print:bg-slate-900 print:[backdrop-filter:none]">
             {block.beforeLabel ?? t("imageEditor.before")}
+            {angles.length > 1 ? ` · Angle ${selectedAngleIndex + 1}` : ""}
           </span>
+
+          {angles.length > 1 && (
+            <>
+              {/* Left arrow */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setSelectedAngleIndex((prev) => (prev === 0 ? angles.length - 1 : prev - 1))
+                }}
+                aria-label="Previous angle"
+                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow backdrop-blur-sm transition hover:bg-black/80 active:scale-95 print:hidden"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Right arrow */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setSelectedAngleIndex((prev) => (prev === angles.length - 1 ? 0 : prev + 1))
+                }}
+                aria-label="Next angle"
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow backdrop-blur-sm transition hover:bg-black/80 active:scale-95 print:hidden"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+
+              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-center gap-1.5 overflow-x-auto rounded-lg bg-slate-900/70 p-1 backdrop-blur-sm print:hidden">
+                {angles.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedAngleIndex(i)}
+                    className={cn(
+                      "rounded px-2 py-0.5 text-[10px] font-medium transition",
+                      selectedAngleIndex === i
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-white/80 hover:bg-white/20"
+                    )}
+                  >
+                    Angle {i + 1}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* After */}
@@ -90,8 +148,19 @@ function extractBeforeAfterIndex(fileName?: string | null): number | null {
 
 export function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []): BeforeAfterImagePair[] {
   const pairMap = new Map<number, BeforeAfterImagePair>()
+  const anglesMap = new Map<number, string[]>()
 
   for (const media of mediaItems) {
+    const fname = media.file_name || ""
+    const angleMatch = fname.match(/^before-photo(?:-(\d+))?-angle-(\d+)/i)
+    if (angleMatch) {
+      const idx = angleMatch[1] ? parseInt(angleMatch[1], 10) : 1
+      const list = anglesMap.get(idx) ?? []
+      list.push(media.file_url)
+      anglesMap.set(idx, list)
+      continue
+    }
+
     const index = extractBeforeAfterIndex(media.file_name)
     if (!index) continue
 
@@ -120,9 +189,14 @@ export function buildBeforeAfterPairsFromMedia(mediaItems: ProjectMedia[] = []):
 
   return Array.from(pairMap.entries())
     .sort(([a], [b]) => a - b)
-    .map(([, pair]) => ({
-      ...pair,
-      status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
-    }))
+    .map(([idx, pair]) => {
+      const supporting = anglesMap.get(idx) ?? []
+      const allAngles = pair.beforePreview ? [pair.beforePreview, ...supporting] : supporting
+      return {
+        ...pair,
+        beforeAngles: allAngles,
+        status: (pair.afterUrl ? "saved" : "pending") as BeforeAfterImagePair["status"],
+      }
+    })
     .filter((pair) => Boolean(pair.beforePreview || pair.afterUrl))
 }

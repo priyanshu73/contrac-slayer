@@ -33,6 +33,8 @@ export function formatProjectType(value?: string): string {
 // request text instead.
 const GENERIC_LEAD_TYPES = new Set([
     "ai operator call",
+    "frontline voice",
+    "frontline",
     "service call",
     "call",
     "phone call",

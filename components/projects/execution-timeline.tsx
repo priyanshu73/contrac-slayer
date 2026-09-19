@@ -29,8 +29,9 @@ export function ExecutionTimeline({ project, onTasksUpdated }: ExecutionTimeline
     const nextStatus: TaskStatus = task.status === "COMPLETED" ? "IN_PROGRESS" : "COMPLETED"
     try {
       const updated = await api.updateProjectTask(project.id, task.id, { status: nextStatus })
-      const tasks = (project.tasks || []).map((t) => (t.id === task.id ? { ...t, ...updated } : t))
+      const tasks = (project.tasks || []).map((t) => (t.id === task.id ? { ...t, ...(updated as Record<string, any>) } : t))
       onTasksUpdated(tasks)
+
     } catch (err: any) {
       toast({
         title: t("updateErrorTitle"),

@@ -8,6 +8,8 @@ import { api } from "@/lib/api"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { LeadsFilters } from "./leads-filters"
 import { useAuth } from "@/contexts/AuthContext"
+import { parseApiUtcDate } from "@/lib/frontline-datetime"
+import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 
 interface Lead {
   id: number
@@ -101,7 +103,8 @@ export function LeadsListReal() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return ""
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
@@ -217,7 +220,7 @@ export function LeadsListReal() {
                     {getPriorityBadge(lead.priority)}
                   </div>
                   <p className="mt-1.5 text-sm text-muted-foreground">
-                    {lead.project_type || "General inquiry"}
+                    {isUsableProjectType(lead.project_type ?? undefined) ? formatProjectType(lead.project_type!) : "General inquiry"}
                   </p>
                 </div>
                 <span

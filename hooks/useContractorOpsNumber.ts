@@ -18,7 +18,17 @@ function getCacheKey(profileId: string | number | null | undefined): string {
 export function useContractorOpsNumber() {
   const { user } = useAuth()
   const profileId = user?.contractor_profile?.id ?? user?.id ?? null
-  const cacheKey = useMemo(() => getCacheKey(profileId), [profileId])
+  // The profile can receive a ContractorAI link after login (for example after
+  // number provisioning). Include it in the cache identity so a previously
+  // unassigned lookup never masks the newly assigned number.
+  const contractorAiSpId = user?.contractor_profile?.contractor_ai_sp_id ?? null
+  const cacheKey = useMemo(
+    () => {
+      const baseKey = getCacheKey(profileId)
+      return baseKey ? `${baseKey}_${contractorAiSpId ?? "unlinked"}` : ""
+    },
+    [profileId, contractorAiSpId],
+  )
 
   const [number, setNumber] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)

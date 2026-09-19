@@ -15,6 +15,7 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
+import { callSummaryToDescription } from "@/lib/call-summary"
 
 interface PrefillData {
   name?: string
@@ -25,11 +26,12 @@ interface PrefillData {
 }
 
 interface CustomerRequestFormProps {
-  contractorUuid: string
-  contractor: any
+  contractorUuid?: string
+  contractor?: any
   prefillData?: PrefillData | null
   prefillLoading?: boolean
 }
+
 
 export function CustomerRequestForm({ contractorUuid, contractor, prefillData, prefillLoading }: CustomerRequestFormProps) {
   const [formData, setFormData] = useState({
@@ -51,7 +53,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         phone: prefillData.phone || prev.phone,
         address: prefillData.address || prev.address,
         project_type: prefillData.project_type || prev.project_type,
-        description: prefillData.description || prev.description,
+        description: callSummaryToDescription(prefillData.description) || prev.description,
       }))
       setHasPrefilled(true)
     }
@@ -95,7 +97,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
         ...formData,
         ...(addressData && { address_data: addressData })
       }
-      await api.submitQuoteRequest(contractorUuid, submissionData, uploadedFiles, measurements)
+      await api.submitQuoteRequest(contractorUuid || "", submissionData, uploadedFiles, measurements)
       setIsSubmitted(true)
     } catch (err: any) {
       setError(err.message || "Failed to submit request")

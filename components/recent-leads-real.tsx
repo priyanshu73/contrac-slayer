@@ -8,6 +8,7 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
+import { parseApiUtcDate } from "@/lib/frontline-datetime"
 
 interface Lead {
   id: number
@@ -17,7 +18,9 @@ interface Lead {
   project_type: string | null
   status: string
   created_at: string
+  interaction_id?: number | string | null
 }
+
 
 export function RecentLeadsReal() {
   const { user } = useAuth()
@@ -39,8 +42,9 @@ export function RecentLeadsReal() {
 
   const fetchLeads = async () => {
     try {
-      const data = await api.getMyLeads(undefined, 0, 5) // Get only 5 most recent
-      setLeads((data as Lead[]).slice(0, 3)) // Show top 3
+      const data = await api.getUnifiedLeads('all', undefined, 5) // Get only 5 most recent unified leads
+      // data has a leads property containing the list
+      setLeads((data.leads as any[]).slice(0, 3) as any) // Show top 3
     } catch (error) {
       // Silently handle errors - profile might not exist yet or other issues
       // Don't log to console to avoid cluttering production logs
@@ -66,7 +70,8 @@ export function RecentLeadsReal() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseApiUtcDate(dateString)
+    if (!date) return ""
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
@@ -110,8 +115,8 @@ export function RecentLeadsReal() {
         <div className="space-y-3">
           {leads.map((lead) => (
             <Link 
-              key={lead.id} 
-              href={`/${locale}/leads/${lead.id}`}
+              key={lead.id || lead.interaction_id} 
+              href={`/${locale}/leads/${lead.id || lead.interaction_id}`}
               className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 hover:border-primary/50 transition-all cursor-pointer group"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">

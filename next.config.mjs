@@ -10,8 +10,9 @@ const nextConfig = {
     root: dirname(fileURLToPath(import.meta.url)),
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
+
   images: {
     remotePatterns: [
       {

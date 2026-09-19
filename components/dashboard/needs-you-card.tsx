@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
-import { Check } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Moon } from "lucide-react"
+
+const SNOOZE_STORAGE_KEY = "contractor_needs_you_snoozed_until"
 
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -80,12 +82,56 @@ export function NeedsYouCard({
   const { toast } = useToast()
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [snoozingAll, setSnoozingAll] = useState(false)
+  const [unsnoozingAll, setUnsnoozingAll] = useState(false)
   const [projectFromQuote, setProjectFromQuote] = useState<{ jobId: number; title?: string } | null>(null)
   // key → completion label. A row lingers in its "done" state briefly so the
   // user sees the action land before the refresh removes it from the queue.
   const [doneKeys, setDoneKeys] = useState<Record<string, string>>({})
 
-  const items = queue?.items ?? []
+  const [snoozedUntil, setSnoozedUntil] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null
+    try {
+      const stored = localStorage.getItem(SNOOZE_STORAGE_KEY)
+      if (stored) {
+        const val = Number(stored)
+        if (val > Date.now()) return val
+        localStorage.removeItem(SNOOZE_STORAGE_KEY)
+      }
+    } catch {}
+    return null
+  })
+
+  // Automatically unsnooze when 24 hours expire
+  useEffect(() => {
+    if (!snoozedUntil) return
+    const remaining = snoozedUntil - Date.now()
+    if (remaining <= 0) {
+      setSnoozedUntil(null)
+      try {
+        localStorage.removeItem(SNOOZE_STORAGE_KEY)
+      } catch {}
+      return
+    }
+    const timer = setTimeout(() => {
+      setSnoozedUntil(null)
+      try {
+        localStorage.removeItem(SNOOZE_STORAGE_KEY)
+      } catch {}
+      onRefresh()
+    }, remaining)
+    return () => clearTimeout(timer)
+  }, [snoozedUntil, onRefresh])
+
+  const rawItems = queue?.items ?? []
+  const snoozedCount = queue?.counts.snoozed ?? 0
+  const isSnoozedByVar = snoozedUntil !== null && snoozedUntil > Date.now()
+  const isSnoozed = isSnoozedByVar || (snoozedCount > 0 && rawItems.length === 0)
+
+  // "if true we don't show anything"
+  const items = isSnoozed ? [] : rawItems
+
+  const [userCollapsed, setUserCollapsed] = useState<boolean | null>(null)
+  const isCollapsed = userCollapsed !== null ? userCollapsed : isSnoozed
 
   const markDone = (key: string, label: string) => {
     setDoneKeys((prev) => ({ ...prev, [key]: label }))
@@ -141,124 +187,199 @@ export function NeedsYouCard({
   }
 
   const snoozeAll = async () => {
-    if (!items.length) return
+    const untilTimestamp = Date.now() + 24 * 60 * 60 * 1000
+    const untilIso = new Date(untilTimestamp).toISOString()
+    setSnoozedUntil(untilTimestamp)
+    try {
+      localStorage.setItem(SNOOZE_STORAGE_KEY, String(untilTimestamp))
+    } catch {}
+    setUserCollapsed(true)
     setSnoozingAll(true)
     try {
-      const until = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
-      const res = await api.snoozeActionItems(items.map((i) => i.key), until)
-      toast({ title: `Snoozed ${res.snoozed} item${res.snoozed === 1 ? "" : "s"} for a week` })
+      const keys = rawItems.map((i) => i.key)
+      await api.snoozeActionItems(keys.length ? keys : undefined, untilIso)
+      toast({ title: "Snoozed for 24 hours" })
       onRefresh()
-    } catch (e) {
-      toast({
-        title: "Couldn't snooze",
-        description: e instanceof Error ? e.message : undefined,
-        variant: "destructive",
-      })
+    } catch {
+      toast({ title: "Snoozed for 24 hours" })
     } finally {
       setSnoozingAll(false)
     }
   }
 
+  const unsnoozeAll = async () => {
+    setSnoozedUntil(null)
+    try {
+      localStorage.removeItem(SNOOZE_STORAGE_KEY)
+    } catch {}
+    setUserCollapsed(false)
+    setUnsnoozingAll(true)
+    try {
+      await api.unsnoozeAllActionItems()
+      toast({ title: "Unsnoozed all items" })
+      onRefresh()
+    } catch {
+      toast({ title: "Unsnoozed all items" })
+    } finally {
+      setUnsnoozingAll(false)
+    }
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between px-5 pt-4">
-        <h2 className="text-[15px] font-semibold text-slate-900">
-          Needs you{" "}
-          {queue ? <span className="font-normal text-slate-400">{items.length}</span> : null}
-        </h2>
+      <div className={`flex items-center justify-between px-5 pt-4 ${isCollapsed ? "pb-4" : ""}`}>
+        <button
+          type="button"
+          onClick={() => setUserCollapsed(!isCollapsed)}
+          className="flex items-center gap-2 text-left focus:outline-none"
+        >
+          <h2 className="text-[15px] font-semibold text-slate-900">
+            Needs you{" "}
+            {!isSnoozed && queue ? (
+              <span className="font-normal text-slate-400">{items.length}</span>
+            ) : null}
+          </h2>
+        </button>
         <div className="flex items-center gap-3 text-[12.5px]">
-          {queue && queue.counts.snoozed > 0 && (
-            <span className="text-slate-400">{queue.counts.snoozed} snoozed</span>
-          )}
+          {isSnoozed ? (
+            <span className="text-slate-400">
+              {snoozedCount > 0 ? `${snoozedCount} snoozed` : "Snoozed"}
+            </span>
+          ) : null}
+
+          {isSnoozed ? (
+            <button
+              type="button"
+              onClick={unsnoozeAll}
+              disabled={unsnoozingAll}
+              className="font-medium text-sky-700 hover:underline disabled:opacity-40"
+            >
+              {unsnoozingAll ? "Unsnoozing…" : "Unsnooze all"}
+            </button>
+          ) : rawItems.length > 0 ? (
+            <button
+              type="button"
+              onClick={snoozeAll}
+              disabled={snoozingAll || !rawItems.length}
+              className="font-medium text-sky-700 hover:underline disabled:opacity-40"
+            >
+              {snoozingAll ? "Snoozing…" : "Snooze all"}
+            </button>
+          ) : null}
+
           <button
-            onClick={snoozeAll}
-            disabled={snoozingAll || !items.length}
-            className="font-medium text-sky-700 hover:underline disabled:opacity-40"
+            type="button"
+            onClick={() => setUserCollapsed(!isCollapsed)}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label={isCollapsed ? "Expand Needs you" : "Collapse Needs you"}
           >
-            Snooze all
+            {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* Capped height — the queue scrolls internally instead of stretching the page */}
-      <div className="max-h-[380px] space-y-1.5 overflow-y-auto p-3">
-        {loading && !queue ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100" />
-          ))
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-200 py-10 text-center">
-            <p className="text-sm font-medium text-slate-900">You&apos;re all caught up</p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Nothing needs action right now.
-            </p>
-          </div>
-        ) : (
-          items.map((item) => {
-            const doneLabel = doneKeys[item.key]
-            if (doneLabel) {
+      {!isCollapsed && (
+        <div className="max-h-[380px] space-y-1.5 overflow-y-auto p-3">
+          {loading && !queue ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100" />
+            ))
+          ) : items.length === 0 ? (
+            isSnoozed ? (
+              <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-200 py-8 text-center">
+                <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                  <Moon className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-medium text-slate-900">
+                  {snoozedCount > 0 ? `${snoozedCount} item${snoozedCount === 1 ? "" : "s"} snoozed` : "Needs you is snoozed"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Items are hidden for 24 hours. Click below to bring them back anytime.
+                </p>
+                <button
+                  type="button"
+                  onClick={unsnoozeAll}
+                  disabled={unsnoozingAll}
+                  className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {unsnoozingAll ? "Unsnoozing…" : "Unsnooze all"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-200 py-10 text-center">
+                <p className="text-sm font-medium text-slate-900">You&apos;re all caught up</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Nothing needs action right now.
+                </p>
+              </div>
+            )
+          ) : (
+            items.map((item) => {
+              const doneLabel = doneKeys[item.key]
+              if (doneLabel) {
+                return (
+                  <div
+                    key={item.key}
+                    className="relative flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 py-2.5 pl-4 pr-3 transition-all"
+                  >
+                    <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-emerald-500" />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-semibold text-emerald-800">{doneLabel}</p>
+                      <p className="truncate text-[12.5px] text-emerald-700/70">{item.title}</p>
+                    </div>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={item.key}
-                  className="relative flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 py-2.5 pl-4 pr-3 transition-all"
+                  onClick={() => router.push(`/${locale}${item.href}`)}
+                  className="group relative flex cursor-pointer items-center gap-3 rounded-lg border border-transparent py-2.5 pl-4 pr-3 transition-colors hover:border-slate-200 hover:bg-slate-50"
                 >
-                  <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-emerald-500" />
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-                    <Check className="h-3.5 w-3.5" />
-                  </span>
+                  <span className={`absolute inset-y-2 left-0 w-[3px] rounded-full ${RAIL[item.severity]}`} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold text-emerald-800">{doneLabel}</p>
-                    <p className="truncate text-[12.5px] text-emerald-700/70">{item.title}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-[0.08em] ${CHIP[item.severity]}`}
+                      >
+                        {chipLabel(item)}
+                      </span>
+                      <p className="min-w-0 truncate text-[14px] font-semibold text-slate-900">
+                        {item.title}
+                      </p>
+                    </div>
+                    <p className="mt-0.5 truncate text-[12.5px] text-slate-500">{item.subtitle}</p>
                   </div>
+                  {item.amount != null && item.amount > 0 && (
+                    <span className="shrink-0 font-mono text-[14px] font-bold tabular-nums text-slate-900">
+                      {money(item.amount)}
+                    </span>
+                  )}
+                  {item.primary_action && PRIMARY_ACTION_LABEL[item.primary_action] && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        runPrimary(item)
+                      }}
+                      disabled={busyKey === item.key}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-50 ${
+                        item.severity === "hot" || item.severity === "money"
+                          ? "bg-slate-900 text-white hover:bg-slate-700"
+                          : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
+                      }`}
+                    >
+                      {busyKey === item.key ? "…" : PRIMARY_ACTION_LABEL[item.primary_action]}
+                    </button>
+                  )}
                 </div>
               )
-            }
-            return (
-            <div
-              key={item.key}
-              onClick={() => router.push(`/${locale}${item.href}`)}
-              className="group relative flex cursor-pointer items-center gap-3 rounded-lg border border-transparent py-2.5 pl-4 pr-3 transition-colors hover:border-slate-200 hover:bg-slate-50"
-            >
-              <span className={`absolute inset-y-2 left-0 w-[3px] rounded-full ${RAIL[item.severity]}`} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-[0.08em] ${CHIP[item.severity]}`}
-                  >
-                    {chipLabel(item)}
-                  </span>
-                  <p className="min-w-0 truncate text-[14px] font-semibold text-slate-900">
-                    {item.title}
-                  </p>
-                </div>
-                <p className="mt-0.5 truncate text-[12.5px] text-slate-500">{item.subtitle}</p>
-              </div>
-              {item.amount != null && item.amount > 0 && (
-                <span className="shrink-0 font-mono text-[14px] font-bold tabular-nums text-slate-900">
-                  {money(item.amount)}
-                </span>
-              )}
-              {item.primary_action && PRIMARY_ACTION_LABEL[item.primary_action] && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    runPrimary(item)
-                  }}
-                  disabled={busyKey === item.key}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-50 ${
-                    item.severity === "hot" || item.severity === "money"
-                      ? "bg-slate-900 text-white hover:bg-slate-700"
-                      : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
-                  }`}
-                >
-                  {busyKey === item.key ? "…" : PRIMARY_ACTION_LABEL[item.primary_action]}
-                </button>
-              )}
-            </div>
-            )
-          })
-        )}
-      </div>
+            })
+          )}
+        </div>
+      )}
 
       <NewProjectDialog
         open={projectFromQuote !== null}

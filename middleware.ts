@@ -21,6 +21,11 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Business-card QR destination should be easy to share without a locale prefix.
+  if (pathname === '/businesscontact' || pathname === '/businesscontact/') {
+    return NextResponse.next();
+  }
+
   // Engineering preview routes (e.g. /dev/preview) are gated server-side by
   // host + env. They don't need next-intl chrome.
   if (pathname.startsWith('/dev/')) {

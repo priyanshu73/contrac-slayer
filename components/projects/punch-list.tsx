@@ -33,8 +33,9 @@ export function PunchList({ project, onTasksUpdated }: PunchListProps) {
       const updated = await api.updateProjectTask(project.id, task.id, {
         status: nextStatus,
       })
-      const tasks = (project.tasks || []).map((t) => (t.id === task.id ? { ...t, ...updated } : t))
+      const tasks = (project.tasks || []).map((t) => (t.id === task.id ? { ...t, ...(updated as Record<string, any>) } : t))
       onTasksUpdated(tasks)
+
     } catch (err: any) {
       toast({
         title: t("updateErrorTitle"),

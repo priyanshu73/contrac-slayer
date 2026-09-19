@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, ChevronDown, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react"
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
@@ -108,6 +108,191 @@ function getStatusColor(status: string): string {
     case "CANCELLED":   return "bg-slate-500/15 text-slate-600 border-slate-300 hover:bg-slate-500/25"
     default:            return "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
   }
+}
+
+interface BeforeAfterDisplayPair {
+  index: number
+  before: ProjectMedia | null
+  beforeAngles: ProjectMedia[]
+  after: ProjectMedia | null
+}
+
+function BeforePhotoCard({
+  pairIndex,
+  angles,
+  isPortrait,
+  onOrientationChange,
+}: {
+  pairIndex: number
+  angles: ProjectMedia[]
+  isPortrait?: boolean
+  onOrientationChange?: (isPortrait: boolean) => void
+}) {
+  const [currentIdx, setCurrentIdx] = useState(0)
+  const [localPortrait, setLocalPortrait] = useState(isPortrait ?? false)
+
+  if (!angles || angles.length === 0) return null
+
+  const currentPhoto = angles[currentIdx] || angles[0]
+  const hasMultiple = angles.length > 1
+
+  const prev = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentIdx((prev) => (prev === 0 ? angles.length - 1 : prev - 1))
+  }
+
+  const next = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentIdx((prev) => (prev === angles.length - 1 ? 0 : prev + 1))
+  }
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    const portrait = img.naturalHeight > img.naturalWidth
+    setLocalPortrait(portrait)
+    onOrientationChange?.(portrait)
+  }
+
+  const portrait = isPortrait !== undefined ? isPortrait : localPortrait
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col justify-between">
+      <div className={cn("relative w-full overflow-hidden bg-gray-100 group", portrait ? "aspect-[3/4]" : "aspect-[4/3]")}>
+        <img
+          src={currentPhoto.file_url}
+          alt={`Before preview ${pairIndex} angle ${currentIdx + 1}`}
+          onLoad={handleImageLoad}
+          className="h-full w-full object-cover transition-opacity duration-200"
+        />
+
+        {hasMultiple && (
+          <>
+            {/* Left arrow */}
+            <button
+              type="button"
+              onClick={prev}
+              aria-label="Previous before angle"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-sm transition-all hover:bg-black/85 hover:scale-105 active:scale-95 print:hidden"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {/* Right arrow */}
+            <button
+              type="button"
+              onClick={next}
+              aria-label="Next before angle"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-sm transition-all hover:bg-black/85 hover:scale-105 active:scale-95 print:hidden"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Angle Indicator Badge */}
+            <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm print:hidden">
+              <span>{currentIdx + 1} / {angles.length}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+          Before
+        </span>
+        {hasMultiple && (
+          <span className="text-[11px] text-gray-500 font-medium">
+            Angle {currentIdx + 1} of {angles.length}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AfterPhotoCard({
+  pairIndex,
+  afterMedia,
+  isPortrait,
+  onOrientationChange,
+}: {
+  pairIndex: number
+  afterMedia: ProjectMedia
+  isPortrait?: boolean
+  onOrientationChange?: (isPortrait: boolean) => void
+}) {
+  const [localPortrait, setLocalPortrait] = useState(isPortrait ?? false)
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    const portrait = img.naturalHeight > img.naturalWidth
+    setLocalPortrait(portrait)
+    onOrientationChange?.(portrait)
+  }
+
+  const portrait = isPortrait !== undefined ? isPortrait : localPortrait
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col justify-between">
+      <div className={cn("relative w-full overflow-hidden bg-gray-100", portrait ? "aspect-[3/4]" : "aspect-[4/3]")}>
+        <img
+          src={afterMedia.file_url}
+          alt={`After rendering ${pairIndex}`}
+          onLoad={handleImageLoad}
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="border-t border-gray-200 px-4 py-3 flex items-center">
+        <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+          After (Estimated)
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function BeforeAfterPairRow({
+  pair,
+}: {
+  pair: BeforeAfterDisplayPair
+}) {
+  const [isPortrait, setIsPortrait] = useState(false)
+
+  return (
+    <div className="space-y-2">
+      {pair.index > 1 && (
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Pair {pair.index}
+        </p>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {pair.beforeAngles && pair.beforeAngles.length > 0 ? (
+          <BeforePhotoCard
+            pairIndex={pair.index}
+            angles={pair.beforeAngles}
+            isPortrait={isPortrait}
+            onOrientationChange={setIsPortrait}
+          />
+        ) : pair.before ? (
+          <BeforePhotoCard
+            pairIndex={pair.index}
+            angles={[pair.before]}
+            isPortrait={isPortrait}
+            onOrientationChange={setIsPortrait}
+          />
+        ) : null}
+        {pair.after && (
+          <AfterPhotoCard
+            pairIndex={pair.index}
+            afterMedia={pair.after}
+            isPortrait={isPortrait}
+            onOrientationChange={setIsPortrait}
+          />
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function PersonalizedQuoteView({
@@ -389,19 +574,49 @@ export function PersonalizedQuoteView({
     return null
   }
 
-  const beforeAfterPairs = Array.from(
+  const beforeAfterPairs: BeforeAfterDisplayPair[] = Array.from(
     (currentJob.project_media || []).reduce((map, media) => {
-      const index = extractBeforeAfterIndex(media.file_name)
+      const fname = media.file_name || ""
+      const index = extractBeforeAfterIndex(fname)
       if (!index) return map
 
-      const existing = map.get(index) || { index, before: null as ProjectMedia | null, after: null as ProjectMedia | null }
-      if (isBeforePhotoMedia(media.file_name)) existing.before = media
-      if (isAfterRenderMedia(media.file_name)) existing.after = media
+      const existing = map.get(index) || {
+        index,
+        before: null as ProjectMedia | null,
+        beforeAngles: [] as ProjectMedia[],
+        after: null as ProjectMedia | null,
+      }
+
+      if (isAfterRenderMedia(fname)) {
+        existing.after = media
+      } else if (isBeforePhotoMedia(fname)) {
+        const isAngle = fname.match(/angle-(\d+)/i)
+        if (!isAngle && !existing.before) {
+          existing.before = media
+        }
+        existing.beforeAngles.push(media)
+      }
+
       map.set(index, existing)
       return map
-    }, new Map<number, { index: number; before: ProjectMedia | null; after: ProjectMedia | null }>())
+    }, new Map<number, BeforeAfterDisplayPair>())
   )
-    .map(([, pair]) => pair)
+    .map(([, pair]) => {
+      pair.beforeAngles.sort((a, b) => {
+        const aNum = a.file_name?.match(/angle-(\d+)/i)?.[1]
+          ? parseInt(a.file_name.match(/angle-(\d+)/i)![1], 10)
+          : 1
+        const bNum = b.file_name?.match(/angle-(\d+)/i)?.[1]
+          ? parseInt(b.file_name.match(/angle-(\d+)/i)![1], 10)
+          : 1
+        return aNum - bNum
+      })
+      if (!pair.before && pair.beforeAngles.length > 0) {
+        pair.before = pair.beforeAngles[0]
+      }
+      return pair
+    })
+    .filter((pair) => Boolean(pair.before || pair.after))
     .sort((left, right) => left.index - right.index)
 
   const attachmentMedia = (currentJob.project_media || []).filter((media) => {
@@ -938,14 +1153,14 @@ export function PersonalizedQuoteView({
                           </p>
                         )}
                         {contractorProfile?.email && (
-                          <p className="text-xs sm:text-sm print:text-xs text-gray-600">
+                          <p className="text-xs sm:text-sm print:text-xs text-gray-600 whitespace-nowrap">
                             {contractorProfile.email}
                           </p>
                         )}
                       </div>
                     </div>
                     <div className="text-right">
-                      <h2 className="text-lg sm:text-xl md:text-2xl print:text-lg font-bold text-gray-900 mb-1 sm:mb-2">QUOTE</h2>
+                      <h2 className="text-sm sm:text-base md:text-xl print:text-sm font-bold text-gray-900 mb-1 sm:mb-2">QUOTE</h2>
                       {!isPublicView && (
                         <div className="inline-block print:hidden">
                           <Badge className={`${getStatusColor(currentJob.status)} text-xs print:text-xs`}>
@@ -989,7 +1204,7 @@ export function PersonalizedQuoteView({
                         </div>
                       )}
                       {currentJob.client?.email && (
-                        <p className="text-xs sm:text-sm print:text-xs text-gray-600">{currentJob.client.email}</p>
+                        <p className="text-xs sm:text-sm print:text-xs text-gray-600 whitespace-nowrap">{currentJob.client.email}</p>
                       )}
                       {currentJob.client?.phone && (
                         <p className="text-xs sm:text-sm print:text-xs text-gray-600">{formatPhoneForDisplay(currentJob.client.phone)}</p>
@@ -1152,47 +1367,7 @@ export function PersonalizedQuoteView({
                     </h3>
                     <div className="space-y-4">
                       {beforeAfterPairs.map((pair) => (
-                        <div key={pair.index} className="space-y-2">
-                          {beforeAfterPairs.length > 1 && (
-                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                              Pair {pair.index}
-                            </p>
-                          )}
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {pair.before && (
-                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                                <div className="aspect-[4/3] bg-gray-100">
-                                  <img
-                                    src={pair.before.file_url}
-                                    alt={`Before preview ${pair.index}`}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-                                <div className="border-t border-gray-200 px-4 py-3">
-                                  <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                                    Before
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            {pair.after && (
-                              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                                <div className="aspect-[4/3] bg-gray-100">
-                                  <img
-                                    src={pair.after.file_url}
-                                    alt={`After rendering ${pair.index}`}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-                                <div className="border-t border-gray-200 px-4 py-3">
-                                  <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                                    After (Estimated)
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <BeforeAfterPairRow key={pair.index} pair={pair} />
                       ))}
                     </div>
                   </div>

@@ -27,6 +27,7 @@ import {
   Phone,
   PhoneCall,
   PhoneForwarded,
+  Plus,
   Save,
   Send,
   ShieldCheck,
@@ -50,6 +51,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import {
   formatFrontlineActivityDate,
@@ -61,6 +70,7 @@ import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-vo
 import { FrontlineInitialSetupCard } from "@/components/frontline/frontline-initial-setup-card";
 import type {
   FrontlineActivityEvent,
+  FrontlineCoreFields,
   FrontlineKnowledgeChunkItem,
   FrontlineKnowledgeIntakeResponse,
   FrontlineMode,
@@ -106,6 +116,149 @@ const OPERATOR_OPTIONS = [
 ] as const;
 
 const QUICK_TEST_KEYS = ["0", "1", "2"] as const;
+
+type CoreFactsDraft = {
+  services_offered: string;
+  services_not_offered: string;
+  service_area: string;
+  regular_hours: string;
+  after_hours: string;
+  free_estimates: boolean | null;
+  callout_fee: string;
+  rate_info: string;
+  booking_behavior: string;
+  intake_fields: string;
+  escalation_when: string;
+};
+
+type CoreFactSuggestion = {
+  field: keyof Pick<
+    CoreFactsDraft,
+    "service_area" | "regular_hours" | "rate_info" | "escalation_when" | "services_offered"
+  >;
+  label: string;
+  value: string;
+};
+
+const EMPTY_CORE_FACTS: CoreFactsDraft = {
+  services_offered: "", services_not_offered: "", service_area: "",
+  regular_hours: "", after_hours: "", free_estimates: null, callout_fee: "", rate_info: "",
+  booking_behavior: "", intake_fields: "", escalation_when: "",
+};
+
+function coreFactsDraftFrom(fields: FrontlineCoreFields): CoreFactsDraft {
+  const hours = fields.hours || {};
+  const pricing = fields.pricing_basics || {};
+  const escalation = fields.escalation || {};
+  const list = (value?: string[]) => (value || []).join(", ");
+  return {
+    services_offered: list(fields.services_offered),
+    services_not_offered: list(fields.services_not_offered),
+    service_area: fields.service_area || "",
+    regular_hours: hours.regular || "",
+    after_hours: hours.after_hours || "",
+    free_estimates: pricing.free_estimates ?? null,
+    callout_fee: pricing.callout_fee || "",
+    rate_info: pricing.rate_info || "",
+    booking_behavior: fields.booking_behavior || "",
+    intake_fields: list(fields.intake_fields),
+    escalation_when: list(escalation.when),
+  };
+}
+
+function coreFactsPayload(draft: CoreFactsDraft, escalationNumber: string): FrontlineCoreFields {
+  const list = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+  return {
+    services_offered: list(draft.services_offered),
+    services_not_offered: list(draft.services_not_offered),
+    service_area: draft.service_area.trim(),
+    hours: { regular: draft.regular_hours.trim(), after_hours: draft.after_hours.trim(), emergency: "" },
+    pricing_basics: {
+      free_estimates: draft.free_estimates,
+      callout_fee: draft.callout_fee.trim() || null,
+      rate_info: draft.rate_info.trim() || null,
+    },
+    booking_behavior: draft.booking_behavior.trim(),
+    intake_fields: list(draft.intake_fields),
+    // The dedicated Escalation contact setting is the single owner of this number.
+    escalation: { when: list(draft.escalation_when), number: escalationNumber.trim() },
+  };
+}
+
+function listItems(value: string) {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function ListFactEditor({
+  value,
+  onChange,
+  label,
+  hint,
+  placeholder,
+  addLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  hint: string;
+  placeholder: string;
+  addLabel: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const items = listItems(value);
+  const add = () => {
+    const next = draft.trim();
+    if (!next || items.some((item) => item.toLocaleLowerCase() === next.toLocaleLowerCase())) return;
+    onChange([...items, next].join(", "));
+    setDraft("");
+  };
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold text-slate-700">{label}</div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{hint}</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{items.length}</span>
+      </div>
+      {items.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {items.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onChange(items.filter((current) => current !== item).join(", "))}
+              className="group inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+              title="Remove item"
+            >
+              {item}<span className="text-slate-400 group-hover:text-rose-500">×</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="mt-3 flex gap-2">
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              add();
+            }
+          }}
+          placeholder={placeholder}
+          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-slate-400"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!draft.trim()} className="shrink-0 rounded-lg">
+          <Plus className="mr-1 h-3.5 w-3.5" />{addLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -908,6 +1061,8 @@ export function FrontlinePage() {
   const tQuick = useTranslations("frontline.quickTests");
   const [view, setView] = useState<ViewKey>("dashboard");
   const [settings, setSettings] = useState<FrontlineSettings | null>(null);
+  const [coreFacts, setCoreFacts] = useState<CoreFactsDraft>(EMPTY_CORE_FACTS);
+  const [coreFactsEditing, setCoreFactsEditing] = useState(false);
   const [chunks, setChunks] = useState<FrontlineKnowledgeChunkItem[]>([]);
   const [trainingIntake, setTrainingIntake] = useState("");
   const [intakeResult, setIntakeResult] = useState<FrontlineKnowledgeIntakeResponse | null>(null);
@@ -915,6 +1070,7 @@ export function FrontlinePage() {
   const [sandboxA, setSandboxA] = useState<FrontlineSandboxAnswer | null>(null);
   const [teachBad, setTeachBad] = useState("");
   const [teachGood, setTeachGood] = useState("");
+  const [coreFactSuggestion, setCoreFactSuggestion] = useState<CoreFactSuggestion | null>(null);
   const [events, setEvents] = useState<FrontlineActivityEvent[]>([]);
   const [approvals, setApprovals] = useState<FrontlineReplyApproval[]>([]);
   const [stats, setStats] = useState<FrontlineStats | null>(null);
@@ -933,9 +1089,10 @@ export function FrontlinePage() {
     try {
       setLoading(true);
       setError(null);
-      const [settingsResponse, knowledgeResponse, activityResponse, approvalResponse, statsResponse] =
+      const [settingsResponse, coreFieldsResponse, knowledgeResponse, activityResponse, approvalResponse, statsResponse] =
         await Promise.all([
           api.getFrontlineSettings(),
+          api.getFrontlineCoreFields(),
           api.getFrontlineKnowledge(),
           api.getFrontlineActivity(20),
           api.getFrontlineApprovals("pending"),
@@ -943,6 +1100,7 @@ export function FrontlinePage() {
         ]);
 
       setSettings(settingsResponse);
+      setCoreFacts(coreFactsDraftFrom(coreFieldsResponse.core_fields || {}));
       setChunks(knowledgeResponse.chunks || []);
       setEvents(activityResponse.events || []);
       setApprovals(approvalResponse.approvals || []);
@@ -999,6 +1157,43 @@ export function FrontlinePage() {
     setOperatorEditing(false);
   };
 
+  const saveCoreFacts = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await api.saveFrontlineCoreFields(
+        coreFactsPayload(coreFacts, settings?.escalation_number || ""),
+      );
+      setSettings(updated);
+      setCoreFactsEditing(false);
+      flashSuccess(tSettings("businessFactsSaved"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tSettings("businessFactsSaveError"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const applySuggestedCoreFact = async () => {
+    if (!coreFactSuggestion) return;
+    const nextFacts = { ...coreFacts, [coreFactSuggestion.field]: coreFactSuggestion.value };
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await api.saveFrontlineCoreFields(
+        coreFactsPayload(nextFacts, settings?.escalation_number || ""),
+      );
+      setCoreFacts(nextFacts);
+      setSettings(updated);
+      setCoreFactSuggestion(null);
+      flashSuccess("Core business fact updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tSettings("businessFactsSaveError"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const submitTrainingIntake = async () => {
     if (!trainingIntake.trim()) return;
@@ -1043,17 +1238,30 @@ export function FrontlinePage() {
 
   const submitTeach = async () => {
     if (!teachGood.trim()) return;
+    const correction = teachGood.trim();
     try {
       setSaving(true);
       setError(null);
-      await api.frontlineTeach({
+      const result = await api.frontlineTeach({
         question: sandboxQ || "Sandbox correction",
         bad_answer: teachBad || sandboxA?.answer || "",
-        corrected_answer: teachGood.trim(),
+        corrected_answer: correction,
         source: "sandbox",
       });
       setTeachGood("");
-      flashSuccess(tToast("correctionSaved"));
+      const suggestionMap: Record<NonNullable<typeof result.canonical_field_review>["field"], Omit<CoreFactSuggestion, "value">> = {
+        service_area: { field: "service_area", label: "Service area" },
+        hours: { field: "regular_hours", label: "Regular hours" },
+        pricing_basics: { field: "rate_info", label: "Pricing guidance" },
+        escalation: { field: "escalation_when", label: "Escalate when" },
+        services: { field: "services_offered", label: "Services offered" },
+      };
+      const review = result.canonical_field_review;
+      if (review) {
+        setCoreFactSuggestion({ ...suggestionMap[review.field], value: correction });
+      } else {
+        flashSuccess(tToast("correctionSaved"));
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : tToast("saveCorrectionError"));
@@ -1258,6 +1466,124 @@ export function FrontlinePage() {
         {view === "settings" && (
           <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
             <div className="space-y-6">
+              <Surface>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                      <ClipboardList className="h-4 w-4 text-sky-600" />
+                      {tSettings("businessFacts")}
+                    </div>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                      {tSettings("businessFactsDesc")}
+                    </p>
+                  </div>
+                  {!coreFactsEditing ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setCoreFactsEditing(true)} className="rounded-xl">
+                      <PenLine className="mr-2 h-4 w-4" />{tSettings("edit")}
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => {
+                        setCoreFactsEditing(false);
+                        void api.getFrontlineCoreFields().then((data) => setCoreFacts(coreFactsDraftFrom(data.core_fields || {}))).catch(() => undefined);
+                      }} className="rounded-xl">{tSettings("cancel")}</Button>
+                      <Button type="button" size="sm" disabled={saving} onClick={() => void saveCoreFacts()} className="rounded-xl bg-slate-950 text-white hover:bg-slate-800">
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {tSettings("save")}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <fieldset disabled={!coreFactsEditing} className="mt-5 space-y-4 disabled:opacity-75">
+                  <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <h3 className="text-sm font-semibold text-slate-950">{tSettings("servicesCoverage")}</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{tSettings("servicesCoverageDesc")}</p>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      <ListFactEditor
+                        value={coreFacts.services_offered}
+                        onChange={(services_offered) => setCoreFacts((value) => ({ ...value, services_offered }))}
+                        label={tSettings("servicesOffered")}
+                        hint={tSettings("servicesOfferedHint")}
+                        placeholder={tSettings("serviceItemPlaceholder")}
+                        addLabel={tSettings("add")}
+                      />
+                      <ListFactEditor
+                        value={coreFacts.services_not_offered}
+                        onChange={(services_not_offered) => setCoreFacts((value) => ({ ...value, services_not_offered }))}
+                        label={tSettings("servicesNotOffered")}
+                        hint={tSettings("servicesNotOfferedHint")}
+                        placeholder={tSettings("excludedServicePlaceholder")}
+                        addLabel={tSettings("add")}
+                      />
+                    </div>
+                    <label className="mt-4 block space-y-1.5">
+                      <span className="text-xs font-semibold text-slate-700">{tSettings("serviceArea")}</span>
+                      <Textarea value={coreFacts.service_area} onChange={(event) => setCoreFacts((value) => ({ ...value, service_area: event.target.value }))} placeholder={tSettings("serviceAreaPlaceholder")} className="min-h-20 resize-y rounded-xl border-slate-200 bg-white text-sm" />
+                    </label>
+                  </section>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <h3 className="text-sm font-semibold text-slate-950">{tSettings("availability")}</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{tSettings("availabilityDesc")}</p>
+                      <label className="mt-4 block space-y-1.5">
+                        <span className="text-xs font-semibold text-slate-700">{tSettings("regularHours")}</span>
+                        <Textarea value={coreFacts.regular_hours} onChange={(event) => setCoreFacts((value) => ({ ...value, regular_hours: event.target.value }))} placeholder={tSettings("regularHoursPlaceholder")} className="min-h-20 resize-y rounded-xl border-slate-200 bg-white text-sm" />
+                      </label>
+                      <label className="mt-4 block space-y-1.5">
+                        <span className="text-xs font-semibold text-slate-700">{tSettings("afterHours")}</span>
+                        <Textarea value={coreFacts.after_hours} onChange={(event) => setCoreFacts((value) => ({ ...value, after_hours: event.target.value }))} placeholder={tSettings("afterHoursPlaceholder")} className="min-h-20 resize-y rounded-xl border-slate-200 bg-white text-sm" />
+                      </label>
+                    </section>
+
+                    <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <h3 className="text-sm font-semibold text-slate-950">{tSettings("pricing")}</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{tSettings("pricingDesc")}</p>
+                      <label className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700">
+                        <input type="checkbox" checked={coreFacts.free_estimates === true} onChange={(event) => setCoreFacts((value) => ({ ...value, free_estimates: event.target.checked }))} className="h-4 w-4 accent-slate-950" />
+                        {tSettings("freeEstimates")}
+                      </label>
+                      <label className="mt-4 block space-y-1.5">
+                        <span className="text-xs font-semibold text-slate-700">{tSettings("calloutFee")}</span>
+                        <input value={coreFacts.callout_fee} onChange={(event) => setCoreFacts((value) => ({ ...value, callout_fee: event.target.value }))} placeholder={tSettings("calloutFeePlaceholder")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-slate-400" />
+                      </label>
+                      <label className="mt-4 block space-y-1.5">
+                        <span className="text-xs font-semibold text-slate-700">{tSettings("rateInfo")}</span>
+                        <Textarea value={coreFacts.rate_info} onChange={(event) => setCoreFacts((value) => ({ ...value, rate_info: event.target.value }))} placeholder={tSettings("rateInfoPlaceholder")} className="min-h-20 resize-y rounded-xl border-slate-200 bg-white text-sm" />
+                      </label>
+                    </section>
+                  </div>
+
+                  <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <h3 className="text-sm font-semibold text-slate-950">{tSettings("callHandling")}</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{tSettings("callHandlingDesc")}</p>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      <label className="space-y-1.5 lg:col-span-2">
+                        <span className="text-xs font-semibold text-slate-700">{tSettings("bookingBehavior")}</span>
+                        <Textarea value={coreFacts.booking_behavior} onChange={(event) => setCoreFacts((value) => ({ ...value, booking_behavior: event.target.value }))} placeholder={tSettings("bookingPlaceholder")} className="min-h-24 resize-y rounded-xl border-slate-200 bg-white text-sm" />
+                      </label>
+                      <ListFactEditor
+                        value={coreFacts.intake_fields}
+                        onChange={(intake_fields) => setCoreFacts((value) => ({ ...value, intake_fields }))}
+                        label={tSettings("intakeFields")}
+                        hint={tSettings("intakeFieldsHint")}
+                        placeholder={tSettings("intakeFieldPlaceholder")}
+                        addLabel={tSettings("add")}
+                      />
+                      <ListFactEditor
+                        value={coreFacts.escalation_when}
+                        onChange={(escalation_when) => setCoreFacts((value) => ({ ...value, escalation_when }))}
+                        label={tSettings("escalateWhen")}
+                        hint={tSettings("escalateWhenHint")}
+                        placeholder={tSettings("escalationPlaceholder")}
+                        addLabel={tSettings("add")}
+                      />
+                    </div>
+                  </section>
+                </fieldset>
+              </Surface>
+
               <Surface>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -1519,6 +1845,30 @@ export function FrontlinePage() {
           </div>
         )}
       </div>
+      <Dialog open={Boolean(coreFactSuggestion)} onOpenChange={(open) => !open && setCoreFactSuggestion(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Update a core business fact?</DialogTitle>
+            <DialogDescription>
+              This correction is about <span className="font-medium text-slate-900">{coreFactSuggestion?.label}</span>.
+              Confirm the suggested value below to use it directly in Frontline SMS and voice context.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={coreFactSuggestion?.value || ""}
+            onChange={(event) => setCoreFactSuggestion((current) => current ? { ...current, value: event.target.value } : current)}
+            className="min-h-28 resize-y"
+            aria-label="Suggested core business fact"
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCoreFactSuggestion(null)} disabled={saving}>Keep as training note only</Button>
+            <Button type="button" onClick={() => void applySuggestedCoreFact()} disabled={saving || !coreFactSuggestion?.value.trim()}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update business fact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

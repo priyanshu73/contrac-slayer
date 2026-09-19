@@ -972,17 +972,16 @@ export function ProposalBuilder({
     return `${getFrontendUrl()}/${locale}/proposals/${publicLink}`
   }
 
-  const ensureProposalShareLink = async (): Promise<string | null> => {
+  const ensureProposalShareLink = async ({ publish = false }: { publish?: boolean } = {}): Promise<string | null> => {
 
     if (!isProposalMode || !proposal) return null
 
-    // A DRAFT proposal is hidden from the client portal even via a direct link,
-    // so sharing the link must promote it to SENT. The public_link itself is
-    // minted at creation, so a non-DRAFT proposal with a cached URL needs no
-    // round-trip.
+    // A public link is generated while editing, but a draft remains private.
+    // Only an explicit link-share action publishes it; email and SMS publish
+    // after their respective delivery calls succeed.
     const needsPromotion = proposal.status === "DRAFT"
     const existing = getProposalShareUrl()
-    if (existing && !needsPromotion) return existing
+    if (existing && (!publish || !needsPromotion)) return existing
 
     try {
       setGeneratingLink(true)
@@ -990,7 +989,7 @@ export function ProposalBuilder({
       if (docToSave !== document) setDocument(docToSave)
       const updated = (await persistProposal(proposal, {
         proposal_document: docToSave,
-        ...(needsPromotion ? { status: "SENT" } : {}),
+        ...(publish && needsPromotion ? { status: "SENT" } : {}),
       })) as Proposal
       onProposalUpdated?.(updated)
       if (!updated.public_link) {
@@ -1023,9 +1022,6 @@ export function ProposalBuilder({
 
   const handleSendToClient = async () => {
     try {
-      const url = await ensureProposalShareLink()
-      if (!url) return
-
       const gmail = await api.getGmailStatus()
       if (!gmail.connected) {
         toast({
@@ -1041,6 +1037,9 @@ export function ProposalBuilder({
         })
         return
       }
+
+      const url = await ensureProposalShareLink()
+      if (!url) return
 
       setSendEmailTo(clientEmail)
       setSendEmailSuccess(false)
@@ -1069,7 +1068,8 @@ export function ProposalBuilder({
     setSendEmailSending(true)
     try {
       if (isProposalMode && proposal && proposal.project_id) {
-        await api.sendProposalEmail(proposal.project_id, proposal.id, to, proposalUrl, optionalNote)
+        const result = await api.sendProposalEmail(proposal.project_id, proposal.id, to, proposalUrl, optionalNote)
+        if (result.proposal) onProposalUpdated?.(result.proposal)
       } else if (job) {
         await api.sendQuoteEmail(job.id, to, proposalUrl, optionalNote)
       }
@@ -1117,10 +1117,7 @@ export function ProposalBuilder({
       return
     }
 
-    let shareUrl = getProposalShareUrl()
-    if (!shareUrl) {
-      shareUrl = (await ensureProposalShareLink()) ?? ""
-    }
+    const shareUrl = (await ensureProposalShareLink()) ?? ""
     if (!shareUrl) return
 
     const refJobId = job?.id ?? proposal?.quote_references?.[0]?.job_id ?? 0
@@ -1133,6 +1130,9 @@ export function ProposalBuilder({
         reference_type: "job",
         reference_id: refJobId,
       })
+      // The SMS provider accepted the message; now make its URL available to
+      // the recipient and surface the proposal in the client portal.
+      await ensureProposalShareLink({ publish: true })
       toast({ title: t("toast.smsSentTitle"), description: t("toast.smsSentDescription", { name: clientName }) })
     } catch {
       toast({
@@ -1147,7 +1147,7 @@ export function ProposalBuilder({
     // Always go through ensureProposalShareLink so a still-DRAFT proposal gets
     // promoted to SENT (and made visible in the portal) before we hand over the
     // link. For an already-shared proposal this returns the cached URL.
-    const url = (await ensureProposalShareLink()) ?? ""
+    const url = (await ensureProposalShareLink({ publish: true })) ?? ""
     if (!url) return
     try {
       await navigator.clipboard.writeText(url)

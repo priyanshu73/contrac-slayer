@@ -47,6 +47,7 @@ import type {
 } from './types/analytics'
 import type {
   FrontlineActivityEvent,
+  FrontlineCoreFields,
   FrontlineKnowledgeResponse,
   FrontlineKnowledgeIntakeResponse,
   FrontlineReplyApproval,
@@ -56,7 +57,7 @@ import type {
   FrontlineSetupGenerateResponse,
   FrontlineSetupPreview,
   FrontlineStats,
-  FrontlineTeachNote,
+  FrontlineTeachResponse,
   FrontlineVoiceDevStatus,
   FrontlineVoiceDemoSessionStart,
   FrontlineVoiceTrainingEligibility,
@@ -707,11 +708,11 @@ class ApiClient {
     })
   }
 
-  async getFrontlineCoreFields(): Promise<{ core_fields: Record<string, any>; initial_setup_done: boolean }> {
+  async getFrontlineCoreFields(): Promise<{ core_fields: FrontlineCoreFields; initial_setup_done: boolean }> {
     return this.request('/contractors/profile/frontline/core-fields')
   }
 
-  async saveFrontlineCoreFields(core_fields: Record<string, any>): Promise<FrontlineSettings> {
+  async saveFrontlineCoreFields(core_fields: FrontlineCoreFields): Promise<FrontlineSettings> {
     const frontend_origin =
       typeof window !== 'undefined' ? window.location.origin : undefined
     return this.request('/contractors/profile/frontline/core-fields', {
@@ -785,7 +786,7 @@ class ApiClient {
     question?: string
     bad_answer?: string
     source?: string
-  }): Promise<FrontlineTeachNote> {
+  }): Promise<FrontlineTeachResponse> {
     return this.request('/contractors/profile/frontline/teach', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -1044,16 +1045,24 @@ class ApiClient {
   }
 
   /** Hide the given action-queue items until `until` (ISO). Business-wide. */
-  async snoozeActionItems(keys: string[], until: string): Promise<{ snoozed: number; until: string }> {
+  async snoozeActionItems(keys?: string[], until?: string): Promise<{ snoozed: number; until: string }> {
+    const targetUntil = until ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     return this.request('/dashboard/action-queue/snooze', {
       method: 'POST',
-      body: JSON.stringify({ keys, until }),
+      body: JSON.stringify(keys && keys.length ? { keys, until: targetUntil } : { until: targetUntil }),
     })
   }
 
   async unsnoozeActionItem(key: string): Promise<{ snoozed: number; until: string }> {
     return this.request(`/dashboard/action-queue/snooze/${encodeURIComponent(key)}`, {
       method: 'DELETE',
+    })
+  }
+
+  async unsnoozeAllActionItems(keys?: string[]): Promise<{ snoozed: number; until: string }> {
+    return this.request('/dashboard/action-queue/unsnooze', {
+      method: 'POST',
+      body: JSON.stringify(keys ? { keys } : {}),
     })
   }
 
@@ -1499,7 +1508,7 @@ class ApiClient {
   /** Send formatted proposal email to client via contractor's Gmail. Requires Gmail connected.
    *  `note` is an optional personal message; the backend must read it for it to
    *  appear in the email body. */
-  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string, note?: string): Promise<{ message: string }> {
+  async sendProposalEmail(projectId: number, proposalId: number, to: string, proposalUrl: string, note?: string): Promise<{ message: string; proposal?: import('@/lib/types').Proposal }> {
     return this.request(`/projects/${projectId}/proposals/${proposalId}/send-email`, {
       method: 'POST',
       body: JSON.stringify({ to, proposal_url: proposalUrl, note: note?.trim() || undefined }),
@@ -2260,6 +2269,9 @@ class ApiClient {
     afterImageDescription: string
     userPrompt?: string
     includeProjectContext?: boolean
+    mode?: 'batch' | 'multi_angle' | 'single_item'
+    heroIndex?: number
+    itemIndex?: number
     lineItems?: Array<{
       title?: string
       description?: string
@@ -2274,6 +2286,7 @@ class ApiClient {
       before_file_name?: string | null
       after_file_name?: string | null
       before_image_url?: string | null
+      before_image_urls?: string[] | null
       after_image_url?: string | null
       before_media_id?: number | null
       after_media_id?: number | null
@@ -2291,6 +2304,15 @@ class ApiClient {
       'include_project_context',
       String(params.includeProjectContext ?? true),
     )
+    if (params.mode) {
+      formData.append('mode', params.mode)
+    }
+    if (params.heroIndex !== undefined) {
+      formData.append('hero_index', String(params.heroIndex))
+    }
+    if (params.itemIndex !== undefined) {
+      formData.append('item_index', String(params.itemIndex))
+    }
 
     const response = await fetch(`${this.baseURL}/jobs/${jobId}/generate-after-images`, {
       method: 'POST',
@@ -2304,6 +2326,43 @@ class ApiClient {
     }
 
     return response.json()
+  }
+
+  async saveBeforeAfter(
+    jobId: number | string,
+    params: {
+      itemIndex?: number
+      beforeImageUrl: string
+      afterImageUrl: string
+      beforeImageUrls?: string[]
+      description?: string
+    }
+  ): Promise<{ success: boolean; saved_count: number; media_ids: number[] }> {
+    return this.request<{ success: boolean; saved_count: number; media_ids: number[] }>(
+      `/jobs/${jobId}/save-before-after`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          item_index: params.itemIndex ?? 1,
+          before_image_url: params.beforeImageUrl,
+          after_image_url: params.afterImageUrl,
+          before_image_urls: params.beforeImageUrls,
+          description: params.description || '',
+        }),
+      }
+    )
+  }
+
+  async deleteBeforeAfter(
+    jobId: number | string,
+    itemIndex: number = 1
+  ): Promise<{ success: boolean; deleted_count: number }> {
+    return this.request<{ success: boolean; deleted_count: number }>(
+      `/jobs/${jobId}/before-after/${itemIndex}`,
+      {
+        method: 'DELETE',
+      }
+    )
   }
 
   async createProjectTrade(projectId: number, data: any) {
@@ -2987,6 +3046,54 @@ class ApiClient {
   async cancelWorkflowRun(runUuid: string): Promise<WorkflowActionResponse> {
     return this.request<WorkflowActionResponse>(`/workflows/runs/${runUuid}/cancel`, { method: 'POST' })
   }
+
+  async approveAgentCommand(commandId: number | string, approvalToken: string, editedPayload?: Record<string, unknown>): Promise<{
+    command_id: number
+    action: string
+    status: string
+    result?: any
+    replayed?: boolean
+    message?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, edited_payload: editedPayload }),
+    })
+  }
+
+  async rejectAgentCommand(commandId: number | string, approvalToken: string, reason?: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    completed_at?: string
+    run_id?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, reason }),
+    })
+  }
+
+  async getAgentRunRecovery(runId: string): Promise<{
+    run_id: string
+    contractor_id: number
+    conversation_id: number
+    status: string
+    state_revision: number
+    terminal_outcome?: any
+    cancellation_requested_at?: string | null
+    events: Array<{
+      id: number
+      revision?: number
+      event_type: string
+      payload: any
+      created_at?: string
+    }>
+  }> {
+    return this.request(`/agent/runs/${runId}/recovery`, {
+      method: 'GET',
+    })
+  }
 }
 
 class ContractorAIClient {
@@ -3402,8 +3509,55 @@ class ContractorAIClient {
     })
   }
 
+  async approveAgentCommand(commandId: number | string, approvalToken: string, editedPayload?: Record<string, unknown>): Promise<{
+    command_id: number
+    action: string
+    status: string
+    result?: any
+    replayed?: boolean
+    message?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, edited_payload: editedPayload }),
+    })
+  }
 
+  async rejectAgentCommand(commandId: number | string, approvalToken: string, reason?: string): Promise<{
+    command_id: number
+    action: string
+    status: string
+    completed_at?: string
+    run_id?: string
+  }> {
+    return this.request(`/agent/commands/${commandId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ approval_token: approvalToken, reason }),
+    })
+  }
+
+  async getAgentRunRecovery(runId: string): Promise<{
+    run_id: string
+    contractor_id: number
+    conversation_id: number
+    status: string
+    state_revision: number
+    terminal_outcome?: any
+    cancellation_requested_at?: string | null
+    events: Array<{
+      id: number
+      revision?: number
+      event_type: string
+      payload: any
+      created_at?: string
+    }>
+  }> {
+    return this.request(`/agent/runs/${runId}/recovery`, {
+      method: 'GET',
+    })
+  }
 }
+
 
 export const api = new ApiClient(API_URL!)
 export const contractorAI = new ContractorAIClient(CONTRACTOR_AI_API_URL)

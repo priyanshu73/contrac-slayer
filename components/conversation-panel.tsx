@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react'
 import { contractorAI } from '@/lib/api'
 import { formatPhoneForDisplay } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { parseApiUtcDate } from '@/lib/frontline-datetime'
 
 interface Message {
   id: string
@@ -136,7 +137,7 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
         })) || []
         
         // Ensure messages are sorted chronologically (oldest first, newest at bottom)
-        apiMessages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        apiMessages.sort((a: any, b: any) => (parseApiUtcDate(a.timestamp)?.getTime() ?? 0) - (parseApiUtcDate(b.timestamp)?.getTime() ?? 0))
         
         setMessages(apiMessages)
       } else {
@@ -229,7 +230,8 @@ export default function ConversationPanel({ lead, language }: ConversationPanelP
   }
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
+    const date = parseApiUtcDate(timestamp)
+    if (!date) return ""
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 

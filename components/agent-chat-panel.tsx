@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useLocale } from "next-intl"
 import {
-    Bot, X, Send, Loader2, Sparkles, Plus,
+    X, Send, Loader2, Plus,
     MessageSquare, ChevronLeft, Trash2, Clock,
     Sun, BellRing, Maximize2, Minimize2,
     ChevronDown, ChevronUp, Zap, CheckCircle2, AlertCircle,
@@ -23,7 +23,10 @@ import {
 import ReactMarkdown from "react-markdown"
 import { api } from "@/lib/api"
 import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 import type { ProjectListItem } from "@/lib/types"
+import { agUiState } from "@/lib/ag-ui-state"
+import { AgentActionCard } from "@/components/agent-action-card"
 
 interface QuoteEstimateContext {
     projectType: string
@@ -478,26 +481,36 @@ const SUGGESTIONS: Record<string, string[]> = {
 // ─── Types ─────────────────────────────────────────────────────
 
 interface ProcessStep {
+    id?: string
     step: string
     tool?: string
+    toolCallId?: string
+    status?: "running" | "completed" | "error"
 }
 
-interface ActionCardOption {
+export interface ActionCardOption {
     id: string
     label: string
     prompt: string
     style?: "primary" | "secondary" | "ghost" | string
 }
 
-interface ActionCard {
+export interface ActionCard {
     action?: string
     title: string
     description?: string
     options: ActionCardOption[]
     entity?: Record<string, unknown>
+    interruptId?: string
+    commandId?: number | string
+    approvalToken?: string
+    status?: "pending" | "approved" | "rejected" | "executing" | "completed" | "failed"
+    result?: Record<string, unknown>
+    editedPayload?: Record<string, unknown>
+    replayed?: boolean
 }
 
-interface Message {
+export interface Message {
     id: string
     role: "user" | "assistant"
     content: string
@@ -572,6 +585,7 @@ export function AgentChatPanel() {
     const router = useRouter()
     const locale = useLocale()
     const pathname = usePathname()
+    const { toast } = useToast()
     const [isOpen, setIsOpen] = useState(false)
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
@@ -584,9 +598,16 @@ export function AgentChatPanel() {
     const [projectsLoading, setProjectsLoading] = useState(false)
     const [projectsLoaded, setProjectsLoaded] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const pendingTextRef = useRef<string>("")
+    const rafFlushId = useRef<number | null>(null)
+    const rafScrollId = useRef<number | null>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
     const dismissedAutoProjectIdRef = useRef<number | null>(null)
     const keptProjectRouteIdRef = useRef<number | null>(null)
+    const [executingCommandId, setExecutingCommandId] = useState<string | number | null>(null)
+    const executingCommandRef = useRef<string | number | null>(null)
+    const lastRunIdRef = useRef<string | null>(null)
 
     // Multi-chat state
     const [conversations, setConversations] = useState<Conversation[]>([])
@@ -738,13 +759,44 @@ export function AgentChatPanel() {
         return ""
     }, [])
 
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    const isNearBottom = useCallback(() => {
+        const el = scrollContainerRef.current
+        if (!el) return true
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 120
     }, [])
 
+    const scrollToBottom = useCallback((instant = false) => {
+        if (!isNearBottom()) return
+        if (rafScrollId.current !== null) return
+        rafScrollId.current = requestAnimationFrame(() => {
+            rafScrollId.current = null
+            if (messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({ behavior: instant ? "auto" : "smooth" })
+            }
+        })
+    }, [isNearBottom])
+
+    const flushPendingText = useCallback((targetId: string) => {
+        const textToFlush = pendingTextRef.current
+        if (!textToFlush) return
+        pendingTextRef.current = ""
+        setMessages((prev) => {
+            const last = prev[prev.length - 1]
+            if (last && last.id === targetId) {
+                return [...prev.slice(0, -1), { ...last, content: last.content + textToFlush }]
+            }
+            return prev.map((m) =>
+                m.id === targetId ? { ...m, content: m.content + textToFlush } : m
+            )
+        })
+        scrollToBottom(true)
+    }, [scrollToBottom])
+
     useEffect(() => {
-        scrollToBottom()
-    }, [messages, scrollToBottom])
+        if (!isLoading) {
+            scrollToBottom(false)
+        }
+    }, [messages.length, isLoading, scrollToBottom])
 
     useEffect(() => {
         if (isOpen && inputRef.current && panelView === "chat") {
@@ -1228,7 +1280,10 @@ export function AgentChatPanel() {
         }
     }, [proposalContext.projectId, _fireProposal])
 
-    const sendChatMessage = useCallback(async (text: string) => {
+    const sendChatMessage = useCallback(async (
+        text: string,
+        resumeOption?: { interruptId: string; status: string }
+    ) => {
         const trimmed = text.trim()
         if (!trimmed || isLoading) return
 
@@ -1255,7 +1310,10 @@ export function AgentChatPanel() {
         try {
             const res = await fetch(`${API_URL}/agent/chat`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Agent-Protocol": "ag-ui",
+                },
                 credentials: "include",
                 body: JSON.stringify({
                     messages: nextHistory,
@@ -1263,6 +1321,11 @@ export function AgentChatPanel() {
                     context_envelope: contextEnvelope,
                     conversation_id: activeConversationId || undefined,
                     project_id: activeProjectId || undefined,
+                    protocol_version: "ag-ui",
+                    resume: resumeOption ? [{
+                        interruptId: resumeOption.interruptId,
+                        status: resumeOption.status,
+                    }] : undefined,
                 }),
             })
 
@@ -1294,43 +1357,313 @@ export function AgentChatPanel() {
                     try {
                         const parsed = JSON.parse(data)
 
-                        if (parsed.conversation_id && !activeConversationId) {
-                            setActiveConversationId(parsed.conversation_id)
-                        }
-
-                        if (parsed.process_step) {
-                            setMessages((prev) =>
-                                prev.map((m) => {
+                        // ── AG-UI 1.0 Protocol Handling ──
+                        if (parsed.type === "RUN_STARTED") {
+                            if (parsed.runId) {
+                                lastRunIdRef.current = parsed.runId
+                            }
+                            if (parsed.threadId && !activeConversationId) {
+                                const parsedId = Number(parsed.threadId)
+                                if (Number.isFinite(parsedId)) setActiveConversationId(parsedId)
+                            }
+                        } else if (parsed.type === "STATE_SNAPSHOT") {
+                            if (parsed.snapshot) {
+                                agUiState.applySnapshot(
+                                    parsed.snapshot,
+                                    parsed.revision ?? 0,
+                                    parsed.threadId,
+                                    parsed.runId
+                                )
+                            }
+                        } else if (parsed.type === "STATE_DELTA") {
+                            // ── AG-UI Real-Time Shared State (RFC 6902) ──
+                            if (parsed.delta && Array.isArray(parsed.delta)) {
+                                agUiState.applyDelta({
+                                    entityType: parsed.entityType || "quote",
+                                    delta: parsed.delta,
+                                    revision: parsed.revision,
+                                    reason: parsed.reason,
+                                    threadId: parsed.threadId,
+                                    runId: parsed.runId,
+                                })
+                            }
+                        } else if (parsed.type === "TOOL_CALL_START" || parsed.type === "TOOL_CALL_STARTED") {
+                            flushPendingText(assistantId)
+                            const toolName = parsed.toolCallName || parsed.name
+                            let stepLabel = parsed.metadata?.label
+                            if (!stepLabel) {
+                                if (toolName === "ui_navigate") {
+                                    stepLabel = parsed.arguments?.reason || `Opening ${parsed.arguments?.route || "page"}...`
+                                } else if (toolName === "ui_open_dialog") {
+                                    stepLabel = `Opening ${parsed.arguments?.dialog?.replace(/_/g, " ") || "dialog"}...`
+                                } else if (toolName === "ui_copy_to_clipboard") {
+                                    stepLabel = parsed.arguments?.label || "Copying to clipboard..."
+                                } else if (toolName === "ui_patch_state") {
+                                    stepLabel = parsed.arguments?.reason || "Updating form in real time..."
+                                } else {
+                                    stepLabel = `Running ${toolName}...`
+                                }
+                            }
+                            const stepId = parsed.toolCallId || parsed.id || `step-${Date.now()}`
+                            const stepItem: ProcessStep = {
+                                id: stepId,
+                                step: stepLabel,
+                                tool: toolName,
+                                toolCallId: stepId,
+                                status: "running",
+                            }
+                            setMessages((prev) => {
+                                const last = prev[prev.length - 1]
+                                if (last && last.id === assistantId) {
+                                    return [
+                                        ...prev.slice(0, -1),
+                                        { ...last, processSteps: [...(last.processSteps || []), stepItem] }
+                                    ]
+                                }
+                                return prev.map((m) => {
                                     if (m.id === assistantId) {
                                         const currentSteps = m.processSteps || []
                                         return {
                                             ...m,
-                                            processSteps: [...currentSteps, { step: parsed.process_step, tool: parsed.tool }]
+                                            processSteps: [...currentSteps, stepItem]
+                                        }
+                                    }
+                                    return m
+                                })
+                            })
+                        } else if (parsed.type === "TOOL_CALL_END" || parsed.type === "TOOL_CALL_RESULT") {
+                            flushPendingText(assistantId)
+                            const stepId = parsed.toolCallId || parsed.id
+                            setMessages((prev) =>
+                                prev.map((m) => {
+                                    if (m.id === assistantId && m.processSteps) {
+                                        return {
+                                            ...m,
+                                            processSteps: m.processSteps.map((s) => {
+                                                if (s.toolCallId === stepId || s.id === stepId) {
+                                                    return {
+                                                        ...s,
+                                                        status: parsed.error ? "error" : "completed",
+                                                    }
+                                                }
+                                                return s
+                                            }),
                                         }
                                     }
                                     return m
                                 })
                             )
+
+                            // Check for action card or client-side action in tool result
+                            const rawResult = parsed.result ?? parsed.content
+                            if (rawResult) {
+                                const resultObj = typeof rawResult === "string"
+                                    ? (() => { try { return JSON.parse(rawResult) } catch { return null } })()
+                                    : rawResult
+
+                                if (resultObj && typeof resultObj === "object") {
+                                    // 1. Client-Side Actions (AG-UI Agent UI Control)
+                                    if (resultObj.client_action) {
+                                        if (resultObj.action === "navigate" && typeof resultObj.route === "string") {
+                                            const cleanRoute = resultObj.route.startsWith("/") ? resultObj.route : `/${resultObj.route}`
+                                            const targetUrl = `/${locale}${cleanRoute}`
+                                            router.push(targetUrl)
+                                        } else if (resultObj.action === "copy_to_clipboard" && typeof resultObj.text === "string") {
+                                            if (typeof navigator !== "undefined" && navigator.clipboard) {
+                                                void navigator.clipboard.writeText(resultObj.text)
+                                                toast({
+                                                    title: "Copied to clipboard",
+                                                    description: resultObj.text,
+                                                })
+                                            }
+                                        } else if (resultObj.action === "patch_state" && Array.isArray(resultObj.delta)) {
+                                            agUiState.dispatch({
+                                                entityType: (resultObj.entity_type as string) || "quote",
+                                                delta: resultObj.delta as any,
+                                                reason: resultObj.reason as string | undefined,
+                                            })
+                                        }
+                                    }
+
+                                    // 2. Action Card (Confirmation / Human in the Loop)
+                                    if (resultObj.action_card) {
+                                        const cardData = resultObj.action_card
+                                        const actionCard: ActionCard = {
+                                            action: cardData.action,
+                                            title: cardData.title || "Confirm Action",
+                                            description: cardData.description,
+                                            options: cardData.options || [
+                                                { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
+                                                { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                            ],
+                                            entity: cardData.entity,
+                                            interruptId: cardData.interruptId,
+                                            commandId: cardData.command_id || cardData.commandId,
+                                            approvalToken: cardData.approval_token || cardData.approvalToken,
+                                            status: "pending",
+                                        }
+                                        setMessages((prev) => {
+                                            const last = prev[prev.length - 1]
+                                            if (last && last.id === assistantId) {
+                                                return [...prev.slice(0, -1), { ...last, actionCard }]
+                                            }
+                                            return prev.map((m) =>
+                                                m.id === assistantId
+                                                    ? { ...m, actionCard }
+                                                    : m
+                                            )
+                                        })
+                                    }
+
+                                    // 3. Show toast on success/failure if message is present (skip for navigation)
+                                    if (resultObj.message && !resultObj.client_action) {
+                                        if (parsed.error || resultObj.status === "failed") {
+                                            toast({
+                                                title: "Action Failed",
+                                                description: resultObj.message || "The requested action could not be completed.",
+                                                variant: "destructive",
+                                            })
+                                        } else if (resultObj.status === "completed" || resultObj.success) {
+                                            toast({
+                                                title: "Action Completed",
+                                                description: resultObj.message,
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (parsed.type === "STATE_DELTA" && Array.isArray(parsed.delta)) {
+                            agUiState.dispatch({
+                                entityType: (parsed.entityType as string) || "quote",
+                                delta: parsed.delta as any,
+                                reason: parsed.reason as string | undefined,
+                            })
+                        } else if (parsed.type === "TOOL_CALL_CHUNK") {
+                            // Streaming tool args - can be ignored or used for progress
+                        } else if (parsed.type === "TEXT_MESSAGE_CONTENT" || parsed.type === "TEXT_MESSAGE_CHUNK") {
+                            if (typeof parsed.delta === "string") {
+                                pendingTextRef.current += parsed.delta
+                                if (rafFlushId.current === null) {
+                                    rafFlushId.current = requestAnimationFrame(() => {
+                                        rafFlushId.current = null
+                                        flushPendingText(assistantId)
+                                    })
+                                }
+                            }
+                        } else if (parsed.type === "TEXT_MESSAGE_END") {
+                            flushPendingText(assistantId)
+                        } else if (parsed.type === "RUN_ERROR") {
+                            flushPendingText(assistantId)
+                            const errorMessage = parsed.message || "An error occurred during execution."
+                            setMessages((prev) => prev.map((m) =>
+                                m.id === assistantId
+                                    ? {
+                                        ...m,
+                                        content: m.content
+                                            ? `${m.content}\n\n${errorMessage}`
+                                            : errorMessage,
+                                    }
+                                    : m
+                            ))
+                        } else if (parsed.type === "RUN_FINISHED") {
+                            flushPendingText(assistantId)
+                            if (parsed.outcome?.type === "interrupt" && Array.isArray(parsed.outcome.interrupts) && parsed.outcome.interrupts.length > 0) {
+                                const interrupt = parsed.outcome.interrupts[0]
+                                const actionCard: ActionCard = {
+                                    action: interrupt.metadata?.action,
+                                    title: interrupt.metadata?.title || "Confirm Action",
+                                    description: interrupt.message,
+                                    options: interrupt.metadata?.options || [
+                                        { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
+                                        { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                    ],
+                                    entity: interrupt.metadata?.entity,
+                                    interruptId: interrupt.id,
+                                    commandId: interrupt.metadata?.commandId || interrupt.metadata?.command_id,
+                                    approvalToken: interrupt.metadata?.approvalToken || interrupt.metadata?.approval_token,
+                                    status: "pending",
+                                }
+                                setMessages((prev) => {
+                                    const last = prev[prev.length - 1]
+                                    if (last && last.id === assistantId) {
+                                        return [...prev.slice(0, -1), { ...last, actionCard }]
+                                    }
+                                    return prev.map((m) =>
+                                        m.id === assistantId
+                                            ? { ...m, actionCard }
+                                            : m
+                                    )
+                                })
+                            }
+                        }
+
+                        // ── Legacy Format Handling (Fallback) ──
+                        if (parsed.conversation_id && !activeConversationId) {
+                            setActiveConversationId(parsed.conversation_id)
+                        }
+
+                        if (parsed.process_step) {
+                            flushPendingText(assistantId)
+                            setMessages((prev) => {
+                                const last = prev[prev.length - 1]
+                                const stepItem = { step: parsed.process_step, tool: parsed.tool }
+                                if (last && last.id === assistantId) {
+                                    return [
+                                        ...prev.slice(0, -1),
+                                        { ...last, processSteps: [...(last.processSteps || []), stepItem] }
+                                    ]
+                                }
+                                return prev.map((m) => {
+                                    if (m.id === assistantId) {
+                                        const currentSteps = m.processSteps || []
+                                        return {
+                                            ...m,
+                                            processSteps: [...currentSteps, stepItem]
+                                        }
+                                    }
+                                    return m
+                                })
+                            })
                         }
 
                         if (parsed.action_card) {
-                            setMessages((prev) =>
-                                prev.map((m) =>
+                            flushPendingText(assistantId)
+                            const cardData = parsed.action_card as any
+                            const actionCard: ActionCard = {
+                                action: cardData.action,
+                                title: cardData.title || "Confirm Action",
+                                description: cardData.description,
+                                options: cardData.options || [
+                                    { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
+                                    { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                ],
+                                entity: cardData.entity,
+                                interruptId: cardData.interruptId,
+                                commandId: cardData.command_id || cardData.commandId,
+                                approvalToken: cardData.approval_token || cardData.approvalToken,
+                                status: "pending",
+                            }
+                            setMessages((prev) => {
+                                const last = prev[prev.length - 1]
+                                if (last && last.id === assistantId) {
+                                    return [...prev.slice(0, -1), { ...last, actionCard }]
+                                }
+                                return prev.map((m) =>
                                     m.id === assistantId
-                                        ? { ...m, actionCard: parsed.action_card as ActionCard }
+                                        ? { ...m, actionCard }
                                         : m
                                 )
-                            )
+                            })
                         }
 
-                        if (parsed.content) {
-                            setMessages((prev) =>
-                                prev.map((m) =>
-                                    m.id === assistantId
-                                        ? { ...m, content: m.content + parsed.content }
-                                        : m
-                                )
-                            )
+                        if (!parsed.type && typeof parsed.content === "string") {
+                            pendingTextRef.current += parsed.content
+                            if (rafFlushId.current === null) {
+                                rafFlushId.current = requestAnimationFrame(() => {
+                                    rafFlushId.current = null
+                                    flushPendingText(assistantId)
+                                })
+                            }
                         }
                     } catch {
                         // Skip invalid JSON chunks
@@ -1340,18 +1673,61 @@ export function AgentChatPanel() {
 
             fetchConversations()
         } catch (err: any) {
-            setMessages((prev) =>
-                prev.map((m) =>
-                    m.id === assistantId
-                        ? {
-                            ...m,
-                            content: "Sorry, I encountered an error. Please try again.",
+            flushPendingText(assistantId)
+            let recovered = false
+            if (lastRunIdRef.current) {
+                try {
+                    const recovery = await api.getAgentRunRecovery(lastRunIdRef.current)
+                    if (recovery && recovery.terminal_outcome?.type === "interrupt") {
+                        const interrupt = recovery.terminal_outcome.interrupts?.[0]
+                        if (interrupt) {
+                            const actionCard: ActionCard = {
+                                action: interrupt.metadata?.action,
+                                title: interrupt.metadata?.title || "Confirm Action",
+                                description: interrupt.message,
+                                options: interrupt.metadata?.options || [
+                                    { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
+                                    { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                ],
+                                entity: interrupt.metadata?.entity,
+                                interruptId: interrupt.id,
+                                commandId: interrupt.metadata?.commandId || interrupt.metadata?.command_id,
+                                approvalToken: interrupt.metadata?.approvalToken || interrupt.metadata?.approval_token,
+                                status: "pending",
+                            }
+                            setMessages((prev) =>
+                                prev.map((m) =>
+                                    m.id === assistantId
+                                        ? { ...m, actionCard, content: m.content || "Please review the action below:" }
+                                        : m
+                                )
+                            )
+                            recovered = true
                         }
-                        : m
+                    }
+                } catch {
+                    // Recovery lookup non-fatal
+                }
+            }
+            if (!recovered) {
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === assistantId
+                            ? {
+                                ...m,
+                                content: "Sorry, I encountered an error. Please try again.",
+                            }
+                            : m
+                    )
                 )
-            )
+            }
             console.error("Agent chat error:", err)
         } finally {
+            flushPendingText(assistantId)
+            if (rafFlushId.current !== null) {
+                cancelAnimationFrame(rafFlushId.current)
+                rafFlushId.current = null
+            }
             setIsLoading(false)
         }
     }, [
@@ -1367,6 +1743,93 @@ export function AgentChatPanel() {
     const handleQuickAction = useCallback((message: string) => {
         void sendChatMessage(message)
     }, [sendChatMessage])
+
+    const handleActionCardClick = useCallback(async (message: Message, option: ActionCardOption) => {
+        const card = message.actionCard
+        if (!card) return
+
+        // Guard against duplicate clicks, concurrent requests, and already resolved cards
+        if (executingCommandRef.current !== null || executingCommandId !== null) return
+        if (card.status === "completed" || card.status === "approved" || card.status === "rejected") return
+
+        const optId = (option.id || "").toLowerCase()
+        const optPrompt = (option.prompt || "").toLowerCase()
+        const isCancel = optId.includes("cancel") || optId.includes("reject") || optPrompt.includes("cancel") || optPrompt.includes("reject")
+
+        if (card.commandId && card.approvalToken) {
+            executingCommandRef.current = card.commandId
+            setExecutingCommandId(card.commandId)
+            try {
+                if (isCancel) {
+                    await api.rejectAgentCommand(card.commandId, card.approvalToken)
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === message.id && m.actionCard
+                                ? {
+                                    ...m,
+                                    actionCard: {
+                                        ...m.actionCard,
+                                        status: "rejected",
+                                    },
+                                }
+                                : m
+                        )
+                    )
+                    toast({
+                        title: "Action Cancelled",
+                        description: "The command was successfully rejected.",
+                    })
+                } else {
+                    const res = await api.approveAgentCommand(
+                        card.commandId,
+                        card.approvalToken,
+                        card.editedPayload,
+                    )
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === message.id && m.actionCard
+                                ? {
+                                    ...m,
+                                    actionCard: {
+                                        ...m.actionCard,
+                                        status: String(res.status || "completed").toLowerCase() as ActionCard["status"],
+                                        result: res.result,
+                                        replayed: res.replayed,
+                                    },
+                                }
+                                : m
+                        )
+                    )
+                    toast({
+                        title: res.replayed ? "Action Replayed" : "Action Approved",
+                        description: res.replayed
+                            ? "This command was already executed and the result was safely replayed."
+                            : "The command was successfully executed.",
+                    })
+                }
+            } catch (err: any) {
+                console.error("Agent command execution failed:", err)
+                toast({
+                    title: "Execution Error",
+                    description: err?.message || "Failed to process the command.",
+                    variant: "destructive",
+                })
+            } finally {
+                executingCommandRef.current = null
+                setExecutingCommandId(null)
+            }
+        } else {
+            void sendChatMessage(
+                option.prompt,
+                card.interruptId
+                    ? {
+                        interruptId: card.interruptId,
+                        status: isCancel ? "rejected" : "approved",
+                    }
+                    : undefined
+            )
+        }
+    }, [executingCommandId, sendChatMessage, toast])
 
     const handleSend = async () => {
         await sendChatMessage(input)
@@ -1403,16 +1866,19 @@ export function AgentChatPanel() {
                 id="agent-chat-trigger"
                 onClick={() => setIsOpen(true)}
                 className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-50
-                   flex h-14 w-14 items-center justify-center gap-2 rounded-2xl md:h-auto md:w-auto md:rounded-full
+                   flex h-14 w-14 items-center justify-center gap-2.5 rounded-2xl md:h-auto md:w-auto md:rounded-full
                    bg-gradient-to-r from-sky-500 to-blue-600
-                   text-white shadow-[0_18px_45px_rgba(2,132,199,0.34)] ring-1 ring-white/35 md:px-4 md:py-3
+                   text-white shadow-[0_18px_45px_rgba(2,132,199,0.34)] ring-1 ring-white/35 md:pl-2.5 md:pr-4 md:py-2
                    transition-all duration-300
                    hover:scale-105 hover:shadow-[0_22px_54px_rgba(2,132,199,0.42)]
                    active:scale-95"
-                title="Open AI Assistant"
+                title="Open Bob AI"
+                aria-label="Open Bob AI"
             >
-                <Sparkles className="h-6 w-6 md:h-5 md:w-5" />
-                <span className="text-sm font-semibold hidden sm:inline">AI Assistant</span>
+                <div className="flex h-9 w-9 md:h-7 md:w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm p-1">
+                    <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-semibold hidden sm:inline">Bob AI</span>
             </button>
         )
     }
@@ -1445,13 +1911,13 @@ export function AgentChatPanel() {
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
                     ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20 md:h-8 md:w-8 md:rounded-full">
-                            <Bot className="h-5 w-5 text-white md:h-4 md:w-4" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-border/80 shadow-sm p-1.5 md:h-8 md:w-8 md:rounded-full">
+                            <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
-                            {panelView === "conversations" ? "Conversations" : "AI Assistant"}
+                            {panelView === "conversations" ? "Conversations" : "Bob AI"}
                         </h3>
                         <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:text-[11px]">
                             {panelView === "conversations"
@@ -1502,7 +1968,7 @@ export function AgentChatPanel() {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground hidden md:flex"
                         onClick={() => setIsExpanded(!isExpanded)}
-                        title={isExpanded ? "Collapse" : "Expand"}
+                        title={isExpanded ? "Collapse Bob AI" : "Expand Bob AI"}
                     >
                         {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                     </Button>
@@ -1511,6 +1977,8 @@ export function AgentChatPanel() {
                         size="icon"
                         className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                         onClick={() => setIsOpen(false)}
+                        title="Close Bob AI"
+                        aria-label="Close Bob AI"
                     >
                         <X className="h-4 w-4" />
                     </Button>
@@ -1946,12 +2414,12 @@ export function AgentChatPanel() {
                                     ? (
                                         <>
                                             You navigated to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>.
-                                            Switching will start a new chat so the assistant stays scoped to the right project files.
+                                            Switching will start a new chat so Bob stays scoped to the right project files.
                                         </>
                                     ) : (
                                         <>
                                             Switch context to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>?
-                                            This will start a new chat so the assistant stays scoped to the right project files.
+                                            This will start a new chat so Bob stays scoped to the right project files.
                                         </>
                                     )}
                             </p>
@@ -1978,7 +2446,7 @@ export function AgentChatPanel() {
             {/* ── Messages (Chat View) ── */}
             {panelView === "chat" && (
                 <>
-                    <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-4 md:py-3">
+                    <div ref={scrollContainerRef} className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-4 md:py-3">
                         {generationStatus && (
                             <div className={`rounded-2xl border px-4 py-3 shadow-sm ${
                                 generationStatus.phase === "failed"
@@ -2094,14 +2562,14 @@ export function AgentChatPanel() {
 
                         {messages.length === 0 && chatLaunchMode === "general" && (
                             <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-sky-500/15 to-blue-600/15 md:h-14 md:w-14 md:rounded-2xl">
-                                    <Sparkles className="h-8 w-8 text-sky-600 md:h-7 md:w-7" />
+                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 p-2.5 shadow-md shadow-sky-500/10 border border-border/80 md:h-14 md:w-14">
+                                    <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
                                 </div>
                                 <h4 className="mb-1.5 text-[20px] font-[760] tracking-tight text-foreground md:text-sm md:font-semibold">
-                                    How can I help?
+                                    Ask Bob from anywhere
                                 </h4>
                                 <p className="mb-4 max-w-[280px] text-[14px] leading-5 text-muted-foreground md:mb-3 md:max-w-[260px] md:text-xs">
-                                    I can look up your leads, clients, quotes, projects, calendar, and more.
+                                    Bob can look up your leads, clients, quotes, projects, calendar, and more.
                                 </p>
 
                                 {/* ── Quick Action Buttons ── */}
@@ -2210,8 +2678,13 @@ export function AgentChatPanel() {
                         {messages.map((msg) => (
                             <div
                                 key={msg.id}
-                                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                className={`flex items-start gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                             >
+                                {msg.role === "assistant" && (
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 border border-border/80 p-1 shadow-xs mt-0.5">
+                                        <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
+                                    </div>
+                                )}
                                 <div
                                     className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed md:max-w-[85%] md:text-sm ${msg.role === "user"
                                         ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-md"
@@ -2370,35 +2843,16 @@ export function AgentChatPanel() {
                                             )}
 
                                             {msg.actionCard && msg.actionCard.options.length > 0 && (
-                                                <div className="mt-3 rounded-2xl border border-sky-200/70 bg-white/80 p-3 text-slate-900 shadow-sm">
-                                                    <p className="text-sm font-semibold leading-5">
-                                                        {msg.actionCard.title}
-                                                    </p>
-                                                    {msg.actionCard.description ? (
-                                                        <p className="mt-1 text-xs leading-5 text-slate-600">
-                                                            {msg.actionCard.description}
-                                                        </p>
-                                                    ) : null}
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        {msg.actionCard.options.map((option) => {
-                                                            const isPrimary = option.style === "primary"
-                                                            return (
-                                                                <button
-                                                                    key={option.id}
-                                                                    type="button"
-                                                                    disabled={isLoading}
-                                                                    onClick={() => void sendChatMessage(option.prompt)}
-                                                                    className={isPrimary
-                                                                        ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
-                                                                        : "inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                    }
-                                                                >
-                                                                    {option.label}
-                                                                </button>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </div>
+                                                <AgentActionCard
+                                                    message={msg}
+                                                    executingCommandId={executingCommandId}
+                                                    isLoading={isLoading}
+                                                    onActionClick={handleActionCardClick}
+                                                    onViewProject={(projectId) => {
+                                                        setIsOpen(false)
+                                                        router.push(`/${locale}/projects/${projectId}`)
+                                                    }}
+                                                />
                                             )}
                                         </>
                                     )}
@@ -2495,7 +2949,7 @@ export function AgentChatPanel() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Ask me anything..."
+                                placeholder={selectedContext?.projectName ? `Ask Bob about ${selectedContext.projectName}...` : "Ask Bob anything..."}
                                 rows={1}
                                 className="flex-1 resize-none rounded-2xl border border-border bg-muted/50
                                px-4 py-3 text-[16px] leading-5 placeholder:text-muted-foreground md:rounded-xl md:px-3.5 md:py-2.5 md:text-sm
