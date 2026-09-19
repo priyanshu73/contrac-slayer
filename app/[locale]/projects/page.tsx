@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import type { ProjectListItem, ProjectStatus } from "@/lib/types"
@@ -40,49 +40,51 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [view, setView] = useState<"list" | "timeline">("list")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined])
+  const [nextCursor, setNextCursor] = useState<string | undefined>()
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      try {
-        setLoading(true)
-        const data = await api.getProjects({
-          status: statusFilter === "ALL" ? undefined : statusFilter,
-          skip: 0,
-          limit: 100,
-        })
-        if (!cancelled) {
-          setProjects(Array.isArray(data) ? data : [])
-        }
-      } catch (err) {
-        console.error("Failed to load projects", err)
-        if (!cancelled) setProjects([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+    const timeout = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(timeout)
+  }, [searchTerm])
+
+  const loadProjects = useCallback(async (cursor?: string) => {
+    try {
+      setLoading(true)
+      const data = await api.getProjectList({
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+        search: debouncedSearch || undefined,
+        limit: 25,
+        cursor,
+      })
+      setProjects(data.items ?? [])
+      setNextCursor(data.next_cursor)
+    } catch (err) {
+      console.error("Failed to load projects", err)
+      setProjects([])
+      setNextCursor(undefined)
+    } finally {
+      setLoading(false)
     }
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [statusFilter])
+  }, [debouncedSearch, statusFilter])
+
+  useEffect(() => {
+    setCurrentPage(1)
+    setPageCursors([undefined])
+    void loadProjects()
+  }, [loadProjects])
 
   const stats = computeStats(projects)
 
-  const normalizedSearch = searchTerm.trim().toLowerCase()
-  const filteredProjects = normalizedSearch
-    ? projects.filter((p) => {
-        const title = (p.title || "").toLowerCase()
-        const client = (p.client_name || "").toLowerCase()
-        return title.includes(normalizedSearch) || client.includes(normalizedSearch)
-      })
-    : projects
+  const filteredProjects = projects
 
   const handleProjectCreated = (projectId: number) => {
     window.location.href = `/${locale}/projects/${projectId}`
@@ -93,13 +95,22 @@ export default function ProjectsPage() {
     setDeleting(true)
     try {
       await api.deleteProject(deleteTarget.id)
-      setProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id))
+      void loadProjects(pageCursors[currentPage - 1])
       setDeleteTarget(null)
     } catch (err) {
       console.error("Failed to delete project", err)
     } finally {
       setDeleting(false)
     }
+  }
+
+  const changePage = (page: number, cursor?: string) => {
+    setCurrentPage(page)
+    if (page > currentPage && cursor) {
+      setPageCursors((previous) => [...previous.slice(0, page - 1), cursor])
+    }
+    void loadProjects(cursor)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
@@ -226,6 +237,27 @@ export default function ProjectsPage() {
               )}
             </div>
           </Card>
+          {(currentPage > 1 || nextCursor) && (
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1 || loading}
+                onClick={() => changePage(currentPage - 1, pageCursors[currentPage - 2])}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-slate-500">Page {currentPage}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!nextCursor || loading}
+                onClick={() => nextCursor && changePage(currentPage + 1, nextCursor)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
           </>
           )}
         </div>
