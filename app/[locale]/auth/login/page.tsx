@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useLocale } from "next-intl"
 import { useTranslations } from "next-intl"
 import { motion } from "framer-motion"
@@ -23,6 +23,7 @@ const transition = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const locale = useLocale()
   const t = useTranslations("auth")
   const { login, refreshUser } = useAuth()
@@ -42,7 +43,9 @@ export default function LoginPage() {
     try {
       await login(formData.email, formData.password)
       await refreshUser()
-      router.push(`/${locale}/dashboard`)
+      const next = searchParams.get("next")
+      const safeNext = next?.startsWith(`/${locale}/`) ? next : `/${locale}/dashboard`
+      router.push(safeNext)
     } catch (err: any) {
       const errorMessage = err.message || t("invalidCredentials")
       

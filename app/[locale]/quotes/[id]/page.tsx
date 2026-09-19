@@ -1121,7 +1121,7 @@ export default function QuoteDetailPage() {
           <DialogHeader className="pr-8">
             <DialogTitle>AI Before and After</DialogTitle>
             <DialogDescription>
-              Upload a before photo, choose the saved quote items to include, and generate a before/after preview for this quote.
+              Upload a before photo, choose the saved quote items to include, and generate an AI preview for this quote. Generated images are not actual completed work.
             </DialogDescription>
           </DialogHeader>
           {job && (

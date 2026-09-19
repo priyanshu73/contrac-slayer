@@ -25,6 +25,15 @@ export function LandingFooter() {
           <Link href={`/${locale}/privacy`} className="transition-colors hover:text-slate-950">
             {t("footerPrivacy")}
           </Link>
+          <Link href={`/${locale}/terms`} className="transition-colors hover:text-slate-950">
+            Terms
+          </Link>
+          <Link href={`/${locale}/support`} className="transition-colors hover:text-slate-950">
+            Support
+          </Link>
+          <Link href={`/${locale}/delete-account`} className="transition-colors hover:text-slate-950">
+            Delete account
+          </Link>
         </div>
       </div>
     </footer>

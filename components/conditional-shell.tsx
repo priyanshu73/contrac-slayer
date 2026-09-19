@@ -25,6 +25,11 @@ function isPublicShellRoute(pathname: string): boolean {
     pathname?.startsWith("/book/") ||
     !!pathname?.match(/^\/[a-z]{2}\/auth(\/|$)/) ||
     pathname?.startsWith("/auth/") ||
+    !!pathname?.match(/^\/[a-z]{2}\/delete-account$/) ||
+    pathname === "/delete-account" ||
+    !!pathname?.match(/^\/[a-z]{2}\/(terms|support)$/) ||
+    pathname === "/terms" ||
+    pathname === "/support" ||
     !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
     pathname?.startsWith("/features") ||
     !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)

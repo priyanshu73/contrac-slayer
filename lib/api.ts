@@ -325,6 +325,13 @@ class ApiClient {
     })
   }
 
+  async deleteAccount(): Promise<{ message: string }> {
+    return this.request('/auth/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmation: 'DELETE' }),
+    })
+  }
+
   async sendOtp(email: string) {
     return this.request('/auth/sendotp', {
       method: 'POST',
