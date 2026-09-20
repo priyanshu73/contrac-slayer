@@ -58,6 +58,18 @@ export function FollowupsManager() {
     loadSummary()
   }, [loadSummary, refreshKey])
 
+  useEffect(() => {
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void loadSummary()
+    }
+    window.addEventListener("focus", refreshVisible)
+    document.addEventListener("visibilitychange", refreshVisible)
+    return () => {
+      window.removeEventListener("focus", refreshVisible)
+      document.removeEventListener("visibilitychange", refreshVisible)
+    }
+  }, [loadSummary])
+
   const bump = () => setRefreshKey((k) => k + 1)
 
   if (loading) {

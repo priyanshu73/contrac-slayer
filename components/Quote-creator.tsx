@@ -16,7 +16,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/contexts/AuthContext"
 import { api, contractorAI, ScopeClarifiedScope } from "@/lib/api"
 import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitType, getLaborChargeTypeLabel, getRateLabelSuffix } from "@/lib/types"
 import type { PaymentScheduleLineInput } from "@/lib/types"
@@ -444,7 +443,6 @@ interface QuoteCreatorProps {
 }
 
 export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData, onProjectContextChange }: QuoteCreatorProps) {
-  const { getContractorAISpId } = useAuth()
   const { toast } = useToast()
   const [serviceDescription, setServiceDescription] = useState("")
   // Keep call summaries separate from the quote description until the user has
@@ -1829,23 +1827,6 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           title: "Quote created",
           description: "Quote has been successfully created",
         })
-      }
-
-      // Schedule automatic quote follow-up via contractor-ai (if enabled in Scheduling settings)
-      const spId = getContractorAISpId?.()
-      if (spId != null && clientPhone?.trim()) {
-        try {
-          const jobId = (response as { id?: number })?.id ?? (quoteId ? parseInt(quoteId, 10) : undefined)
-          await contractorAI.scheduleQuoteFollowup({
-            sp_id: spId,
-            customer_number: clientPhone.trim(),
-            reference_type: "quote",
-            reference_id: jobId,
-            customer_name: clientName?.trim() || undefined,
-          })
-        } catch (followupErr) {
-          console.error("Quote follow-up scheduling failed (quote was still saved):", followupErr)
-        }
       }
 
       // Update profile's default tax rate if it has changed
