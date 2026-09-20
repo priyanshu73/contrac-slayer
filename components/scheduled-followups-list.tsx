@@ -68,6 +68,7 @@ import type {
   DeliveryStatus,
 } from "@/lib/types/followup"
 import { api } from "@/lib/api"
+import { compareScheduledTimeAscending, loadFollowupActivity } from "@/lib/followup-activity"
 import { formatPhoneForDisplay } from "@/lib/utils"
 
 /** "Who sent it" chip. */
@@ -225,6 +226,7 @@ export function ScheduledFollowupsList({
   const [isLoading, setIsLoading] = useState(true)
   const [notLinked, setNotLinked] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<FollowupStatus | "all">("all")
   const [typeFilter, setTypeFilter] = useState<FollowupType | "all">("all")
   const [sourceFilter, setSourceFilter] = useState<FollowupSource | "all">("all")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -261,12 +263,11 @@ export function ScheduledFollowupsList({
     })
   }, [])
 
-  const fetchFollowups = useCallback(async () => {
+  const fetchFollowups = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true)
+      if (!silent) setIsLoading(true)
       setNotLinked(false)
-      const data = await api.getScheduledFollowups({ status: "all", limit: 300 })
-      const rows = data.followups ?? []
+      const rows = await loadFollowupActivity(api)
       setFollowups(rows)
       reportStats(rows)
     } catch (error) {
@@ -279,7 +280,7 @@ export function ScheduledFollowupsList({
         toast({ title: t("settings.error"), description: message || t("list.loadFailed"), variant: "destructive" })
       }
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
     // t intentionally omitted: it is stable per-locale and including it would refetch on every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,7 +290,20 @@ export function ScheduledFollowupsList({
     fetchFollowups()
   }, [fetchFollowups, refreshKey])
 
+  useEffect(() => {
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void fetchFollowups(true)
+    }
+    window.addEventListener("focus", refreshVisible)
+    document.addEventListener("visibilitychange", refreshVisible)
+    return () => {
+      window.removeEventListener("focus", refreshVisible)
+      document.removeEventListener("visibilitychange", refreshVisible)
+    }
+  }, [fetchFollowups])
+
   const filteredFollowups = followups.filter((followup) => {
+    if (statusFilter !== "all" && followup.status !== statusFilter) return false
     if (typeFilter !== "all" && followup.followup_type !== typeFilter) return false
     if (sourceFilter !== "all" && followup.source !== sourceFilter) return false
     if (searchQuery) {
@@ -303,15 +317,13 @@ export function ScheduledFollowupsList({
     return true
   })
 
-  const byScheduledAsc = (a: ScheduledFollowup, b: ScheduledFollowup) =>
-    toUtcDate(a.scheduled_for).getTime() - toUtcDate(b.scheduled_for).getTime()
-  const byScheduledDesc = (a: ScheduledFollowup, b: ScheduledFollowup) => -byScheduledAsc(a, b)
+  const byScheduledDesc = (a: ScheduledFollowup, b: ScheduledFollowup) => -compareScheduledTimeAscending(a, b)
 
   // Failures and undelivered texts need action; upcoming is what's queued; history is the rest.
   const needsAttention = filteredFollowups
     .filter((f) => f.status === "failed" || f.delivery_status === "undelivered")
     .sort(byScheduledDesc)
-  const upcomingItems = filteredFollowups.filter((f) => f.status === "pending").sort(byScheduledAsc)
+  const upcomingItems = filteredFollowups.filter((f) => f.status === "pending").sort(compareScheduledTimeAscending)
   const historyItems = filteredFollowups
     .filter((f) => (f.status === "sent" && f.delivery_status !== "undelivered") || f.status === "cancelled")
     .sort(byScheduledDesc)
@@ -321,7 +333,7 @@ export function ScheduledFollowupsList({
 
   useEffect(() => {
     setVisibleHistory(PAGE_SIZE)
-  }, [searchQuery, typeFilter, sourceFilter, followups])
+  }, [searchQuery, statusFilter, typeFilter, sourceFilter, followups])
 
   const handleDeleteConfirm = async () => {
     if (!followupToDelete) return
@@ -361,14 +373,15 @@ export function ScheduledFollowupsList({
   const getRelativeTime = (dateString: string) => {
     try {
       const date = toUtcDate(dateString)
-      const diffInHours = Math.floor((date.getTime() - Date.now()) / (1000 * 60 * 60))
-      if (diffInHours < 0) {
-        const absDiff = Math.abs(diffInHours)
-        if (absDiff < 24) return `${absDiff}h ago`
-        return `${Math.floor(absDiff / 24)}d ago`
-      }
-      if (diffInHours < 24) return `in ${diffInHours}h`
-      return `in ${Math.floor(diffInHours / 24)}d`
+      const diffMinutes = Math.round((date.getTime() - Date.now()) / 60_000)
+      const future = diffMinutes > 0
+      const minutes = Math.abs(diffMinutes)
+      if (minutes < 1) return "now"
+      if (minutes < 60) return future ? `in ${minutes}m` : `${minutes}m ago`
+      const hours = Math.round(minutes / 60)
+      if (hours < 24) return future ? `in ${hours}h` : `${hours}h ago`
+      const days = Math.round(hours / 24)
+      return future ? `in ${days}d` : `${days}d ago`
     } catch {
       return ""
     }
@@ -390,6 +403,11 @@ export function ScheduledFollowupsList({
         ? followup.error_message || reasonLabel(followup.cancel_reason)
         : null
     const name = followup.customer_name || formatPhoneForDisplay(followup.customer_number) || "—"
+    const activityAt = followup.status === "sent"
+      ? followup.sent_at || followup.scheduled_for
+      : followup.status === "cancelled"
+        ? followup.updated_at || followup.scheduled_for
+        : followup.scheduled_for
     return (
       <div key={followup.id} className="rounded-lg border bg-card p-3">
         <div className="flex items-start justify-between gap-2">
@@ -435,7 +453,7 @@ export function ScheduledFollowupsList({
                 </div>
               )}
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatShortDate(followup.scheduled_for)} · {getRelativeTime(followup.scheduled_for)}
+                {formatShortDate(activityAt)} · {getRelativeTime(activityAt)}
                 {followup.followup_type !== "custom" && <> · {typeLabels[followup.followup_type]}</>}
               </p>
               {failure && <p className="mt-1 text-xs text-red-500">{failure}</p>}
@@ -533,10 +551,31 @@ export function ScheduledFollowupsList({
     )
   }
 
-  const isFiltering = Boolean(searchQuery) || typeFilter !== "all" || sourceFilter !== "all"
+  const isFiltering = Boolean(searchQuery) || statusFilter !== "all" || typeFilter !== "all" || sourceFilter !== "all"
+  const statusOptions: Array<{ value: FollowupStatus | "all"; label: string }> = [
+    { value: "all", label: t("list.filterAll") },
+    { value: "pending", label: t("list.pending") },
+    { value: "sent", label: t("list.sent") },
+    { value: "cancelled", label: t("list.cancelled") },
+    { value: "failed", label: t("list.failed") },
+  ]
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t("list.status")}>
+        {statusOptions.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant={statusFilter === option.value ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setStatusFilter(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

@@ -1570,12 +1570,16 @@ class ApiClient {
   async getScheduledFollowups(params?: {
     status?: import('@/lib/types/followup').FollowupStatus | 'all'
     limit?: number
+    offset?: number
+    sort?: 'asc' | 'desc'
     customer_number?: string
     source?: import('@/lib/types/followup').FollowupSource
   }): Promise<{ followups: import('@/lib/types/followup').ScheduledFollowup[]; total: number }> {
     const q = new URLSearchParams()
     if (params?.status) q.set('status', params.status)
     if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.offset) q.set('offset', String(params.offset))
+    if (params?.sort) q.set('sort', params.sort)
     if (params?.customer_number) q.set('customer_number', params.customer_number)
     if (params?.source) q.set('source', params.source)
     const qs = q.toString()
