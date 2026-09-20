@@ -1945,7 +1945,7 @@ export interface CampaignEmailStrategyOption {
 }
 
 export interface GenerateCampaignStrategiesRequest {
-  message_guidance: string
+  message_guidance?: string
   location: Record<string, any>
   segments: Array<Record<string, any>>
 }
