@@ -84,7 +84,7 @@ export function NewCampaignPage() {
       setStrategyError(null)
       const guidance = messageGuidance.trim()
       const response = await api.generateCampaignStrategies({
-        message_guidance: guidance,
+        ...(guidance ? { message_guidance: guidance } : {}),
         location: {
           formatted_address: form.formattedAddress.trim(),
           city: form.city.trim(),
