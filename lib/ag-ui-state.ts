@@ -38,6 +38,14 @@ export interface StateRecoveryEvent {
   reason: string
   failedRevision?: number
   expectedRevision?: number
+  threadId?: string
+  runId?: string
+}
+
+export interface DurableStateEvent {
+  event_type: string
+  revision?: number
+  payload?: Record<string, any>
 }
 
 function decodePointer(part: string): string {
@@ -301,10 +309,11 @@ type DeltaListener = (event: StateDeltaEvent) => void
 type SnapshotListener = (event: StateSnapshotEvent) => void
 type RecoveryListener = (event: StateRecoveryEvent) => void
 
-class AgUiStateManager {
+export class AgUiStateManager {
   private currentRevision: number = 0
   private currentState: Record<string, any> = {}
   private appliedRevisions: Set<number> = new Set()
+  private currentRunId?: string
 
   private deltaListeners: Set<DeltaListener> = new Set()
   private snapshotListeners: Set<SnapshotListener> = new Set()
@@ -324,12 +333,21 @@ class AgUiStateManager {
     return deepClone(this.currentState)
   }
 
+  /** Register the current on-screen form as the base for future entity patches. */
+  setEntityState(entityType: string, state: Record<string, any>): void {
+    this.currentState = {
+      ...this.currentState,
+      [entityType]: deepClone(state),
+    }
+  }
+
   /**
    * Reset local state from a server snapshot.
    */
   applySnapshot(snapshot: Record<string, any>, revision: number = 0, threadId?: string, runId?: string): void {
     this.currentState = deepClone(snapshot || {})
     this.currentRevision = revision
+    this.currentRunId = runId
     this.appliedRevisions.clear()
     this.appliedRevisions.add(revision)
 
@@ -358,6 +376,13 @@ class AgUiStateManager {
       return true
     }
 
+    // Revisions are scoped to one run. A new run legitimately starts again at 1.
+    if (event.runId && this.currentRunId && event.runId !== this.currentRunId) {
+      this.currentRevision = 0
+      this.appliedRevisions.clear()
+    }
+    if (event.runId) this.currentRunId = event.runId
+
     // Monotonic revision check
     if (event.revision !== undefined) {
       if (this.appliedRevisions.has(event.revision)) {
@@ -365,7 +390,7 @@ class AgUiStateManager {
         return true
       }
 
-      if (this.currentRevision > 0 && event.revision !== this.currentRevision + 1) {
+      if (event.revision !== this.currentRevision + 1) {
         console.error(
           `[AgUiState] Revision gap detected! Expected ${this.currentRevision + 1}, received ${event.revision}. Triggering snapshot recovery.`
         )
@@ -374,13 +399,24 @@ class AgUiStateManager {
           reason: `Revision gap: expected ${this.currentRevision + 1}, received ${event.revision}`,
           failedRevision: event.revision,
           expectedRevision: this.currentRevision + 1,
+          threadId: event.threadId,
+          runId: event.runId,
         })
         return false
       }
     }
 
     try {
-      this.currentState = applyJsonPatch(this.currentState, event.delta)
+      if (event.entityType) {
+        const currentEntity = this.currentState[event.entityType]
+        const base = currentEntity && typeof currentEntity === "object" ? currentEntity : {}
+        this.currentState = {
+          ...this.currentState,
+          [event.entityType]: applyJsonPatch(base, event.delta),
+        }
+      } else {
+        this.currentState = applyJsonPatch(this.currentState, event.delta)
+      }
       if (event.revision !== undefined) {
         this.currentRevision = event.revision
         this.appliedRevisions.add(event.revision)
@@ -401,6 +437,8 @@ class AgUiStateManager {
         reason: err.message,
         failedRevision: event.revision,
         expectedRevision: this.currentRevision + 1,
+        threadId: event.threadId,
+        runId: event.runId,
       })
       return false
     }
@@ -451,6 +489,50 @@ class AgUiStateManager {
    */
   dispatch(event: StateDeltaEvent): void {
     this.applyDelta(event)
+  }
+
+  /**
+   * Rebuild state from the durable run event log returned by the recovery API.
+   * Recovery always starts from the latest snapshot (or an empty revision-zero
+   * state) so replaying older deltas cannot itself create another revision gap.
+   */
+  applyRecoveryEvents(
+    events: DurableStateEvent[],
+    options: { threadId?: string; runId?: string } = {},
+  ): boolean {
+    const ordered = [...(events || [])]
+      .filter((event) => event && (event.event_type === "STATE_SNAPSHOT" || event.event_type === "STATE_DELTA"))
+      .sort((a, b) => (a.revision ?? 0) - (b.revision ?? 0))
+
+    let snapshotIndex = -1
+    for (let index = 0; index < ordered.length; index += 1) {
+      if (ordered[index].event_type === "STATE_SNAPSHOT") snapshotIndex = index
+    }
+
+    const snapshotEvent = snapshotIndex >= 0 ? ordered[snapshotIndex] : undefined
+    const snapshot = snapshotEvent?.payload?.snapshot
+    this.applySnapshot(
+      snapshot && typeof snapshot === "object" ? snapshot : {},
+      snapshotEvent?.revision ?? 0,
+      options.threadId,
+      options.runId,
+    )
+
+    const deltas = ordered.slice(snapshotIndex + 1)
+    for (const event of deltas) {
+      if (event.event_type !== "STATE_DELTA" || !Array.isArray(event.payload?.delta)) continue
+      const applied = this.applyDelta({
+        type: "STATE_DELTA",
+        threadId: options.threadId,
+        runId: options.runId,
+        revision: event.revision,
+        entityType: event.payload?.entityType ?? event.payload?.entity_type,
+        delta: event.payload.delta,
+        reason: event.payload?.reason,
+      })
+      if (!applied) return false
+    }
+    return true
   }
 }
 

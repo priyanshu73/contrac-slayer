@@ -16,6 +16,7 @@ import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
 import { setQuotePrefill } from "@/lib/quote-prefill"
 import { SaveClientFromLeadDialog } from "@/components/clients/save-client-from-lead-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
 
 // Translation cache utilities
 const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
@@ -351,7 +352,13 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                   <svg className="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  <a href={`mailto:${lead.email}`} className="text-sm hover:underline truncate">{lead.email}</a>
+                  <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
+                    {(openEmail) => (
+                      <button type="button" onClick={openEmail} className="text-sm hover:underline truncate text-left">
+                        {lead.email}
+                      </button>
+                    )}
+                  </ContactSendEmailTrigger>
                 </div>
               )}
               {lead.phone && (
@@ -790,14 +797,16 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             </Button>
           )}
           {lead.email && (
-            <Button variant="outline" size="lg" asChild>
-              <a href={`mailto:${lead.email}`}>
+            <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
+              {(openEmail) => (
+                <Button variant="outline" size="lg" onClick={openEmail}>
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 Email
-              </a>
-            </Button>
+                </Button>
+              )}
+            </ContactSendEmailTrigger>
           )}
           <Button variant="outline" size="lg" asChild>
             <a href={`/calendar/new?leadId=${lead.id}`}>

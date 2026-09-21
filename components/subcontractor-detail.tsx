@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
     Phone, Mail, Building2, MapPin, Pencil, Archive, ArrowLeft, Briefcase, ExternalLink, Share2,
+    MessageSquare, CalendarClock, Link2, Check,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -51,6 +52,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { EditTradeDialog } from "./projects/edit-trade-dialog"
 import { TradeSendEmailDialog, TradeSendSmsDialog } from "./projects/trade-share-dialog"
 import { AppBreadcrumb } from "./app-breadcrumb"
+import { ContactSendEmailTrigger } from "./contact-send-email-dialog"
+import { CrewAvailabilityPopover, CrewContactPopover } from "./crew-contact-dialog"
 
 const SUB_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const
 
@@ -94,6 +97,7 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
     const [editTrade, setEditTrade] = useState<ProjectTrade | null>(null)
     const [sendEmailTrade, setSendEmailTrade] = useState<ProjectTrade | null>(null)
     const [sendSmsTrade, setSendSmsTrade] = useState<ProjectTrade | null>(null)
+    const [portalCopied, setPortalCopied] = useState(false)
     const spId = user?.contractor_ai_sp_id ?? null
 
     // Edit form state
@@ -193,7 +197,9 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
         const fullUrl = `${frontendUrl}/${locale}/crew/portal/${subData.uuid}`
         try {
             await navigator.clipboard.writeText(fullUrl)
+            setPortalCopied(true)
             toast({ title: "Link copied", description: "Crew portal link copied to clipboard." })
+            window.setTimeout(() => setPortalCopied(false), 2000)
         } catch {
             toast({ title: "Failed to copy", variant: "destructive" })
         }
@@ -281,9 +287,13 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                                     {subData.email && (
                                         <div className="flex items-center gap-1.5">
                                             <Mail className="h-4 w-4 text-slate-400" />
-                                            <a href={`mailto:${subData.email}`} className="hover:text-blue-600 transition-colors">
-                                                {subData.email}
-                                            </a>
+                                            <ContactSendEmailTrigger to={subData.email} recipientName={subData.name}>
+                                                {(openEmail) => (
+                                                    <button type="button" onClick={openEmail} className="hover:text-blue-600 transition-colors">
+                                                        {subData.email}
+                                                    </button>
+                                                )}
+                                            </ContactSendEmailTrigger>
                                         </div>
                                     )}
                                     {subData.phone_number && (
@@ -305,10 +315,25 @@ export function SubcontractorDetail({ subcontractorId }: { subcontractorId: stri
                             </div>
 
                             {/* Actions */}
-                            <div className="flex gap-2 shrink-0">
-                                <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
-                                    <Share2 className="h-4 w-4 mr-1" /> Crew Portal
+                            <div className="flex flex-wrap gap-2 shrink-0">
+                                <CrewContactPopover crew={subData} spId={spId}>
+                                    <Button type="button" variant="outline" size="sm" disabled={!subData.phone_number && !subData.email}>
+                                        <MessageSquare className="h-4 w-4 mr-1.5" /> Contact
+                                    </Button>
+                                </CrewContactPopover>
+                                <Button variant="outline" size="sm" onClick={handleCopyPortalLink} disabled={!subData.uuid}>
+                                    {portalCopied ? (
+                                        <Check className="h-4 w-4 mr-1.5 text-emerald-600" />
+                                    ) : (
+                                        <Link2 className="h-4 w-4 mr-1.5" />
+                                    )}
+                                    {portalCopied ? "Copied" : "Crew Portal"}
                                 </Button>
+                                <CrewAvailabilityPopover crew={subData} locale={locale} spId={spId}>
+                                    <Button type="button" variant="outline" size="sm" disabled={!subData.uuid}>
+                                        <CalendarClock className="h-4 w-4 mr-1.5" /> Availability
+                                    </Button>
+                                </CrewAvailabilityPopover>
                                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                                     <Pencil className="h-4 w-4 mr-1" /> Edit
                                 </Button>

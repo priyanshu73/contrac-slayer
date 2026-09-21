@@ -17,7 +17,7 @@ import {
 import { Card } from "@/components/ui/card"
 import {
     Phone, Mail, Building2, MapPin, MoreVertical, Archive,
-    Clock, Wrench, ChevronUp, ChevronDown, Link2
+    Clock, Wrench, ChevronUp, ChevronDown, Link2, MessageSquare, CalendarClock
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -29,6 +29,9 @@ import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useLocale } from "next-intl"
+import { useAuth } from "@/contexts/AuthContext"
+import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
+import { CrewAvailabilityPopover, CrewSmsTrigger } from "@/components/crew-contact-dialog"
 
 export type SubcontractorsViewMode = "grid" | "list"
 
@@ -68,23 +71,13 @@ export function SubcontractorsList({
     const router = useRouter()
     const locale = useLocale()
     const { toast } = useToast()
+    const { user } = useAuth()
+    const spId = user?.contractor_ai_sp_id ?? null
     const [archiveTarget, setArchiveTarget] = useState<number | null>(null)
     const [updatingId, setUpdatingId] = useState<number | null>(null)
 
     const handleRowClick = (id: number) => {
         router.push(`/${locale}/crew/${id}`)
-    }
-
-    const handleCopyAvailabilityLink = (e: React.MouseEvent, uuid: string) => {
-        e.stopPropagation()
-        if (!uuid) return
-        const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-        const fullUrl = `${frontendUrl}/${locale}/availability/${uuid}`
-        navigator.clipboard.writeText(fullUrl).then(() => {
-            toast({ title: "Link Copied", description: "Availability link copied to clipboard." })
-        }).catch(() => {
-            toast({ title: "Failed to copy", variant: "destructive" })
-        })
     }
 
     const handleCopyPortalLink = (e: React.MouseEvent, uuid: string) => {
@@ -190,10 +183,6 @@ export function SubcontractorsList({
                                             <Link2 className="h-4 w-4 mr-2" />
                                             Copy Crew Portal Link
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
-                                            <Link2 className="h-4 w-4 mr-2" />
-                                            Request Availability
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                             <Archive className="h-4 w-4 mr-2" />
                                             Archive
@@ -221,15 +210,39 @@ export function SubcontractorsList({
                                 {sub.email && (
                                     <div className="flex items-center gap-1.5 truncate">
                                         <Mail className="h-3.5 w-3.5 shrink-0" />
-                                        <span className="truncate">{sub.email}</span>
+                                        <ContactSendEmailTrigger to={sub.email} recipientName={sub.name}>
+                                            {(openEmail) => (
+                                                <button type="button" className="truncate hover:text-blue-600" onClick={(event) => { event.stopPropagation(); openEmail() }}>
+                                                    {sub.email}
+                                                </button>
+                                            )}
+                                        </ContactSendEmailTrigger>
                                     </div>
                                 )}
                                 {sub.phone_number && (
                                     <div className="flex items-center gap-1.5">
                                         <Phone className="h-3.5 w-3.5 shrink-0" />
-                                        <span>{sub.phone_number}</span>
+                                        <a href={`tel:${sub.phone_number}`} onClick={(event) => event.stopPropagation()} className="hover:text-blue-600">
+                                            {sub.phone_number}
+                                        </a>
                                     </div>
                                 )}
+                            </div>
+                            <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                                {sub.phone_number && (
+                                    <CrewSmsTrigger crew={sub} spId={spId}>
+                                        {(openSms) => (
+                                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={openSms} disabled={!spId} aria-label={`Text ${sub.name}`} title="Send SMS">
+                                                <MessageSquare className="h-3.5 w-3.5" />
+                                            </Button>
+                                        )}
+                                    </CrewSmsTrigger>
+                                )}
+                                <CrewAvailabilityPopover crew={sub} locale={locale} spId={spId}>
+                                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={!sub.uuid}>
+                                        <CalendarClock className="mr-1.5 h-3.5 w-3.5" /> Availability
+                                    </Button>
+                                </CrewAvailabilityPopover>
                             </div>
                         </Card>
                     ))}
@@ -376,12 +389,34 @@ export function SubcontractorsList({
                                                     ({sub.service_radius_miles} mi radius)
                                                 </span>
                                             )}
+                                            <CrewAvailabilityPopover crew={sub} locale={locale} spId={spId}>
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                                                    disabled={!sub.uuid}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                >
+                                                    <CalendarClock className="h-3.5 w-3.5" /> Request
+                                                </button>
+                                            </CrewAvailabilityPopover>
                                         </div>
                                     </div>
                                     
                                     {/* Mobile Location & Availability */}
                                     <div className="sm:hidden space-y-2 rounded-lg bg-slate-50 px-3 py-2">
-                                        {getAvailabilityBadge(sub.daily_availability_status)}
+                                        <div className="flex items-center justify-between gap-2">
+                                            {getAvailabilityBadge(sub.daily_availability_status)}
+                                            <CrewAvailabilityPopover crew={sub} locale={locale} spId={spId}>
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"
+                                                    disabled={!sub.uuid}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                >
+                                                    <CalendarClock className="h-3.5 w-3.5" /> Request
+                                                </button>
+                                            </CrewAvailabilityPopover>
+                                        </div>
                                         {sub.address && (
                                             <p className="text-xs text-slate-500 truncate flex items-center mt-1">
                                                 <MapPin className="w-3 h-3 mr-1 shrink-0" />
@@ -395,13 +430,35 @@ export function SubcontractorsList({
                                         {sub.email && (
                                             <div className="flex items-center gap-1.5 truncate">
                                                 <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                <span className="truncate">{sub.email}</span>
+                                                <ContactSendEmailTrigger to={sub.email} recipientName={sub.name}>
+                                                    {(openEmail) => (
+                                                        <button type="button" className="truncate hover:text-blue-600" onClick={(event) => { event.stopPropagation(); openEmail() }}>
+                                                            {sub.email}
+                                                        </button>
+                                                    )}
+                                                </ContactSendEmailTrigger>
                                             </div>
                                         )}
                                         {sub.phone_number && (
                                             <div className="flex items-center gap-1.5">
                                                 <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                <span>{sub.phone_number}</span>
+                                                <a href={`tel:${sub.phone_number}`} onClick={(event) => event.stopPropagation()} className="hover:text-blue-600">
+                                                    {sub.phone_number}
+                                                </a>
+                                                <CrewSmsTrigger crew={sub} spId={spId}>
+                                                    {(openSms) => (
+                                                        <button
+                                                            type="button"
+                                                            className="ml-1 text-blue-600 disabled:text-slate-300"
+                                                            onClick={(event) => { event.stopPropagation(); openSms() }}
+                                                            disabled={!spId}
+                                                            aria-label={`Text ${sub.name}`}
+                                                            title="Send SMS"
+                                                        >
+                                                            <MessageSquare className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    )}
+                                                </CrewSmsTrigger>
                                             </div>
                                         )}
                                         {!sub.email && !sub.phone_number && (
@@ -422,10 +479,6 @@ export function SubcontractorsList({
                                                     <Link2 className="h-4 w-4 mr-2" />
                                                     Copy Crew Portal Link
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}>
-                                                    <Link2 className="h-4 w-4 mr-2" />
-                                                    Request Availability
-                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                                     <Archive className="h-4 w-4 mr-2" />
                                                     Archive
@@ -443,15 +496,6 @@ export function SubcontractorsList({
                                         >
                                             <Link2 className="mr-1.5 h-4 w-4" />
                                             Crew Portal
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="h-10 rounded-lg text-xs"
-                                            onClick={(e) => handleCopyAvailabilityLink(e, sub.uuid)}
-                                        >
-                                            <Link2 className="mr-1.5 h-4 w-4" />
-                                            Availability
                                         </Button>
                                         <Button
                                             type="button"

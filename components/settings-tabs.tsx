@@ -879,24 +879,33 @@ export function SettingsTabs() {
                         </div>
 
                         {/* Save/Cancel Buttons */}
-                        <div className="flex gap-3 pt-2">
-                          <Button
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="flex gap-3">
+                            <Button
+                              type="button"
+                              onClick={handleSaveProfile}
+                              disabled={isSaving || !isDirty}
+                            >
+                              {isSaving ? "Saving..." : "Save Changes"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setFormData(initialFormData)
+                              }}
+                              disabled={isSaving || !isDirty}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                          <button
                             type="button"
-                            onClick={handleSaveProfile}
-                            disabled={isSaving || !isDirty}
+                            onClick={() => { window.location.href = `/${locale}/delete-account` }}
+                            className="ml-auto text-xs text-slate-400 underline-offset-2 hover:text-red-600 hover:underline"
                           >
-                            {isSaving ? "Saving..." : "Save Changes"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setFormData(initialFormData)
-                            }}
-                            disabled={isSaving || !isDirty}
-                          >
-                            Cancel
-                          </Button>
+                            Delete account
+                          </button>
                         </div>
                       </div>
                     </div>

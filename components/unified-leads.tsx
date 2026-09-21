@@ -25,6 +25,7 @@ import { callSummaryToDescription, stripMarkdownBold } from "@/lib/call-summary"
 import { SaveClientFromLeadDialog, type SaveClientAction } from "@/components/clients/save-client-from-lead-dialog"
 import { parseApiUtcDate } from "@/lib/frontline-datetime"
 import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
+import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
 
 // ============================================
 // Translation Cache Utilities (localStorage)
@@ -2027,7 +2028,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                               <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
                               <dt className="sr-only">Email</dt>
                               <dd className="min-w-0 truncate">
-                                <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
+                                <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
+                                  {(openEmail) => (
+                                    <button type="button" onClick={openEmail} className="text-foreground hover:underline text-left">{lead.email}</button>
+                                  )}
+                                </ContactSendEmailTrigger>
                               </dd>
                             </div>
                           )}
@@ -2143,7 +2148,11 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
                       <dt className="sr-only">Email</dt>
                       <dd className="min-w-0 truncate">
-                        <a href={`mailto:${lead.email}`} className="text-foreground hover:underline">{lead.email}</a>
+                        <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
+                          {(openEmail) => (
+                            <button type="button" onClick={openEmail} className="text-foreground hover:underline text-left">{lead.email}</button>
+                          )}
+                        </ContactSendEmailTrigger>
                       </dd>
                     </div>
                   )}

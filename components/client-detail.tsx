@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslations, useLocale } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { ClientCommunicationsCard } from "@/components/client-communications-card"
+import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
 import {
   Tooltip,
   TooltipContent,
@@ -564,12 +565,14 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               </Button>
             )}
             {clientData.email && (
-              <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" asChild>
-                <a href={`mailto:${clientData.email}`}>
-                  <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                  {tClients("email")}
-                </a>
-              </Button>
+              <ContactSendEmailTrigger to={clientData.email} recipientName={clientData.name}>
+                {(openEmail) => (
+                  <Button size="sm" variant="outline" className="h-11 rounded-lg sm:hidden" onClick={openEmail}>
+                    <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                    {tClients("email")}
+                  </Button>
+                )}
+              </ContactSendEmailTrigger>
             )}
           </div>
         </div>
