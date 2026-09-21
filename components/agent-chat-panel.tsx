@@ -608,6 +608,7 @@ export function AgentChatPanel() {
     const [executingCommandId, setExecutingCommandId] = useState<string | number | null>(null)
     const executingCommandRef = useRef<string | number | null>(null)
     const lastRunIdRef = useRef<string | null>(null)
+    const recoveryInFlightRef = useRef<Promise<any> | null>(null)
 
     // Multi-chat state
     const [conversations, setConversations] = useState<Conversation[]>([])
@@ -1280,6 +1281,29 @@ export function AgentChatPanel() {
         }
     }, [proposalContext.projectId, _fireProposal])
 
+    const recoverAgUiRun = useCallback(async (runId: string) => {
+        if (recoveryInFlightRef.current) return recoveryInFlightRef.current
+        const request = api.getAgentRunRecovery(runId).then((recovery) => {
+            agUiState.applyRecoveryEvents(recovery.events || [], {
+                threadId: recovery.conversation_id != null ? String(recovery.conversation_id) : undefined,
+                runId,
+            })
+            return recovery
+        }).finally(() => {
+            recoveryInFlightRef.current = null
+        })
+        recoveryInFlightRef.current = request
+        return request
+    }, [])
+
+    useEffect(() => agUiState.subscribeRecovery((event) => {
+        const runId = event.runId || lastRunIdRef.current
+        if (!runId || (lastRunIdRef.current && runId !== lastRunIdRef.current)) return
+        void recoverAgUiRun(runId).catch((error) => {
+            console.error("AG-UI state recovery failed:", error)
+        })
+    }), [recoverAgUiRun])
+
     const sendChatMessage = useCallback(async (
         text: string,
         resumeOption?: { interruptId: string; status: string }
@@ -1318,7 +1342,13 @@ export function AgentChatPanel() {
                 body: JSON.stringify({
                     messages: nextHistory,
                     page_context: pageContext,
-                    context_envelope: contextEnvelope,
+                    context_envelope: {
+                        ...contextEnvelope,
+                        preloaded_snapshot: {
+                            ...(contextEnvelope.preloaded_snapshot || {}),
+                            ...agUiState.getState(),
+                        },
+                    },
                     conversation_id: activeConversationId || undefined,
                     project_id: activeProjectId || undefined,
                     protocol_version: "ag-ui",
@@ -1677,7 +1707,7 @@ export function AgentChatPanel() {
             let recovered = false
             if (lastRunIdRef.current) {
                 try {
-                    const recovery = await api.getAgentRunRecovery(lastRunIdRef.current)
+                    const recovery = await recoverAgUiRun(lastRunIdRef.current)
                     if (recovery && recovery.terminal_outcome?.type === "interrupt") {
                         const interrupt = recovery.terminal_outcome.interrupts?.[0]
                         if (interrupt) {
@@ -1738,6 +1768,7 @@ export function AgentChatPanel() {
         isLoading,
         messages,
         pageContext,
+        recoverAgUiRun,
     ])
 
     const handleQuickAction = useCallback((message: string) => {

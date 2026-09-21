@@ -34,6 +34,7 @@ import type { ScheduledFollowup, FollowupType, FollowupStatus, FollowupEvent } f
 import { api } from "@/lib/api"
 import { ClientSendSmsDialog } from "@/components/client-send-sms-dialog"
 import { ClientScheduleFollowupDialog } from "@/components/client-schedule-followup-dialog"
+import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
 import { SourceBadge, DeliveryBadge, StepLabel, useCancelReasonLabel } from "@/components/scheduled-followups-list"
 
 interface ClientCommunicationsCardProps {
@@ -79,6 +80,18 @@ function toDate(dateString: string): Date {
   return new Date(utcString)
 }
 
+function relativeTime(dateString: string): string {
+  const deltaMinutes = Math.round((toDate(dateString).getTime() - Date.now()) / 60_000)
+  const future = deltaMinutes > 0
+  const minutes = Math.abs(deltaMinutes)
+  if (minutes < 1) return "now"
+  if (minutes < 60) return future ? `in ${minutes}m` : `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return future ? `in ${hours}h` : `${hours}h ago`
+  const days = Math.round(hours / 24)
+  return future ? `in ${days}d` : `${days}d ago`
+}
+
 export function ClientCommunicationsCard({
   clientId,
   clientName,
@@ -101,13 +114,13 @@ export function ClientCommunicationsCard({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [followupToDelete, setFollowupToDelete] = useState<number | null>(null)
 
-  const fetchTimeline = useCallback(async () => {
+  const fetchTimeline = useCallback(async (silent = false) => {
     if (!clientPhone) {
       setIsLoading(false)
       return
     }
     try {
-      setIsLoading(true)
+      if (!silent) setIsLoading(true)
       const data = await api.getFollowupTimeline({ client_id: clientId, limit: 30 })
       setFollowups(data.followups ?? [])
       setEvents(data.events ?? [])
@@ -118,12 +131,26 @@ export function ClientCommunicationsCard({
       setFollowups([])
       setEvents([])
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [clientId, clientPhone])
 
   useEffect(() => {
     fetchTimeline()
+  }, [fetchTimeline])
+
+  useEffect(() => {
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void fetchTimeline(true)
+    }
+    window.addEventListener("focus", refreshVisible)
+    document.addEventListener("visibilitychange", refreshVisible)
+    const timer = window.setInterval(refreshVisible, 30_000)
+    return () => {
+      window.removeEventListener("focus", refreshVisible)
+      document.removeEventListener("visibilitychange", refreshVisible)
+      window.clearInterval(timer)
+    }
   }, [fetchTimeline])
 
   const handleCancelFollowup = async () => {
@@ -171,6 +198,13 @@ export function ClientCommunicationsCard({
 
   const canMessage = Boolean(clientPhone) && !notLinked
   const messagingUnavailable = notLinked || (!clientPhone && !clientEmail)
+  const displayFollowups = [...followups].sort((a, b) => {
+    const rank = (f: ScheduledFollowup) => f.status === "pending" ? 0 : f.status === "failed" ? 1 : 2
+    const rankDiff = rank(a) - rank(b)
+    if (rankDiff) return rankDiff
+    const timeDiff = toDate(a.scheduled_for).getTime() - toDate(b.scheduled_for).getTime()
+    return a.status === "pending" ? timeDiff : -timeDiff
+  })
 
   return (
     <>
@@ -178,17 +212,19 @@ export function ClientCommunicationsCard({
         <div className="space-y-3 mb-4 min-w-0 overflow-hidden">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&>button]:shrink-0 [&>button]:touch-manipulation">
             {clientEmail && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-11 rounded-lg sm:h-10 sm:w-10 sm:p-0" asChild>
-                    <a href={`mailto:${clientEmail}`} className="flex items-center justify-center gap-1.5">
-                      <MailIcon className="h-4 w-4" />
-                      <span className="sm:hidden">{t("email")}</span>
-                    </a>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("email")}</TooltipContent>
-              </Tooltip>
+              <ContactSendEmailTrigger to={clientEmail} recipientName={clientName}>
+                {(openEmail) => (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-11 rounded-lg sm:h-10 sm:w-10 sm:p-0" onClick={openEmail}>
+                        <MailIcon className="h-4 w-4" />
+                        <span className="sm:hidden">{t("email")}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("email")}</TooltipContent>
+                  </Tooltip>
+                )}
+              </ContactSendEmailTrigger>
             )}
             {canMessage && (
               <Tooltip>
@@ -225,8 +261,9 @@ export function ClientCommunicationsCard({
               <p className="text-xs text-muted-foreground py-3">{t("noFollowups")}</p>
             ) : (
               <ul className="space-y-1">
-                {followups.slice(0, 5).map((f) => {
+                {displayFollowups.slice(0, 5).map((f) => {
                   const reason = f.status === "cancelled" ? reasonLabel(f.cancel_reason) : null
+                  const activityAt = f.status === "sent" ? (f.sent_at || f.scheduled_for) : f.scheduled_for
                   return (
                     <li
                       key={f.id}
@@ -236,7 +273,9 @@ export function ClientCommunicationsCard({
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium shrink-0">{getTypeLabel(f.followup_type, tList)}</span>
-                          <span className="text-muted-foreground shrink-0">{formatShortDate(f.scheduled_for)}</span>
+                          <span className="text-muted-foreground shrink-0">
+                            {formatShortDate(activityAt)} · {relativeTime(activityAt)}
+                          </span>
                           <SourceBadge source={f.source} />
                           <StepLabel f={f} />
                         </div>

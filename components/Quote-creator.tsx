@@ -651,6 +651,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       projectTitle,
       taxRate,
     }
+    agUiState.setEntityState("quote", quoteStateRef.current)
   }, [items, markupPercentage, serviceDescription, notes, projectTitle, taxRate])
 
   useEffect(() => {

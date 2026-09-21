@@ -447,11 +447,13 @@ class ApiClient {
   }
 
   /** Send a generic email via contractor's Gmail. Requires Gmail connected. */
-  async gmailSend(params: { to: string; subject: string; body_html: string; body_plain?: string; from_name?: string }): Promise<{ message: string }> {
+  async gmailSend(params: { to: string | string[]; cc?: string[]; bcc?: string[]; subject: string; body_html: string; body_plain?: string; from_name?: string }): Promise<{ message: string }> {
     return this.request<{ message: string }>('/gmail/send', {
       method: 'POST',
       body: JSON.stringify({
         to: params.to,
+        cc: params.cc ?? [],
+        bcc: params.bcc ?? [],
         subject: params.subject,
         body_html: params.body_html,
         body_plain: params.body_plain ?? undefined,
