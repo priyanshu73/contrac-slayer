@@ -187,7 +187,7 @@ export function AdWelcome() {
           <div className="pointer-events-auto flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-white/10 bg-slate-950/95 py-2 pl-4 pr-2 text-sm text-white shadow-xl backdrop-blur">
             <Sparkles className="hidden h-4 w-4 shrink-0 text-amber-300 sm:block" />
             <span className="truncate font-medium">
-              Start your <span className="text-amber-300">7-day free trial</span>
+              Start your <span className="text-amber-300">14-day free trial</span>
             </span>
             <Link
               href={signupUrl}
@@ -236,7 +236,7 @@ export function AdWelcome() {
             <p className="mt-3 text-sm leading-6 text-slate-600">
               But you clicked! You must really dig what we&apos;re putting down. Since you
               didn&apos;t just mulch us out of your feed, you&apos;ve officially earned a{" "}
-              <span className="font-semibold text-slate-900">7-day free trial</span>.
+              <span className="font-semibold text-slate-900">14-day free trial</span>.
             </p>
             <Link
               href={signupUrl}

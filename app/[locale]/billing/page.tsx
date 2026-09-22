@@ -8,6 +8,7 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Check, Sparkles, Zap, Shield, Clock, Star } from "lucide-react"
+import { PricingCountdown } from "@/components/pricing-countdown"
 
 export default function BillingPage() {
   const locale = useLocale()
@@ -96,9 +97,12 @@ export default function BillingPage() {
           <h1 className="hidden text-3xl md:block md:text-4xl font-bold mb-4">
             {t("pageTitle")}
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
             {t("pageSubtitle")}
           </p>
+          <div className="flex justify-center">
+            <PricingCountdown />
+          </div>
         </div>
 
         {error && (
@@ -118,9 +122,17 @@ export default function BillingPage() {
 
             <div className="mb-6">
               {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
+                  $139
+                </span>
                 <span className="text-4xl font-bold">$99</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  Save $40/mo
+                </span>
               </div>
             </div>
 
@@ -163,11 +175,22 @@ export default function BillingPage() {
 
             <div className="mb-6">
               {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($900/yr = $75/mo) */}
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
+                  $99
+                </span>
                 <span className="text-4xl font-bold">$75</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{t("billedAnnually")}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  Save $24/mo with annual
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                {t("billedAnnually")}{" "}
+                <span className="line-through text-xs text-muted-foreground">($1,188/yr)</span>
+              </p>
             </div>
 
             <Button
