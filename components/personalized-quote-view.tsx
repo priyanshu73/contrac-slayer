@@ -17,7 +17,8 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleX, Clock3, ExternalLink, FileText, MessageSquareMore, PencilLine, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
@@ -333,6 +334,11 @@ export function PersonalizedQuoteView({
   const [showContractorSignature, setShowContractorSignature] = useState(false)
   const [showCustomerSignature, setShowCustomerSignature] = useState(false)
   const [signingInProgress, setSigningInProgress] = useState(false)
+  const [showChangeRequest, setShowChangeRequest] = useState(false)
+  const [showDeclineQuote, setShowDeclineQuote] = useState(false)
+  const [customerDecisionSubmitting, setCustomerDecisionSubmitting] = useState(false)
+  const [changeRequestNotes, setChangeRequestNotes] = useState("")
+  const [declineReason, setDeclineReason] = useState("")
   const [currentJob, setCurrentJob] = useState<Job>(job)
   const [copiedLink, setCopiedLink] = useState(false)
   const [generatingLink, setGeneratingLink] = useState(false)
@@ -506,6 +512,52 @@ export function PersonalizedQuoteView({
     }
   }
 
+  const publicQuoteLink = currentJob.quote_public_link || job.quote_public_link
+
+  const handleRequestChanges = async () => {
+    const notes = changeRequestNotes.trim()
+    if (!publicQuoteLink || !notes) return
+    try {
+      setCustomerDecisionSubmitting(true)
+      const updated = await api.requestQuoteChanges(publicQuoteLink, notes)
+      setCurrentJob(updated)
+      setShowChangeRequest(false)
+      setChangeRequestNotes("")
+      toast({
+        title: "Change request sent",
+        description: "Your contractor can now review your requested changes.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Couldn't send request",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setCustomerDecisionSubmitting(false)
+    }
+  }
+
+  const handleDeclineQuote = async () => {
+    if (!publicQuoteLink) return
+    try {
+      setCustomerDecisionSubmitting(true)
+      const updated = await api.declineQuote(publicQuoteLink, declineReason)
+      setCurrentJob(updated)
+      setShowDeclineQuote(false)
+      setDeclineReason("")
+      toast({ title: "Quote declined", description: "Your response has been saved." })
+    } catch (error: any) {
+      toast({
+        title: "Couldn't decline quote",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setCustomerDecisionSubmitting(false)
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -536,6 +588,15 @@ export function PersonalizedQuoteView({
   }
 
   // Full timestamp converted to the viewer's local timezone (date + time).
+  const formatFullDateTime = (dateString: string) =>
+    new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'draft': return 'bg-amber-500/15 text-amber-600'
@@ -786,6 +847,15 @@ export function PersonalizedQuoteView({
 
   const activityItems = [
     { label: "Quote created", value: formatDate(currentJob.created_at) },
+    currentJob.customer_viewed_at
+      ? { label: "First viewed by customer", value: formatDate(currentJob.customer_viewed_at) }
+      : null,
+    currentJob.customer_modification_requested_at
+      ? { label: "Changes requested", value: formatDate(currentJob.customer_modification_requested_at) }
+      : null,
+    currentJob.rejected_at
+      ? { label: "Declined by customer", value: formatDate(currentJob.rejected_at) }
+      : null,
     currentJob.updated_at ? { label: "Last updated", value: formatDate(currentJob.updated_at) } : null,
     SIGNATURE_FEATURE_ENABLED && currentJob.signature?.contractor_signed_at
       ? { label: "Signed by contractor", value: formatDate(currentJob.signature.contractor_signed_at) }
@@ -803,6 +873,32 @@ export function PersonalizedQuoteView({
   const canCreateChangeOrder =
     isContractor &&
     ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED"].includes(currentJob.status?.toString().toUpperCase() ?? "")
+
+  const publicStatus = currentJob.status?.toString().toUpperCase() ?? ""
+  const customerCanRespond =
+    isPublicView && ["SENT", "VIEWED", "CUSTOMER_MODIFIED"].includes(publicStatus)
+
+  const renderCustomerDecisionStrip = () => {
+    if (!showActions || !customerCanRespond) return null
+    return (
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2 print:hidden">
+        {publicStatus !== "CUSTOMER_MODIFIED" && (
+          <Button variant="outline" onClick={() => setShowChangeRequest(true)}>
+            <MessageSquareMore className="mr-2 h-4 w-4" />
+            Request changes
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+          onClick={() => setShowDeclineQuote(true)}
+        >
+          <CircleX className="mr-2 h-4 w-4" />
+          Decline quote
+        </Button>
+      </div>
+    )
+  }
 
   const renderQuoteActionStrip = () => {
     const showInvoiceSend = currentJob.status?.toString().toUpperCase() === "INVOICED" && currentJob.qbo_invoice_id
@@ -1094,10 +1190,53 @@ export function PersonalizedQuoteView({
     <div className="min-h-screen bg-gray-50 py-4 pb-24 sm:py-8 sm:pb-8 print:min-h-0 print:py-0 print:pb-0 print:bg-white print:mt-0 print:pt-0">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:pl-6 lg:pr-8 xl:pl-8 xl:pr-12 print:max-w-full print:px-0 print:mx-0 print:mt-0 print:pt-0">
         {showActions && !isPublicView && renderQuoteActionStrip()}
+        {renderCustomerDecisionStrip()}
         {/* Layout: Quote centered, Actions on far right */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 xl:gap-12 print:flex-col print:gap-0">
           {/* Quote Content - Centered */}
           <div className="w-full lg:flex-1 lg:max-w-[900px] lg:min-w-0 lg:mx-auto print:max-w-full">
+            {publicStatus === "CUSTOMER_MODIFIED" && currentJob.customer_modifications_requested && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 print:hidden">
+                <div className="flex items-start gap-2.5">
+                  <MessageSquareMore className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {isPublicView ? "Change request sent" : "Customer requested changes"}
+                    </p>
+                    {currentJob.customer_modification_notes && (
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">
+                        {currentJob.customer_modification_notes}
+                      </p>
+                    )}
+                    {currentJob.customer_modification_requested_at && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        {formatFullDateTime(currentJob.customer_modification_requested_at)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {publicStatus === "REJECTED" && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-950 print:hidden">
+                <div className="flex items-start gap-2.5">
+                  <CircleX className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
+                  <div>
+                    <p className="text-sm font-semibold">Quote declined</p>
+                    {currentJob.rejection_reason && (
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-red-900">
+                        {currentJob.rejection_reason}
+                      </p>
+                    )}
+                    {currentJob.rejected_at && (
+                      <p className="mt-1 text-xs text-red-700">
+                        {formatFullDateTime(currentJob.rejected_at)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Created from / Parent quote banner - when viewing a change order */}
             {isContractor && !isPublicView && currentJob.created_from_job_id && (
               <div className="mb-4 print:hidden">
@@ -1578,7 +1717,7 @@ export function PersonalizedQuoteView({
                         {showActions &&
                           !currentJob.signature?.customer_signed_at &&
                           !isContractor &&
-                          !['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(currentJob.status.toString().toUpperCase()) && (
+                          ['SENT', 'VIEWED'].includes(currentJob.status.toString().toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -1771,6 +1910,58 @@ export function PersonalizedQuoteView({
             isSubmitting={signingInProgress}
           />
         )}
+
+        <Dialog open={showChangeRequest} onOpenChange={setShowChangeRequest}>
+          <DialogContent className="sm:max-w-md">
+            <DialogTitle>Request changes</DialogTitle>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Tell the contractor what you would like changed before you approve this quote.
+              </p>
+              <Textarea
+                value={changeRequestNotes}
+                onChange={(event) => setChangeRequestNotes(event.target.value)}
+                placeholder="Describe the changes you need…"
+                maxLength={2000}
+                rows={5}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowChangeRequest(false)} disabled={customerDecisionSubmitting}>
+                  Cancel
+                </Button>
+                <Button onClick={handleRequestChanges} disabled={!changeRequestNotes.trim() || customerDecisionSubmitting}>
+                  {customerDecisionSubmitting ? "Sending…" : "Send request"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showDeclineQuote} onOpenChange={setShowDeclineQuote}>
+          <DialogContent className="sm:max-w-md">
+            <DialogTitle>Decline this quote?</DialogTitle>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                This will tell the contractor that you are not moving forward with this quote.
+              </p>
+              <Textarea
+                value={declineReason}
+                onChange={(event) => setDeclineReason(event.target.value)}
+                placeholder="Reason (optional)"
+                maxLength={2000}
+                rows={4}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowDeclineQuote(false)} disabled={customerDecisionSubmitting}>
+                  Keep quote
+                </Button>
+                <Button variant="destructive" onClick={handleDeclineQuote} disabled={customerDecisionSubmitting}>
+                  {customerDecisionSubmitting ? "Declining…" : "Decline quote"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Invoice Sub-Modal */}
         <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>

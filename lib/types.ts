@@ -698,6 +698,13 @@ export interface Job {
   created_by_user_id?: number
   created_by_name?: string
   customer_notes?: string
+  customer_viewed_at?: string
+  customer_view_count?: number
+  customer_modifications_requested?: boolean
+  customer_modification_notes?: string | null
+  customer_modification_requested_at?: string | null
+  rejected_at?: string | null
+  rejection_reason?: string | null
   /** Amount customer accepted when signing */
   accepted_total_amount?: number
   project_media?: ProjectMedia[]
