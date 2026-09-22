@@ -1067,6 +1067,22 @@ class ApiClient {
     return this.request(`/dashboard/action-queue?tz=${encodeURIComponent(tz)}`)
   }
 
+  async getNotifications(unreadOnly = false): Promise<import('./types/notification').NotificationListResponse> {
+    return this.request(`/notifications?unread_only=${unreadOnly}`)
+  }
+
+  async markNotificationRead(id: number): Promise<import('./types/notification').AppNotification> {
+    return this.request(`/notifications/${id}/read`, { method: 'POST' })
+  }
+
+  async deleteNotification(id: number): Promise<{ deleted: number }> {
+    return this.request(`/notifications/${id}`, { method: 'DELETE' })
+  }
+
+  async markAllNotificationsRead(): Promise<{ updated: number }> {
+    return this.request('/notifications/read-all', { method: 'POST' })
+  }
+
   /** Hide the given action-queue items until `until` (ISO). Business-wide. */
   async snoozeActionItems(keys?: string[], until?: string): Promise<{ snoozed: number; until: string }> {
     const targetUntil = until ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -1514,6 +1530,20 @@ class ApiClient {
     return this.fetchPublic(`/jobs/public/${publicLink}/sign/customer`, {
       method: 'POST',
       body: JSON.stringify(signatureData),
+    })
+  }
+
+  async requestQuoteChanges(publicLink: string, notes: string): Promise<import('@/lib/types').Job> {
+    return this.fetchPublic(`/jobs/public/${publicLink}/request-changes`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    })
+  }
+
+  async declineQuote(publicLink: string, reason?: string): Promise<import('@/lib/types').Job> {
+    return this.fetchPublic(`/jobs/public/${publicLink}/decline`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason?.trim() || null }),
     })
   }
 

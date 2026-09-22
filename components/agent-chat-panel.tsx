@@ -25,6 +25,7 @@ import { api } from "@/lib/api"
 import type { ScopeClarifiedScope, ScopeQuestion, ScopeQuestionAnswer } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import type { ProjectListItem } from "@/lib/types"
+import type { AppNotification } from "@/lib/types/notification"
 import { agUiState } from "@/lib/ag-ui-state"
 import { AgentActionCard } from "@/components/agent-action-card"
 
@@ -527,7 +528,7 @@ interface Conversation {
 }
 
 // ─── View type ─────────────────────────────────────────────────
-type PanelView = "chat" | "conversations" | "scope"
+type PanelView = "chat" | "conversations" | "notifications" | "scope"
 type ChatLaunchMode = "general" | "quote_estimate" | "proposal"
 
 // ─── Status color map (value → color class) ─────────────────────
@@ -615,6 +616,10 @@ export function AgentChatPanel() {
     const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
     const [panelView, setPanelView] = useState<PanelView>("chat")
     const [isLoadingConversations, setIsLoadingConversations] = useState(false)
+    const [notifications, setNotifications] = useState<AppNotification[]>([])
+    const [unreadNotifications, setUnreadNotifications] = useState(0)
+    const [notificationsLoading, setNotificationsLoading] = useState(false)
+    const [notificationsError, setNotificationsError] = useState(false)
 
     // Quote estimate context (populated when on quote pages)
     const [estimateContext, setEstimateContext] = useState<QuoteEstimateContext>({
@@ -730,6 +735,64 @@ export function AgentChatPanel() {
     const selectedProjectLabel = selectedContext
         ? `project: ${selectedContext.projectName}`
         : null
+
+    const loadNotifications = useCallback(async () => {
+        setNotificationsLoading(true)
+        setNotificationsError(false)
+        try {
+            const result = await api.getNotifications()
+            setNotifications(result.items)
+            setUnreadNotifications(result.unread_count)
+        } catch {
+            setNotificationsError(true)
+        } finally {
+            setNotificationsLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!isOpen) return
+        void loadNotifications()
+        const timer = window.setInterval(loadNotifications, 30_000)
+        return () => window.clearInterval(timer)
+    }, [isOpen, loadNotifications])
+
+    const openNotification = useCallback(async (notification: AppNotification) => {
+        if (!notification.read_at) {
+            try {
+                await api.markNotificationRead(notification.id)
+                setNotifications((current) => current.map((item) =>
+                    item.id === notification.id
+                        ? { ...item, read_at: new Date().toISOString() }
+                        : item
+                ))
+                setUnreadNotifications((count) => Math.max(0, count - 1))
+            } catch {}
+        }
+        if (notification.action_url) {
+            router.push(`/${locale}${notification.action_url}`)
+            setIsOpen(false)
+        }
+    }, [locale, router])
+
+    const markAllNotificationsRead = useCallback(async () => {
+        try {
+            await api.markAllNotificationsRead()
+            const readAt = new Date().toISOString()
+            setNotifications((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? readAt })))
+            setUnreadNotifications(0)
+        } catch {}
+    }, [])
+
+    const deleteNotification = useCallback(async (notification: AppNotification) => {
+        try {
+            await api.deleteNotification(notification.id)
+            setNotifications((current) => current.filter((item) => item.id !== notification.id))
+            if (!notification.read_at) {
+                setUnreadNotifications((count) => Math.max(0, count - 1))
+            }
+        } catch {}
+    }, [])
 
     // Detect if we're on a quote create/edit page
     const isOnQuotePage = useMemo(() => {
@@ -1933,7 +1996,7 @@ export function AgentChatPanel() {
             {/* ── Header ── */}
             <div className="flex items-center justify-between gap-2 overflow-hidden border-b border-border bg-gradient-to-r from-sky-500/10 to-blue-500/5 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:py-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    {panelView === "conversations" ? (
+                    {panelView === "conversations" || panelView === "notifications" ? (
                         <button
                             onClick={() => setPanelView("chat")}
                             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted md:h-8 md:w-8"
@@ -1948,11 +2011,13 @@ export function AgentChatPanel() {
                     )}
                     <div className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
-                            {panelView === "conversations" ? "Conversations" : "Bob AI"}
+                            {panelView === "conversations" ? "Conversations" : panelView === "notifications" ? "Notifications" : "Bob AI"}
                         </h3>
                         <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:text-[11px]">
                             {panelView === "conversations"
                                 ? `${conversations.length} chat${conversations.length !== 1 ? "s" : ""}`
+                                : panelView === "notifications"
+                                    ? `${unreadNotifications} unread`
                                 : activeConversationId
                                     ? conversations.find(c => c.id === activeConversationId)?.title || "Chat"
                                     : "New conversation"
@@ -1961,6 +2026,23 @@ export function AgentChatPanel() {
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                    {panelView !== "scope" && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="relative h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
+                            onClick={() => setPanelView("notifications")}
+                            title="View notifications"
+                            aria-label="View notifications"
+                        >
+                            <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                            {unreadNotifications > 0 && (
+                                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white md:-right-1 md:-top-1">
+                                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                                </span>
+                            )}
+                        </Button>
+                    )}
                     {panelView === "chat" && (
                         <>
                             <Button
@@ -1994,15 +2076,17 @@ export function AgentChatPanel() {
                             <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground hidden md:flex"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        title={isExpanded ? "Collapse Bob AI" : "Expand Bob AI"}
-                    >
-                        {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                    </Button>
+                    {panelView !== "notifications" && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground hidden md:flex"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            title={isExpanded ? "Collapse Bob AI" : "Expand Bob AI"}
+                        >
+                            {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        </Button>
+                    )}
                     <Button
                         variant="ghost"
                         size="icon"
@@ -2080,6 +2164,67 @@ export function AgentChatPanel() {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {panelView === "notifications" && (
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+                        <p className="text-xs text-muted-foreground">Updates from your business</p>
+                        {unreadNotifications > 0 && (
+                            <button type="button" onClick={markAllNotificationsRead} className="text-xs font-semibold text-sky-700 hover:underline">
+                                Mark all read
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {notificationsLoading && notifications.length === 0 ? (
+                            <div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                        ) : notificationsError ? (
+                            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                                <BellRing className="mb-3 h-6 w-6 text-muted-foreground" />
+                                <p className="text-sm font-semibold text-foreground">Notifications unavailable</p>
+                                <p className="mt-1 text-xs leading-5 text-muted-foreground">The connected backend does not have notifications enabled yet.</p>
+                            </div>
+                        ) : notifications.length === 0 ? (
+                            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600"><BellRing className="h-5 w-5" /></div>
+                                <p className="text-sm font-semibold text-foreground">No notifications yet</p>
+                                <p className="mt-1 text-xs leading-5 text-muted-foreground">Quote activity, payments, and new requests will appear here.</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-border">
+                                {notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        className={`flex w-full items-start gap-2 px-4 py-3 transition hover:bg-muted/60 ${notification.read_at ? "bg-card" : "bg-sky-50/60"}`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => openNotification(notification)}
+                                            className="flex min-w-0 flex-1 gap-3 text-left"
+                                        >
+                                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.read_at ? "bg-slate-300" : "bg-sky-500"}`} />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-semibold text-foreground">{notification.title}</span>
+                                                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{notification.body}</span>
+                                                <span className="mt-1 block text-[11px] text-muted-foreground/80">{formatTimeAgo(notification.created_at)}</span>
+                                            </span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void deleteNotification(notification)}
+                                            className="mt-0.5 shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-600"
+                                            title="Delete notification"
+                                            aria-label={`Delete notification: ${notification.title}`}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
