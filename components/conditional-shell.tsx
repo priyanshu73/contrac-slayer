@@ -32,6 +32,7 @@ function isPublicShellRoute(pathname: string): boolean {
     pathname === "/support" ||
     !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
     pathname?.startsWith("/features") ||
+    !!pathname?.match(/^\/[a-z]{2}\/(enterprise|blog)(\/|$)/) ||
     !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)
     pathname === "/" ||
     // Public client portal — no contractor shell
