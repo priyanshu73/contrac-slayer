@@ -33,6 +33,51 @@ function formatDate(value: string) {
   })
 }
 
+type BodySegment =
+  | { type: "markdown"; content: string }
+  | { type: "youtube"; videoId: string; caption: string }
+
+const YOUTUBE_TOKEN = /\{\{youtube:\s*(\S+?)\s*(?:\|\s*([^}]*?)\s*)?\}\}/g
+
+function getYouTubeId(url: string) {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:shorts\/|embed\/|watch\?v=))([\w-]{11})/)
+  return match ? match[1] : null
+}
+
+function splitBody(body: string): BodySegment[] {
+  const segments: BodySegment[] = []
+  let lastIndex = 0
+  for (const match of body.matchAll(YOUTUBE_TOKEN)) {
+    const videoId = getYouTubeId(match[1])
+    if (!videoId) continue
+    const start = match.index ?? 0
+    if (start > lastIndex) segments.push({ type: "markdown", content: body.slice(lastIndex, start) })
+    segments.push({ type: "youtube", videoId, caption: match[2] ?? "" })
+    lastIndex = start + match[0].length
+  }
+  if (lastIndex < body.length) segments.push({ type: "markdown", content: body.slice(lastIndex) })
+  return segments
+}
+
+function YouTubeEmbed({ videoId, caption }: { videoId: string; caption: string }) {
+  return (
+    <figure className="not-prose mx-auto my-10 w-full max-w-[340px]">
+      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl border border-[#eadfd7] bg-slate-950 shadow-[0_18px_60px_rgba(96,75,64,0.12)]">
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
+          title={caption || "YouTube video"}
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+          className="absolute inset-0 h-full w-full"
+        />
+      </div>
+      {caption ? <figcaption className="mt-3 text-center text-sm leading-6 text-slate-500">{caption}</figcaption> : null}
+    </figure>
+  )
+}
+
 export default async function BlogPostPage({
   params,
 }: {
@@ -70,34 +115,41 @@ export default async function BlogPostPage({
           </div>
 
           <div className="prose prose-slate mt-10 max-w-none prose-headings:font-black prose-headings:tracking-tight prose-h2:mt-12 prose-a:text-slate-950 prose-img:rounded-xl prose-img:border prose-img:border-[#eadfd7] prose-img:bg-white">
-            <ReactMarkdown
-              components={{
-                a: ({ href, children }) => {
-                  if (href?.startsWith("#source-")) {
-                    return (
-                      <sup>
-                        <a href={href} className="font-semibold text-slate-500 no-underline hover:text-slate-950">
+            {splitBody(post.body).map((segment, index) =>
+              segment.type === "youtube" ? (
+                <YouTubeEmbed key={index} videoId={segment.videoId} caption={segment.caption} />
+              ) : (
+                <ReactMarkdown
+                  key={index}
+                  components={{
+                    a: ({ href, children }) => {
+                      if (href?.startsWith("#source-")) {
+                        return (
+                          <sup>
+                            <a href={href} className="font-semibold text-slate-500 no-underline hover:text-slate-950">
+                              {children}
+                            </a>
+                          </sup>
+                        )
+                      }
+                      return (
+                        <a href={href} target="_blank" rel="noreferrer">
                           {children}
                         </a>
-                      </sup>
-                    )
-                  }
-                  return (
-                    <a href={href} target="_blank" rel="noreferrer">
-                      {children}
-                    </a>
-                  )
-                },
-              }}
-            >
-              {post.body}
-            </ReactMarkdown>
+                      )
+                    },
+                  }}
+                >
+                  {segment.content}
+                </ReactMarkdown>
+              ),
+            )}
           </div>
 
           <div className="mt-12 flex flex-col items-start justify-between gap-5 rounded-2xl bg-slate-950 p-6 text-white sm:flex-row sm:items-center sm:p-8">
             <div>
-              <p className="text-lg font-black">See what ContractorOps would find in your area.</p>
-              <p className="mt-2 text-sm leading-6 text-white/68">Start a free trial and set up your outreach in minutes.</p>
+              <p className="text-lg font-black">{post.ctaTitle ?? "See what ContractorOps would find in your area."}</p>
+              <p className="mt-2 text-sm leading-6 text-white/68">{post.ctaText ?? "Start a free trial and set up your outreach in minutes."}</p>
             </div>
             <Link
               href={`/${locale}/auth/signup`}
