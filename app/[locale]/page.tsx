@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { HeroSection } from '@/components/ui/hero-section-2'
 import { Features } from '@/components/features'
 import { Pricing } from '@/components/pricing'
+import { Enterprise } from '@/components/enterprise'
 import { CTA } from '@/components/cta'
 import { Header } from '@/components/header'
 import { LandingFooter } from '@/components/landing-footer'
@@ -35,6 +36,7 @@ export default function Home() {
     () => [
       { id: 'hero', label: t('sectionHero') ?? 'Home' },
       { id: 'features', label: t('sectionFeatures') ?? 'Features' },
+      { id: 'enterprise', label: 'Enterprise' },
       { id: 'pricing', label: t('sectionPricing') ?? 'Pricing' },
       { id: 'cta', label: t('sectionCta') ?? 'Get Started' },
     ],
@@ -89,6 +91,9 @@ export default function Home() {
           </LandingSection>
           <LandingSection id="features">
             <Features />
+          </LandingSection>
+          <LandingSection id="enterprise">
+            <Enterprise locale={locale} />
           </LandingSection>
           <LandingSection id="pricing" className="landing-section-pricing">
             <Pricing />

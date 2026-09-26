@@ -22,6 +22,12 @@ export function LandingFooter() {
 
         <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:gap-6">
           <p>© {new Date().getFullYear()} ContractorOps</p>
+          <Link href={`/${locale}/enterprise`} className="transition-colors hover:text-slate-950">
+            Enterprise
+          </Link>
+          <Link href={`/${locale}/blog`} className="transition-colors hover:text-slate-950">
+            Blog
+          </Link>
           <Link href={`/${locale}/privacy`} className="transition-colors hover:text-slate-950">
             {t("footerPrivacy")}
           </Link>

@@ -111,7 +111,6 @@ export function Header() {
   }
 
   const navLinks = [
-    { id: 'home', label: t('sectionHero') },
     { id: 'pricing', label: t('pricing') },
   ]
 
@@ -199,6 +198,12 @@ export function Header() {
     )
   }
 
+  const pageLinks = [
+    { href: `/${locale}/enterprise`, label: 'Enterprise' },
+    { href: `/${locale}/blog`, label: 'Blog' },
+  ]
+  const isPageLinkActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`)
+
   const navigateToLandingSection = (sectionId: string) => {
     setActiveLandingSection(sectionId)
 
@@ -224,7 +229,18 @@ export function Header() {
             : 'border border-white/18 bg-white/[0.08] shadow-none'
         }`}
       >
-        <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="ContractorOps home">
+        <Link
+          href={`/${locale}`}
+          onClick={(event) => {
+            if (isLandingPage) {
+              event.preventDefault()
+              setActiveLandingSection('hero')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          }}
+          className="flex items-center gap-3"
+          aria-label="ContractorOps home"
+        >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm">
             <img src="/logo.png" alt="" className="h-7 w-7 rounded-full object-contain" />
           </span>
@@ -236,30 +252,6 @@ export function Header() {
         <nav className="hidden items-center gap-3 md:flex" aria-label="Main navigation">
           {isLandingPage ? (
             <>
-              {navLinks.map(({ id, label }) => {
-                const targetId = id === 'home' ? 'hero' : id
-                const isActive = activeLandingSection === targetId
-
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => navigateToLandingSection(targetId)}
-                    className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
-                      isActive
-                        ? isHeaderSolid
-                          ? 'bg-[#f1e7df] text-slate-950'
-                          : 'bg-white/14 text-white'
-                        : isHeaderSolid
-                          ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950'
-                          : 'text-white/78 hover:bg-white/10 hover:text-white'
-                    }`}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
               <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
                 <DropdownMenuTrigger asChild>
                   <Link
@@ -324,21 +316,51 @@ export function Header() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
-          ) : (
-            <>
-              {navLinks.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
+              {navLinks.map(({ id, label }) => {
+                const targetId = id === 'home' ? 'hero' : id
+                const isActive = activeLandingSection === targetId
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => navigateToLandingSection(targetId)}
+                    className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                      isActive
+                        ? isHeaderSolid
+                          ? 'bg-[#f1e7df] text-slate-950'
+                          : 'bg-white/14 text-white'
+                        : isHeaderSolid
+                          ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950'
+                          : 'text-white/78 hover:bg-white/10 hover:text-white'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              {pageLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isPageLinkActive(href) ? 'page' : undefined}
                   className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
-                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+                    isPageLinkActive(href)
+                      ? isHeaderSolid
+                        ? 'bg-[#f1e7df] text-slate-950'
+                        : 'bg-white/14 text-white'
+                      : isHeaderSolid
+                        ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950'
+                        : 'text-white/78 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   {label}
-                </button>
+                </Link>
               ))}
+            </>
+          ) : (
+            <>
               <DropdownMenu modal={false} open={featuresOpen} onOpenChange={setFeaturesOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -408,6 +430,36 @@ export function Header() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {navLinks.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => navigateToLandingSection(id === 'home' ? 'hero' : id)}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    isHeaderSolid ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950' : 'text-white/78 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              {pageLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isPageLinkActive(href) ? 'page' : undefined}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    isPageLinkActive(href)
+                      ? isHeaderSolid
+                        ? 'bg-[#f1e7df] text-slate-950'
+                        : 'bg-white/14 text-white'
+                      : isHeaderSolid
+                        ? 'text-slate-600 hover:bg-[#f4ede6]/55 hover:text-slate-950'
+                        : 'text-white/78 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </Link>
+              ))}
             </>
           )}
         </nav>
@@ -475,6 +527,16 @@ export function Header() {
               {isLandingPage ? (
                 <>
                   <div className="grid gap-2">
+                  <Link
+                    href={`/${locale}/features`}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-12 items-center gap-3 rounded-2xl bg-white px-3 text-left text-sm font-black text-slate-700 ring-1 ring-slate-950/[0.07] transition-colors hover:bg-slate-50"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950/[0.04] text-slate-500">
+                      <Sparkles className="h-4 w-4" />
+                    </span>
+                    <span>{t('features')}</span>
+                  </Link>
                   {navLinks.map(({ id, label }) => {
                     const targetId = id === 'home' ? 'hero' : id
                     const isActive = activeLandingSection === targetId
@@ -501,16 +563,16 @@ export function Header() {
                       </button>
                     )
                   })}
-                  <Link
-                    href={`/${locale}/features`}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex h-12 items-center gap-3 rounded-2xl bg-white px-3 text-left text-sm font-black text-slate-700 ring-1 ring-slate-950/[0.07] transition-colors hover:bg-slate-50"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950/[0.04] text-slate-500">
-                      <Sparkles className="h-4 w-4" />
-                    </span>
-                    <span>{t('features')}</span>
-                  </Link>
+                  {pageLinks.map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex h-12 items-center rounded-2xl bg-white px-4 text-left text-sm font-black text-slate-700 ring-1 ring-slate-950/[0.07] transition-colors hover:bg-slate-50"
+                    >
+                      {label}
+                    </Link>
+                  ))}
                   </div>
                   <div>
                     <p className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">{t('features')}</p>
@@ -534,6 +596,17 @@ export function Header() {
                 </>
               ) : (
                 <>
+                  <Link
+                    href={`/${locale}/features`}
+                    onClick={() => setMobileOpen(false)}
+                    className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
+                      isFeaturesPage
+                        ? 'bg-slate-950/[0.06] text-slate-950'
+                        : 'text-slate-800 hover:bg-slate-950/[0.04]'
+                    }`}
+                  >
+                    {t('features')}
+                  </Link>
                   {navLinks.map(({ id, label }) => (
                     <button
                       key={id}
@@ -547,17 +620,20 @@ export function Header() {
                       {label}
                     </button>
                   ))}
-                  <Link
-                    href={`/${locale}/features`}
-                    onClick={() => setMobileOpen(false)}
-                    className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
-                      isFeaturesPage
-                        ? 'bg-slate-950/[0.06] text-slate-950'
-                        : 'text-slate-800 hover:bg-slate-950/[0.04]'
-                    }`}
-                  >
-                    {t('features')}
-                  </Link>
+                  {pageLinks.map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`rounded-lg px-2 py-3 text-left text-lg font-semibold transition-colors ${
+                        isPageLinkActive(href)
+                          ? 'bg-slate-950/[0.06] text-slate-950'
+                          : 'text-slate-800 hover:bg-slate-950/[0.04]'
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  ))}
                   <div className="rounded-xl bg-slate-950/[0.03] p-2">
                     <p className="px-2 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('features')}</p>
                     <div className="grid gap-1">
