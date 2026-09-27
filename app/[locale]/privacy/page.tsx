@@ -37,7 +37,7 @@ export default function PrivacyPolicyPage() {
               <li><strong>Photos, documents, and other uploads:</strong> file names, file content, metadata, and the records that associate uploads with a lead, client, job, project, quote, invoice, or support ticket.</li>
               <li><strong>Voice and communications data:</strong> voice notes you choose to record, their transcripts, summaries, action items, call and SMS-related records, and email messages or metadata used to provide the communications features you enable.</li>
               <li><strong>Location data:</strong> when you grant the mobile app foreground location permission, the app may collect your approximate or precise current location only while you use the location-based lead/campaign feature to help fill a city, state, or ZIP code. We do not request background location access.</li>
-              <li><strong>Connected-account data:</strong> if you connect Google, Gmail, Google Calendar, or QuickBooks, the data and access tokens needed to provide the specific connection you authorize, such as email sending/replies, calendar availability and events, or accounting synchronization.</li>
+              <li><strong>Connected-account data:</strong> if you connect Google, Microsoft/Outlook, or QuickBooks, the data and access tokens needed to provide the specific connection you authorize, such as sending email, calendar availability and events, or accounting synchronization. The current Google and Microsoft connections do not request mailbox-reading permission.</li>
               <li><strong>Technical and usage data:</strong> device/browser information, IP address, authentication and security logs, app interactions, diagnostics, and essential cookies. Our public website also uses Google Analytics and TikTok Pixel on production web pages.</li>
               <li><strong>Billing data:</strong> subscription, customer, and transaction identifiers from Stripe. Card details are handled by Stripe, not stored by ContractorOps.</li>
             </ul>
@@ -57,6 +57,7 @@ export default function PrivacyPolicyPage() {
               <li>OpenAI and the configured transcription provider for AI, transcription, summaries, embeddings, translation, and related requested AI features;</li>
               <li>FAL for requested AI image-generation or image-editing features;</li>
               <li>Google for an optional Google, Gmail, or Google Calendar connection;</li>
+              <li>Microsoft Graph for an optional Outlook email and calendar connection;</li>
               <li>Intuit QuickBooks for an optional accounting connection;</li>
               <li>Twilio and related telephony providers for numbers, calls, and SMS features you enable;</li>
               <li>Stripe for subscriptions and payments; Mapbox for address and location search; and diagnostic, analytics, and marketing providers such as Google Analytics and TikTok for the website.</li>
@@ -66,7 +67,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="rounded-xl border border-border bg-muted/20 p-5">
             <h2>5. Google API Services and Limited Use</h2>
-            <p>Google integrations are optional. With your authorization, ContractorOps may access basic profile information, Gmail data needed to send business messages and display relevant replies, and Google Calendar availability or events needed for scheduling.</p>
+            <p>Google integrations are optional. With your authorization, ContractorOps may access basic profile information, Gmail sending, and Google Calendar availability or events needed for scheduling. Mailbox reading and reply display are not enabled.</p>
             <p>We use Google user data only to provide or improve the user-facing features you request. We do not use Google user data for advertising, sell it, or use it to train generalized AI or machine-learning models. Human access is limited to your consent, a requested support issue, security or abuse investigation, legal compliance, or aggregated/de-identified operational reporting.</p>
             <p>You can disconnect Google in Settings → Integrations, which revokes the connection and removes stored OAuth credentials, or revoke access at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account permissions</a>. ContractorOps&apos; use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
           </section>
