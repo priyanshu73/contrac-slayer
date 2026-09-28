@@ -24,6 +24,8 @@ import { AutoReplySettings } from "@/components/auto-reply-settings"
 import { TeamSettings } from "@/components/team-settings"
 import { FollowupsManager } from "@/components/followups-manager"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
+import { IntegrationProviderIcon } from "@/components/integration-provider-icon"
+import { IntegrationProviderSelector } from "@/components/integration-provider-selector"
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
@@ -166,6 +168,10 @@ export function SettingsTabs() {
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email: string | null } | null>(null)
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false)
   const [gmailDisconnectLoading, setGmailDisconnectLoading] = useState(false)
+  const [outlookStatus, setOutlookStatus] = useState<Awaited<ReturnType<typeof api.getOutlookStatus>> | null>(null)
+  const [outlookStatusLoading, setOutlookStatusLoading] = useState(false)
+  const [outlookDisconnectLoading, setOutlookDisconnectLoading] = useState(false)
+  const [providerSaving, setProviderSaving] = useState<'email' | 'calendar' | null>(null)
 
   // QuickBooks integration state
   const [qboStatus, setQboStatus] = useState<{ connected: boolean; company_name: string | null; auto_invoice: boolean; realm_id: string | null } | null>(null)
@@ -250,6 +256,17 @@ export function SettingsTabs() {
     }
   }
 
+  const loadOutlookStatus = async () => {
+    setOutlookStatusLoading(true)
+    try {
+      setOutlookStatus(await api.getOutlookStatus())
+    } catch {
+      setOutlookStatus(null)
+    } finally {
+      setOutlookStatusLoading(false)
+    }
+  }
+
   const loadQboStatus = async () => {
     setQboStatusLoading(true)
     try {
@@ -262,9 +279,24 @@ export function SettingsTabs() {
     }
   }
 
+  const changeIntegrationProvider = async (provider: 'google' | 'outlook', purpose: 'email' | 'calendar') => {
+    setProviderSaving(purpose)
+    setError("")
+    setSuccessMessage("")
+    try {
+      setOutlookStatus(await api.setPreferredAccountProvider(provider, purpose))
+      setSuccessMessage(`${purpose === 'email' ? 'Outbound email' : 'Calendar'} now uses ${provider === 'google' ? 'Google' : 'Outlook'}.`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not save account preference")
+    } finally {
+      setProviderSaving(null)
+    }
+  }
+
   useEffect(() => {
     if (activeSection === "integrations") {
       loadGmailStatus()
+      loadOutlookStatus()
       loadQboStatus()
     }
   }, [activeSection])
@@ -276,6 +308,7 @@ export function SettingsTabs() {
       setSuccessMessage("Gmail connected successfully. You can send emails from your Gmail.")
       setActiveSection("integrations")
       loadGmailStatus()
+      loadOutlookStatus()
       const t = setTimeout(() => setSuccessMessage(""), 4000)
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search)
@@ -308,6 +341,31 @@ export function SettingsTabs() {
       }
       return () => clearTimeout(t)
     }
+  }, [searchParams])
+
+  useEffect(() => {
+    const outlook = searchParams.get("outlook")
+    if (outlook !== "connected" && outlook !== "error") return
+    setActiveSection("integrations")
+    if (outlook === "connected") {
+      setSuccessMessage("Microsoft account connected. Email and calendar can now use it.")
+    } else {
+      setError("Microsoft account connection was denied or failed. Please try again.")
+    }
+    loadOutlookStatus()
+    loadGmailStatus()
+    const timer = setTimeout(() => {
+      setSuccessMessage("")
+      setError("")
+    }, 4000)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      params.delete("outlook")
+      params.delete("reason")
+      const qs = params.toString()
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
+    }
+    return () => clearTimeout(timer)
   }, [searchParams])
 
   // Show success/error from QBO OAuth callback (?quickbooks=connected or ?quickbooks=error)
@@ -1088,11 +1146,40 @@ export function SettingsTabs() {
                 {/* Integrations Section */}
                 {activeSection === "integrations" && (
               <div className="space-y-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900">Default accounts</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5">Choose your email and calendar accounts independently. Changes save automatically.</p>
+                  <div className="divide-y divide-slate-100">
+                    {([
+                      { purpose: 'email', title: 'Outbound email', detail: 'Quotes, invoices, proposals, and follow-ups.' },
+                      { purpose: 'calendar', title: 'Calendar', detail: 'Availability and new appointments.' },
+                    ] as const).map(({ purpose, title, detail }) => {
+                      const selected = outlookStatus?.[`${purpose}_provider`] ?? null
+                      const address = selected === 'google' ? gmailStatus?.email : selected === 'outlook' ? outlookStatus?.email : null
+                      return (
+                        <div key={purpose} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 first:pt-0 last:pb-0">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900">{title}</p>
+                            <p className="text-xs text-slate-500 mt-1">{detail}</p>
+                            <p className="text-xs text-slate-500 mt-1 break-all" aria-live="polite">
+                              {providerSaving === purpose ? 'Saving…' : gmailStatusLoading || outlookStatusLoading ? 'Checking accounts…' : address || 'Connect an account below to get started.'}
+                            </p>
+                          </div>
+                          <IntegrationProviderSelector label={`${title} account`} value={selected}
+                            googleConnected={!!outlookStatus?.google_connected} outlookConnected={!!outlookStatus?.connected}
+                            disabled={!!providerSaving || gmailStatusLoading || outlookStatusLoading || !outlookStatus}
+                            onChange={(provider) => changeIntegrationProvider(provider, purpose)} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-500 border-t border-slate-100 mt-5 pt-3">Existing appointments stay on the calendar where they were created. Only connected accounts can be selected.</p>
+                </div>
                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-4 sm:p-6">
                     <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Google Account</h3>
                     <p className="text-xs sm:text-sm text-slate-500 mb-4">
-                      Connect your Google Account to send emails (quotes, follow-ups) from your business address.
+                      Connect Google to send business email and sync your calendar.
                     </p>
 
                     {gmailStatusLoading ? (
@@ -1105,12 +1192,7 @@ export function SettingsTabs() {
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 p-1.5">
-                              <svg className="h-full w-full" viewBox="0 0 24 24" aria-label="Google">
-                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                              </svg>
+                              <IntegrationProviderIcon provider="google" className="h-full w-full" />
                             </div>
                             <div>
                               <p className="text-sm font-medium text-slate-900">
@@ -1137,6 +1219,7 @@ export function SettingsTabs() {
                                     await api.disconnectGmail()
                                     setSuccessMessage("Gmail disconnected.")
                                     await loadGmailStatus()
+                                    await loadOutlookStatus()
                                     setTimeout(() => setSuccessMessage(""), 3000)
                                   } catch (err: unknown) {
                                     setError(err instanceof Error ? err.message : "Failed to disconnect Google Account")
@@ -1182,6 +1265,67 @@ export function SettingsTabs() {
                             Disconnecting revokes access with Google and removes stored tokens. You can connect again anytime.
                           </p>
                         )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Microsoft Account Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Microsoft / Outlook Account</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mb-4">
+                      Connect Outlook to send business email and sync your calendar. Inbox access is not requested.
+                    </p>
+                    {outlookStatusLoading ? (
+                      <p className="text-sm text-slate-500">Checking connection…</p>
+                    ) : (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1.5">
+                              <IntegrationProviderIcon provider="outlook" className="h-full w-full" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">
+                                {outlookStatus?.connected ? "Connected" : "Not connected"}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {outlookStatus?.connected ? outlookStatus.email :
+                                  outlookStatus?.configured ? "Use a work, school, or personal Microsoft account." :
+                                  "Microsoft connection setup is pending."}
+                              </p>
+                            </div>
+                          </div>
+                          {outlookStatus?.connected ? (
+                            <Button type="button" variant="outline" size="sm"
+                              disabled={outlookDisconnectLoading}
+                              onClick={async () => {
+                                if (!confirm("Disconnect Microsoft account? Email and calendar will stop using it.")) return
+                                setOutlookDisconnectLoading(true)
+                                setError("")
+                                try {
+                                  await api.disconnectOutlook()
+                                  setSuccessMessage("Microsoft account disconnected.")
+                                  await loadOutlookStatus()
+                                } catch (err: unknown) {
+                                  setError(err instanceof Error ? err.message : "Could not disconnect Microsoft account")
+                                } finally {
+                                  setOutlookDisconnectLoading(false)
+                                }
+                              }}>
+                              <Unlink className="h-4 w-4 mr-2" />Disconnect
+                            </Button>
+                          ) : (
+                            <Button type="button" size="sm" disabled={!outlookStatus?.configured}
+                              onClick={() => {
+                                const returnUrl = `${window.location.origin}${window.location.pathname}`
+                                window.location.href = api.getOutlookAuthorizeUrl(returnUrl)
+                              }}>
+                              <Link2 className="h-4 w-4 mr-2" />Connect Microsoft Account
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

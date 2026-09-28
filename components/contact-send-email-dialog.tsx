@@ -141,7 +141,7 @@ export function ContactSendEmailDialog({
     setSubject(initialSubject)
     setBody(initialBody)
     setConnected(null)
-    api.getGmailStatus()
+    api.getMailStatus()
       .then((status) => setConnected(status.connected))
       .catch(() => setConnected(false))
   }, [initialBody, initialSubject, open, to])
@@ -170,7 +170,7 @@ export function ContactSendEmailDialog({
     if (!finalTo.length || !subject.trim() || !body.trim()) return
     setSending(true)
     try {
-      await api.gmailSend({
+      await api.sendMail({
         to: finalTo,
         cc: finalCc,
         bcc: finalBcc,
@@ -180,7 +180,7 @@ export function ContactSendEmailDialog({
       })
       toast({
         title: "Email sent",
-        description: `Sent to ${finalTo.length} recipient${finalTo.length === 1 ? "" : "s"} from your connected Google account.`,
+        description: `Sent to ${finalTo.length} recipient${finalTo.length === 1 ? "" : "s"} from your connected account.`,
       })
       onOpenChange(false)
       onSent?.()
@@ -219,7 +219,7 @@ export function ContactSendEmailDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Send email</DialogTitle>
-          <DialogDescription>Email is sent directly from your connected Google account.</DialogDescription>
+          <DialogDescription>Email is sent directly from your connected Google or Microsoft account.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -256,7 +256,7 @@ export function ContactSendEmailDialog({
           </div>
           {connected === false && (
             <p className="text-sm text-destructive">
-              Google is not connected. Connect it in Settings → Integrations before sending email.
+              Connect Google or Microsoft in Settings → Integrations before sending email.
             </p>
           )}
         </div>

@@ -1022,17 +1022,11 @@ export function ProposalBuilder({
 
   const handleSendToClient = async () => {
     try {
-      const gmail = await api.getGmailStatus()
-      if (!gmail.connected) {
+      const mail = await api.getMailStatus()
+      if (!mail.connected) {
         toast({
-          title: t("toast.gmailNotConnectedTitle"),
-          description: t.rich("toast.gmailNotConnectedDescription", {
-            link: (chunks) => (
-              <Link href={`/${locale}/settings`} className="underline font-medium">
-                {chunks}
-              </Link>
-            ),
-          }),
+          title: "Email account not connected",
+          description: <Link href={`/${locale}/settings?tab=integrations`} className="underline font-medium">Connect Google or Microsoft in Settings → Integrations.</Link>,
           variant: "destructive",
         })
         return

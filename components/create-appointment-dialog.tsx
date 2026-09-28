@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 import { AddClientForm, type CreatedClient } from "@/components/add-client-form"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
+import { virtualMeetingDetails, type CalendarProvider } from "@/lib/calendar-meeting"
 
 
 function PersonAddIcon({ className }: { className?: string }) {
@@ -101,8 +102,7 @@ function getInitials(name: string): string {
   return (name || "?").slice(0, 2).toUpperCase()
 }
 
-// Simplified: only Google Meet (virtual) or In-person
-type MeetingSpot = "google_meet" | "in_person"
+type MeetingSpot = "virtual" | "in_person"
 
 export type CreateAppointmentClient = { id: number; name: string; email: string; address?: string }
 
@@ -134,11 +134,37 @@ export function CreateAppointmentDialog({
   const [addClientPanelOpen, setAddClientPanelOpen] = useState(false)
   const [date, setDate] = useState<string>("")
   const [time, setTime] = useState<string>("")
-  const [meetingSpot, setMeetingSpot] = useState<MeetingSpot>("google_meet")
+  const [meetingSpot, setMeetingSpot] = useState<MeetingSpot>("virtual")
+  const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>(null)
+  const [calendarProviderLoading, setCalendarProviderLoading] = useState(true)
+  const [calendarProviderError, setCalendarProviderError] = useState(false)
+  const virtualMeeting = virtualMeetingDetails(calendarProvider)
   const [location, setLocation] = useState<string>("")
   const [creating, setCreating] = useState(false)
   const [slotTimeOptions, setSlotTimeOptions] = useState<Array<{ value: string; label: string }>>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+
+  // Refresh on every opening so changes in Settings are reflected immediately.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setCalendarProvider(null)
+    setCalendarProviderLoading(true)
+    setCalendarProviderError(false)
+    api.getOutlookStatus()
+      .then((status) => {
+        if (!cancelled) setCalendarProvider(status.calendar_provider)
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarProviderError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setCalendarProviderLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [open])
+
+  const calendarReady = !calendarProviderLoading && !calendarProviderError && calendarProvider !== null
 
   useEffect(() => {
     if (open && preSelectedClientId) {
@@ -199,12 +225,13 @@ export function CreateAppointmentDialog({
     if (meetingSpot === "in_person" && selectedClient?.address?.trim()) {
       setLocation(selectedClient.address.trim())
     }
-    if (meetingSpot === "google_meet") {
+    if (meetingSpot === "virtual") {
       setLocation("")
     }
   }, [meetingSpot, selectedClient?.id, selectedClient?.address])
 
   const onSubmit = useCallback(async () => {
+    if (!calendarReady) return
     const client = clients.find((c) => String(c.id) === clientId)
     if (!client?.email) {
       toast({ description: tCalendar("selectClient"), variant: "destructive" as any })
@@ -240,7 +267,7 @@ export function CreateAppointmentDialog({
     } finally {
       setCreating(false)
     }
-  }, [clientId, clients, date, location, meetingSpot, profile?.time_zone, time, tCalendar, onOpenChange, onSuccess, toast])
+  }, [calendarReady, clientId, clients, date, location, meetingSpot, profile?.time_zone, time, tCalendar, onOpenChange, onSuccess, toast])
 
   useEffect(() => {
     if (!open) return
@@ -435,7 +462,7 @@ export function CreateAppointmentDialog({
             </div>
           </div>
 
-          {/* Meeting Type — simplified to Google Meet or In-person */}
+          {/* Video provider follows the calendar choice, not the email choice. */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground block">
               {tCalendar("meetingType")}
@@ -443,14 +470,14 @@ export function CreateAppointmentDialog({
             <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl">
               {(
                 [
-                  { value: "google_meet", label: "Google Meet", Icon: Video },
+                  { value: "virtual", label: calendarProviderLoading ? "Loading calendar..." : virtualMeeting.label, Icon: Video },
                   { value: "in_person", label: "In-person", Icon: Building2 },
                 ] as const
               ).map(({ value, label, Icon }) => (
                 <button
                   key={value}
                   type="button"
-                  disabled={!hasCalendarLink}
+                  disabled={!hasCalendarLink || !calendarReady}
                   onClick={() => setMeetingSpot(value)}
                   aria-pressed={meetingSpot === value}
                   className={cn(
@@ -458,7 +485,7 @@ export function CreateAppointmentDialog({
                     meetingSpot === value
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground",
-                    !hasCalendarLink && "opacity-50 pointer-events-none"
+                    (!hasCalendarLink || !calendarReady) && "opacity-50 pointer-events-none"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -482,10 +509,14 @@ export function CreateAppointmentDialog({
               </div>
             )}
 
-            {/* Google Meet: informational note */}
-            {meetingSpot === "google_meet" && (
+            {calendarProviderError && (
+              <p role="alert" className="text-xs text-destructive">
+                Could not load your calendar choice. Close and reopen this dialog to retry.
+              </p>
+            )}
+            {meetingSpot === "virtual" && !calendarProviderLoading && !calendarProviderError && (
               <p className="text-xs text-muted-foreground animate-in fade-in duration-200">
-                A Google Meet link will be automatically generated and added to the calendar invite.
+                {virtualMeeting.note}
               </p>
             )}
           </div>
@@ -503,7 +534,7 @@ export function CreateAppointmentDialog({
             <Button
               className="w-full sm:min-w-[140px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               onClick={onSubmit}
-              disabled={creating || !hasCalendarLink}
+              disabled={creating || !hasCalendarLink || !calendarReady}
             >
               {creating ? "Saving..." : tCalendar("createAppointment")}
             </Button>

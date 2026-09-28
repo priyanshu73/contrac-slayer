@@ -787,7 +787,7 @@ export default function CalendarPage() {
       })
     }).catch(() => {})
 
-    api.getGmailStatus().then((res) => {
+    api.getMailStatus().then((res) => {
       setGoogleConnected(res.connected)
     }).catch(() => setGoogleConnected(false))
   }, [])
@@ -1620,9 +1620,9 @@ export default function CalendarPage() {
                 <Alert className="bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800">
                   <AlertCircleIcon className="text-indigo-600 dark:text-indigo-400" />
                   <AlertDescription className="flex items-center justify-between text-indigo-800 dark:text-indigo-200">
-                    <span>You must connect your Google Account to enable calendar features.</span>
+                    <span>Connect a Google or Microsoft account to sync calendar features.</span>
                     <Button variant="outline" size="sm" asChild className="ml-4 shrink-0 bg-white dark:bg-transparent">
-                      <a href="/settings?tab=integrations">Connect Google Account</a>
+                      <a href="/settings?tab=integrations">Connect account</a>
                     </Button>
                   </AlertDescription>
                 </Alert>

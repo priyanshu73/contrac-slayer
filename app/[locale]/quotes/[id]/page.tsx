@@ -220,11 +220,11 @@ export default function QuoteDetailPage() {
     }
   }
 
-  // Fetch Gmail status when contractor is viewing quote (enable/disable Send to client)
+  // Fetch selected mail-provider status before enabling Send to client.
   useEffect(() => {
     if (!job || isPublicView || !user?.is_contractor) return
     let cancelled = false
-    api.getGmailStatus().then((res) => {
+    api.getMailStatus().then((res) => {
       if (!cancelled) setGmailConnected(res.connected)
     }).catch(() => {
       if (!cancelled) setGmailConnected(false)
@@ -465,17 +465,17 @@ export default function QuoteDetailPage() {
         : `/${locale}/quotes/${quoteLink}`
       setPortalUrl(url)
 
-      const gmail = await api.getGmailStatus()
-      if (!gmail.connected) {
+      const mail = await api.getMailStatus()
+      if (!mail.connected) {
         toast({
-          title: "Gmail not connected",
+          title: "Email account not connected",
           description: (
             <>
-              Connect Gmail in{" "}
+              Connect Google or Microsoft in{" "}
               <Link href="/settings" className="underline font-medium">
                 Settings → Integrations
               </Link>{" "}
-              to send the quote from your inbox.
+              to send the quote from your connected account.
             </>
           ),
           variant: "destructive",
@@ -1174,7 +1174,7 @@ export default function QuoteDetailPage() {
                   Quote sent to {sentToEmail}
                 </DialogTitle>
                 <DialogDescription>
-                  Your client will receive the email from your Gmail with a secure View & Sign link.
+                  Your client will receive the email from your connected account with a secure View & Sign link.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 pt-6">
