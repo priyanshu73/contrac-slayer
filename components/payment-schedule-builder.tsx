@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, X, AlertTriangle, GripVertical, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { computeDraws, drawsOverContract } from "@/lib/draw-math"
 import type {
   PaymentScheduleLineInput,
   PaymentTriggerType,
@@ -98,30 +99,14 @@ export function matchPresetKey(lines: PaymentScheduleLineInput[]): string {
 }
 
 // ─── Draw math (industry-standard) ───────────────────────────────────────────
-// Each percentage draw is a share of the FULL contract total (so 30/40/30 sums
-// to 100%), and fixed draws bill their flat amount. `remainingAfter` is just the
-// contract total minus everything billed top-to-bottom, for the running display.
-// Mirror of the backend's `_compute_draw_amounts` so the preview matches what
-// the server stores.
-export interface DrawComputation {
-  amount: number
-  remainingAfter: number
-}
+// Lives in @/lib/draw-math and mirrors the backend's `compute_draw_amounts`:
+// independent cent-rounded shares, with the last unbilled draw of a
+// full-allocation schedule absorbing the rounding remainder, and billed draws
+// frozen at their invoice amounts. Re-exported here for existing importers.
+export { computeDraws, drawsOverContract, isFullAllocation } from "@/lib/draw-math"
+export type { DrawComputation } from "@/lib/draw-math"
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
-
-export function computeDraws(
-  lines: PaymentScheduleLineInput[],
-  total: number,
-): DrawComputation[] {
-  let remaining = total
-  return lines.map((line) => {
-    const value = line.amount_value || 0
-    const amount = round2(line.amount_type === "PERCENT" ? (total * value) / 100 : value)
-    remaining = round2(remaining - amount)
-    return { amount, remainingAfter: remaining }
-  })
-}
 
 // Shared column template for the header row and each draw row, so they line up:
 // handle · name · split · flexible gap · amount · trigger · remove.
@@ -186,7 +171,7 @@ export function PaymentScheduleBuilder({
   const computed = computeDraws(lines, total)
   const scheduledTotal = computed.reduce((s, c) => s + c.amount, 0)
   const scheduledPct = total > 0 ? Math.round((scheduledTotal / total) * 100) : 0
-  const overContract = scheduledTotal > total + 0.01
+  const overContract = drawsOverContract(lines, total)
 
   // How much of the contract is already locked up in billed draws, and how much
   // is still free to schedule. Drives the "remaining" budget shown to the user.
@@ -223,7 +208,8 @@ export function PaymentScheduleBuilder({
       {/* Rows */}
       <div className="space-y-1.5">
         {lines.map((line, idx) => {
-          const { amount, remainingAfter } = computed[idx]
+          const { amount, plannedAmount, remainingAfter } = computed[idx]
+          const roundingAdj = Math.round((amount - plannedAmount) * 100) / 100
           const trigger = normalizeTrigger(line.trigger_type)
 
           // ── Billed draw: read-only. Shown so the contractor sees the full
@@ -345,6 +331,12 @@ export function PaymentScheduleBuilder({
               {/* Computed amount + remaining balance */}
               <div className="flex flex-col items-end justify-center text-right">
                 <span className="text-sm font-semibold tabular-nums">{fmt(amount)}</span>
+                {roundingAdj !== 0 && (
+                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                    {roundingAdj > 0 ? "+" : "-"}
+                    {fmt(Math.abs(roundingAdj))} rounding
+                  </span>
+                )}
                 <span
                   className={cn(
                     "text-[11px] tabular-nums text-muted-foreground",

@@ -6,6 +6,7 @@ import { useLocale } from "next-intl"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { computeDraws, drawsOverContract } from "@/lib/draw-math"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
@@ -35,13 +36,6 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 /** Any active invoice, including a draft, reserves the draw and locks its amount. */
 const isBilled = (line: PaymentScheduleLine) =>
   line.state === "DRAFT" || line.state === "PAID" || line.state === "INVOICED"
-
-/** Dollar value of one draft row: a percentage is a share of the FULL contract
- * total (mirrors the backend), a fixed draw bills its flat amount. */
-function draftAmount(d: DraftDraw, contractTotal: number): number {
-  const v = d.amount_value || 0
-  return round2(d.amount_type === "PERCENT" ? (contractTotal * v) / 100 : v)
-}
 
 interface DraftDraw {
   id?: number
@@ -246,9 +240,18 @@ export function QuoteInvoicesSection({
 
   const removeDraft = (idx: number) => setDraft((d) => d.filter((_, i) => i !== idx))
 
-  const draftTotal = round2(draft.reduce((s, d) => s + draftAmount(d, contract_total), 0))
+  // Preview the prospective schedule exactly the way the backend will compute
+  // it: billed draws frozen at their invoice amounts, the last unbilled draw
+  // absorbing the rounding remainder when the plan allocates the whole
+  // contract. Strict integer-cent overage check — no one-cent loophole.
+  const previewLines: PaymentScheduleLineInput[] = [
+    ...billedLines.map((l) => ({ ...l, locked: true, lockedAmount: l.computed_amount })),
+    ...draft.map((d, i) => ({ ...d, order_index: billedLines.length + i })),
+  ]
+  const draftAmounts = computeDraws(previewLines, contract_total).slice(billedLines.length)
+  const draftTotal = round2(draftAmounts.reduce((s, c) => s + c.amount, 0))
   const remaining = round2(contract_total - billedTotal - draftTotal)
-  const overContract = billedTotal + draftTotal > contract_total + 0.01
+  const overContract = drawsOverContract(previewLines, contract_total)
 
   const handleSave = async () => {
     // Drop fully-empty rows (an untouched "Add draw"); the rest must be valid.
@@ -555,7 +558,7 @@ export function QuoteInvoicesSection({
                   {d.amount_type === "PERCENT" ? "%" : "$"}
                 </button>
                 <span className="w-24 shrink-0 text-right text-[13px] tabular-nums text-slate-400">
-                  {fmt(draftAmount(d, contract_total))}
+                  {fmt(draftAmounts[i]?.amount ?? 0)}
                 </span>
                 <button
                   onClick={() => removeDraft(i)}
