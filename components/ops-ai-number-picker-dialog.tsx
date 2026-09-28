@@ -192,7 +192,7 @@ export function OpsAiNumberPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[548px] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-0 text-slate-900 shadow-[0_22px_70px_rgba(11,35,59,0.25)] sm:max-w-[548px] gap-0 [&_[data-slot=dialog-close]]:top-6 [&_[data-slot=dialog-close]]:right-6 [&_[data-slot=dialog-close]]:text-slate-500">
+      <DialogContent className="ops-ai-number-picker max-w-[548px] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-0 text-slate-900 shadow-[0_22px_70px_rgba(11,35,59,0.25)] sm:max-w-[548px] gap-0 [&_[data-slot=dialog-close]]:top-6 [&_[data-slot=dialog-close]]:right-6 [&_[data-slot=dialog-close]]:text-slate-500">
         <DialogHeader className="flex-row items-start gap-3 px-5 pb-3 pt-6 pr-12 text-left sm:px-6 sm:pr-12">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600" aria-hidden="true">
             <Phone className="size-5" />
