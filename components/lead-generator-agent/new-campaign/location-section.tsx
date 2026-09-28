@@ -45,6 +45,7 @@ export function LocationSection({
           defaultValue={form.addressLabel}
           placeholder="Search an address or exact location"
           onAddressSelect={handleAddressSelect}
+          onInputChange={(text) => updateField("addressLabel", text)}
           className="space-y-0"
           inputClassName="h-11 rounded-2xl border-slate-200 text-[15px]"
         />
