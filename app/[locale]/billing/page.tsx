@@ -129,11 +129,13 @@ export default function BillingPage() {
                 <span className="text-4xl font-bold">$99</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t("monthlyIntroTerm")}</p>
               <div className="mt-2 flex items-center gap-2">
                 <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  Save $40/mo
+                  {t("monthlySavings")}
                 </span>
               </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t("monthlyAfterIntro")}</p>
             </div>
 
             <Button
@@ -174,17 +176,17 @@ export default function BillingPage() {
             </div>
 
             <div className="mb-6">
-              {/* Display only — keep in sync with Stripe STRIPE_YEARLY_PRICE_ID ($900/yr = $75/mo) */}
+              {/* Display the confirmed production offer, independent of sandbox prices. */}
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
                   $99
                 </span>
-                <span className="text-4xl font-bold">$75</span>
+                <span className="text-4xl font-bold">$85</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  Save $24/mo with annual
+                  {t("yearlySavings")}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-1.5">
