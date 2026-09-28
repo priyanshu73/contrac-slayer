@@ -1,8 +1,21 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import test from "node:test"
 import { createTranslator } from "next-intl"
 import { PRICING_FEATURE_KEYS, PRICING_OFFER } from "../lib/pricing-offer"
+
+test("sale effects exactly preserve Johnson's e36840e original CSS", () => {
+  const styles = readFileSync(new URL("../components/pricing-promo-styles.tsx", import.meta.url), "utf8")
+  const css = styles.match(/<style>\{`([\s\S]*?)`\}<\/style>/)?.[1]
+  assert.ok(css)
+  // SHA-256 of the original commit's complete style block, including reduced-motion fallback.
+  assert.equal(createHash("sha256").update(css).digest("hex"), "e6d31392ad92f3635a452d0ba72e62337b897f9a527b85af215349b6dfa7136b")
+  assert.match(css, /prefers-reduced-motion/)
+  assert.match(css, /promoPriceShine 5s/)
+  assert.match(css, /diagonalStrikeDraw 0\.7s/)
+  assert.match(css, /launchRibbonShift 4s/)
+})
 
 test("simple offer is $100 monthly or $900 annually with accurate savings", () => {
   assert.deepEqual(PRICING_OFFER, {
@@ -23,16 +36,21 @@ test("public pricing and billing share prices, features and sale styling without
     assert.match(page, /PRICING_OFFER\.yearlyMonthlyEquivalent/)
     assert.match(page, /PRICING_OFFER\.yearly/)
     assert.match(page, /PRICING_FEATURE_KEYS\.map/)
-    assert.match(page, /<PricingPromo \/>/)
+    assert.match(page, /<PricingPromo>/)
     assert.match(page, /PRICING_OFFER\.regularMonthly/)
-    assert.match(page, /line-through/)
+    assert.match(page, /diagonal-strike/)
+    assert.match(page, /strike-delay-1/)
+    assert.match(page, /strike-delay-2/)
+    assert.match(page, /shine-price/)
+    assert.doesNotMatch(page, /line-through/)
     assert.doesNotMatch(page, /monthlyIntroTerm|monthlyAfterIntro|yearlyExclusive|pricingPremium|pricingWebsite|features\.slice/)
   }
 })
 
 test("sale ribbon has localized trial/savings and a transparently resetting countdown", () => {
   const promo = readFileSync(new URL("../components/pricing-promo.tsx", import.meta.url), "utf8")
-  assert.match(promo, /prefers-reduced-motion/)
+  assert.match(promo, /<PricingPromoStyles \/>/)
+  assert.match(promo, /launch-ribbon/)
   assert.match(promo, /PRICING_OFFER\.yearlySavingsPercent/)
   assert.match(promo, /<PricingCountdown \/>/)
   const countdown = readFileSync(new URL("../components/pricing-countdown.tsx", import.meta.url), "utf8")

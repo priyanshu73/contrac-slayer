@@ -76,13 +76,14 @@ export default function BillingPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-24 md:pb-6">
       <main className="container mx-auto px-4 py-6 md:py-12">
         <div className="text-center mb-8 md:mb-12">
-          <PricingPromo />
-          <h1 className="hidden text-3xl md:block md:text-4xl font-bold mb-4">
-            {t("pageTitle")}
-          </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
-            {t("pageSubtitle")}
-          </p>
+          <PricingPromo>
+            <h1 className="hidden text-3xl md:block md:text-4xl font-bold mb-4">
+              {t("pageTitle")}
+            </h1>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
+              {t("pageSubtitle")}
+            </p>
+          </PricingPromo>
         </div>
 
         {error && (
@@ -103,8 +104,8 @@ export default function BillingPage() {
             <div className="mb-6">
               {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">${PRICING_OFFER.regularMonthly}</span>
-                <span className="text-4xl font-bold">${PRICING_OFFER.monthly}</span>
+                <span className="diagonal-strike strike-delay-1 text-2xl font-semibold text-muted-foreground">${PRICING_OFFER.regularMonthly}</span>
+                <span className="shine-price text-4xl font-bold">${PRICING_OFFER.monthly}</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <p className="mt-2 text-sm font-semibold">{t("launchSaleTerm")}</p>
@@ -154,8 +155,8 @@ export default function BillingPage() {
             <div className="mb-6">
               {/* Display the confirmed production offer, independent of sandbox prices. */}
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">${PRICING_OFFER.monthly}</span>
-                <span className="text-4xl font-bold">${PRICING_OFFER.yearlyMonthlyEquivalent}</span>
+                <span className="diagonal-strike strike-delay-2 text-2xl font-semibold text-muted-foreground">${PRICING_OFFER.monthly}</span>
+                <span className="shine-price text-4xl font-bold">${PRICING_OFFER.yearlyMonthlyEquivalent}</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <p className="mt-2 text-sm font-semibold">{t("launchSaleTerm")}</p>
