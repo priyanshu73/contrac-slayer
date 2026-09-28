@@ -455,6 +455,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [aiLoadingStage, setAiLoadingStage] = useState(0)
   const [aiLoadingProgress, setAiLoadingProgress] = useState(0)
   const [items, setItems] = useState<LineItem[]>([])
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<number, string>>({})
   const [descriptionEditorsOpen, setDescriptionEditorsOpen] = useState<number[]>([])
   const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
   const [assumptions, setAssumptions] = useState<string[]>([])
@@ -561,6 +562,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const [markupPercentage, setMarkupPercentage] = useState<number>(0) // Always start new quotes at 0%; user can change it later
   const [taxRate, setTaxRate] = useState<number>(8.25) // Default 8.25%, will be updated from profile
   const [laborChargeType, setLaborChargeType] = useState<LaborChargeType>(LaborChargeType.HOURLY) // Default to hourly
+  const [percentageDrafts, setPercentageDrafts] = useState<{ markup?: string; tax?: string; labor?: string }>({})
   const [laborRateValue, setLaborRateValue] = useState<number>(75) // Default $75, will be updated from profile
   const [laborUnitType, setLaborUnitType] = useState<UnitType | undefined>(undefined)
   const [loadingMarkup, setLoadingMarkup] = useState(!quoteId) // Only loading if not editing (no quoteId)
@@ -1681,6 +1683,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
+    setQuantityDrafts(prev => Object.fromEntries(
+      Object.entries(prev).flatMap(([key, value]) => {
+        const draftIndex = Number(key)
+        return draftIndex === index ? [] : [[draftIndex > index ? draftIndex - 1 : draftIndex, value]]
+      })
+    ))
     setDescriptionEditorsOpen((prev) =>
       prev
         .filter((i) => i !== index)
@@ -1717,6 +1725,45 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     }
     setShowSubstitute(false)
     setSubstituteItemIndex(null)
+  }
+
+  const updateQuantityDraft = (index: number, raw: string) => {
+    const value = sanitizeDecimalInput(raw)
+    setQuantityDrafts(prev => ({ ...prev, [index]: value }))
+    const parsed = Number(value)
+    if (value !== "." && Number.isFinite(parsed)) updateItem(index, "quantity", parsed)
+  }
+
+  const commitQuantity = (index: number) => {
+    const value = quantityDrafts[index]
+    if (value === undefined) return
+    const parsed = Number(value)
+    updateItem(index, "quantity", value !== "." && Number.isFinite(parsed) ? parsed : 0)
+    setQuantityDrafts(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+  }
+
+  const updatePercentageDraft = (field: "markup" | "tax" | "labor", raw: string) => {
+    const value = sanitizeDecimalInput(raw)
+    setPercentageDrafts(prev => ({ ...prev, [field]: value }))
+    if (!value || value === ".") return
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return
+    if (field === "markup") setMarkupPercentage(Math.min(100, parsed))
+    else if (field === "tax") setTaxRate(Math.min(100, parsed))
+    else setLaborRateValue(parsed)
+  }
+
+  const commitPercentageDraft = (field: "markup" | "tax" | "labor", raw: string) => {
+    const parsed = Number(raw)
+    const value = raw && raw !== "." && Number.isFinite(parsed) ? parsed : 0
+    if (field === "markup") setMarkupPercentage(Math.min(100, value))
+    else if (field === "tax") setTaxRate(Math.min(100, value))
+    else setLaborRateValue(value)
+    setPercentageDrafts(prev => ({ ...prev, [field]: undefined }))
   }
 
   const updateItem = (index: number, field: string, value: string | number) => {
@@ -2152,11 +2199,18 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             <MaterialSearchWidget
               zipCode={clientAddress ? extractZipCode(clientAddress) : undefined}
               onAddMaterial={(material) => {
+                // Reject malformed quantities instead of silently turning 0.5 into 1.
+                const quantityText = material.estimated_quantity.trim()
+                const quantity = Number(quantityText)
+                if (!/^\d+(?:\.\d{1,2})?$/.test(quantityText) || !Number.isFinite(quantity) || quantity <= 0) {
+                  toast({ title: "Invalid material quantity", description: `${material.name || "Material"} has an invalid quantity.`, variant: "destructive" })
+                  return
+                }
                 // Add material as new line item with image data and search results
                 const materialRate = parseFloat(material.estimated_cost) || 0
                 setItems([...items, {
                   description: material.name,
-                  quantity: parseInt(material.estimated_quantity) || 1,
+                  quantity,
                   rate: Math.round(materialRate * 100) / 100, // Round to 2 decimal places
                   imageUrl: material.image_url, // Use actual image URL from API
                   thumbnailUrl: material.thumbnail_url, // Use actual thumbnail URL from API
@@ -2675,13 +2729,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                         </Label>
                         <Input
                           id={`item-qty-${index}`}
-                          type="number"
-                          min="0"
-                          value={item.quantity === 0 ? "" : item.quantity.toString()}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                          }}
+                          type="text"
+                          inputMode="decimal"
+                          value={quantityDrafts[index] ?? (item.quantity === 0 ? "" : item.quantity.toString())}
+                          onChange={(e) => updateQuantityDraft(index, e.target.value)}
+                          onBlur={() => commitQuantity(index)}
                           placeholder="0"
                           className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                         />
@@ -2842,13 +2894,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     <div>
                       <Input
                         id={`item-qty-${index}`}
-                        type="number"
-                        min="0"
-                        value={item.quantity === 0 ? "" : item.quantity.toString()}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          updateItem(index, "quantity", val === "" ? 0 : Number.parseInt(val) || 0)
-                        }}
+                        type="text"
+                        inputMode="decimal"
+                        value={quantityDrafts[index] ?? (item.quantity === 0 ? "" : item.quantity.toString())}
+                        onChange={(e) => updateQuantityDraft(index, e.target.value)}
+                        onBlur={() => commitQuantity(index)}
                         placeholder="0"
                         className={cn(quoteInputSurfaceClass, "h-9 text-center text-sm")}
                       />
@@ -2918,35 +2968,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <div className="flex items-center gap-2">
                   <Input
                     id="markup-percentage"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     min="0"
                     max="100"
                     step="0.1"
-                    value={markupPercentage === 0 ? "0" : markupPercentage.toString()}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === "" || val === "-") {
-                        setMarkupPercentage(0)
-                      } else {
-                        const num = parseFloat(val)
-                        if (!isNaN(num)) {
-                          setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                        }
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const val = e.target.value
-                      if (val === "" || val === "-") {
-                        setMarkupPercentage(0)
-                      } else {
-                        const num = parseFloat(val)
-                        if (!isNaN(num)) {
-                          setMarkupPercentage(Math.max(0, Math.min(100, num)))
-                        } else {
-                          setMarkupPercentage(0)
-                        }
-                      }
-                    }}
+                    value={percentageDrafts.markup ?? markupPercentage.toString()}
+                    onChange={(e) => updatePercentageDraft("markup", e.target.value)}
+                    onBlur={(e) => commitPercentageDraft("markup", e.target.value)}
                     placeholder="0"
                     className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
@@ -2970,35 +2999,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <div className="flex items-center gap-2">
                   <Input
                     id="tax-rate"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     min="0"
                     max="100"
                     step="0.01"
-                    value={taxRate === 0 ? "0" : taxRate.toString()}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === "" || val === "-") {
-                        setTaxRate(0)
-                      } else {
-                        const num = parseFloat(val)
-                        if (!isNaN(num)) {
-                          setTaxRate(Math.max(0, Math.min(100, num)))
-                        }
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const val = e.target.value
-                      if (val === "" || val === "-") {
-                        setTaxRate(0)
-                      } else {
-                        const num = parseFloat(val)
-                        if (!isNaN(num)) {
-                          setTaxRate(Math.max(0, Math.min(100, num)))
-                        } else {
-                          setTaxRate(0)
-                        }
-                      }
-                    }}
+                    value={percentageDrafts.tax ?? taxRate.toString()}
+                    onChange={(e) => updatePercentageDraft("tax", e.target.value)}
+                    onBlur={(e) => commitPercentageDraft("tax", e.target.value)}
                     placeholder="0.00"
                     className={cn(quoteInputSurfaceClass, "w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                     disabled={loadingMarkup}
@@ -3423,19 +3431,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
                       <Input
                         id="labor-rate-ai-desktop"
-                        type="number"
+                        type="text"
+                    inputMode="decimal"
                         min="0"
                         step="0.01"
-                        value={laborRateValue === 0 ? "" : laborRateValue}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          if (val === "") {
-                            setLaborRateValue(0)
-                          } else {
-                            const num = parseFloat(val) || 0
-                            setLaborRateValue(Math.max(0, num))
-                          }
-                        }}
+                        value={percentageDrafts.labor ?? (laborRateValue === 0 ? "" : laborRateValue.toString())}
+                        onChange={(e) => updatePercentageDraft("labor", e.target.value)}
+                        onBlur={(e) => commitPercentageDraft("labor", e.target.value)}
                         placeholder="75"
                         className="bg-background pl-7"
                         disabled={loadingMarkup}
