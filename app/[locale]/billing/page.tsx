@@ -7,33 +7,18 @@ import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Check, Sparkles, Zap, Shield, Clock, Star } from "lucide-react"
-import { PricingCountdown } from "@/components/pricing-countdown"
+import { Check, Sparkles, Zap, Shield, Clock } from "lucide-react"
+import { PRICING_FEATURE_KEYS, PRICING_OFFER } from "@/lib/pricing-offer"
 
 export default function BillingPage() {
   const locale = useLocale()
   const router = useRouter()
   const t = useTranslations("billing")
-  const tLanding = useTranslations("landing")
   const { user, loading } = useAuth()
   const [isLoading, setIsLoading] = useState<"monthly" | "yearly" | null>(null)
   const [error, setError] = useState("")
 
-  const includedInBoth = [
-    tLanding("pricingBasic1"),
-    tLanding("pricingBasic2"),
-    tLanding("pricingBasic3"),
-    tLanding("pricingBasic4"),
-    tLanding("pricingBasic5"),
-    tLanding("pricingWebsite"),
-  ]
-
-  const yearlyExclusive = [
-    tLanding("pricingPremium6"),
-    tLanding("pricingPremium7"),
-    tLanding("pricingPremium8"),
-    tLanding("pricingPremium9"),
-  ]
+  const includedInBoth = PRICING_FEATURE_KEYS.map((key) => t(`features.${key}`))
 
   useEffect(() => {
     if (!loading && user?.has_access) {
@@ -100,9 +85,6 @@ export default function BillingPage() {
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
             {t("pageSubtitle")}
           </p>
-          <div className="flex justify-center">
-            <PricingCountdown />
-          </div>
         </div>
 
         {error && (
@@ -123,19 +105,10 @@ export default function BillingPage() {
             <div className="mb-6">
               {/* Display only — keep in sync with Stripe STRIPE_MONTHLY_PRICE_ID */}
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
-                  $139
-                </span>
-                <span className="text-4xl font-bold">$99</span>
+                <span className="text-4xl font-bold">${PRICING_OFFER.monthly}</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t("monthlyIntroTerm")}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  {t("monthlySavings")}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t("monthlyAfterIntro")}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t("monthlyBillingNote")}</p>
             </div>
 
             <Button
@@ -178,20 +151,16 @@ export default function BillingPage() {
             <div className="mb-6">
               {/* Display the confirmed production offer, independent of sandbox prices. */}
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
-                  $99
-                </span>
-                <span className="text-4xl font-bold">$85</span>
+                <span className="text-4xl font-bold">${PRICING_OFFER.yearlyMonthlyEquivalent}</span>
                 <span className="text-muted-foreground">{t("perMonth")}</span>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  {t("yearlySavings")}
+                  {t("yearlySavings", { amount: PRICING_OFFER.yearlySavings, percent: PRICING_OFFER.yearlySavingsPercent })}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-1.5">
-                {t("billedAnnually")}{" "}
-                <span className="line-through text-xs text-muted-foreground">($1,188/yr)</span>
+                {t("billedAnnually", { amount: PRICING_OFFER.yearly })}
               </p>
             </div>
 
@@ -217,15 +186,6 @@ export default function BillingPage() {
                   {t("includedInBoth")}
                 </p>
                 <FeatureList items={includedInBoth} />
-              </div>
-              <div className="rounded-lg bg-emerald-50/80 border border-emerald-100 px-4 py-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Star className="h-3 w-3 text-emerald-700" strokeWidth={2.5} />
-                  <p className="text-[10px] font-semibold tracking-wide text-emerald-800 uppercase">
-                    {t("yearlyExclusive")}
-                  </p>
-                </div>
-                <FeatureList items={yearlyExclusive} checkClass="text-emerald-700" />
               </div>
             </div>
           </Card>
