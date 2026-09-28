@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { formatPhoneForDisplay, cn } from "@/lib/utils"
+import { formatPhoneForDisplay, formatCalendarDate, cn } from "@/lib/utils"
 import { useLocale } from "next-intl"
 import Link from "next/link"
 import Image from "next/image"
@@ -256,11 +256,9 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "—"
-    const d = new Date(dateStr)
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
+  // Date-only SQL dates (issue/due) render as their exact calendar day;
+  // timestamps (payments) keep the instant path inside formatCalendarDate.
+  const formatDate = (dateStr: string | null) => formatCalendarDate(dateStr)
 
   if (loading) {
     return (
@@ -420,7 +418,10 @@ export function InvoiceDetail({ invoiceId, publicLink }: { invoiceId?: string; p
                   : `#${invoice.invoice_number}`}
               </p>
               <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                <span className="font-medium">Issued:</span> {formatDate(invoice.issue_date)}
+                <span className="font-medium">
+                  {invoice.status?.toUpperCase() === "DRAFT" ? "Invoice date:" : "Issued:"}
+                </span>{" "}
+                {formatDate(invoice.issue_date)}
               </p>
               <p className="text-xs sm:text-sm print:text-xs text-gray-600">
                 <span className="font-medium">Due:</span> {formatDate(invoice.due_date)}

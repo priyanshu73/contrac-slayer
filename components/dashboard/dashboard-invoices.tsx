@@ -8,7 +8,7 @@ import { ChevronRight, FileText, Receipt } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { cn, parseCalendarDate, formatCalendarDate } from "@/lib/utils"
 import type { Invoice } from "@/lib/types"
 
 const currency = (n: number) =>
@@ -23,8 +23,10 @@ function isOverdue(inv: Invoice): boolean {
   if ((inv.balance_due ?? 0) <= 0) return false
   if (inv.status === "OVERDUE") return true
   if (!inv.due_date) return false
-  const due = new Date(inv.due_date)
-  if (Number.isNaN(due.getTime())) return false
+  // due_date is a date-only SQL value: compare against the end of that
+  // calendar day, not midnight UTC (which ends a day early in the Americas).
+  const due = parseCalendarDate(inv.due_date)
+  if (!due) return false
   due.setHours(23, 59, 59, 999)
   return due.getTime() < Date.now()
 }
@@ -33,10 +35,7 @@ function dueLabel(inv: Invoice): { text: string; overdue: boolean } | null {
   // Overdue invoices still call out the past-due date; everything else just
   // shows when it was created so the card reads as a recent-activity feed.
   if (isOverdue(inv) && inv.due_date) {
-    const due = new Date(inv.due_date)
-    if (!Number.isNaN(due.getTime())) {
-      return { text: `Overdue · ${due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`, overdue: true }
-    }
+    return { text: `Overdue · ${formatCalendarDate(inv.due_date, { month: "short", day: "numeric" })}`, overdue: true }
   }
   const created = inv.created_at ? new Date(inv.created_at) : null
   if (!created || Number.isNaN(created.getTime())) return null
