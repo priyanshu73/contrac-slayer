@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { api } from "@/lib/api"
+import { formatCalendarDate } from "@/lib/utils"
 import { Receipt, Search, ChevronDown, ChevronRight } from "lucide-react"
 
 interface ClientInfo {
@@ -90,14 +91,8 @@ function formatStatusLabel(status: string): string {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "—"
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })
-}
+// Date-only SQL dates (issue/due) render as their exact calendar day.
+const formatDate = (dateStr: string | null) => formatCalendarDate(dateStr)
 
 export default function InvoicesPage() {
   const router = useRouter()
@@ -406,7 +401,7 @@ export default function InvoicesPage() {
                         {invoice.client_phone && <span>{invoice.client_phone}</span>}
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:mt-0 md:flex md:flex-wrap md:gap-x-4 md:gap-y-0 md:pt-0.5">
-                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">Issued {formatDate(invoice.issue_date)}</span>
+                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">{String(invoice.status).toUpperCase() === "DRAFT" ? "Invoice date" : "Issued"} {formatDate(invoice.issue_date)}</span>
                         <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">Due {formatDate(invoice.due_date)}</span>
                         {invoice.balance_due > 0 && invoice.balance_due < invoice.total_amount && (
                           <span className="col-span-2 rounded-lg bg-amber-50 px-2 py-1 font-medium text-amber-700 md:bg-transparent md:p-0 md:text-amber-600">
