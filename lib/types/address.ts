@@ -28,6 +28,7 @@ export interface MapboxFeature {
   type: string;
   place_type: string[];
   relevance?: number;
+  address?: string;
   properties: {
     mapbox_id?: string;
     feature_type?: string;
@@ -76,7 +77,11 @@ export function mapboxFeatureToAddressData(
   let state = '';
   let zip = '';
   let country = '';
-  let street_line = feature.text || ''; // Main address text
+  const street = feature.text?.trim() || '';
+  const houseNumber = feature.address?.trim() || '';
+  const street_line = houseNumber && street && !street.startsWith(`${houseNumber} `)
+    ? `${houseNumber} ${street}`
+    : street || houseNumber;
   
   // Parse context array for address components
   context.forEach((item) => {
