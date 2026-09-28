@@ -466,6 +466,7 @@ export default function PublicBookPage() {
                         <MapboxAddressInput label="Your address" placeholder="123 Main St, City, State" id="location"
                           defaultValue={location}
                           onAddressSelect={(d: AddressData | null) => setLocation(d?.formatted_address ?? "")}
+                          onInputChange={(text: string) => setLocation(text)}
                           className="[&_input]:rounded-xl [&_input]:border-gray-200 [&_label]:text-xs [&_label]:font-medium [&_label]:text-gray-500 [&_label]:uppercase [&_label]:tracking-wide" />
                       </div>
                     )}

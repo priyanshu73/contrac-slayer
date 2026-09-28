@@ -11,6 +11,7 @@ interface MapboxAddressInputProps {
   required?: boolean;
   defaultValue?: string;
   onAddressSelect: (addressData: AddressData | null) => void;
+  onInputChange?: (value: string) => void;
   error?: string;
   id?: string;
   className?: string;
@@ -31,6 +32,7 @@ export function MapboxAddressInput({
   required = false,
   defaultValue = '',
   onAddressSelect,
+  onInputChange,
   error,
   id = 'address-input',
   className = '',
@@ -112,6 +114,10 @@ export function MapboxAddressInput({
     setInputValue(value);
     setSelectedIndex(-1);
     onAddressSelect(null);
+    // Report the raw typed text too, so free-text (no suggestion picked) still
+    // reaches the parent form state. Runs after onAddressSelect(null) so
+    // consumers that clear state on null end up with the typed text.
+    onInputChange?.(value);
 
     // Clear previous timer
     if (debounceTimer.current) {

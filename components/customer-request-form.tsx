@@ -15,6 +15,7 @@ import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { AddressData } from "@/lib/types/address"
+import { geocodeAddress } from "@/lib/mapbox"
 import { callSummaryToDescription } from "@/lib/call-summary"
 
 interface PrefillData {
@@ -93,9 +94,15 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
 
     try {
       const { api } = await import("@/lib/api")
+      // Address typed without picking a suggestion? Try to normalize it to a
+      // real Mapbox address so it still lands as structured address data.
+      let resolvedAddressData = addressData
+      if (!resolvedAddressData && formData.address.trim()) {
+        resolvedAddressData = await geocodeAddress(formData.address)
+      }
       const submissionData = {
         ...formData,
-        ...(addressData && { address_data: addressData })
+        ...(resolvedAddressData && { address_data: resolvedAddressData })
       }
       await api.submitQuoteRequest(contractorUuid || "", submissionData, uploadedFiles, measurements)
       setIsSubmitted(true)
@@ -359,6 +366,9 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                     setFormData({ ...formData, address: data.formatted_address || "" })
                   }
                 }}
+                onInputChange={(text) =>
+                  setFormData((prev) => ({ ...prev, address: text }))
+                }
                 defaultValue={formData.address}
                 className="space-y-2"
               />

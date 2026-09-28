@@ -220,6 +220,7 @@ export default function AvailabilityPortalPage() {
                             placeholder="Start typing an address..."
                             defaultValue={address}
                             onAddressSelect={handleAddressSelect}
+                            onInputChange={(text) => setAddress(text)}
                         />
                     )}
                 </div>

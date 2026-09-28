@@ -27,6 +27,7 @@ export interface MapboxFeature {
   id: string;
   type: string;
   place_type: string[];
+  relevance?: number;
   properties: {
     mapbox_id?: string;
     feature_type?: string;
