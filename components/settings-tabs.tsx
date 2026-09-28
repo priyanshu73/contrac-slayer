@@ -835,6 +835,9 @@ export function SettingsTabs() {
                                     }))
                                   }
                                 }}
+                                onInputChange={(text) =>
+                                  setFormData((prev) => ({ ...prev, address: text }))
+                                }
                                 id="address"
                                 className="[&_input]:h-10 [&_input]:border-slate-200"
                               />
