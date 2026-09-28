@@ -1150,9 +1150,9 @@ export type PaymentTriggerType = "ON_ACCEPTANCE" | "ON_PHASE" | "ON_DATE" | "ON_
 export type PaymentAmountType = "PERCENT" | "FIXED"
 /** Derived (read-only) on the API: "SCHEDULED" when the job has draws, else "LUMP_SUM". */
 export type JobBillingMode = "LUMP_SUM" | "SCHEDULED"
-/** Derived per-draw state: scheduled for later → due now → billed → paid.
+/** Derived per-draw state: scheduled for later → due now → draft → issued → paid.
  * Nothing is ever locked — SCHEDULED draws are still billable on demand. */
-export type PaymentDrawState = "SCHEDULED" | "READY" | "INVOICED" | "PAID"
+export type PaymentDrawState = "SCHEDULED" | "READY" | "DRAFT" | "INVOICED" | "PAID"
 
 /** A draw as authored in the quote builder (the plan). */
 export interface PaymentScheduleLineInput {
@@ -1190,7 +1190,7 @@ export interface PaymentSchedule {
   billing_mode: JobBillingMode
   contract_total: number
   scheduled_total: number
-  summary: { billed: number; paid: number; outstanding: number }
+  summary: { draft?: number; issued?: number; billed: number; paid: number; outstanding: number }
   lines: PaymentScheduleLine[]
 }
 
@@ -1611,6 +1611,8 @@ export interface ProjectFinancialSummary {
   total_cost_items: number
   total_materials: number
   total_invoiced: number
+  /** Generated invoice documents that have not been issued/sent. */
+  total_draft_invoices?: number
   /** Sum of payments logged in the Payments Received sidebar */
   payments_logged_total?: number
   /** Sum of amount paid on linked QuickBooks invoices (0 if not connected or on error) */
@@ -1728,8 +1730,12 @@ export interface ProjectScopeBilling {
   reconciliation: {
     contract_total: number
     scheduled_total: number
+    draft_total?: number
+    issued_total?: number
     invoiced_total: number
     collected_total: number
+    remaining_to_issue?: number
+    unprepared_total?: number
     uninvoiced_remaining: number
     unbilled_in_schedule: number
   }

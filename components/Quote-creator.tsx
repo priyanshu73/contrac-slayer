@@ -860,9 +860,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         if (cancelled) return
         setScheduleLines(
           sched.lines.map((l) => {
-            // A draw that's been billed (has an invoice) is locked: the contractor
-            // can no longer change it, only schedule the remaining contract amount.
-            const locked = l.state === "PAID" || l.state === "INVOICED"
+            // Any active invoice, including a draft, reserves and locks the draw.
+            const locked = l.state === "DRAFT" || l.state === "PAID" || l.state === "INVOICED"
             return {
               id: l.id,
               label: l.label,

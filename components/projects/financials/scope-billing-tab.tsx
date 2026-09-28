@@ -25,6 +25,7 @@ interface ScopeBillingTabProps {
 const DRAW_STATE_STYLES: Record<string, string> = {
   PAID: 'bg-status-active/15 text-status-active border-status-active/30',
   INVOICED: 'bg-status-pending/15 text-status-pending border-status-pending/30',
+  DRAFT: 'bg-muted text-muted-foreground border-border',
   READY: 'bg-primary/15 text-primary border-primary/20',
   SCHEDULED: 'bg-muted text-muted-foreground border-border',
 }
@@ -40,16 +41,17 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
 
 const pct = (n: number) => `${Math.round(n)}%`
 
-/** A two-segment progress bar: collected/paid (green) then invoiced-but-not-yet-
- * collected (amber), over a muted "remaining" track. */
-function BillingBar({ paid, billed, total, className }: { paid: number; billed: number; total: number; className?: string }) {
+/** Contract progress: collected, issued-but-unpaid, then generated drafts. */
+function BillingBar({ paid, billed, draft = 0, total, className }: { paid: number; billed: number; draft?: number; total: number; className?: string }) {
   const denom = total > 0 ? total : 1
   const paidPct = Math.max(0, Math.min(100, (paid / denom) * 100))
   const billedExtraPct = Math.max(0, Math.min(100 - paidPct, ((billed - paid) / denom) * 100))
+  const draftPct = Math.max(0, Math.min(100 - paidPct - billedExtraPct, (draft / denom) * 100))
   return (
     <div className={`flex w-full overflow-hidden rounded-full bg-muted ${className ?? 'h-2'}`}>
       <div className="bg-status-active transition-all duration-500" style={{ width: `${paidPct}%` }} />
       <div className="bg-status-pending transition-all duration-500" style={{ width: `${billedExtraPct}%` }} />
+      <div className="bg-muted-foreground/35 transition-all duration-500" style={{ width: `${draftPct}%` }} />
     </div>
   )
 }
@@ -85,21 +87,21 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
     load()
   }, [load])
 
-  // Bill a single draw in place: create its invoice, then silently refresh so the
-  // row flips to INVOICED and the invoices list picks it up — no page reload, no
+  // Create a draft invoice in place, then silently refresh so the row is reserved
+  // as DRAFT and the invoices list picks it up — no page reload, no
   // trip out to the quote.
   const handleBillDraw = async (jobId: number, line: { id: number; label: string; computed_amount: number }) => {
     setBillingId(line.id)
     try {
       const invoice = await api.billDraw(jobId, line.id)
       toast({
-        title: 'Draw billed',
-        description: `${line.label} — invoice ${invoice?.invoice_number ?? ''} for ${formatCurrency(line.computed_amount)}.`,
+        title: 'Invoice draft created',
+        description: `${line.label} — draft ${invoice?.invoice_number ?? ''} for ${formatCurrency(line.computed_amount)}. Review and send it to issue the invoice.`,
       })
       await load(false)
     } catch (err: any) {
       toast({
-        title: "Couldn't bill this draw",
+        title: "Couldn't create this invoice draft",
         description: err?.message || 'Please try again.',
         variant: 'destructive',
       })
@@ -133,7 +135,8 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
 
   // Headline figures + progress.
   const contractTotal = reconciliation.contract_total
-  const invoicedTotal = reconciliation.invoiced_total
+  const invoicedTotal = reconciliation.issued_total ?? reconciliation.invoiced_total
+  const draftTotal = reconciliation.draft_total ?? 0
   const collectedTotal = reconciliation.collected_total
   const overInvoiced = reconciliation.uninvoiced_remaining < -0.01
   const denom = contractTotal > 0 ? contractTotal : 1
@@ -142,9 +145,10 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
 
   // Section subtotals (placed in each section's header).
   const scopeTotal = quotes.reduce((s, q) => s + q.grand_total, 0)
-  const invTotal = invoices.reduce((s, i) => s + i.total_amount, 0)
-  const invPaid = invoices.reduce((s, i) => s + i.amount_paid, 0)
-  const invBalance = invoices.reduce((s, i) => s + i.balance_due, 0)
+  const issuedStatuses = new Set(['SENT', 'PENDING', 'PARTIALLY_PAID', 'OVERDUE', 'PAID'])
+  const invTotal = invoices.filter((i) => issuedStatuses.has(i.status ?? '')).reduce((s, i) => s + i.total_amount, 0)
+  const invPaid = invoices.filter((i) => issuedStatuses.has(i.status ?? '')).reduce((s, i) => s + i.amount_paid, 0)
+  const invBalance = invoices.filter((i) => issuedStatuses.has(i.status ?? '')).reduce((s, i) => s + i.balance_due, 0)
 
   // Keep the lists clean: every quote/plan starts collapsed; the user expands
   // the ones they care about.
@@ -152,7 +156,8 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
   const defaultOpenPlan: string[] = []
 
   const stats: { label: string; value: string; accent: string }[] = [
-    { label: 'Invoiced', value: formatCurrency(invoicedTotal), accent: 'text-status-pending' },
+    { label: 'Issued', value: formatCurrency(invoicedTotal), accent: 'text-status-pending' },
+    { label: 'Drafts', value: formatCurrency(draftTotal), accent: 'text-muted-foreground' },
     { label: 'Collected', value: formatCurrency(collectedTotal), accent: 'text-status-active' },
     overInvoiced
       ? { label: 'Over-invoiced', value: formatCurrency(Math.abs(reconciliation.uninvoiced_remaining)), accent: 'text-destructive' }
@@ -198,26 +203,29 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             </div>
           </div>
 
-          {/* Progress: collected (green) + invoiced-not-collected (amber) of contract */}
+          {/* Progress: collected + issued/unpaid + generated drafts. */}
           <div className="space-y-1.5">
-            <BillingBar paid={collectedTotal} billed={invoicedTotal} total={contractTotal} className="h-2.5" />
+            <BillingBar paid={collectedTotal} billed={invoicedTotal} draft={draftTotal} total={contractTotal} className="h-2.5" />
             <div className="flex flex-wrap justify-between gap-x-4 text-[11px] font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-status-active" /> {pct(collectedPct)} collected
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-status-pending" /> {pct(invoicedPct)} invoiced
+                  <span className="h-2 w-2 rounded-full bg-status-pending" /> {pct(invoicedPct)} issued
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/35" /> {formatCurrency(draftTotal)} drafts
                 </span>
               </span>
               {!overInvoiced && (
-                <span className="tabular-nums">{formatCurrency(reconciliation.uninvoiced_remaining)} left to invoice</span>
+                <span className="tabular-nums">{formatCurrency(reconciliation.remaining_to_issue ?? reconciliation.uninvoiced_remaining)} left to issue</span>
               )}
             </div>
           </div>
 
           {/* The remaining figures, as a clean responsive grid of chips */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {stats.map((s) => (
               <div key={s.label} className="rounded-lg border bg-card px-3 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -241,7 +249,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
-                Invoiced <strong>{formatCurrency(Math.abs(reconciliation.uninvoiced_remaining))}</strong> more than the
+                Issued <strong>{formatCurrency(Math.abs(reconciliation.uninvoiced_remaining))}</strong> more than the
                 contract total. Check the Invoices list for stray or duplicate invoices.
               </span>
             </div>
@@ -381,14 +389,14 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                                 className="h-7"
                                 onClick={() => openTab(`/quotes/${sch.job_id}`)}
                               >
-                                Bill <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                                Create draft <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
                         ) : (
                           sch.lines.map((line) => {
-                            const billed = line.state === 'PAID' || line.state === 'INVOICED'
-                            const billable = !billed && (line.state === 'READY' || line.state === 'SCHEDULED')
+                            const hasInvoice = Boolean(line.invoice_id) || line.state === 'DRAFT' || line.state === 'PAID' || line.state === 'INVOICED'
+                            const billable = !hasInvoice && (line.state === 'READY' || line.state === 'SCHEDULED')
                             return (
                               <div key={line.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -417,7 +425,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                                       disabled={billingId !== null}
                                       onClick={() => handleBillDraw(sch.job_id, line)}
                                     >
-                                      {billingId === line.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Bill'}
+                                      {billingId === line.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Create draft'}
                                     </Button>
                                   )}
                                 </div>
@@ -427,7 +435,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         )}
                         {/* Per-quote billed/paid progress */}
                         <div className="pt-1.5">
-                          <BillingBar paid={sch.summary.paid} billed={sch.summary.billed} total={sch.contract_total} className="h-1.5" />
+                          <BillingBar paid={sch.summary.paid} billed={sch.summary.issued ?? sch.summary.billed} draft={sch.summary.draft ?? 0} total={sch.contract_total} className="h-1.5" />
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span className="tabular-nums">
@@ -437,7 +445,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="tabular-nums">
-                              Billed {formatCurrency(sch.summary.billed)} · <span className="text-status-active">Paid {formatCurrency(sch.summary.paid)}</span>
+                              Issued {formatCurrency(sch.summary.issued ?? sch.summary.billed)} · Drafts {formatCurrency(sch.summary.draft ?? 0)} · <span className="text-status-active">Paid {formatCurrency(sch.summary.paid)}</span>
                             </span>
                             <button
                               type="button"
@@ -464,7 +472,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             </div>
           )}
 
-          {/* ── Invoices raised so far (draws that have been billed + any standalone) ── */}
+          {/* ── Invoice documents raised so far, including drafts ── */}
           {invoices.length > 0 && (
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-center justify-between gap-3">
@@ -472,7 +480,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                   Invoices <span className="normal-case font-medium">· {invoices.length}</span>
                 </p>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  <span className="text-status-active font-semibold">{formatCurrency(invPaid)}</span> collected of {formatCurrency(invTotal)}
+                  <span className="text-status-active font-semibold">{formatCurrency(invPaid)}</span> collected of {formatCurrency(invTotal)} issued
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -522,7 +530,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                 <tfoot>
                   <tr className="border-t font-semibold">
                     <td colSpan={2} className="px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Total · {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
+                      Issued totals
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-foreground">{formatCurrency(invTotal)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-status-active">{formatCurrency(invPaid)}</td>
