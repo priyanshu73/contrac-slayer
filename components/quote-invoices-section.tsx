@@ -29,10 +29,9 @@ interface QuoteInvoicesSectionProps {
 const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" })
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
-/** A draw that hasn't been billed is locked from editing only once it has an
- * invoice — PAID/INVOICED are locked, READY/SCHEDULED are still editable. */
+/** Any active invoice, including a draft, reserves the draw and locks its amount. */
 const isBilled = (line: PaymentScheduleLine) =>
-  line.state === "PAID" || line.state === "INVOICED"
+  line.state === "DRAFT" || line.state === "PAID" || line.state === "INVOICED"
 
 /** Dollar value of one draft row: a percentage is a share of the FULL contract
  * total (mirrors the backend), a fixed draw bills its flat amount. */
@@ -103,6 +102,12 @@ function StateLabel({ line }: { line: PaymentScheduleLine }) {
           <FileText className="h-3 w-3" /> Invoiced
         </span>
       )
+    case "DRAFT":
+      return (
+        <span className={cn(base, "text-slate-500")}>
+          <FileText className="h-3 w-3" /> Draft
+        </span>
+      )
     case "READY":
       return <span className={cn(base, "text-sky-600")}>Ready</span>
     default:
@@ -145,14 +150,14 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
     try {
       const invoice = await api.billDraw(jobId, line.id)
       toast({
-        title: "Draw billed",
-        description: `${line.label} — invoice ${invoice?.invoice_number ?? ""} for ${fmt(line.computed_amount)}.`,
+        title: "Invoice draft created",
+        description: `${line.label} — draft ${invoice?.invoice_number ?? ""} for ${fmt(line.computed_amount)}. Review and send it to issue the invoice.`,
       })
       await load()
       onDrawBilled?.()
     } catch (err: any) {
       toast({
-        title: "Couldn't bill this draw",
+        title: "Couldn't create this invoice draft",
         description: err?.message || "Please try again.",
         variant: "destructive",
       })
@@ -176,7 +181,8 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
 
   // ── Billing headline (drawn from the same schedule the list uses) ──────
   const collected = summary.paid
-  const invoiced = summary.billed
+  const invoiced = summary.issued ?? summary.billed
+  const draftInvoices = summary.draft ?? 0
   const leftToInvoice = round2(contract_total - invoiced)
   const pctOf = (n: number) =>
     contract_total > 0 ? Math.min(100, Math.max(0, (n / contract_total) * 100)) : 0
@@ -314,10 +320,11 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Contract</span>
               <span className="text-[15px] font-bold tabular-nums text-slate-900">{fmt(contract_total)}</span>
             </div>
-            {/* Two-segment bar: collected (green) then invoiced-not-collected (amber) */}
+            {/* Collected, issued-but-unpaid, then generated drafts. */}
             <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
               <div className="h-2 bg-emerald-500 transition-all duration-500" style={{ width: `${collectedPct}%` }} />
               <div className="h-2 bg-amber-400 transition-all duration-500" style={{ width: `${Math.max(0, invoicedPct - collectedPct)}%` }} />
+              <div className="h-2 bg-slate-300 transition-all duration-500" style={{ width: `${pctOf(draftInvoices)}%` }} />
             </div>
             <div className="mt-2.5 space-y-1.5">
               <div className="flex items-center justify-between gap-2 text-[12px]">
@@ -331,7 +338,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
               </div>
               <div className="flex items-center justify-between gap-2 text-[12px]">
                 <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Invoiced
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Issued
                 </span>
                 <span className="flex items-center gap-2 tabular-nums">
                   <span className="font-semibold text-slate-900">{fmt(invoiced)}</span>
@@ -339,8 +346,14 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="flex items-center gap-1.5 text-slate-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-300" /> Drafts
+                </span>
+                <span className="font-semibold tabular-nums text-slate-700">{fmt(draftInvoices)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[12px]">
                 <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-200" /> Left to invoice
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-200" /> Left to issue
                 </span>
                 <span className="font-semibold tabular-nums text-slate-500">{fmt(leftToInvoice)}</span>
               </div>
@@ -383,7 +396,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
                           disabled={billingId === line.id}
                           className="h-6 gap-1 rounded-md bg-sky-600 px-2 text-[11px] font-semibold text-white hover:bg-sky-700"
                         >
-                          {billingId === line.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Bill"}
+                          {billingId === line.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create draft"}
                         </Button>
                       ) : null}
                     </div>
@@ -433,7 +446,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
           Edit draws
         </div>
         <div>
-          {/* Billed draws stay read-only */}
+          {/* Draws with an active invoice, including drafts, stay read-only. */}
           {billedLines.length > 0 && (
             <ul className="divide-y divide-sky-100/60">
               {billedLines.map((line) => (
@@ -513,7 +526,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
               <span className="text-slate-500">
                 {billedTotal > 0 && (
                   <>
-                    Billed <span className="font-semibold tabular-nums">{fmt(billedTotal)}</span> ·{" "}
+                    Reserved by invoices <span className="font-semibold tabular-nums">{fmt(billedTotal)}</span> ·{" "}
                   </>
                 )}
                 Scheduled{" "}
