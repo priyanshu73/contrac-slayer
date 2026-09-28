@@ -447,7 +447,7 @@ class ApiClient {
   }
 
   // --- Microsoft account and provider-neutral mail ---
-  async getOutlookStatus(): Promise<{ connected: boolean; email: string | null; preferred_provider: 'google' | 'outlook'; google_connected: boolean; configured: boolean }> {
+  async getOutlookStatus(): Promise<{ connected: boolean; email: string | null; preferred_provider: 'google' | 'outlook'; google_connected: boolean; configured: boolean; email_provider: 'google' | 'outlook' | null; calendar_provider: 'google' | 'outlook' | null }> {
     return this.request('/outlook/status')
   }
 
@@ -460,10 +460,10 @@ class ApiClient {
     return this.request('/outlook/disconnect', { method: 'DELETE' })
   }
 
-  async setPreferredAccountProvider(provider: 'google' | 'outlook'): Promise<{ preferred_provider: 'google' | 'outlook' }> {
+  async setPreferredAccountProvider(provider: 'google' | 'outlook', purpose: 'email' | 'calendar' | 'both' = 'both'): ReturnType<ApiClient['getOutlookStatus']> {
     return this.request('/outlook/preferred-provider', {
       method: 'PUT',
-      body: JSON.stringify({ provider }),
+      body: JSON.stringify({ provider, purpose }),
     })
   }
 
