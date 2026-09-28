@@ -1170,6 +1170,10 @@ export interface PaymentScheduleLineInput {
   locked?: boolean
   /** Status badge for a locked draw ("PAID" | "INVOICED"). */
   lockedStatus?: PaymentDrawState
+  /** Frozen invoice amount of a locked (billed) draw, from the schedule GET's
+   * computed_amount. The preview freezes this — it must never be re-scaled
+   * from the percentage basis. */
+  lockedAmount?: number
 }
 
 /** A draw as returned by the backend, with computed amount + billing state. */
