@@ -296,3 +296,4 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
     </form>
   )
 }
+
