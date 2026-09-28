@@ -21,7 +21,7 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import type { PaymentScheduleLineInput } from "@/lib/types"
 import {
   normalizeTrigger,
-  computeDraws,
+  drawsOverContract,
 } from "@/components/payment-schedule-builder"
 import { BillingSection } from "@/components/billing-section"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -889,6 +889,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               order_index: l.order_index,
               locked,
               lockedStatus: locked ? l.state : undefined,
+              // The schedule GET reports the invoice amount for billed draws;
+              // the preview must freeze it, never re-scale it.
+              lockedAmount: locked ? l.computed_amount : undefined,
             }
           }),
         )
@@ -1825,8 +1828,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         setCreateError("Pick a date for every draw billed on a date.")
         return
       }
-      const scheduledTotal = computeDraws(scheduleLines, total).reduce((s, c) => s + c.amount, 0)
-      if (scheduledTotal > total + 0.01) {
+      if (drawsOverContract(scheduleLines, total)) {
         setCreateError("Payment draws exceed the contract total. Reduce them before saving.")
         return
       }
