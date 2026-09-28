@@ -1637,7 +1637,9 @@
       "profileSaved": "Su perfil ya está guardado. Elija un número abajo u omita y continúe al panel.",
       "reservedDev": "Número reservado (modo desarrollo)",
       "assigned": "¡Número asignado!",
-      "dryRunHint": "TWILIO_PROVISIONING_ENABLED está desactivado — no se compró, pero puede probar el flujo completo."
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED está desactivado — no se compró, pero puede probar el flujo completo.",
+      "purchaseReassurance": "No se compra nada hasta que elijas un número.",
+      "setupDescriptionShort": "Selecciona dónde quieres un número local. Te mostraremos las opciones disponibles."
     },
     "errors": {
       "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
@@ -2240,4 +2242,4 @@
       "saving": "Guardando…"
     }
   }
-}
+    }
