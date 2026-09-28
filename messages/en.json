@@ -1649,6 +1649,13 @@
     }
   },
   "billing": {
+    "salePromoBadge": "Launch Sale",
+    "salePromoDescription": "14-day free trial · Save {percent}% with yearly billing",
+    "launchSaleTerm": "During our launch sale",
+    "monthlySavings": "Save ${amount}/month",
+    "saleCountdownLabel": "Launch Sale",
+    "saleCountdownReset": "Countdown resets in",
+    "saleCountdownLoading": "48-hour rolling countdown",
     "pricingTitle": "Simple, Transparent Pricing",
     "freeTrial": "14-Day Free Trial",
     "pageTitle": "Start Growing Your Business",

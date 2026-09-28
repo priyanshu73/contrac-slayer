@@ -4,6 +4,8 @@ const yearly = 900
 
 export const PRICING_OFFER = {
   monthly,
+  regularMonthly: 139,
+  monthlySavings: 139 - monthly,
   yearly,
   yearlyMonthlyEquivalent: yearly / 12,
   yearlySavings: monthly * 12 - yearly,

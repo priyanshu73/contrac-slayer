@@ -7,6 +7,8 @@ import { PRICING_FEATURE_KEYS, PRICING_OFFER } from "../lib/pricing-offer"
 test("simple offer is $100 monthly or $900 annually with accurate savings", () => {
   assert.deepEqual(PRICING_OFFER, {
     monthly: 100,
+    regularMonthly: 139,
+    monthlySavings: 39,
     yearly: 900,
     yearlyMonthlyEquivalent: 75,
     yearlySavings: 300,
@@ -14,14 +16,36 @@ test("simple offer is $100 monthly or $900 annually with accurate savings", () =
   })
 })
 
-test("public pricing and billing share prices and the same features without promotions", () => {
+test("public pricing and billing share prices, features and sale styling without introductory terms", () => {
   for (const file of ["components/pricing.tsx", "app/[locale]/billing/page.tsx"]) {
     const page = readFileSync(new URL(`../${file}`, import.meta.url), "utf8")
     assert.match(page, /PRICING_OFFER\.monthly/)
     assert.match(page, /PRICING_OFFER\.yearlyMonthlyEquivalent/)
     assert.match(page, /PRICING_OFFER\.yearly/)
     assert.match(page, /PRICING_FEATURE_KEYS\.map/)
-    assert.doesNotMatch(page, /PricingCountdown|Launch Sale|monthlyIntroTerm|monthlyAfterIntro|yearlyExclusive|pricingPremium|pricingWebsite|features\.slice|line-through/)
+    assert.match(page, /<PricingPromo \/>/)
+    assert.match(page, /PRICING_OFFER\.regularMonthly/)
+    assert.match(page, /line-through/)
+    assert.doesNotMatch(page, /monthlyIntroTerm|monthlyAfterIntro|yearlyExclusive|pricingPremium|pricingWebsite|features\.slice/)
+  }
+})
+
+test("sale ribbon has localized trial/savings and a transparently resetting countdown", () => {
+  const promo = readFileSync(new URL("../components/pricing-promo.tsx", import.meta.url), "utf8")
+  assert.match(promo, /prefers-reduced-motion/)
+  assert.match(promo, /PRICING_OFFER\.yearlySavingsPercent/)
+  assert.match(promo, /<PricingCountdown \/>/)
+  const countdown = readFileSync(new URL("../components/pricing-countdown.tsx", import.meta.url), "utf8")
+  assert.match(countdown, /48 \* 60 \* 60 \* 1000/)
+  assert.match(countdown, /now % CYCLE_MS/)
+  assert.match(countdown, /saleCountdownReset/)
+  assert.doesNotMatch(countdown, /Price lock expires|Ends in|Limited Offer/)
+  for (const locale of ["en", "es"]) {
+    const messages = JSON.parse(readFileSync(new URL(`../messages/${locale}.json`, import.meta.url), "utf8"))
+    const t = createTranslator({ locale, messages, namespace: "billing" })
+    assert.ok(t("salePromoBadge"))
+    assert.match(t("salePromoDescription", { percent: PRICING_OFFER.yearlySavingsPercent }), /14.*25%/)
+    assert.match(t("monthlySavings", { amount: PRICING_OFFER.monthlySavings }), /\$39/)
   }
 })
 

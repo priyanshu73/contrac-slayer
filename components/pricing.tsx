@@ -7,6 +7,7 @@ import Link from "next/link"
 import { useLocale, useTranslations } from "next-intl"
 import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
 import { PRICING_FEATURE_KEYS, PRICING_OFFER } from "@/lib/pricing-offer"
+import { PricingPromo } from "@/components/pricing-promo"
 
 export function Pricing() {
   const locale = useLocale()
@@ -19,6 +20,7 @@ export function Pricing() {
     <section id="pricing" className="py-24 px-4 bg-background">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
+          <PricingPromo />
           <h2 className="text-4xl md:text-5xl font-bold mb-4">{t("pricingTitle")}</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t("pageSubtitle")}</p>
         </div>
@@ -37,17 +39,21 @@ export function Pricing() {
                   <p className="text-muted-foreground">{t(isYearly ? "yearlyDescription" : "monthlyDescription")}</p>
                 </div>
                 <div className="flex items-baseline gap-3 mb-2.5">
+                  <span className="text-2xl font-semibold text-muted-foreground line-through decoration-red-500/70 decoration-2">
+                    ${isYearly ? PRICING_OFFER.monthly : PRICING_OFFER.regularMonthly}
+                  </span>
                   <span className="text-[3.5rem] leading-none font-extrabold tracking-tight">${isYearly ? PRICING_OFFER.yearlyMonthlyEquivalent : PRICING_OFFER.monthly}</span>
                   <span className="text-muted-foreground text-lg">{t("perMonth")}</span>
                 </div>
+                <p className="mb-2 text-sm font-semibold">{t("launchSaleTerm")}</p>
                 <p className="text-sm text-muted-foreground">
                   {isYearly ? t("billedAnnually", { amount: PRICING_OFFER.yearly }) : t("monthlyBillingNote")}
                 </p>
-                {isYearly && (
-                  <span className="mt-4 inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    {t("yearlySavings", { amount: PRICING_OFFER.yearlySavings, percent: PRICING_OFFER.yearlySavingsPercent })}
-                  </span>
-                )}
+                <span className="mt-4 inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  {isYearly
+                    ? t("yearlySavings", { amount: PRICING_OFFER.yearlySavings, percent: PRICING_OFFER.yearlySavingsPercent })
+                    : t("monthlySavings", { amount: PRICING_OFFER.monthlySavings })}
+                </span>
                 <Button className="w-full my-8" size="lg" variant={isYearly ? "default" : "outline"} asChild>
                   <Link href={signupUrl}>{t("startFreeTrial")}</Link>
                 </Button>

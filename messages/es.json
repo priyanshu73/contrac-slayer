@@ -1649,6 +1649,13 @@
     }
   },
   "billing": {
+    "salePromoBadge": "Oferta de Lanzamiento",
+    "salePromoDescription": "Prueba gratis de 14 días · Ahorre {percent}% con facturación anual",
+    "launchSaleTerm": "Durante nuestra oferta de lanzamiento",
+    "monthlySavings": "Ahorre ${amount}/mes",
+    "saleCountdownLabel": "Oferta de Lanzamiento",
+    "saleCountdownReset": "El contador se reinicia en",
+    "saleCountdownLoading": "Contador de 48 horas que se reinicia",
     "pricingTitle": "Precios Simples y Transparentes",
     "freeTrial": "Prueba Gratis de 14 Días",
     "pageTitle": "Comience a Hacer Crecer Su Negocio",
