@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
+import { formatCalendarDate } from "@/lib/utils"
 import { useLocale } from "next-intl"
 import Link from "next/link"
 
@@ -52,11 +53,8 @@ export function InvoicesList() {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "—"
-    const d = new Date(dateStr)
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
+  // Date-only SQL dates (issue/due) render as their exact calendar day.
+  const formatDate = (dateStr: string | null) => formatCalendarDate(dateStr)
 
   if (loading) {
     return (
@@ -137,7 +135,10 @@ export function InvoicesList() {
                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    <span>Issued: {formatDate(invoice.issue_date)}</span>
+                    <span>
+                      {invoice.status?.toUpperCase() === "DRAFT" ? "Invoice date: " : "Issued: "}
+                      {formatDate(invoice.issue_date)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
