@@ -166,6 +166,13 @@ export function SettingsTabs() {
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email: string | null } | null>(null)
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false)
   const [gmailDisconnectLoading, setGmailDisconnectLoading] = useState(false)
+  const [outlookStatus, setOutlookStatus] = useState<{
+    connected: boolean; email: string | null; preferred_provider: 'google' | 'outlook';
+    google_connected: boolean; configured: boolean
+  } | null>(null)
+  const [outlookStatusLoading, setOutlookStatusLoading] = useState(false)
+  const [outlookDisconnectLoading, setOutlookDisconnectLoading] = useState(false)
+  const [providerSaving, setProviderSaving] = useState(false)
 
   // QuickBooks integration state
   const [qboStatus, setQboStatus] = useState<{ connected: boolean; company_name: string | null; auto_invoice: boolean; realm_id: string | null } | null>(null)
@@ -250,6 +257,17 @@ export function SettingsTabs() {
     }
   }
 
+  const loadOutlookStatus = async () => {
+    setOutlookStatusLoading(true)
+    try {
+      setOutlookStatus(await api.getOutlookStatus())
+    } catch {
+      setOutlookStatus(null)
+    } finally {
+      setOutlookStatusLoading(false)
+    }
+  }
+
   const loadQboStatus = async () => {
     setQboStatusLoading(true)
     try {
@@ -265,6 +283,7 @@ export function SettingsTabs() {
   useEffect(() => {
     if (activeSection === "integrations") {
       loadGmailStatus()
+      loadOutlookStatus()
       loadQboStatus()
     }
   }, [activeSection])
@@ -276,6 +295,7 @@ export function SettingsTabs() {
       setSuccessMessage("Gmail connected successfully. You can send emails from your Gmail.")
       setActiveSection("integrations")
       loadGmailStatus()
+      loadOutlookStatus()
       const t = setTimeout(() => setSuccessMessage(""), 4000)
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search)
@@ -308,6 +328,31 @@ export function SettingsTabs() {
       }
       return () => clearTimeout(t)
     }
+  }, [searchParams])
+
+  useEffect(() => {
+    const outlook = searchParams.get("outlook")
+    if (outlook !== "connected" && outlook !== "error") return
+    setActiveSection("integrations")
+    if (outlook === "connected") {
+      setSuccessMessage("Microsoft account connected. Email and calendar can now use it.")
+    } else {
+      setError("Microsoft account connection was denied or failed. Please try again.")
+    }
+    loadOutlookStatus()
+    loadGmailStatus()
+    const timer = setTimeout(() => {
+      setSuccessMessage("")
+      setError("")
+    }, 4000)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      params.delete("outlook")
+      params.delete("reason")
+      const qs = params.toString()
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
+    }
+    return () => clearTimeout(timer)
   }, [searchParams])
 
   // Show success/error from QBO OAuth callback (?quickbooks=connected or ?quickbooks=error)
@@ -1137,6 +1182,7 @@ export function SettingsTabs() {
                                     await api.disconnectGmail()
                                     setSuccessMessage("Gmail disconnected.")
                                     await loadGmailStatus()
+                                    await loadOutlookStatus()
                                     setTimeout(() => setSuccessMessage(""), 3000)
                                   } catch (err: unknown) {
                                     setError(err instanceof Error ? err.message : "Failed to disconnect Google Account")
@@ -1181,6 +1227,89 @@ export function SettingsTabs() {
                           <p className="text-xs text-slate-500 border-t border-slate-200 pt-3">
                             Disconnecting revokes access with Google and removes stored tokens. You can connect again anytime.
                           </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Microsoft Account Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Microsoft / Outlook Account</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mb-4">
+                      Connect Outlook to send business email and sync your calendar. Inbox access is not requested.
+                    </p>
+                    {outlookStatusLoading ? (
+                      <p className="text-sm text-slate-500">Checking connection…</p>
+                    ) : (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">
+                              {outlookStatus?.connected ? "Connected" : "Not connected"}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {outlookStatus?.connected ? outlookStatus.email :
+                                outlookStatus?.configured ? "Use a work, school, or personal Microsoft account." :
+                                "Microsoft connection setup is pending."}
+                            </p>
+                          </div>
+                          {outlookStatus?.connected ? (
+                            <Button type="button" variant="outline" size="sm"
+                              disabled={outlookDisconnectLoading}
+                              onClick={async () => {
+                                if (!confirm("Disconnect Microsoft account? Email and calendar will stop using it.")) return
+                                setOutlookDisconnectLoading(true)
+                                setError("")
+                                try {
+                                  await api.disconnectOutlook()
+                                  setSuccessMessage("Microsoft account disconnected.")
+                                  await loadOutlookStatus()
+                                } catch (err: unknown) {
+                                  setError(err instanceof Error ? err.message : "Could not disconnect Microsoft account")
+                                } finally {
+                                  setOutlookDisconnectLoading(false)
+                                }
+                              }}>
+                              <Unlink className="h-4 w-4 mr-2" />Disconnect
+                            </Button>
+                          ) : (
+                            <Button type="button" size="sm" disabled={!outlookStatus?.configured}
+                              onClick={() => {
+                                const returnUrl = `${window.location.origin}${window.location.pathname}`
+                                window.location.href = api.getOutlookAuthorizeUrl(returnUrl)
+                              }}>
+                              <Link2 className="h-4 w-4 mr-2" />Connect Microsoft Account
+                            </Button>
+                          )}
+                        </div>
+                        {gmailStatus?.connected && outlookStatus?.connected && (
+                          <div className="border-t border-slate-200 pt-3 space-y-2">
+                            <Label htmlFor="preferred-account-provider">Use this account for new email and calendar events</Label>
+                            <Select value={outlookStatus.preferred_provider} disabled={providerSaving}
+                              onValueChange={async (value) => {
+                                const provider = value as 'google' | 'outlook'
+                                setProviderSaving(true)
+                                setError("")
+                                try {
+                                  await api.setPreferredAccountProvider(provider)
+                                  await loadOutlookStatus()
+                                  setSuccessMessage(`${provider === 'google' ? 'Google' : 'Microsoft'} is now the preferred account.`)
+                                } catch (err: unknown) {
+                                  setError(err instanceof Error ? err.message : "Could not switch account")
+                                } finally {
+                                  setProviderSaving(false)
+                                }
+                              }}>
+                              <SelectTrigger id="preferred-account-provider" className="max-w-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="google">Google</SelectItem>
+                                <SelectItem value="outlook">Microsoft / Outlook</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-slate-500">Existing appointments remain on the calendar where they were created.</p>
+                          </div>
                         )}
                       </div>
                     )}

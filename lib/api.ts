@@ -446,6 +446,46 @@ class ApiClient {
     return this.request<{ message: string }>('/gmail/disconnect', { method: 'DELETE' })
   }
 
+  // --- Microsoft account and provider-neutral mail ---
+  async getOutlookStatus(): Promise<{ connected: boolean; email: string | null; preferred_provider: 'google' | 'outlook'; google_connected: boolean; configured: boolean }> {
+    return this.request('/outlook/status')
+  }
+
+  getOutlookAuthorizeUrl(redirectSuccess?: string): string {
+    const url = `${this.baseURL}/outlook/authorize`
+    return redirectSuccess ? `${url}?redirect_success=${encodeURIComponent(redirectSuccess)}` : url
+  }
+
+  async disconnectOutlook(): Promise<{ message: string }> {
+    return this.request('/outlook/disconnect', { method: 'DELETE' })
+  }
+
+  async setPreferredAccountProvider(provider: 'google' | 'outlook'): Promise<{ preferred_provider: 'google' | 'outlook' }> {
+    return this.request('/outlook/preferred-provider', {
+      method: 'PUT',
+      body: JSON.stringify({ provider }),
+    })
+  }
+
+  async getMailStatus(): Promise<{ connected: boolean; provider: 'google' | 'outlook' | null; email: string | null }> {
+    return this.request('/mail/status')
+  }
+
+  async sendMail(params: { to: string | string[]; cc?: string[]; bcc?: string[]; subject: string; body_html: string; body_plain?: string; from_name?: string }): Promise<{ message: string }> {
+    return this.request('/mail/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        to: params.to,
+        cc: params.cc ?? [],
+        bcc: params.bcc ?? [],
+        subject: params.subject,
+        body_html: params.body_html,
+        body_plain: params.body_plain,
+        from_name: params.from_name,
+      }),
+    })
+  }
+
   /** Send a generic email via contractor's Gmail. Requires Gmail connected. */
   async gmailSend(params: { to: string | string[]; cc?: string[]; bcc?: string[]; subject: string; body_html: string; body_plain?: string; from_name?: string }): Promise<{ message: string }> {
     return this.request<{ message: string }>('/gmail/send', {
