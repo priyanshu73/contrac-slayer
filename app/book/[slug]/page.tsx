@@ -248,7 +248,7 @@ export default function PublicBookPage() {
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600">
                   {meetingType === "virtual"
-                    ? <><Video className="w-4 h-4 text-gray-400 shrink-0" /> Google Meet link will be provided</>
+                    ? <><Video className="w-4 h-4 text-gray-400 shrink-0" /> Video meeting link will be included if supported by the connected calendar</>
                     : <><MapPin className="w-4 h-4 text-gray-400 shrink-0" /> {location || "In-person"}</>}
                 </div>
               </div>
