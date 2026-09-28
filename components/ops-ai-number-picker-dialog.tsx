@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
+import { Phone, ShieldCheck } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,6 @@ export function OpsAiNumberPickerDialog({
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [areaError, setAreaError] = useState("")
 
-  const [pickerSearchedAreaCodes, setPickerSearchedAreaCodes] = useState<string[]>([])
   const [pickerNumbers, setPickerNumbers] = useState<TwilioAvailableNumber[]>([])
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerError, setPickerError] = useState("")
@@ -55,7 +55,6 @@ export function OpsAiNumberPickerDialog({
   const resetPicker = useCallback(() => {
     setStep("area")
     setPickerNumbers([])
-    setPickerSearchedAreaCodes([])
     setPickerError("")
     setPickerIsEmpty(false)
     setProvisionResult(null)
@@ -83,7 +82,6 @@ export function OpsAiNumberPickerDialog({
     setPickerError("")
     setPickerIsEmpty(false)
     setPickerNumbers([])
-    setPickerSearchedAreaCodes(codes)
 
     try {
       const settled = await Promise.allSettled(
@@ -194,20 +192,25 @@ export function OpsAiNumberPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-black border border-zinc-800 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-white">
-            {step === "area" ? tPicker("setupTitle") : tPicker("title")}
-          </DialogTitle>
-          <DialogDescription className="text-zinc-400">
-            {step === "area" ? tPicker("setupDescription") : tPicker("pickDescription")}
-          </DialogDescription>
+      <DialogContent className="ops-ai-number-picker max-w-[548px] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-0 text-slate-900 shadow-[0_22px_70px_rgba(11,35,59,0.25)] sm:max-w-[548px] gap-0 [&_[data-slot=dialog-close]]:top-6 [&_[data-slot=dialog-close]]:right-6 [&_[data-slot=dialog-close]]:text-slate-500">
+        <DialogHeader className="flex-row items-start gap-3 px-5 pb-3 pt-6 pr-12 text-left sm:px-6 sm:pr-12">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600" aria-hidden="true">
+            <Phone className="size-5" />
+          </span>
+          <div className="space-y-1.5">
+            <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900">
+              {step === "area" ? tPicker("setupTitle") : tPicker("title")}
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed text-slate-500">
+              {step === "area" ? tPicker("setupDescriptionShort") : tPicker("pickDescription")}
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         {step === "area" ? (
-          <div className="space-y-4">
+          <div className="space-y-4 px-5 pb-5 sm:px-6">
             <div className="space-y-2">
-              <Label className="text-zinc-300">{tOps("state")}</Label>
+              <Label className="text-xs font-semibold text-slate-700">{tOps("state")}</Label>
               <Select
                 value={selectedState ?? ""}
                 onValueChange={(v) => {
@@ -215,7 +218,7 @@ export function OpsAiNumberPickerDialog({
                   setSelectedAreaCodes([])
                 }}
               >
-                <SelectTrigger className="bg-zinc-950 border-zinc-700 text-white">
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 focus:ring-sky-200">
                   <SelectValue placeholder={tOps("selectState")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,15 +233,19 @@ export function OpsAiNumberPickerDialog({
 
             {selectedState && (
               <div className="space-y-2">
-                <Label className="text-zinc-300">{tOps("areaCode")}</Label>
-                <div className="border border-zinc-700 rounded-lg p-3 max-h-40 overflow-y-auto bg-zinc-950">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs font-semibold text-slate-700">{tOps("areaCode")}</Label>
+                  <span className="text-xs font-semibold text-sky-600">{tOps("areaCodesSelected", { count: selectedAreaCodes.length })}</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-2.5">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {getAreaCodesForState(selectedState).map((ac) => (
                       <label
                         key={ac}
-                        className="flex items-center gap-2 cursor-pointer text-sm font-mono text-zinc-200"
+                        className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-sky-300 ${selectedAreaCodes.includes(ac) ? "border-sky-300 bg-sky-50 text-sky-700" : "border-slate-200 bg-white text-slate-800 hover:border-sky-200"}`}
                       >
                         <Checkbox
+                          className="border-slate-400 data-[state=checked]:border-sky-600 data-[state=checked]:bg-sky-600 data-[state=checked]:text-white"
                           checked={selectedAreaCodes.includes(ac)}
                           onCheckedChange={(checked) => {
                             setSelectedAreaCodes((prev) =>
@@ -257,21 +264,30 @@ export function OpsAiNumberPickerDialog({
             )}
 
             {areaError && (
-              <p className="text-sm text-red-400">{areaError}</p>
+              <p role="alert" className="text-sm text-red-600">{areaError}</p>
             )}
 
-            <Button
-              type="button"
-              className="w-full bg-white text-black hover:bg-zinc-200"
-              onClick={() => void handleContinueToSearch()}
-            >
-              {tPicker("findNumbers")}
-            </Button>
+            <div className="flex items-center gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+              <ShieldCheck className="size-4 shrink-0 text-sky-600" aria-hidden="true" />
+              {tPicker("purchaseReassurance")}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Button type="button" variant="outline" className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => onOpenChange(false)}>
+                {tPicker("maybeLater")}
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl bg-sky-600 px-4 text-white hover:bg-sky-700"
+                onClick={() => void handleContinueToSearch()}
+              >
+                {tPicker("findNumbers")}
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 px-5 pb-5 sm:px-6">
             {provisionResult && (
-              <div className="rounded-lg border border-green-800 bg-green-950/50 px-4 py-3 text-sm text-green-200">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 <p className="font-semibold">
                   {provisionResult.dry_run ? tPicker("reservedDev") : tPicker("assigned")}
                 </p>
@@ -280,19 +296,19 @@ export function OpsAiNumberPickerDialog({
             )}
 
             {pickerLoading ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-zinc-400">
-                <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+                <div className="h-5 w-5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
                 {tPicker("searching")}
               </div>
             ) : pickerIsEmpty ? (
-              <div className="rounded-lg border border-amber-800 bg-amber-950/40 px-4 py-4 space-y-3">
-                <p className="font-medium text-amber-100">{pickerError}</p>
-                <p className="text-sm text-amber-200/80">{tPicker("emptyDescription")}</p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 space-y-3">
+                <p className="font-medium text-amber-900">{pickerError}</p>
+                <p className="text-sm text-amber-800">{tPicker("emptyDescription")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-zinc-600 text-white hover:bg-zinc-900"
+                    className="border-slate-200 text-slate-700 hover:bg-slate-50"
                     onClick={() => setStep("area")}
                   >
                     {tPicker("tryAnotherAreaCode")}
@@ -300,7 +316,7 @@ export function OpsAiNumberPickerDialog({
                   <Button
                     type="button"
                     variant="ghost"
-                    className="text-zinc-300"
+                    className="text-xs font-semibold text-slate-700"
                     onClick={() => void loadAvailableNumbers(selectedAreaCodes)}
                   >
                     {tPicker("searchAgain")}
@@ -312,7 +328,7 @@ export function OpsAiNumberPickerDialog({
                 {pickerNumbersByAreaCode.map(([areaCode, numbers]) => (
                   <div key={areaCode} className="space-y-2">
                     {pickerNumbersByAreaCode.length > 1 && (
-                      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                         {tPicker("areaCodeSection", { areaCode })}
                       </p>
                     )}
@@ -324,12 +340,12 @@ export function OpsAiNumberPickerDialog({
                         onClick={() =>
                           handlePickNumber(n.phone_number, n.area_code || areaCode)
                         }
-                        className="w-full text-left rounded-lg border border-zinc-700 hover:border-white hover:bg-zinc-900 disabled:opacity-50 p-3 transition-colors"
+                        className="w-full text-left rounded-xl border border-slate-200 bg-white p-3 text-slate-900 transition-colors hover:border-sky-300 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-50"
                       >
                         <span className="font-mono text-base font-semibold">
                           {n.phone_number}
                         </span>
-                        <span className="block text-xs text-zinc-500 mt-0.5">
+                        <span className="block text-xs text-slate-500 mt-0.5">
                           {[n.locality, n.region].filter(Boolean).join(", ") ||
                             "United States"}
                         </span>
@@ -340,12 +356,16 @@ export function OpsAiNumberPickerDialog({
               </div>
             )}
 
+            {pickerError && !pickerIsEmpty && !provisionResult && (
+              <p role="alert" className="text-sm text-red-600">{pickerError}</p>
+            )}
+
             {!pickerLoading && !provisionResult && (
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="text-zinc-400"
+                  variant="outline"
+                  className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   onClick={() => setStep("area")}
                   disabled={provisioning}
                 >
@@ -354,7 +374,7 @@ export function OpsAiNumberPickerDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-zinc-400"
+                  className="rounded-xl text-slate-500 hover:bg-slate-50"
                   onClick={() => onOpenChange(false)}
                   disabled={provisioning}
                 >
