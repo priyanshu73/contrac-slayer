@@ -361,11 +361,11 @@ export function OpsAiNumberPickerDialog({
             )}
 
             {!pickerLoading && !provisionResult && (
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="text-slate-500"
+                  variant="outline"
+                  className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   onClick={() => setStep("area")}
                   disabled={provisioning}
                 >
@@ -374,7 +374,7 @@ export function OpsAiNumberPickerDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-slate-500"
+                  className="rounded-xl text-slate-500 hover:bg-slate-50"
                   onClick={() => onOpenChange(false)}
                   disabled={provisioning}
                 >
