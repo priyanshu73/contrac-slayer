@@ -1814,8 +1814,29 @@ export function PersonalizedQuoteView({
                     {/* Shows the draw schedule, or an empty state to set one up
                         when the quote is billed as a single payment. */}
                     {currentJob.id && (
-                      <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                      <QuoteInvoicesSection
+                        jobId={currentJob.id}
+                        jobStatus={currentJob.status}
+                        isChangeOrder={Boolean(currentJob.created_from_job_id)}
+                        onDrawBilled={onStatusUpdate}
+                      />
                     )}
+
+                    {/* Accepted change orders are independent billing documents.
+                        Surface each plan beside the anchor instead of silently
+                        rescaling the anchor's percentage draws. */}
+                    {changeOrders
+                      .filter((co) => ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"].includes(co.status))
+                      .map((co) => (
+                        <QuoteInvoicesSection
+                          key={`co-billing-${co.id}`}
+                          jobId={co.id}
+                          jobStatus={co.status}
+                          title={`Billing · ${co.job_number || `CO #${co.id}`}`}
+                          isChangeOrder
+                          onDrawBilled={onStatusUpdate}
+                        />
+                      ))}
 
                     {(changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id || canCreateChangeOrder) && (
                       <QuoteSidebarSection

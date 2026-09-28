@@ -21,6 +21,9 @@ import type {
 
 interface QuoteInvoicesSectionProps {
   jobId: number
+  jobStatus?: string
+  title?: string
+  isChangeOrder?: boolean
   /** Called after the schedule changes (a draw billed, added, or edited) so the
    * parent can refresh the quote/job. */
   onDrawBilled?: () => void
@@ -117,12 +120,21 @@ function StateLabel({ line }: { line: PaymentScheduleLine }) {
   }
 }
 
-export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSectionProps) {
+const LUMP_SUM_BILLABLE_JOB_STATUSES = new Set(["ACCEPTED", "IN_PROGRESS", "COMPLETED"])
+
+export function QuoteInvoicesSection({
+  jobId,
+  jobStatus,
+  title = "Billing & Invoices",
+  isChangeOrder = false,
+  onDrawBilled,
+}: QuoteInvoicesSectionProps) {
   const { toast } = useToast()
   const locale = useLocale()
   const [schedule, setSchedule] = useState<PaymentSchedule | null>(null)
   const [loading, setLoading] = useState(true)
   const [billingId, setBillingId] = useState<number | null>(null)
+  const [billingLumpSum, setBillingLumpSum] = useState(false)
   const [open, setOpen] = useState(false)
 
   // Inline editing of the unbilled draws.
@@ -166,6 +178,27 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
     }
   }
 
+  const handleBillLumpSum = async () => {
+    setBillingLumpSum(true)
+    try {
+      const invoice = await api.createInvoiceFromJob(jobId)
+      toast({
+        title: isChangeOrder ? "Change-order draft created" : "Invoice draft created",
+        description: `Draft ${invoice?.invoice_number ?? ""} for ${fmt(invoice?.total_amount ?? contract_total)} is ready to review and send.`,
+      })
+      await load()
+      onDrawBilled?.()
+    } catch (err: any) {
+      toast({
+        title: "Couldn't create this invoice draft",
+        description: err?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setBillingLumpSum(false)
+    }
+  }
+
   // Wait for the schedule to load, but render for every quote — even ones that
   // weren't set up with draws. Lump-sum quotes get an empty state so the
   // contractor can still start a payment schedule from here.
@@ -183,6 +216,8 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
   const collected = summary.paid
   const invoiced = summary.issued ?? summary.billed
   const draftInvoices = summary.draft ?? 0
+  const hasLumpSumInvoice = draftInvoices + invoiced > 0.005
+  const canBill = jobStatus ? LUMP_SUM_BILLABLE_JOB_STATUSES.has(jobStatus) : true
   const leftToInvoice = round2(contract_total - invoiced)
   const pctOf = (n: number) =>
     contract_total > 0 ? Math.min(100, Math.max(0, (n / contract_total) * 100)) : 0
@@ -279,7 +314,7 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
       <PopoverAnchor asChild>
         <QuoteSidebarSection
           icon={<Wallet className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
-          title="Billing & Invoices"
+          title={title}
           count={hasDraws ? count : undefined}
           open={open}
           onToggle={() => setOpen((o) => !o)}
@@ -298,19 +333,39 @@ export function QuoteInvoicesSection({ jobId, onDrawBilled }: QuoteInvoicesSecti
         /* ── Empty state: lump-sum quote, no schedule yet. Let the contractor
               start billing in draws right from here. ── */
         <div className="px-3 py-4 text-center">
-          <p className="text-[12px] text-slate-500">Billed as a single payment.</p>
+          <p className="text-[12px] text-slate-500">
+            {isChangeOrder ? "This accepted change order is billed separately." : "Billed as a single payment."}
+          </p>
           <p className="mt-0.5 text-[11px] text-slate-400">
-            {contract_total > 0
+            {hasLumpSumInvoice
+              ? draftInvoices > 0
+                ? `${fmt(draftInvoices)} is reserved in a draft invoice.`
+                : `${fmt(invoiced)} has been issued.`
+              : contract_total > 0
               ? "Set up a schedule to bill it in draws instead."
               : "Add line items to the quote, then bill it in draws."}
           </p>
-          <button
-            onClick={() => startEditing(true)}
-            disabled={contract_total <= 0 || editing}
-            className="mt-2.5 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50/60 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-100/70 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-transparent disabled:text-slate-300 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Set up payment schedule
-          </button>
+          {!hasLumpSumInvoice && (
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+              {canBill && contract_total > 0 && (
+                <button
+                  onClick={handleBillLumpSum}
+                  disabled={billingLumpSum || editing}
+                  className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition-colors"
+                >
+                  {billingLumpSum ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                  Create full draft
+                </button>
+              )}
+              <button
+                onClick={() => startEditing(true)}
+                disabled={contract_total <= 0 || editing || billingLumpSum}
+                className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50/60 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-100/70 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-transparent disabled:text-slate-300 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Split into draws
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <>
