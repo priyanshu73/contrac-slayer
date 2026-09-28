@@ -1637,7 +1637,9 @@
       "profileSaved": "Your business profile is saved. Pick a number below or skip and continue to the dashboard.",
       "reservedDev": "Number reserved (dev mode)",
       "assigned": "Number assigned!",
-      "dryRunHint": "TWILIO_PROVISIONING_ENABLED is off — no purchase was made, but you can exercise the full flow."
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED is off — no purchase was made, but you can exercise the full flow.",
+      "purchaseReassurance": "Nothing is purchased until you pick a number.",
+      "setupDescriptionShort": "Select where you'd like a local number. We'll show what's available."
     },
     "errors": {
       "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
@@ -2240,4 +2242,4 @@
       "saving": "Saving…"
     }
   }
-}
+    }
