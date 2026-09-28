@@ -26,7 +26,7 @@ import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia, PaymentScheduleLineInput } from "@/lib/types"
 import { BillingSection } from "@/components/billing-section"
-import { computeDraws } from "@/components/payment-schedule-builder"
+import { drawsOverContract } from "@/components/payment-schedule-builder"
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
@@ -762,8 +762,7 @@ export function PersonalizedQuoteView({
         toast({ title: "Pick a date for every draw billed on a date.", variant: "destructive" })
         return
       }
-      const scheduledTotal = computeDraws(lines, total).reduce((s, c) => s + c.amount, 0)
-      if (scheduledTotal > total + 0.01) {
+      if (drawsOverContract(lines, total)) {
         toast({ title: "Draws exceed the contract total. Reduce them first.", variant: "destructive" })
         return
       }
