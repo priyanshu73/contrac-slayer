@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { canApproveDiscoveredLead } from "@/lib/discovery-review"
 import type { CampaignDetail, DiscoveredCampaignLead } from "@/lib/types"
 import ReviewEmailUI from "@/review-email-ui"
 import { Badge } from "@/components/ui/badge"
@@ -402,7 +403,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       if (detail.awaiting_checkpoint === "discovery") {
         const staged = await api.getCampaignStagedLeads(campaignId)
         setStagedLeads(staged.leads)
-        setSelectedLeadIds(staged.leads.map((l) => l.id))
+        setSelectedLeadIds(staged.leads.filter(canApproveDiscoveredLead).map((l) => l.id))
       } else {
         setStagedLeads([])
         setSelectedLeadIds([])
@@ -778,7 +779,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   variant="ghost"
                   size="sm"
                   className="ml-auto rounded-xl text-xs text-slate-500"
-                  onClick={() => setSelectedLeadIds(stagedLeads.map((l) => l.id))}
+                  onClick={() => setSelectedLeadIds(stagedLeads.filter(canApproveDiscoveredLead).map((l) => l.id))}
                 >
                   Select all
                 </Button>
@@ -812,12 +813,15 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                               type="checkbox"
                               className="rounded"
                               checked={selectedLeadIds.includes(lead.id)}
+                              disabled={!canApproveDiscoveredLead(lead)}
                               onChange={(e) => toggleLead(lead.id, e.target.checked)}
                             />
                           </TableCell>
                           <TableCell>
                             <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
                             <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
+                            {!canApproveDiscoveredLead(lead) && <div className="mt-1 text-xs text-amber-700">Not eligible: {lead.meta_context?.qualification?.reasons?.length ? lead.meta_context.qualification.reasons.join(" ") : "Rejected or business fit has not been verified."}</div>}
+                            {lead.meta_context?.source_result?.snippet && <div className="mt-1 text-xs text-slate-500">{lead.meta_context.source_result.snippet}</div>}
                           </TableCell>
                           <TableCell className="text-sm text-slate-600">
                             <div>{lead.email || "No email found"}</div>

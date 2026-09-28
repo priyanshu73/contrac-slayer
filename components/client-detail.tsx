@@ -967,6 +967,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 setEditAddressData(data)
                 setEditForm((f) => ({ ...f, address: data?.formatted_address || f.address }))
               }}
+              onInputChange={(text) => setEditForm((f) => ({ ...f, address: text }))}
               className="space-y-1.5"
             />
 

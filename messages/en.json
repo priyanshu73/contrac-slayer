@@ -1637,7 +1637,9 @@
       "profileSaved": "Your business profile is saved. Pick a number below or skip and continue to the dashboard.",
       "reservedDev": "Number reserved (dev mode)",
       "assigned": "Number assigned!",
-      "dryRunHint": "TWILIO_PROVISIONING_ENABLED is off — no purchase was made, but you can exercise the full flow."
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED is off — no purchase was made, but you can exercise the full flow.",
+      "purchaseReassurance": "Nothing is purchased until you pick a number.",
+      "setupDescriptionShort": "Select where you'd like a local number. We'll show what's available."
     },
     "errors": {
       "contractorTypeTooLong": "Contractor type description is too long. Please keep it under 44 characters.",
@@ -1647,25 +1649,29 @@
     }
   },
   "billing": {
+    "pricingTitle": "Simple, Transparent Pricing",
     "freeTrial": "14-Day Free Trial",
     "pageTitle": "Start Growing Your Business",
     "pageSubtitle": "Get full access to all features. Cancel anytime.",
     "monthly": "Monthly",
     "monthlyDescription": "Flexible month-to-month billing",
+    "monthlyBillingNote": "Billed monthly · Cancel anytime",
     "yearly": "Yearly",
-    "yearlyDescription": "Save 24% with annual billing",
-    "bestValue": "Best Value - Save $288/year",
+    "yearlyDescription": "One annual payment, biggest savings",
+    "yearlySavings": "Save ${amount}/year ({percent}%)",
+    "bestValue": "Best Value",
     "perMonth": "/month",
-    "billedAnnually": "Billed annually ($900/year)",
+    "billedAnnually": "Billed annually · ${amount}/year",
     "startFreeTrial": "Start Free Trial",
     "processing": "Processing...",
     "includedInBoth": "Included in both plans",
-    "yearlyExclusive": "Yearly plan also includes",
     "trialFooter": "14-day free trial · Cancel anytime",
     "features": {
+      "outboundEmailingAndLeadGeneration": "Outbound Emailing and Lead Generation",
+      "projectManagement": "Project Management",
+      "aiReceptionist": "AI Receptionist",
       "aiQuoteGeneration": "AI-Powered Quote Generation",
-      "realtimePricing": "Real-time Material Pricing",
-      "unlimitedQuotes": "Unlimited Quotes & Invoices",
+      "quotesAndInvoices": "Quotes & Invoices",
       "clientManagement": "Client Management",
       "leadTracking": "Lead Tracking & CRM",
       "calendarIntegration": "Calendar Integration",
@@ -2240,4 +2246,4 @@
       "saving": "Saving…"
     }
   }
-}
+    }

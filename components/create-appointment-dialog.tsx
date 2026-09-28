@@ -505,6 +505,7 @@ export function CreateAppointmentDialog({
                   onAddressSelect={(addressData: AddressData | null) => {
                     setLocation(addressData?.formatted_address ?? "")
                   }}
+                  onInputChange={(text: string) => setLocation(text)}
                 />
               </div>
             )}

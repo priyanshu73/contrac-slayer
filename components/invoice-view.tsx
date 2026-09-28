@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { formatPhoneForDisplay } from "@/lib/utils"
+import { formatPhoneForDisplay, formatCalendarDate } from "@/lib/utils"
 import { cleanAddressString } from "@/lib/format-address"
 
 interface Invoice {
@@ -149,11 +149,11 @@ export function InvoiceView({
           <div className="space-y-1 text-sm">
             <div className="flex gap-2">
               <span className="text-muted-foreground">Issue Date:</span>
-              <span className="font-medium">{new Date(invoice.issue_date).toLocaleDateString()}</span>
+              <span className="font-medium">{formatCalendarDate(invoice.issue_date, { month: "numeric", day: "numeric", year: "numeric" })}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-muted-foreground">Due Date:</span>
-              <span className="font-medium">{new Date(invoice.due_date).toLocaleDateString()}</span>
+              <span className="font-medium">{formatCalendarDate(invoice.due_date, { month: "numeric", day: "numeric", year: "numeric" })}</span>
             </div>
             {invoice.payment_terms && (
               <div className="flex gap-2">

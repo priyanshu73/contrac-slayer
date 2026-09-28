@@ -223,6 +223,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
                   handleChange("address", data.formatted_address || "")
                 }
               }}
+              onInputChange={(text) => handleChange("address", text)}
               defaultValue={formData.address}
               className="space-y-2"
             />
@@ -252,6 +253,7 @@ export function AddClientForm({ embedded = false, onSuccess }: AddClientFormProp
                       handleChange("billing_address", data.formatted_address || "")
                     }
                   }}
+                  onInputChange={(text) => handleChange("billing_address", text)}
                   defaultValue={formData.billing_address}
                   className="space-y-2"
                 />

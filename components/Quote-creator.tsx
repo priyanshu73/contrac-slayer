@@ -21,7 +21,7 @@ import { Lead, ContractorProfile, Client, Measurements, LaborChargeType, UnitTyp
 import type { PaymentScheduleLineInput } from "@/lib/types"
 import {
   normalizeTrigger,
-  computeDraws,
+  drawsOverContract,
 } from "@/components/payment-schedule-builder"
 import { BillingSection } from "@/components/billing-section"
 import { formatPhoneForDisplay } from "@/lib/utils"
@@ -185,6 +185,21 @@ function getRateNumber(rate: LineItem["rate"]): number {
   if (typeof rate === "number") return rate
   const n = Number.parseFloat(rate)
   return Number.isFinite(n) ? n : 0
+}
+
+function hasLineItemIdentity(item: LineItem): boolean {
+  return Boolean(item.description.trim() || item.title?.trim())
+}
+
+function hasLineItemInput(item: LineItem): boolean {
+  const rateHasInput = typeof item.rate === "number" ? item.rate !== 0 : item.rate.trim() !== ""
+  return hasLineItemIdentity(item) || item.quantity !== 0 || rateHasInput
+}
+
+function isValidChargeItem(item: LineItem): boolean {
+  const quantity = Number(item.quantity)
+  const rate = getRateNumber(item.rate)
+  return hasLineItemIdentity(item) && Number.isFinite(quantity) && quantity > 0 && rate > 0
 }
 
 const quoteInputSurfaceClass =
@@ -874,6 +889,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               order_index: l.order_index,
               locked,
               lockedStatus: locked ? l.state : undefined,
+              // The schedule GET reports the invoice amount for billed draws;
+              // the preview must freeze it, never re-scale it.
+              lockedAmount: locked ? l.computed_amount : undefined,
             }
           }),
         )
@@ -1626,11 +1644,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
   const buildJobUpdatePayload = (notesOverride?: string, itemsOverride?: LineItem[]) => {
     const sourceItems = itemsOverride ?? items
-    const validItems = sourceItems.filter(item =>
-      (item.description.trim() || (item.title && item.title.trim())) &&
-      (item.quantity || 0) > 0 &&
-      getRateNumber(item.rate) > 0
-    )
+    // Ignore only untouched blank rows. Populated invalid rows are sent to the
+    // shared API validator instead of disappearing silently during autosave.
+    const validItems = sourceItems.filter(hasLineItemIdentity)
     return {
       job_description: serviceDescription.trim() || refinedCallDescription.trim() || null,
       customer_notes: (notesOverride !== undefined ? notesOverride : notes.trim()) || null,
@@ -1776,15 +1792,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     if (!clientEmail.trim()) return "Client email is required"
     // Address is now optional - removed validation
 
-    // Check if at least one line item has description or title and rate
-    const validItems = items.filter(item =>
-      (item.description.trim() || (item.title && item.title.trim())) &&
-      (item.quantity || 0) > 0 &&
-      getRateNumber(item.rate) > 0
-    )
-
-    if (validItems.length === 0) {
-      return "At least one line item with a title or description, quantity, and rate is required"
+    const startedItems = items.filter(hasLineItemInput)
+    if (startedItems.length === 0) {
+      return "At least one line item is required"
+    }
+    if (startedItems.some((item) => !isValidChargeItem(item))) {
+      return "Every line item needs a title or description, a quantity greater than zero, and a unit price greater than zero"
+    }
+    if (!Number.isFinite(markupPercentage) || markupPercentage < 0 || markupPercentage > 100) {
+      return "Markup must be between 0% and 100%"
     }
 
     return null
@@ -1812,8 +1828,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         setCreateError("Pick a date for every draw billed on a date.")
         return
       }
-      const scheduledTotal = computeDraws(scheduleLines, total).reduce((s, c) => s + c.amount, 0)
-      if (scheduledTotal > total + 0.01) {
+      if (drawsOverContract(scheduleLines, total)) {
         setCreateError("Payment draws exceed the contract total. Reduce them before saving.")
         return
       }
@@ -1823,11 +1838,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
     try {
       // Filter out empty items
-      const validItems = items.filter(item =>
-        (item.description.trim() || (item.title && item.title.trim())) &&
-        (item.quantity || 0) > 0 &&
-        getRateNumber(item.rate) > 0
-      )
+      const validItems = items.filter(hasLineItemIdentity)
 
       // Prepare job data
       const jobData = {

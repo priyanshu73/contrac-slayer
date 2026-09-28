@@ -38,6 +38,26 @@ function sameJson(a: unknown, b: unknown) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 }
 
+function quoteProposalValidationError(value: Proposal | undefined): string | null {
+  if (!value) return null
+  const items: any[] = value.items ?? []
+  for (const [index, item] of items.entries()) {
+    const quantity = Number(item.quantity)
+    const unitPrice = Number(item.cost_per_unit)
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return `Quote item ${index + 1} needs a quantity greater than zero.`
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      return `Quote item ${index + 1} needs a unit price greater than zero.`
+    }
+  }
+  const markup = Number(value.markup_percentage ?? 0)
+  if (!Number.isFinite(markup) || markup < 0 || markup > 100) {
+    return "Quote markup must be between 0% and 100%."
+  }
+  return null
+}
+
 // ─── Step editors ────────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -154,10 +174,12 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
   const total = items.reduce((sum, it) => sum + Number(it.quantity || 0) * Number(it.cost_per_unit || 0) * (1 + markup / 100), 0)
   const setItem = (i: number, patch: Proposal) => {
     const next = items.map((it, j) => (j === i ? { ...it, ...patch } : it))
-    onChange({ ...value, items: next, estimated_total: Math.round(total * 100) / 100 })
+    const nextTotal = next.reduce((sum, it) => sum + Number(it.quantity || 0) * Number(it.cost_per_unit || 0) * (1 + markup / 100), 0)
+    onChange({ ...value, items: next, estimated_total: Math.round(nextTotal * 100) / 100 })
   }
   const removeItem = (i: number) => onChange({ ...value, items: items.filter((_, j) => j !== i) })
   const addItem = () => onChange({ ...value, items: [...items, { title: "", description: "", quantity: 1, unit: "Each", cost_per_unit: 0, category: "materials" }] })
+  const validationError = quoteProposalValidationError(value)
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -177,9 +199,9 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
                   <Input value={it.title ?? ""} onChange={(e) => setItem(i, { title: e.target.value })} disabled={disabled} className="h-8" />
                   {it.description ? <p className="mt-1 text-xs text-muted-foreground">{it.description}</p> : null}
                 </td>
-                <td className="py-1 pr-2"><Input type="number" step="0.01" value={it.quantity ?? 0} onChange={(e) => setItem(i, { quantity: Number(e.target.value) })} disabled={disabled} className="h-8" /></td>
+                <td className="py-1 pr-2"><Input type="number" min="0.01" step="0.01" value={it.quantity ?? 0} onChange={(e) => setItem(i, { quantity: Number(e.target.value) })} disabled={disabled} className="h-8" /></td>
                 <td className="py-1 pr-2"><Input value={it.unit ?? ""} onChange={(e) => setItem(i, { unit: e.target.value })} disabled={disabled} className="h-8" /></td>
-                <td className="py-1 pr-2"><Input type="number" step="0.01" value={it.cost_per_unit ?? 0} onChange={(e) => setItem(i, { cost_per_unit: Number(e.target.value) })} disabled={disabled} className="h-8" /></td>
+                <td className="py-1 pr-2"><Input type="number" min="0.01" step="0.01" value={it.cost_per_unit ?? 0} onChange={(e) => setItem(i, { cost_per_unit: Number(e.target.value) })} disabled={disabled} className="h-8" /></td>
                 <td className="py-1">
                   {!disabled && (
                     <button type="button" onClick={() => removeItem(i)} className="text-muted-foreground hover:text-rose-600" aria-label="Remove item">
@@ -192,6 +214,7 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
           </tbody>
         </table>
       </div>
+      {validationError && <p className="text-xs text-rose-600">{validationError}</p>}
       <div className="flex items-center justify-between">
         {!disabled ? <Button type="button" variant="outline" size="sm" onClick={addItem}>Add item</Button> : <span />}
         <p className="text-sm">
@@ -313,6 +336,10 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
     () => Object.keys(drafts).filter((k) => stepsByKey[k] && !sameJson(drafts[k], stepsByKey[k].proposal)),
     [drafts, stepsByKey],
   )
+  const invalidDraftKeys = useMemo(
+    () => Object.keys(drafts).filter((key) => key === "quote" && quoteProposalValidationError(drafts[key])),
+    [drafts],
+  )
   const blocked = (run?.steps ?? []).filter((s) => s.status === "BLOCKED")
   const undrafted = (run?.steps ?? []).filter((s) => s.status === "PENDING")
 
@@ -329,7 +356,14 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
     }
   }
 
-  const saveStep = (key: string) => act("save", () => api.updateWorkflowStep(runId, key, { proposal: drafts[key] }), "Saved")
+  const saveStep = (key: string) => {
+    const validationError = key === "quote" ? quoteProposalValidationError(drafts[key]) : null
+    if (validationError) {
+      toast({ title: "Fix the quote items", description: validationError, variant: "destructive" })
+      return
+    }
+    act("save", () => api.updateWorkflowStep(runId, key, { proposal: drafts[key] }), "Saved")
+  }
   const resetStep = (key: string) => {
     const step = stepsByKey[key]
     if (!step?.proposal_original) return
@@ -477,7 +511,8 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
               {reviewing && blocked.length > 0 && <span>Fix or skip the blocked step{blocked.length > 1 ? "s" : ""} first.</span>}
               {reviewing && undrafted.length > 0 && <span>Some steps are not drafted yet.</span>}
               {reviewing && dirtyKeys.length > 0 && <span>Save your edits before approving.</span>}
-              {reviewing && !blocked.length && !undrafted.length && !dirtyKeys.length && <span>Approving creates the records and sends the email.</span>}
+              {reviewing && invalidDraftKeys.length > 0 && <span>Fix the quote's quantity, unit price, or markup before approving.</span>}
+              {reviewing && !blocked.length && !undrafted.length && !dirtyKeys.length && !invalidDraftKeys.length && <span>Approving creates the records and sends the email.</span>}
             </div>
             <div className="flex gap-2">
               {(run.status === "DRAFTING" || run.status === "FAILED") && (
@@ -497,7 +532,7 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
                   </Button>
                   <Button
                     onClick={() => act("approve", () => api.approveWorkflowRun(runId), "Approved. Applying now.")}
-                    disabled={busy !== null || blocked.length > 0 || undrafted.length > 0 || dirtyKeys.length > 0}
+                    disabled={busy !== null || blocked.length > 0 || undrafted.length > 0 || dirtyKeys.length > 0 || invalidDraftKeys.length > 0}
                   >
                     <Check className="mr-2 h-4 w-4" /> Approve and run
                   </Button>

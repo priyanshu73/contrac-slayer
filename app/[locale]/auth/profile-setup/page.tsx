@@ -580,6 +580,9 @@ export default function ProfileSetupPage() {
                               }))
                             }
                           }}
+                          onInputChange={(text) =>
+                            setFormData((prev: any) => ({ ...prev, address: text }))
+                          }
                           id="address"
                           className="[&_input]:h-12 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:focus:ring-blue-500"
                         />

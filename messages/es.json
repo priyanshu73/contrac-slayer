@@ -1637,7 +1637,9 @@
       "profileSaved": "Su perfil ya está guardado. Elija un número abajo u omita y continúe al panel.",
       "reservedDev": "Número reservado (modo desarrollo)",
       "assigned": "¡Número asignado!",
-      "dryRunHint": "TWILIO_PROVISIONING_ENABLED está desactivado — no se compró, pero puede probar el flujo completo."
+      "dryRunHint": "TWILIO_PROVISIONING_ENABLED está desactivado — no se compró, pero puede probar el flujo completo.",
+      "purchaseReassurance": "No se compra nada hasta que elijas un número.",
+      "setupDescriptionShort": "Selecciona dónde quieres un número local. Te mostraremos las opciones disponibles."
     },
     "errors": {
       "contractorTypeTooLong": "La descripción del tipo de contratista es demasiado larga. Por favor manténgala bajo 44 caracteres.",
@@ -1647,25 +1649,29 @@
     }
   },
   "billing": {
+    "pricingTitle": "Precios Simples y Transparentes",
     "freeTrial": "Prueba Gratis de 14 Días",
     "pageTitle": "Comience a Hacer Crecer Su Negocio",
     "pageSubtitle": "Obtenga acceso completo a todas las funciones. Cancele en cualquier momento.",
     "monthly": "Mensual",
     "monthlyDescription": "Facturación mensual flexible",
+    "monthlyBillingNote": "Facturación mensual · Cancele cuando quiera",
     "yearly": "Anual",
-    "yearlyDescription": "Ahorre 24% con facturación anual",
-    "bestValue": "Mejor Valor - Ahorre $288/año",
+    "yearlyDescription": "Un pago anual, mayor ahorro",
+    "yearlySavings": "Ahorre ${amount}/año ({percent}%)",
+    "bestValue": "Mejor Valor",
     "perMonth": "/mes",
-    "billedAnnually": "Facturado anualmente ($900/año)",
+    "billedAnnually": "Facturación anual · ${amount}/año",
     "startFreeTrial": "Iniciar Prueba Gratis",
     "processing": "Procesando...",
     "includedInBoth": "Incluido en ambos planes",
-    "yearlyExclusive": "El plan anual también incluye",
     "trialFooter": "Prueba gratis de 14 días · Cancele cuando quiera",
     "features": {
+      "outboundEmailingAndLeadGeneration": "Envío de Correos y Generación de Prospectos",
+      "projectManagement": "Gestión de Proyectos",
+      "aiReceptionist": "Recepcionista con IA",
       "aiQuoteGeneration": "Generación de Cotizaciones con IA",
-      "realtimePricing": "Precios de Materiales en Tiempo Real",
-      "unlimitedQuotes": "Cotizaciones y Facturas Ilimitadas",
+      "quotesAndInvoices": "Cotizaciones y Facturas",
       "clientManagement": "Gestión de Clientes",
       "leadTracking": "Seguimiento de Prospectos y CRM",
       "calendarIntegration": "Integración de Calendario",
@@ -2240,4 +2246,4 @@
       "saving": "Guardando…"
     }
   }
-}
+    }

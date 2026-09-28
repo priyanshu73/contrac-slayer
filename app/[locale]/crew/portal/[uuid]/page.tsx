@@ -480,6 +480,7 @@ export default function CrewPortalPage() {
                         placeholder="Start typing an address..."
                         defaultValue={address}
                         onAddressSelect={handleAddressSelect}
+                        onInputChange={(text) => setAddress(text)}
                       />
                     )}
                   </div>

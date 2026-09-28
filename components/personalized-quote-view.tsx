@@ -26,7 +26,7 @@ import { cleanAddressString } from "@/lib/format-address"
 import Image from "next/image"
 import { ContractorProfile, ContractorInfo, Job, JobSignature, JobStatus, LaborChargeType, ProjectMedia, PaymentScheduleLineInput } from "@/lib/types"
 import { BillingSection } from "@/components/billing-section"
-import { computeDraws } from "@/components/payment-schedule-builder"
+import { drawsOverContract } from "@/components/payment-schedule-builder"
 import { SignatureCapture } from "@/components/signature-capture"
 import { SIGNATURE_FEATURE_ENABLED } from "@/lib/feature-navigation"
 import { QuoteProposalsSection } from "@/components/quote-proposals-section"
@@ -762,8 +762,7 @@ export function PersonalizedQuoteView({
         toast({ title: "Pick a date for every draw billed on a date.", variant: "destructive" })
         return
       }
-      const scheduledTotal = computeDraws(lines, total).reduce((s, c) => s + c.amount, 0)
-      if (scheduledTotal > total + 0.01) {
+      if (drawsOverContract(lines, total)) {
         toast({ title: "Draws exceed the contract total. Reduce them first.", variant: "destructive" })
         return
       }
@@ -1814,8 +1813,29 @@ export function PersonalizedQuoteView({
                     {/* Shows the draw schedule, or an empty state to set one up
                         when the quote is billed as a single payment. */}
                     {currentJob.id && (
-                      <QuoteInvoicesSection jobId={currentJob.id} onDrawBilled={onStatusUpdate} />
+                      <QuoteInvoicesSection
+                        jobId={currentJob.id}
+                        jobStatus={currentJob.status}
+                        isChangeOrder={Boolean(currentJob.created_from_job_id)}
+                        onDrawBilled={onStatusUpdate}
+                      />
                     )}
+
+                    {/* Accepted change orders are independent billing documents.
+                        Surface each plan beside the anchor instead of silently
+                        rescaling the anchor's percentage draws. */}
+                    {changeOrders
+                      .filter((co) => ["ACCEPTED", "IN_PROGRESS", "COMPLETED", "INVOICED", "PAID"].includes(co.status))
+                      .map((co) => (
+                        <QuoteInvoicesSection
+                          key={`co-billing-${co.id}`}
+                          jobId={co.id}
+                          jobStatus={co.status}
+                          title={`Billing · ${co.job_number || `CO #${co.id}`}`}
+                          isChangeOrder
+                          onDrawBilled={onStatusUpdate}
+                        />
+                      ))}
 
                     {(changeOrders.length > 0 || revisedContractAmount || currentJob.created_from_job_id || canCreateChangeOrder) && (
                       <QuoteSidebarSection
