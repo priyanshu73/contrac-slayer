@@ -1024,9 +1024,6 @@ export function UnifiedLeads() {
                       <p className="text-[11px] text-muted-foreground">{counts.all} active leads</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg bg-background">
-                    <Plus className="h-4 w-4" />
-                  </Button>
                 </div>
                 <div className="flex gap-2 items-center">
                   <div className="relative flex-1">

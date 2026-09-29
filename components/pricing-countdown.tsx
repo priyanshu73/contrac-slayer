@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Clock, Zap } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface PricingCountdownProps {
   className?: string
@@ -14,6 +15,7 @@ export function PricingCountdown({
   className = "",
   variant = "banner",
 }: PricingCountdownProps) {
+  const t = useTranslations("billing")
   const [timeLeft, setTimeLeft] = useState<{
     days: number
     hours: number
@@ -53,7 +55,7 @@ export function PricingCountdown({
         className={`inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 ${className}`}
       >
         <Zap className="h-3.5 w-3.5 fill-amber-500 text-amber-500 animate-pulse" />
-        <span>Limited Offer: 48h Price Lock active</span>
+        <span>{t("saleCountdownLoading")}</span>
       </div>
     )
   }
@@ -71,7 +73,7 @@ export function PricingCountdown({
         </span>
         <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
         <span>
-          Ends in {days}d {String(hours).padStart(2, "0")}h{" "}
+          {t("saleCountdownReset")} {days}d {String(hours).padStart(2, "0")}h{" "}
           {String(minutes).padStart(2, "0")}m {String(seconds).padStart(2, "0")}s
         </span>
       </div>
@@ -88,11 +90,11 @@ export function PricingCountdown({
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-600"></span>
         </span>
         <span className="font-semibold tracking-tight text-amber-900 dark:text-amber-200">
-          ⚡ Limited Offer:
+          ⚡ {t("saleCountdownLabel")}:
         </span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-muted-foreground">Price lock expires in</span>
+        <span className="text-muted-foreground">{t("saleCountdownReset")}</span>
         <span className="inline-flex items-center font-mono font-bold text-amber-700 dark:text-amber-300">
           {days}d {String(hours).padStart(2, "0")}h {String(minutes).padStart(2, "0")}m{" "}
           {String(seconds).padStart(2, "0")}s

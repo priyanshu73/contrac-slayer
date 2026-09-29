@@ -401,7 +401,9 @@ export default function TaskBoardPage() {
         <div className="max-w-7xl mx-auto">
           {filteredTasks.length === 0 ? (
             <Card className="border-slate-200 shadow-sm p-8 text-center text-sm text-slate-500">
-              {t("empty")}
+              {search.trim() || selectedProjectId !== "ALL" || statusFilter !== "ALL" || assigneeFilter !== "ALL"
+                ? t("filteredEmpty")
+                : t("empty")}
             </Card>
           ) : (
             <div className="space-y-3 md:space-y-2.5">

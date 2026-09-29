@@ -7,6 +7,7 @@ import Link from "next/link"
 import { useLocale, useTranslations } from "next-intl"
 import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
 import { PRICING_FEATURE_KEYS, PRICING_OFFER } from "@/lib/pricing-offer"
+import { PricingPromo } from "@/components/pricing-promo"
 
 export function Pricing() {
   const locale = useLocale()
@@ -19,8 +20,10 @@ export function Pricing() {
     <section id="pricing" className="py-24 px-4 bg-background">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">{t("pricingTitle")}</h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t("pageSubtitle")}</p>
+          <PricingPromo>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">{t("pricingTitle")}</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-7">{t("pageSubtitle")}</p>
+          </PricingPromo>
         </div>
         <div className="grid md:grid-cols-2 gap-9 max-w-[960px] mx-auto items-start">
           {(["monthly", "yearly"] as const).map((plan) => {
@@ -32,22 +35,28 @@ export function Pricing() {
                     <span className="bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-lg">{t("bestValue")}</span>
                   </div>
                 )}
-                <div className="mb-9 pt-2">
+                <div className={`mb-9 ${isYearly ? "pt-2" : ""}`}>
                   <h3 className="text-2xl font-semibold mb-2">{t(plan)}</h3>
                   <p className="text-muted-foreground">{t(isYearly ? "yearlyDescription" : "monthlyDescription")}</p>
                 </div>
                 <div className="flex items-baseline gap-3 mb-2.5">
-                  <span className="text-[3.5rem] leading-none font-extrabold tracking-tight">${isYearly ? PRICING_OFFER.yearlyMonthlyEquivalent : PRICING_OFFER.monthly}</span>
+                  <span className={`diagonal-strike ${isYearly ? "strike-delay-2" : "strike-delay-1"} text-2xl font-semibold text-muted-foreground`}>
+                    ${isYearly ? PRICING_OFFER.monthly : PRICING_OFFER.regularMonthly}
+                  </span>
+                  <span className="shine-price text-[3.5rem] leading-none font-extrabold tracking-tight">${isYearly ? PRICING_OFFER.yearlyMonthlyEquivalent : PRICING_OFFER.monthly}</span>
                   <span className="text-muted-foreground text-lg">{t("perMonth")}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {isYearly ? t("billedAnnually", { amount: PRICING_OFFER.yearly }) : t("monthlyBillingNote")}
-                </p>
-                {isYearly && (
-                  <span className="mt-4 inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    {t("yearlySavings", { amount: PRICING_OFFER.yearlySavings, percent: PRICING_OFFER.yearlySavingsPercent })}
-                  </span>
-                )}
+                <p className="text-[15.5px] font-semibold mb-4">{t("launchSaleTerm")}</p>
+                <span className="inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  {isYearly
+                    ? t("yearlySavings", { amount: PRICING_OFFER.yearlySavings, percent: PRICING_OFFER.yearlySavingsPercent })
+                    : t("monthlySavings", { amount: PRICING_OFFER.monthlySavings })}
+                </span>
+                <div className="mt-6 pt-5 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {isYearly ? t("billedAnnually", { amount: PRICING_OFFER.yearly }) : t("monthlyBillingNote")}
+                  </p>
+                </div>
                 <Button className="w-full my-8" size="lg" variant={isYearly ? "default" : "outline"} asChild>
                   <Link href={signupUrl}>{t("startFreeTrial")}</Link>
                 </Button>
