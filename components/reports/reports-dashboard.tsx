@@ -162,7 +162,7 @@ export function ReportsDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <PresetButton label="This week" active={preset === "week"} onClick={() => { setPreset("week"); setRange(presetRange("week")) }} />
           <PresetButton label="This month" active={preset === "month"} onClick={() => { setPreset("month"); setRange(presetRange("month")) }} />
           <PresetButton label="Last 30 days" active={preset === "30d"} onClick={() => { setPreset("30d"); setRange(presetRange("30d")) }} />

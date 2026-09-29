@@ -3185,12 +3185,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           )}
 
           {/* Actions */}
-          <div className="sticky bottom-0 z-30 -mx-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-14px_40px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6">
+          <div className="sticky bottom-0 z-30 -mx-4 flex flex-wrap items-center gap-2 border-t border-slate-200/80 bg-white/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:gap-3 sm:px-6 sm:py-3 sm:pb-3">
             <Button
               size="lg"
               onClick={handleCreateQuote}
               disabled={isCreatingQuote}
-              className="shadow-sm"
+              className="flex-1 text-sm shadow-sm max-sm:min-w-0 sm:flex-none sm:text-base"
             >
               {isCreatingQuote ? (
                 <>
@@ -3229,7 +3229,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 </a>
               </Button>
             )}
-            <Button size="lg" variant="outline" asChild>
+            <Button size="lg" variant="outline" asChild className="text-sm sm:text-base">
               <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel</a>
             </Button>
           </div>

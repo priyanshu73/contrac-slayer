@@ -885,7 +885,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 max-[350px]:gap-1">
           <Button asChild className="h-12 rounded-lg text-xs">
             <a href={`/${locale}/quotes/new?clientId=${clientData.id}`} className="flex items-center justify-center gap-1.5">
               <FileText className="h-4 w-4" />

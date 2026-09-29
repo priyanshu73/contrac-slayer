@@ -1619,9 +1619,9 @@ export default function CalendarPage() {
               {googleConnected === false ? (
                 <Alert className="bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800">
                   <AlertCircleIcon className="text-indigo-600 dark:text-indigo-400" />
-                  <AlertDescription className="flex items-center justify-between text-indigo-800 dark:text-indigo-200">
+                  <AlertDescription className="flex flex-col items-start gap-3 text-indigo-800 md:flex-row md:items-center md:justify-between dark:text-indigo-200">
                     <span>Connect a Google or Microsoft account to sync calendar features.</span>
-                    <Button variant="outline" size="sm" asChild className="ml-4 shrink-0 bg-white dark:bg-transparent">
+                    <Button variant="outline" size="sm" asChild className="w-full shrink-0 bg-white md:ml-4 md:w-auto dark:bg-transparent">
                       <a href="/settings?tab=integrations">Connect account</a>
                     </Button>
                   </AlertDescription>

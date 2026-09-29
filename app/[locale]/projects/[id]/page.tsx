@@ -187,14 +187,14 @@ export default function ProjectDetailPage() {
           <div className="px-4 sm:px-6 lg:px-10 pt-4 pb-0">
 
             {/* Row 1: breadcrumb left, Edit + Status right */}
-            <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:mb-2">
               <AppBreadcrumb
                 items={[
                   { label: "Projects", href: `/${locale}/projects` },
                   { label: isEditingHeader ? (draftTitle || project.title) : project.title },
                 ]}
               />
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:shrink-0">
                 {!isEditingHeader && (
                   <button
                     onClick={() => setIsEditingHeader(true)}
@@ -286,7 +286,7 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-start justify-between gap-8 mb-1">
+              <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-8 sm:mb-1">
                 {/* Left: title + description */}
                 <div className="min-w-0 flex-1">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight mb-2">
@@ -328,7 +328,7 @@ export default function ProjectDetailPage() {
                 </div>
 
                 {/* Right: date + client */}
-                <div className="shrink-0 flex flex-col items-end gap-2 pt-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 pt-1 sm:shrink-0 sm:flex-col sm:items-end">
                   {(project.scheduled_start_date || project.scheduled_end_date) && (
                     <div className="flex items-center gap-1.5 text-sm text-slate-500">
                       <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
@@ -362,7 +362,7 @@ export default function ProjectDetailPage() {
                 { value: "notes",      label: "Notes" },
               ]
               return (
-                <div className="relative flex overflow-x-auto">
+                <div className="relative flex overflow-x-auto max-sm:min-w-0 max-sm:overscroll-x-contain max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
                   <GooeyFilter id="project-tab-goo" strength={6} />
 
                   {/* Blob layer — filter applied here so text stays crisp */}
@@ -538,26 +538,26 @@ function ClientPicker({
   }, [clients, search])
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0 max-w-full" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex flex-col items-end gap-0.5 py-1 group text-right"
+        className="group flex max-w-full min-w-0 flex-col items-start gap-0.5 py-1 text-left sm:items-end sm:text-right"
       >
         {currentClient ? (
           <>
-            <div className="flex items-center gap-2">
+            <div className="flex max-w-full min-w-0 items-center gap-2">
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${clientAvatarColor(currentClient.name)}`}>
                 {clientInitials(currentClient.name)}
               </div>
-              <span className="font-semibold text-slate-900 text-sm">{currentClient.name}</span>
+              <span className="max-w-full min-w-0 truncate font-semibold text-slate-900 text-sm">{currentClient.name}</span>
               <ChevronDown className="w-4 h-4 text-slate-400" />
             </div>
             {(currentClient.phone || currentClient.email) && (
-              <div className="flex items-center gap-2 text-sm text-slate-400 pl-10">
-                {currentClient.phone && <span>{currentClient.phone}</span>}
+              <div className="flex max-w-full min-w-0 items-center gap-2 overflow-hidden text-sm text-slate-400 sm:pl-10">
+                {currentClient.phone && <span className="shrink-0">{currentClient.phone}</span>}
                 {currentClient.phone && currentClient.email && <span className="text-slate-300">·</span>}
-                {currentClient.email && <span>{currentClient.email}</span>}
+                {currentClient.email && <span className="min-w-0 truncate">{currentClient.email}</span>}
               </div>
             )}
           </>
