@@ -1,3 +1,5 @@
+"use client"
+
 import { MobileSectionHub } from "@/components/mobile-section-hub"
 import { BriefcaseBusiness, CalendarDays, ListTodo, UsersRound } from "lucide-react"
 export default function WorkHub() {
