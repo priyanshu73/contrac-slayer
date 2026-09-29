@@ -8,6 +8,7 @@ import { Check, ChevronRight, CircleAlert, ClipboardList, Loader2 } from "lucide
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
+import { projectlessTasks } from "@/lib/projectless-tasks"
 import { cn } from "@/lib/utils"
 import type { ContractorTask } from "@/lib/types"
 
@@ -76,7 +77,8 @@ export function DashboardTasks() {
     e.stopPropagation()
     setCompleting(task.id)
     try {
-      await api.updateProjectTask(task.project_id, task.id, { status: "COMPLETED" })
+      if (task.project_id == null) await projectlessTasks.update(task.id, { status: "COMPLETED" })
+      else await api.updateProjectTask(task.project_id, task.id, { status: "COMPLETED" })
       setTasks((prev) => prev.filter((t) => t.id !== task.id))
     } catch (err) {
       if (process.env.NODE_ENV === "development") console.error("complete task failed", err)
@@ -97,7 +99,7 @@ export function DashboardTasks() {
               </span>
             ) : null}
           </h2>
-          <p className="text-xs text-muted-foreground">Open work across your projects</p>
+          <p className="text-xs text-muted-foreground">Open work and projects</p>
         </div>
         <Link
           href={`/${locale}/tasks`}
@@ -119,7 +121,7 @@ export function DashboardTasks() {
             <ClipboardList className="h-5 w-5 text-slate-400" />
           </div>
           <p className="text-sm font-medium text-slate-900">No open tasks</p>
-          <p className="text-xs text-muted-foreground">Tasks from your projects will show up here.</p>
+          <p className="text-xs text-muted-foreground">Tasks will show up here.</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -131,7 +133,7 @@ export function DashboardTasks() {
             return (
               <Link
                 key={task.id}
-                href={`/${locale}/projects/${task.project_id}`}
+                href={task.project_id == null ? `/${locale}/tasks` : `/${locale}/projects/${task.project_id}`}
                 className="group flex items-center gap-3 rounded-lg border border-slate-100 bg-white py-2 pl-2.5 pr-3 transition-all hover:border-slate-300 hover:bg-slate-50"
               >
                 <button
@@ -165,7 +167,7 @@ export function DashboardTasks() {
                     ) : null}
                   </div>
                   <p className="truncate text-xs text-slate-500">
-                    {task.project_title || "Project"}
+                    {task.project_id == null ? "No project" : task.project_title || "Project"}
                     {due ? (
                       <span className={cn(due.overdue ? "font-medium text-rose-600" : "text-slate-400")}> · {due.label}</span>
                     ) : null}
