@@ -653,7 +653,8 @@
     "unassigned": "Unassigned",
     "assignToMe": "Assign to me",
     "clearFilters": "Clear filters",
-    "empty": "No tasks match these filters yet.",
+    "empty": "No tasks yet.",
+    "filteredEmpty": "No tasks match these filters.",
     "openProject": "Open project",
     "dueLabel": "Due",
     "projectLabel": "Project",
@@ -2253,4 +2254,4 @@
       "saving": "Saving…"
     }
   }
-    }
+  }

@@ -653,7 +653,8 @@
     "unassigned": "Sin asignar",
     "assignToMe": "Asignarme",
     "clearFilters": "Limpiar filtros",
-    "empty": "Todavía no hay tareas que coincidan con estos filtros.",
+    "empty": "Todavía no hay tareas.",
+    "filteredEmpty": "Ninguna tarea coincide con estos filtros.",
     "openProject": "Abrir proyecto",
     "dueLabel": "Vence",
     "projectLabel": "Proyecto",
@@ -2253,4 +2254,4 @@
       "saving": "Guardando…"
     }
   }
-    }
+  }
