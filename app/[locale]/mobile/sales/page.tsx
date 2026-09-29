@@ -1,3 +1,5 @@
+"use client"
+
 import { MobileSectionHub } from "@/components/mobile-section-hub"
 import { BarChart3, FileText, Receipt, UserRoundPlus, UsersRound } from "lucide-react"
 export default function SalesHub() {
