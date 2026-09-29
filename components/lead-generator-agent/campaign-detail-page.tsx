@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { canApproveDiscoveredLead } from "@/lib/discovery-review"
+import { canApproveDiscoveredLead, canOverrideGeography } from "@/lib/discovery-review"
 import type { CampaignDetail, DiscoveredCampaignLead } from "@/lib/types"
 import ReviewEmailUI from "@/review-email-ui"
 import { Badge } from "@/components/ui/badge"
@@ -379,6 +379,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null)
   const [stagedLeads, setStagedLeads] = useState<DiscoveredCampaignLead[]>([])
   const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([])
+  const [geographyOverrideIds, setGeographyOverrideIds] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [error, setError] = useState<string | null>(null)
@@ -404,9 +405,11 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         const staged = await api.getCampaignStagedLeads(campaignId)
         setStagedLeads(staged.leads)
         setSelectedLeadIds(staged.leads.filter(canApproveDiscoveredLead).map((l) => l.id))
+        setGeographyOverrideIds([])
       } else {
         setStagedLeads([])
         setSelectedLeadIds([])
+        setGeographyOverrideIds([])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load campaign.")
@@ -482,7 +485,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             drafts_generated: 0,
           },
         } : prev)
-        await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds)
+        await api.approveCampaignStagedLeads(campaign.uuid, selectedLeadIds, geographyOverrideIds)
       }
       if (action === "reject-leads") await api.rejectCampaignStagedLeads(campaign.uuid, selectedLeadIds)
       if (action === "approve-messaging") await api.approveCampaignMessaging(campaign.uuid)
@@ -528,8 +531,11 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     }
   }
 
-  function toggleLead(id: number, checked: boolean) {
-    setSelectedLeadIds((prev) => checked ? [...prev, id] : prev.filter((x) => x !== id))
+  function toggleLead(id: number, checked: boolean, geographyOverride = false) {
+    setSelectedLeadIds((prev) => checked ? [...new Set([...prev, id])] : prev.filter((x) => x !== id))
+    if (geographyOverride) {
+      setGeographyOverrideIds((prev) => checked ? [...new Set([...prev, id])] : prev.filter((x) => x !== id))
+    }
   }
 
   // ── Loading state ─────────────────────────────────────────────────────────────
@@ -779,7 +785,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   variant="ghost"
                   size="sm"
                   className="ml-auto rounded-xl text-xs text-slate-500"
-                  onClick={() => setSelectedLeadIds(stagedLeads.filter(canApproveDiscoveredLead).map((l) => l.id))}
+                  onClick={() => { setSelectedLeadIds(stagedLeads.filter(canApproveDiscoveredLead).map((l) => l.id)); setGeographyOverrideIds([]) }}
                 >
                   Select all
                 </Button>
@@ -787,7 +793,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   variant="ghost"
                   size="sm"
                   className="rounded-xl text-xs text-slate-500"
-                  onClick={() => setSelectedLeadIds([])}
+                  onClick={() => { setSelectedLeadIds([]); setGeographyOverrideIds([]) }}
                 >
                   Clear
                 </Button>
@@ -806,6 +812,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                     {stagedLeads.map((lead) => {
                       const contactFormUrl = getPrimaryContactFormUrl(lead)
                       const contactFormCount = getLeadContactForms(lead).length
+                      const geographyOverride = canOverrideGeography(lead)
                       return (
                         <TableRow key={lead.id} className="hover:bg-slate-50/50">
                           <TableCell>
@@ -813,14 +820,16 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                               type="checkbox"
                               className="rounded"
                               checked={selectedLeadIds.includes(lead.id)}
-                              disabled={!canApproveDiscoveredLead(lead)}
-                              onChange={(e) => toggleLead(lead.id, e.target.checked)}
+                              disabled={!canApproveDiscoveredLead(lead) && !geographyOverride}
+                              aria-label={geographyOverride ? `Approve ${lead.business_name} despite unverified geography` : `Select ${lead.business_name}`}
+                              onChange={(e) => toggleLead(lead.id, e.target.checked, geographyOverride)}
                             />
                           </TableCell>
                           <TableCell>
                             <div className="font-medium text-slate-900 text-sm">{lead.business_name}</div>
                             <div className="text-xs text-slate-400">{lead.website || lead.domain}</div>
-                            {!canApproveDiscoveredLead(lead) && <div className="mt-1 text-xs text-amber-700">Not eligible: {lead.meta_context?.qualification?.reasons?.length ? lead.meta_context.qualification.reasons.join(" ") : "Rejected or business fit has not been verified."}</div>}
+                            {geographyOverride && <div className="mt-1 text-xs text-amber-700">Needs review: geography is unverified. Select this row to approve it anyway.</div>}
+                            {!canApproveDiscoveredLead(lead) && !geographyOverride && <div className="mt-1 text-xs text-amber-700">Not eligible: {lead.meta_context?.qualification?.reasons?.length ? lead.meta_context.qualification.reasons.join(" ") : "Rejected or business fit has not been verified."}</div>}
                             {lead.meta_context?.source_result?.snippet && <div className="mt-1 text-xs text-slate-500">{lead.meta_context.source_result.snippet}</div>}
                           </TableCell>
                           <TableCell className="text-sm text-slate-600">
@@ -1018,4 +1027,4 @@ function ActionButton({
       {label}
     </Button>
   )
-}
+        }
