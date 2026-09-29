@@ -1,0 +1,17 @@
+/* Native Engage keeps the Frontline steps as one stack of tappable cards. */
+@media (max-width: 767px) {
+  .mobileEngageFrontline :global(.sm\:grid-cols-2.lg\:grid-cols-4) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mobileEngageFrontline :global(.sm\:grid-cols-2.lg\:grid-cols-4 > button) {
+    min-height: 56px;
+    align-items: center;
+    border-radius: 14px;
+    padding: 10px;
+  }
+  .mobileEngageFrontline :global(.sm\:grid-cols-2.lg\:grid-cols-4 > button > span:first-child) {
+    border-radius: 999px;
+  }
+}
