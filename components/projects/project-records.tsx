@@ -236,9 +236,9 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       {/* Header: title + actions */}
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-3 sm:px-5">
         <span className="text-base font-bold text-slate-900">Documents</span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsLinkDialogOpen(true)}
             className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white pl-3 pr-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm hover:border-slate-300 hover:text-slate-900 hover:shadow-md active:scale-[0.97] transition-all"
@@ -269,7 +269,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
       </div>
 
       {/* Filter chips */}
-      <div className="flex items-center gap-1.5 px-5 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-1.5 overflow-x-auto px-5 pb-3 max-sm:overscroll-x-contain max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
         {FILTERS.map(({ key, label }) => {
           const active = filter === key
           const count = counts[key]
