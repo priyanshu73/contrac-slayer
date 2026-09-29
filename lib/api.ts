@@ -2979,10 +2979,10 @@ class ApiClient {
     return this.request<CampaignStagedLeadsResponse>(`/campaigns/${campaignUuid}/staged-leads`)
   }
 
-  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[], geographyOverrideIds: number[] = []): Promise<StagedLeadActionResponse> {
     return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/approve`, {
       method: 'POST',
-      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds, geography_override_ids: geographyOverrideIds }),
     })
   }
 
@@ -3445,10 +3445,10 @@ class ContractorAIClient {
     return this.request<CampaignStagedLeadsResponse>(`/campaigns/${campaignUuid}/staged-leads`)
   }
 
-  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[]): Promise<StagedLeadActionResponse> {
+  async approveCampaignStagedLeads(campaignUuid: string, discoveredLeadIds: number[], geographyOverrideIds: number[] = []): Promise<StagedLeadActionResponse> {
     return this.request<StagedLeadActionResponse>(`/campaigns/${campaignUuid}/staged-leads/approve`, {
       method: 'POST',
-      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds }),
+      body: JSON.stringify({ discovered_lead_ids: discoveredLeadIds, geography_override_ids: geographyOverrideIds }),
     })
   }
 
