@@ -262,13 +262,13 @@ export default function InvoicesPage() {
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
-              <div className="min-w-[150px] flex-1 md:flex-none">
+              <div className="min-w-0 flex-1 sm:min-w-[150px] md:flex-none">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 w-full min-w-[150px] justify-between rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-lg md:bg-transparent"
+                      className="h-11 w-full min-w-0 justify-between sm:min-w-[150px] rounded-xl bg-background px-3 font-normal md:h-10 md:rounded-lg md:bg-transparent"
                     >
                       <span className="truncate">{statusFilterLabel}</span>
                       <ChevronDown className="h-4 w-4 opacity-60" />
@@ -305,12 +305,12 @@ export default function InvoicesPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <div className="min-w-[180px] flex-1 md:flex-none">
+              <div className="min-w-0 flex-1 sm:min-w-[180px] md:flex-none">
                 <Select
                   value={clientFilterId != null ? String(clientFilterId) : "all"}
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
-                  <SelectTrigger className="h-11 rounded-xl bg-background md:h-10 md:rounded-lg md:bg-transparent">
+                  <SelectTrigger className="h-11 w-full min-w-0 rounded-xl bg-background md:h-10 md:rounded-lg md:bg-transparent">
                     <SelectValue placeholder="All Clients" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">

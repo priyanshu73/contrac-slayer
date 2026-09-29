@@ -98,8 +98,8 @@ export default function NewQuotePage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto flex min-h-16 items-center justify-between gap-2 px-3 py-2 sm:h-16 sm:gap-0 sm:px-4 sm:py-0">
+          <div className="flex items-center gap-1 max-sm:min-w-0 sm:gap-3">
             <Button variant="ghost" size="icon" asChild>
               <a href="/quotes">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@ export default function NewQuotePage() {
                 </svg>
               </a>
             </Button>
-            <div>
+            <div className="max-sm:min-w-0">
               <h1 className="hidden text-lg font-semibold leading-none md:block">Create Quote</h1>
               <p className="text-sm text-muted-foreground md:mt-0">{subtitle}</p>
             </div>
@@ -117,7 +117,7 @@ export default function NewQuotePage() {
             <Button
               size="sm"
               onClick={openAiPanelForEstimate}
-              className="relative flex items-center gap-1.5 rounded-full border-0 bg-gradient-to-r from-sky-500 to-blue-600 px-4 font-semibold text-white shadow-lg shadow-sky-500/30 transition-transform hover:scale-105 hover:from-sky-400 hover:to-blue-500"
+              className="relative flex items-center gap-1.5 whitespace-nowrap rounded-full border-0 bg-gradient-to-r from-sky-500 to-blue-600 px-2.5 sm:px-4 font-semibold text-white shadow-lg shadow-sky-500/30 transition-transform hover:scale-105 hover:from-sky-400 hover:to-blue-500"
             >
               <Sparkles className="h-4 w-4 animate-pulse" />
               Estimate with AI

@@ -979,12 +979,12 @@ export default function QuoteDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 print:hidden">
+        <div className="mx-4 sm:mx-6 md:mx-8 mt-3 flex flex-col items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
           <div className="flex items-center gap-2.5 min-w-0">
             <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-sm text-muted-foreground font-medium">{t("noProjectLinked")}</span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
             <Popover open={linkProjectOpen} onOpenChange={setLinkProjectOpen}>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
