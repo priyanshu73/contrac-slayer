@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
+import { projectlessTasks } from "@/lib/projectless-tasks"
 import type { ContractorTask, Project, ProjectListItem, TaskStatus } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -197,7 +198,9 @@ export default function TaskBoardPage() {
 
     setSavingTaskId(taskId)
     try {
-      const updated = (await api.updateProjectTask(current.project_id, current.id, patch)) as ContractorTask
+      const updated = current.project_id == null
+        ? await projectlessTasks.update<ContractorTask>(current.id, patch)
+        : (await api.updateProjectTask(current.project_id, current.id, patch)) as ContractorTask
       setTasks((prev) =>
         prev.map((task) =>
           task.id === taskId
@@ -240,13 +243,13 @@ export default function TaskBoardPage() {
   }
 
   const handleOpenCreate = async () => {
-    if (projects.length === 0) return
     setCreateProjectId(null)
     setCreateOpen(true)
   }
 
   const handleProjectChange = async (newId: number) => {
-    setCreateProjectId(newId)
+    setCreateProjectId(newId || null)
+    if (!newId) return
     try {
       await ensureProjectLoaded(newId)
     } catch (error) {
@@ -256,7 +259,7 @@ export default function TaskBoardPage() {
 
   const handleOpenEdit = async (task: ContractorTask) => {
     try {
-      await ensureProjectLoaded(task.project_id)
+      if (task.project_id != null) await ensureProjectLoaded(task.project_id)
       setEditingTask(task)
       setEditOpen(true)
     } catch (error: any) {
@@ -288,7 +291,8 @@ export default function TaskBoardPage() {
 
     setDeletingTaskId(deleteTarget.id)
     try {
-      await api.deleteProjectTask(deleteTarget.project_id, deleteTarget.id)
+      if (deleteTarget.project_id == null) await projectlessTasks.delete(deleteTarget.id)
+      else await api.deleteProjectTask(deleteTarget.project_id, deleteTarget.id)
       setTasks((prev) => prev.filter((task) => task.id !== deleteTarget.id))
       toast({ title: taskT("taskDeleted") })
       setDeleteTarget(null)
@@ -323,7 +327,7 @@ export default function TaskBoardPage() {
                 </h1>
                 <p className="text-sm text-slate-500 md:mt-1">{t("subtitle")}</p>
               </div>
-              <Button className="h-11 rounded-lg sm:w-fit" onClick={handleOpenCreate} disabled={projects.length === 0}>
+              <Button className="h-11 rounded-lg sm:w-fit" onClick={handleOpenCreate}>
                 {t("newTask")}
               </Button>
             </div>
@@ -421,7 +425,7 @@ export default function TaskBoardPage() {
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                           <span>
-                            {t("projectLabel")}: {task.project_title || `#${task.project_id}`}
+                            {t("projectLabel")}: {task.project_id == null ? "No project" : task.project_title || `#${task.project_id}`}
                           </span>
                           <span>
                             {t("assigneeLabel")}: {task.assigned_to || t("unassigned")}
@@ -495,7 +499,7 @@ export default function TaskBoardPage() {
                       <p className="text-sm leading-6 text-slate-600 whitespace-pre-wrap">{task.description}</p>
                     )}
 
-                    <div className="flex justify-start md:justify-end">
+                    {task.project_id != null && <div className="flex justify-start md:justify-end">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -506,7 +510,7 @@ export default function TaskBoardPage() {
                       >
                         {t("openProject")}
                       </Button>
-                    </div>
+                    </div>}
                   </div>
                 </Card>
               ))}
@@ -526,7 +530,7 @@ export default function TaskBoardPage() {
         onProjectChange={handleProjectChange}
       />
 
-      {editingTask && projectDetails[editingTask.project_id] && (
+      {editingTask && (editingTask.project_id == null || projectDetails[editingTask.project_id]) && (
         <EditTaskDialog
           open={editOpen}
           onOpenChange={(open) => {
@@ -535,7 +539,7 @@ export default function TaskBoardPage() {
           }}
           projectId={editingTask.project_id}
           task={editingTask}
-          trades={projectDetails[editingTask.project_id].trades}
+          trades={editingTask.project_id == null ? undefined : projectDetails[editingTask.project_id].trades}
           onTaskUpdated={(task) => handleTaskUpdated(task as ContractorTask)}
         />
       )}
