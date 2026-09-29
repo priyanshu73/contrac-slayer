@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useLocale } from "next-intl"
 import { Button } from "@/components/ui/button"
+import { ToastAction } from "@/components/ui/toast"
 import {
   Tooltip,
   TooltipContent,
@@ -43,9 +44,19 @@ export function ClientPortalLink({ clientId, existingToken, className }: ClientP
         portalToken = result.token
         setToken(portalToken)
       }
-      await navigator.clipboard.writeText(buildUrl(portalToken))
+      const portalUrl = buildUrl(portalToken)
+      await navigator.clipboard.writeText(portalUrl)
       setCopied(true)
-      toast({ title: "Link copied", description: "Client portal URL is ready to share." })
+      toast({
+        title: "Link copied",
+        description: "Client portal URL is ready to share.",
+        className: "max-w-xs p-3 pr-8",
+        action: (
+          <ToastAction altText="Preview client portal" className="h-7 px-2" onClick={() => window.open(portalUrl, "_blank", "noopener,noreferrer")}>
+            Preview
+          </ToastAction>
+        ),
+      })
       setTimeout(() => setCopied(false), 2000)
     } catch (err: any) {
       toast({ title: "Failed to copy link", description: err?.message ?? "Please try again.", variant: "destructive" })
