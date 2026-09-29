@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
 import { AgentChatPanel } from "@/components/agent-chat-panel"
+import { MobileWorkspaceNav } from "@/components/mobile-workspace-nav"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed"
 
@@ -95,10 +96,11 @@ export function ConditionalShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />
-      <div className={`transition-[margin] duration-300 ease-in-out ${marginClass} pb-16 md:pb-0`}>
+      <div className={`transition-[margin] duration-300 ease-in-out ${marginClass} pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-0`}>
         <EmailVerificationBanner />
         {children}
       </div>
+      <MobileWorkspaceNav />
       <AgentChatPanel />
     </>
   )
