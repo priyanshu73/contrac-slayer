@@ -1,4 +1,12 @@
 {
+  "autoReplySettings": {
+    "noNumberTitle": "Configure su línea de IA para usar la respuesta automática",
+    "noNumberDesc": "La respuesta automática envía mensajes a nuevos clientes desde su número de negocio de ContractorOps. Elija un número o vuelva a conectar su línea de IA para empezar.",
+    "noNumberCta": "Elegir mi número",
+    "noNumberRetry": "Intentar de nuevo",
+    "loadError": "No se pudo cargar la configuración de respuesta automática.",
+    "recoveryDescription": "Esto suele ser temporal. Intente de nuevo y, si el problema continúa, contacte al soporte."
+  },
   "landing": {
     "features": "Características",
     "howItWorks": "Cómo Funciona",
@@ -988,8 +996,8 @@
       "quoteTemplate": "Plantilla de Seguimiento de Cotización",
       "quoteTemplatePlaceholder": "Hola '{customer_name}', solo seguimiento sobre la cotización que enviamos...",
       "resetToDefaults": "Restablecer Valores Predeterminados",
-      "spNotFound": "No se encontró su contacto ContractorOps vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar la configuración de seguimientos.",
-      "spRequired": "Necesita un número ContractorOps para acceder a la configuración de seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
+      "spNotFound": "No pudimos encontrar el contacto vinculado a su número. Vuelva a conectar su número para usar la configuración de seguimientos.",
+      "spRequired": "Necesita un número de ContractorOps para usar la configuración de seguimientos. Elija su número para empezar.",
       "loadFailed": "Error al cargar la configuración de seguimientos. Intente de nuevo.",
       "saveSuccessTitle": "Configuración guardada",
       "saveSuccess": "Su configuración de seguimientos se ha actualizado correctamente.",
@@ -1045,11 +1053,15 @@
       "notifySend": "Avisarme cada vez que salga un seguimiento automático",
       "notifySendDesc": "Desactivado por defecto. Puede ser ruidoso.",
       "dailyDigest": "Resumen diario",
-      "dailyDigestDesc": "Un mensaje por la mañana: enviados, entregados, respuestas y fallos."
+      "dailyDigestDesc": "Un mensaje por la mañana: enviados, entregados, respuestas y fallos.",
+      "noNumberTitle": "Conecte su línea de IA para usar seguimientos",
+      "noNumberDesc": "Los seguimientos y recordatorios envían mensajes a sus clientes desde su número de negocio de ContractorOps. Aún no tiene un número: elija uno y se activarán.",
+      "noNumberCta": "Elegir mi número",
+      "noNumberRetry": "Intentar de nuevo"
     },
     "list": {
-      "spNotFound": "No se encontró su contacto ContractorOps vinculado. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil nuevamente para usar seguimientos programados.",
-      "spRequired": "Necesita un número ContractorOps para acceder a seguimientos programados. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil para usar esta sección.",
+      "spNotFound": "No pudimos encontrar el contacto vinculado a su número. Vuelva a conectar su número para usar los seguimientos programados.",
+      "spRequired": "Necesita un número de ContractorOps para usar los seguimientos programados. Elija su número para empezar.",
       "searchPlaceholder": "Buscar por nombre de cliente o mensaje...",
       "filterByType": "Filtrar por tipo",
       "filterAll": "Todos",
@@ -1128,12 +1140,16 @@
       "eventReplied": "El cliente respondió",
       "eventOptedOut": "El cliente se dio de baja",
       "eventOwnerNotified": "Se te notificó",
-      "eventDigest": "Resumen diario enviado"
+      "eventDigest": "Resumen diario enviado",
+      "noNumberTitle": "Conecte su línea de IA para ver los seguimientos programados",
+      "noNumberDesc": "Los seguimientos programados envían mensajes a sus clientes desde su número de negocio de ContractorOps. Aún no tiene un número: elija uno y aparecerán aquí.",
+      "noNumberCta": "Elegir mi número",
+      "noNumberRetry": "Intentar de nuevo"
     },
     "dialog": {
       "title": "Programar Seguimiento Personalizado",
       "description": "Enviar un mensaje de seguimiento a un cliente en un momento específico",
-      "spRequired": "Necesita un número ContractorOps para programar seguimientos. Agregue su contacto en Contractor AI admin y vincúlelo a su perfil primero.",
+      "spRequired": "Necesita un número de ContractorOps para programar seguimientos. Primero elija su número y luego vuelva aquí.",
       "clientLabel": "Cliente *",
       "selectClient": "Seleccionar un cliente",
       "loadingClients": "Cargando clientes...",
@@ -1960,7 +1976,11 @@
       "badge": "Tu Frontline",
       "title": "Haz que el número del negocio responda como un operador capacitado.",
       "subtitle": "Capacítalo sobre tu negocio, prueba las respuestas y luego gestiona SMS y llamadas con el nivel de confianza adecuado.",
-      "loadError": "No se pudo cargar Tu Frontline."
+      "loadError": "No se pudo cargar Tu Frontline.",
+      "noNumberTitle": "Conecte su línea de IA para empezar",
+      "noNumberDesc": "Su Frontline responde llamadas y mensajes en su número de negocio de ContractorOps. Aún no tiene un número: elija uno y esta página se activará.",
+      "noNumberCta": "Elegir mi número",
+      "noNumberRetry": "Intentar de nuevo"
     },
     "status": {
       "paused": "En pausa",
@@ -2254,4 +2274,4 @@
       "saving": "Guardando…"
     }
   }
-  }
+}

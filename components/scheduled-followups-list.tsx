@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AiLineEmptyState } from "@/components/ai-line-empty-state"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   CalendarIcon,
@@ -36,7 +36,6 @@ import {
   SearchIcon,
   FilterIcon,
   Loader2Icon,
-  InfoIcon,
   Link2Icon,
   AlertTriangleIcon,
   RefreshCwIcon,
@@ -544,10 +543,14 @@ export function ScheduledFollowupsList({
 
   if (notLinked) {
     return (
-      <Alert>
-        <InfoIcon className="h-4 w-4" />
-        <AlertDescription>{t("list.spRequired")}</AlertDescription>
-      </Alert>
+      <AiLineEmptyState
+        title={t("list.noNumberTitle")}
+        description={t("list.noNumberDesc")}
+        ctaLabel={t("list.noNumberCta")}
+        retryLabel={t("list.noNumberRetry")}
+        onRetry={() => void fetchFollowups()}
+        onConnected={() => void fetchFollowups()}
+      />
     )
   }
 

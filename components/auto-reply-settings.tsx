@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import type { AutoReplySettings as AutoReplySettingsType } from "@/lib/types/twilio"
 import { MessageSquare, RotateCcw, Loader2 } from "lucide-react"
+import { AiLineEmptyState } from "@/components/ai-line-empty-state"
 
 /**
  * Settings panel where a contractor edits the SMS auto-reply that goes to
@@ -13,36 +15,38 @@ import { MessageSquare, RotateCcw, Loader2 } from "lucide-react"
  * the platform default.
  */
 export function AutoReplySettings() {
+  const t = useTranslations("autoReplySettings")
   const [data, setData] = useState<AutoReplySettingsType | null>(null)
   const [draft, setDraft] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [notLinked, setNotLinked] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const result = await api.getAutoReply()
-        if (cancelled) return
-        setData(result)
-        setDraft(result.message)
-      } catch (err: any) {
-        if (cancelled) return
-        setError(
-          err?.message?.includes("404")
-            ? "Your contractor profile isn't linked yet. Finish onboarding first."
-            : "Couldn't load auto-reply settings.",
-        )
-      } finally {
-        if (!cancelled) setLoading(false)
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    setNotLinked(false)
+    try {
+      const result = await api.getAutoReply()
+      setData(result)
+      setDraft(result.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ""
+      if (message.includes("404") || /not linked|messaging service|contact not found/i.test(message)) {
+        setNotLinked(true)
+      } else {
+        setError(t("loadError"))
       }
-    })()
-    return () => {
-      cancelled = true
+    } finally {
+      setLoading(false)
     }
-  }, [])
+  }, [t])
+
+  useEffect(() => {
+    void load()
+  }, [load])
 
   const isDirty = useMemo(() => {
     if (!data) return false
@@ -107,9 +111,34 @@ export function AutoReplySettings() {
   }
 
   if (!data) {
+    if (notLinked) {
+      return (
+        <AiLineEmptyState
+          title={t("noNumberTitle")}
+          description={t("noNumberDesc")}
+          ctaLabel={t("noNumberCta")}
+          retryLabel={t("noNumberRetry")}
+          onRetry={() => void load()}
+          onConnected={() => void load()}
+        />
+      )
+    }
     return (
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <div className="text-red-600 text-sm">{error || "Unable to load."}</div>
+        <div className="text-red-600 text-sm">{error || t("loadError")}</div>
+        <p className="text-sm text-slate-500 mt-1">
+          {t("recoveryDescription")}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => void load()}
+        >
+          <RotateCcw className="h-4 w-4 mr-1.5" />
+          {t("noNumberRetry")}
+        </Button>
       </div>
     )
   }

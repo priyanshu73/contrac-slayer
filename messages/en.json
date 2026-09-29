@@ -1,4 +1,12 @@
 {
+  "autoReplySettings": {
+    "noNumberTitle": "Set up your AI line to use auto-reply",
+    "noNumberDesc": "Auto-reply texts new customers from your ContractorOps business number. Choose a number or reconnect your AI line to get started.",
+    "noNumberCta": "Choose my number",
+    "noNumberRetry": "Try again",
+    "loadError": "Couldn't load auto-reply settings.",
+    "recoveryDescription": "This is usually temporary. Try again, and if it keeps happening contact support."
+  },
   "landing": {
     "features": "Features",
     "howItWorks": "How It Works",
@@ -988,8 +996,8 @@
       "quoteTemplate": "Quote Follow-up Template",
       "quoteTemplatePlaceholder": "Hi '{customer_name}', just following up on the quote we sent...",
       "resetToDefaults": "Reset to Defaults",
-      "spNotFound": "Your linked ContractorOps contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use follow-up settings.",
-      "spRequired": "You need a ContractorOps number to access follow-up settings. Add your contact in Contractor AI admin and link it to your profile to use this section.",
+      "spNotFound": "We couldn't find the contact linked to your number. Reconnect your number to use follow-up settings.",
+      "spRequired": "You need a ContractorOps number to use follow-up settings. Choose your number to get started.",
       "loadFailed": "Failed to load follow-up settings. Please try again.",
       "saveSuccessTitle": "Settings saved",
       "saveSuccess": "Your follow-up settings have been updated successfully.",
@@ -1045,11 +1053,15 @@
       "notifySend": "Text me each time an automated follow-up goes out",
       "notifySendDesc": "Off by default. Can get noisy.",
       "dailyDigest": "Daily digest",
-      "dailyDigestDesc": "One morning text: sent, delivered, replies, and anything that failed."
+      "dailyDigestDesc": "One morning text: sent, delivered, replies, and anything that failed.",
+      "noNumberTitle": "Connect your AI line to use follow-ups",
+      "noNumberDesc": "Follow-ups and reminders text your customers from your ContractorOps business number. You don't have a number yet - pick one and they turn on.",
+      "noNumberCta": "Choose my number",
+      "noNumberRetry": "Try again"
     },
     "list": {
-      "spNotFound": "Your linked ContractorOps contact was not found. Add your contact in Contractor AI admin and link it to your profile again to use scheduled follow-ups.",
-      "spRequired": "You need a ContractorOps number to access scheduled follow-ups. Add your contact in Contractor AI admin and link it to your profile to use this section.",
+      "spNotFound": "We couldn't find the contact linked to your number. Reconnect your number to use scheduled follow-ups.",
+      "spRequired": "You need a ContractorOps number to use scheduled follow-ups. Choose your number to get started.",
       "searchPlaceholder": "Search by customer name or message...",
       "filterByType": "Filter by type",
       "filterAll": "All",
@@ -1128,12 +1140,16 @@
       "eventReplied": "Customer replied",
       "eventOptedOut": "Customer opted out",
       "eventOwnerNotified": "You were notified",
-      "eventDigest": "Daily digest sent"
+      "eventDigest": "Daily digest sent",
+      "noNumberTitle": "Connect your AI line to see scheduled follow-ups",
+      "noNumberDesc": "Scheduled follow-ups text your customers from your ContractorOps business number. You don't have a number yet - pick one and they show up here.",
+      "noNumberCta": "Choose my number",
+      "noNumberRetry": "Try again"
     },
     "dialog": {
       "title": "Schedule Custom Follow-up",
       "description": "Send a follow-up message to a client at a specific time",
-      "spRequired": "You need a ContractorOps number to schedule follow-ups. Add your contact in Contractor AI admin and link it to your profile first.",
+      "spRequired": "You need a ContractorOps number to schedule follow-ups. Choose your number first, then come back here.",
       "clientLabel": "Client *",
       "selectClient": "Select a client",
       "loadingClients": "Loading clients...",
@@ -1960,7 +1976,11 @@
       "badge": "Your Frontline",
       "title": "Make the business number answer like a trained operator.",
       "subtitle": "Train it on your business, test replies, then run SMS and calls with the right amount of trust.",
-      "loadError": "Unable to load Your Frontline."
+      "loadError": "Unable to load Your Frontline.",
+      "noNumberTitle": "Connect your AI line to get started",
+      "noNumberDesc": "Your Frontline answers calls and texts on your ContractorOps business number. You don't have a number yet - pick one and this page turns on.",
+      "noNumberCta": "Choose my number",
+      "noNumberRetry": "Try again"
     },
     "status": {
       "paused": "Paused",
@@ -2254,4 +2274,4 @@
       "saving": "Saving…"
     }
   }
-  }
+}
