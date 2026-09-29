@@ -942,7 +942,7 @@ export interface ClientPortalData {
 
 export interface ProjectTask {
   id: number
-  project_id: number
+  project_id: number | null
   parent_task_id?: number | null
   title: string
   description?: string
