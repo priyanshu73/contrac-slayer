@@ -1,3 +1,5 @@
+"use client"
+
 import { MobileSectionHub } from "@/components/mobile-section-hub"
 import { Headphones, Megaphone } from "lucide-react"
 export default function EngageHub() {
