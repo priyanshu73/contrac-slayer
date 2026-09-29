@@ -116,7 +116,7 @@ function useSearchIndex(open: boolean, spId: number | null) {
           label: t.title,
           detail: t.project_title || t.status?.replace?.(/_/g, " ").toLowerCase(),
           date: t.scheduled_end_date,
-          path: `/projects/${t.project_id}`,
+          path: t.project_id == null ? "/tasks" : `/projects/${t.project_id}`,
         })
       for (const s of arr(val(crewRes), "items"))
         hits.push({
