@@ -6,6 +6,7 @@ import { NeedsYouCard } from "@/components/dashboard/needs-you-card"
 import { TodayHeader } from "@/components/dashboard/today-header"
 import { DashboardWeekStrip } from "@/components/dashboard-week-strip"
 import { DashboardWorkspaceDrawer } from "@/components/dashboard/dashboard-workspace-drawer"
+import { MobileHome } from "@/components/dashboard/mobile-home"
 import { OpsAiNumberSetupPrompt } from "@/components/ops-ai-number-setup-prompt"
 import { api } from "@/lib/api"
 import type { ActionQueueResponse, DashboardSummary } from "@/lib/types/dashboard"
@@ -47,6 +48,8 @@ export default function DashboardPage() {
       <main className="mx-auto max-w-[1200px] px-4 pt-6 lg:px-6">
         <OpsAiNumberSetupPrompt />
 
+        <div className="-mx-4 md:hidden"><MobileHome summary={summary} queue={queue} queueLoading={queueLoading} onRefresh={refreshAll} /></div>
+        <div className="hidden md:block">
         {/* 1. Header with Date and Quick Actions */}
         <TodayHeader summary={summary} queue={queue} />
 
@@ -66,6 +69,7 @@ export default function DashboardPage() {
           <div className="min-w-0 space-y-4 self-start">
             <DashboardWorkspaceDrawer summary={summary} onRefresh={refreshAll} />
           </div>
+        </div>
         </div>
       </main>
     </div>
