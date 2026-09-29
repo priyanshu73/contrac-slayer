@@ -1,0 +1,16 @@
+/* Native Work uses separate white project cards on phones; preserve desktop list. */
+@media (max-width: 767px) {
+  .mobileWorkProjects :global(.divide-y) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: #f5f5f7;
+  }
+  .mobileWorkProjects :global(.divide-y > .group) {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 6%);
+  }
+}
