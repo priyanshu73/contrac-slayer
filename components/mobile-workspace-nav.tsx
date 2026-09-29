@@ -30,8 +30,8 @@ export function MobileWorkspaceNav() {
       {tabs.slice(0, 2).map(item)}
       <button type="button" aria-label="Open Bob AI" onClick={() => document.getElementById("agent-chat-trigger")?.click()}
         className="relative flex min-w-[68px] flex-col items-center text-[10px] font-semibold text-gray-400">
-        <span className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-blue-700 shadow-lg">
-          <img src={nativeBobLogo} alt="" className="h-14 w-14 object-contain" />
+        <span className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-white shadow-lg">
+          <img src={nativeBobLogo} alt="" className="h-[84px] w-[84px] max-w-none shrink-0 object-contain" />
         </span><span className="mt-0.5">Bob AI</span>
       </button>
       {tabs.slice(2).map(item)}
