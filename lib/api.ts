@@ -5,8 +5,7 @@
 import type {
   Campaign,
   CampaignDetail,
-  CampaignGenerateBriefRes
-  ponse,
+  CampaignGenerateBriefResponse,
   CampaignLaunchResponse,
   CampaignPayload,
   CampaignStagedLeadsResponse,
