@@ -103,3 +103,52 @@ test("a negative balancing draw is flagged as over-contract", () => {
   assert.equal(computed[2].amount, -17.49)
   assert.equal(drawsOverContract(lines, 1082.51), true)
 })
+
+test("flat deposit + 100% final draw lands on the total exactly (Johnson's screenshot case)", () => {
+  // $1,178.84 contract, $59 deposit, then "Payment 2" at 100%: the 100% draw
+  // means "the rest" — $1,119.84 — not another 100% of the total.
+  const lines = [fixed(59), pct(100)]
+  const computed = computeDraws(lines, 1178.84)
+  assert.deepEqual(computed.map((c) => c.amount), [59, 1119.84])
+  assert.equal(computed[1].remainingAfter, 0)
+  assert.equal(isFullAllocation(lines, 1178.84), true)
+  assert.equal(drawsOverContract(lines, 1178.84), false)
+  // The rest draw absorbs everything upstream, so it shows no rounding delta.
+  assert.equal(computed[1].plannedAmount, computed[1].amount)
+})
+
+test("a 100% draw after a billed deposit reconciles against the frozen invoice amount", () => {
+  const lines = [fixed(59, { locked: true, lockedAmount: 59 }), pct(100)]
+  assert.deepEqual(amounts(lines, 1178.84), [59, 1119.84])
+})
+
+test("mixed $ and % chain: $ draws subtract first, a trailing 100% takes the rest", () => {
+  const lines = [fixed(200), pct(25), pct(100)]
+  const computed = computeDraws(lines, 1000)
+  // 25% is still a share of the full total; the 100% draw takes what is left.
+  assert.deepEqual(computed.map((c) => c.amount), [200, 250, 550])
+  assert.equal(computed[2].remainingAfter, 0)
+  assert.equal(drawsOverContract(lines, 1000), false)
+})
+
+test("draws after a 100% draw over-schedule and keep the warning", () => {
+  const lines = [pct(100), fixed(100)]
+  assert.deepEqual(amounts(lines, 1000), [1000, 100])
+  assert.equal(drawsOverContract(lines, 1000), true)
+})
+
+test("a 100% draw whose earlier draws over-allocate goes negative and warns", () => {
+  const lines = [fixed(1200), pct(100)]
+  const computed = computeDraws(lines, 1000)
+  assert.equal(computed[1].amount, -200)
+  assert.equal(drawsOverContract(lines, 1000), true)
+})
+
+test("a 100% draw with nothing before it bills the whole contract", () => {
+  assert.deepEqual(amounts([pct(100)], 1178.84), [1178.84])
+  assert.equal(drawsOverContract([pct(100)], 1178.84), false)
+})
+
+test("ordinary percent shares are unchanged: 50/50 still splits the total", () => {
+  assert.deepEqual(amounts([pct(50), pct(50)], 1178.84), [589.42, 589.42])
+})
