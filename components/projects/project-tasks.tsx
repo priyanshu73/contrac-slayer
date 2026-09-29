@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
+import { projectlessTasks } from "@/lib/projectless-tasks"
 import { useTranslations } from "next-intl"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -447,7 +448,7 @@ function tradeOptionLabel(trade: { subcontractor_name: string; trade_type: strin
 export interface EditTaskDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    projectId: number
+    projectId: number | null
     task: ProjectTask | null
     trades?: { id: number; trade_type: string; subcontractor_name: string }[]
     /** Called when task is updated. Pass true to close the dialog (e.g. after Save), false to keep open (e.g. after adding images). */
@@ -512,7 +513,7 @@ export function EditTaskDialog({
     const [deletingMediaId, setDeletingMediaId] = useState<number | null>(null)
 
     const handleDeleteTaskImage = async (photo: ProjectMedia) => {
-        if (!task) return
+        if (!task || projectId == null) return
         setDeletingMediaId(photo.id)
         try {
             await api.deleteProjectMedia(projectId, photo.id)
@@ -536,7 +537,7 @@ export function EditTaskDialog({
     }
 
     const handleAddMoreImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!task || !e.target.files?.length) return
+        if (!task || projectId == null || !e.target.files?.length) return
         setUploadingMore(true)
         try {
             const uploadedMedia = (await api.uploadProjectMedia(
@@ -599,7 +600,9 @@ export function EditTaskDialog({
             if (endDate) payload.scheduled_end_date = endDate
             else payload.scheduled_end_date = null
 
-            const updated = (await api.updateProjectTask(projectId, task.id, payload)) as ProjectTask
+            const updated = projectId == null
+                ? await projectlessTasks.update<ProjectTask>(task.id, payload)
+                : (await api.updateProjectTask(projectId, task.id, payload)) as ProjectTask
             toast({ title: t("taskUpdated") || "Task updated" })
             onTaskUpdated(updated, true)
             handleOpenChange(false)
@@ -767,7 +770,7 @@ export function EditTaskDialog({
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
+                    {projectId != null && <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-slate-700">
                             {t("attachedImages")}
                         </Label>
@@ -813,7 +816,7 @@ export function EditTaskDialog({
                             {uploadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
                             {uploadingMore ? t("editForm.saving") || "Uploading…" : (t("editForm.addMoreImages") || "Add more images")}
                         </label>
-                    </div>
+                    </div>}
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
@@ -864,14 +867,6 @@ export function AddTaskDialog({
     }
 
     const handleSubmit = async () => {
-        if (!projectId) {
-            toast({
-                title: "Please select a project",
-                variant: "destructive",
-            })
-            return
-        }
-
         if (!title.trim()) {
             toast({
                 title: t("addForm.validation.titleRequired"),
@@ -887,7 +882,7 @@ export function AddTaskDialog({
                 task_type: "TIMELINE",
                 status: "NOT_STARTED",
                 priority: "MEDIUM",
-                project_id: projectId,
+                ...(projectId != null ? { project_id: projectId } : {}),
             }
 
             let finalTradeId = initialAssignedTradeId ?? null
@@ -904,10 +899,9 @@ export function AddTaskDialog({
             if (finalTradeId != null) payload.assigned_trade_id = finalTradeId
             if (finalAssignedTo) payload.assigned_to = finalAssignedTo
 
-            const created = (await api.createProjectTask(
-                projectId,
-                payload
-            )) as ProjectTask
+            const created = projectId == null
+                ? await projectlessTasks.create<ProjectTask>(payload)
+                : (await api.createProjectTask(projectId, payload)) as ProjectTask
 
             toast({ title: t("taskCreated") })
             onTaskCreated(created)
@@ -933,7 +927,7 @@ export function AddTaskDialog({
                 </DialogHeader>
 
                 <div className="py-4 space-y-4">
-                    {/* Project Selection (only if projects prop is passed) */}
+                    {/* Project selection is optional on the Tasks page. */}
                     {projects && projects.length > 0 && (
                         <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-slate-700">
@@ -944,7 +938,7 @@ export function AddTaskDialog({
                                 onChange={(e) => onProjectChange?.(Number(e.target.value))}
                                 className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                             >
-                                <option value="" disabled>Select a project</option>
+                                <option value="">No project</option>
                                 {projects.map((p) => (
                                     <option key={p.id} value={p.id}>
                                         {p.title}
