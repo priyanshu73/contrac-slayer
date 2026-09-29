@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AiLineEmptyState } from "@/components/ai-line-empty-state"
 import {
   Select,
   SelectContent,
@@ -410,10 +411,14 @@ export function FollowupSettings({
 
   if (notLinked) {
     return (
-      <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200">
-        <InfoIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        <AlertDescription>{t("spRequired")}</AlertDescription>
-      </Alert>
+      <AiLineEmptyState
+        title={t("noNumberTitle")}
+        description={t("noNumberDesc")}
+        ctaLabel={t("noNumberCta")}
+        retryLabel={t("noNumberRetry")}
+        onRetry={() => void fetchSettings()}
+        onConnected={() => void fetchSettings()}
+      />
     )
   }
 
