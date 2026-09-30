@@ -2498,6 +2498,19 @@ class ApiClient {
     })
   }
 
+  async updatePublicCrewTaskStatus(crewUuid: string, taskId: number, status: string) {
+    const response = await fetch(`${this.baseURL}/subcontractors/public/${crewUuid}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to update task status')
+    }
+    return response.json()
+  }
+
   async updateTradeTaskStatusPublic(tradeUuid: string, taskId: number, status: string) {
     const response = await fetch(`${this.baseURL}/projects/trade/${tradeUuid}/tasks/${taskId}`, {
       method: 'PATCH',

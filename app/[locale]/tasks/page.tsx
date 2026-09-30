@@ -42,6 +42,7 @@ import {
 type AssigneeOption = {
   id: string
   label: string
+  subcontractorId?: number
 }
 
 const STATUS_OPTIONS: TaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "BLOCKED"]
@@ -89,18 +90,26 @@ export default function TaskBoardPage() {
 
         const projectList = Array.isArray(projectsData) ? (projectsData as ProjectListItem[]) : []
         const taskList = Array.isArray(tasksData) ? (tasksData as ContractorTask[]) : []
-        const subcontractorNames = Array.isArray(subcontractors)
+        const crewOptions: AssigneeOption[] = Array.isArray(subcontractors)
           ? subcontractors
-              .map((item: any) => item?.subcontractor_name?.trim())
-              .filter((value: string | undefined): value is string => !!value)
+              .filter((item: any) => Number.isInteger(item?.subcontractor_id) && item?.subcontractor_name?.trim())
+              .map((item: any) => ({
+                id: `crew:${item.subcontractor_id}`,
+                label: item.subcontractor_name.trim(),
+                subcontractorId: item.subcontractor_id,
+              }))
           : []
 
         setProjects(projectList)
         setTasks(taskList)
         setAssigneeOptions(
-          [myAssigneeLabel, ...subcontractorNames, ...taskList.map((task) => task.assigned_to?.trim())]
-            .filter((value, index, values): value is string => !!value && values.indexOf(value) === index)
-            .map((value) => ({ id: value, label: value }))
+          [
+            { id: myAssigneeLabel, label: myAssigneeLabel },
+            ...crewOptions,
+            ...taskList
+              .filter((task) => !!task.assigned_to?.trim() && !crewOptions.some((crew) => crew.label === task.assigned_to?.trim()))
+              .map((task) => ({ id: task.assigned_to!.trim(), label: task.assigned_to!.trim() })),
+          ].filter((option, index, values) => values.findIndex((item) => item.id === option.id) === index)
         )
       } catch (error: any) {
         if (!cancelled) {
@@ -449,13 +458,15 @@ export default function TaskBoardPage() {
                         </select>
 
                         <select
-                          value={task.assigned_to?.trim() || ""}
-                          onChange={(e) =>
+                          value={task.subcontractor_id != null ? `crew:${task.subcontractor_id}` : task.assigned_to?.trim() || ""}
+                          onChange={(e) => {
+                            const selected = assigneeOptions.find((option) => option.id === e.target.value)
                             updateTask(task.id, {
-                              assigned_to: e.target.value || undefined,
-                              assigned_trade_id: undefined,
+                              assigned_to: selected?.label || null,
+                              subcontractor_id: selected?.subcontractorId ?? null,
+                              assigned_trade_id: null,
                             })
-                          }
+                          }}
                           disabled={savingTaskId === task.id || deletingTaskId === task.id}
                           className="h-11 rounded-xl border border-slate-200 bg-white px-2.5 text-sm text-slate-900 md:h-8 md:min-w-[190px] md:rounded-md"
                         >
