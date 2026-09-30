@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
+import { taskMatchesAssigneeFilter } from "@/lib/task-filters"
 import type { ContractorTask, Project, ProjectListItem, TaskStatus } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -160,7 +161,7 @@ export default function TaskBoardPage() {
     return tasks.filter((task) => {
       if (selectedProjectId !== "ALL" && task.project_id !== selectedProjectId) return false
       if (statusFilter !== "ALL" && task.status !== statusFilter) return false
-      if (assigneeFilter !== "ALL" && (task.assigned_to?.trim() || "") !== assigneeFilter) return false
+      if (!taskMatchesAssigneeFilter(task, assigneeFilter)) return false
 
       if (!query) return true
 
