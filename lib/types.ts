@@ -954,8 +954,9 @@ export interface ProjectTask {
   notify_client: boolean
   scheduled_start_date?: string
   scheduled_end_date?: string
-  assigned_to?: string
-  assigned_trade_id?: number
+  assigned_to?: string | null
+  assigned_trade_id?: number | null
+  subcontractor_id?: number | null
   photo_count: number
   document_count: number
   photos?: ProjectMedia[]
