@@ -52,24 +52,22 @@ export function AgentActionCard({
     onViewProject,
 }: AgentActionCardProps) {
     const card = message.actionCard
-    if (!card) return null
-
-    const status = card.status?.toLowerCase()
+    const status = card?.status?.toLowerCase()
     const isCardApproved = status === "completed" || status === "approved"
     const isCardRejected = status === "rejected"
-    const isProjectApproval = card.action === "create_project" && !isCardApproved && !isCardRejected
-    const suggestedTitle = typeof card.entity?.title === "string" ? card.entity.title : ""
-    const [projectTitle, setProjectTitle] = useState(
-        typeof card.editedPayload?.title === "string" ? card.editedPayload.title : suggestedTitle,
-    )
+    const isProjectApproval = card?.action === "create_project" && !isCardApproved && !isCardRejected
+    const suggestedTitle = typeof card?.entity?.title === "string" ? card.entity.title : ""
+    const initialProjectTitle = typeof card?.editedPayload?.title === "string" ? card.editedPayload.title : suggestedTitle
+    const [projectTitle, setProjectTitle] = useState(initialProjectTitle)
     const projectTitleRef = useRef(projectTitle)
 
     useEffect(() => {
         if (!isProjectApproval) return
-        const nextTitle = typeof card.editedPayload?.title === "string" ? card.editedPayload.title : suggestedTitle
-        projectTitleRef.current = nextTitle
-        setProjectTitle(nextTitle)
-    }, [card.commandId, card.editedPayload?.title, isProjectApproval, suggestedTitle])
+        projectTitleRef.current = initialProjectTitle
+        setProjectTitle(initialProjectTitle)
+    }, [card?.commandId, initialProjectTitle, isProjectApproval])
+    if (!card) return null
+
     const projectId = isCardApproved
         ? findProjectId(card.result) || findProjectId(card.entity, card.action === "create_project")
         : null
