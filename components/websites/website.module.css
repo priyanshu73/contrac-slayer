@@ -247,6 +247,46 @@
 .layout-service-desk .faq { grid-template-columns: 1fr; }
 .layout-service-desk .faq > div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
 
+/* Structural layout primitives used by the template compositions. */
+.layoutRail { display: grid; grid-template-columns: 280px 1fr; min-height: 100%; }
+.layoutRail > section { position: sticky; top: 0; align-self: start; }
+.layoutBody, .layoutCanvas, .layoutDetails, .layoutData, .layoutStory, .layoutCards, .layoutNotebookGrid, .layoutChecklist { min-width: 0; }
+.layoutMasthead, .layoutWelcome, .layoutLandscape, .layoutOverlay, .layoutBusiness, .layoutStatement { position: relative; }
+.layoutGallery { display: grid; grid-template-columns: 1.15fr .85fr; align-items: start; gap: 0; }
+.layoutGallery > section:first-child { position: sticky; top: 0; }
+.layoutIndustrial { display: grid; grid-template-columns: 1.4fr .6fr; align-items: stretch; }
+.layoutIndustrial > section:first-child { border-right: 1px solid var(--line); }
+.layoutData { display: grid; grid-template-columns: repeat(4, 1fr); }
+.layoutData > section { border-right: 1px solid var(--line); }
+.layoutWelcome { padding-bottom: 24px; }
+.layoutWelcome > section:last-child { max-width: 1180px; margin: -55px auto 0; position: relative; }
+.layoutNotebook { max-width: 980px; margin: 40px auto; border: 1px solid var(--line); }
+.layoutLabel { padding: 14px 24px; border-bottom: 1px dashed var(--line); font: 700 11px/1 monospace; text-transform: uppercase; letter-spacing: .16em; }
+.layoutNotebookGrid { display: grid; grid-template-columns: 1fr 1fr; }
+.layoutNotebookGrid > section { border: 1px dashed var(--line); }
+.layoutContactFirst { display: grid; grid-template-columns: 1.2fr .8fr; align-items: stretch; }
+.layoutContactFirst > section { min-height: 420px; }
+.layoutContactFirst > section:last-child { display: flex; align-items: center; }
+.layoutBeforeAfter { display: grid; grid-template-columns: .85fr 1.15fr; }
+.layoutBeforeAfter > section:first-child { position: sticky; top: 0; align-self: start; }
+.layoutOverlay { isolation: isolate; }
+.layoutOverlay > section:first-child { position: relative; z-index: 1; }
+.layoutChecklist { display: grid; grid-template-columns: 1.1fr .9fr; }
+.layoutChecklist > section { border-bottom: 1px solid var(--line); }
+.layoutSideHelp { display: grid; grid-template-columns: .7fr 1.3fr; }
+.layoutEditorial { display: grid; grid-template-columns: .8fr 1.2fr; align-items: end; }
+.layoutBusiness { display: grid; grid-template-columns: 1.1fr .9fr; }
+.layoutAreaFirst { display: flex; flex-direction: column; }
+.layoutAreaFirst > section:first-child { order: -1; }
+.layoutBook { max-width: 1000px; margin: auto; }
+.layoutBook > section:last-child { border-top: 3px double var(--line); }
+.layoutDirectory { display: grid; grid-template-columns: .65fr 1.35fr; }
+.layoutDirectory > section:last-child { border-left: 1px solid var(--line); }
+.layoutPortfolio { display: grid; grid-template-columns: .75fr 1.25fr; }
+.layoutPortfolio > section:last-child { border-left: 1px solid var(--line); }
+.layoutStatement { min-height: 560px; display: flex; align-items: center; }
+.layoutStatement > section { width: 100%; }
+
 @container (max-width: 700px) {
   .projects, .credentials, .faq, .hours, .layout-bold .services, .layout-rapid-contact .services, .layout-finish .projects, .layout-commercial .services, .layout-local-expert .services { grid-template-columns: 1fr; }
   .project > img { height: 240px; }
@@ -257,4 +297,11 @@
   .layout-renovation .project, .layout-project-book .project { display: block; }
   .layout-finish .project:nth-child(2) { margin-top: 0; }
   .layout-service-desk .faq > div:last-child { grid-template-columns: 1fr; }
+  .layoutRail, .layoutGallery, .layoutIndustrial, .layoutContactFirst, .layoutBeforeAfter, .layoutSideHelp, .layoutEditorial, .layoutBusiness, .layoutDirectory, .layoutPortfolio { display: flex; flex-direction: column; }
+  .layoutData, .layoutNotebookGrid, .layoutChecklist { grid-template-columns: 1fr; }
+  .layoutRail > section { position: static; }
+  .layoutGallery > section:first-child, .layoutBeforeAfter > section:first-child { position: static; }
+  .layoutIndustrial > section:first-child, .layoutDirectory > section:last-child, .layoutPortfolio > section:last-child { border: 0; }
+  .layoutWelcome > section:last-child { margin: 0 6%; }
+  .layoutStatement { min-height: 0; }
 }

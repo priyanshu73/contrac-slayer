@@ -67,13 +67,40 @@ function WebsiteV2({ site, preview, assetPreviews }: { site: PublicWebsite & { c
     }
   }
 
+  const rendered = Object.fromEntries(sections.map((section) => [section.key, renderSection(section.key)]))
+  const section = (key: WebsiteSectionKey) => rendered[key]
+  const layout = (() => {
+    switch (template) {
+      case "established": return <><aside className={styles.layoutRail}>{section("contact")}</aside><div className={styles.layoutBody}>{section("hero")}{section("credentials")}{section("services")}{section("about")}{section("projects")}{section("testimonials")}{section("faq")}{section("hours")}{section("areas")}</div></>
+      case "heritage": return <><div className={styles.layoutMasthead}>{section("hero")}</div><div className={styles.layoutStory}>{section("about")}{section("projects")}{section("testimonials")}{section("services")}</div>{section("contact")}</>
+      case "precision": return <><div className={styles.layoutIndex}>{section("services")}{section("credentials")}{section("areas")}</div><div className={styles.layoutCanvas}>{section("hero")}{section("projects")}{section("about")}{section("faq")}{section("hours")}{section("contact")}</div></>
+      case "quiet-gallery": return <><div className={styles.layoutGallery}>{section("hero")}{section("projects")}</div><div className={styles.layoutDetails}>{section("about")}{section("services")}{section("testimonials")}{section("contact")}</div></>
+      case "steel": return <><div className={styles.layoutIndustrial}>{section("hero")}{section("services")}</div><div className={styles.layoutData}>{section("credentials")}{section("projects")}{section("areas")}{section("hours")}</div>{section("contact")}</>
+      case "neighbour": return <><div className={styles.layoutWelcome}>{section("hero")}{section("areas")}</div><div className={styles.layoutCards}>{section("services")}{section("projects")}{section("testimonials")}{section("faq")}</div>{section("contact")}</>
+      case "field-notes": return <><div className={styles.layoutNotebook}><header className={styles.layoutLabel}>Field notes</header>{section("hero")}{section("about")}</div><div className={styles.layoutNotebookGrid}>{section("services")}{section("projects")}{section("credentials")}{section("hours")}</div>{section("contact")}</>
+      case "rapid-contact": return <><div className={styles.layoutContactFirst}>{section("hero")}{section("contact")}</div>{section("services")}{section("areas")}{section("about")}</>
+      case "garden": return <><div className={styles.layoutLandscape}>{section("hero")}{section("areas")}</div>{section("services")}{section("projects")}{section("about")}{section("contact")}</>
+      case "renovation": return <><div className={styles.layoutBeforeAfter}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("testimonials")}{section("contact")}</>
+      case "roofline": return <><div className={styles.layoutOverlay}>{section("hero")}</div><div className={styles.layoutChecklist}>{section("services")}{section("credentials")}{section("areas")}{section("hours")}</div>{section("projects")}{section("contact")}</>
+      case "comfort": return <><div className={styles.layoutSideHelp}>{section("hero")}{section("faq")}</div>{section("services")}{section("about")}{section("projects")}{section("contact")}</>
+      case "finish": return <><div className={styles.layoutEditorial}>{section("hero")}{section("about")}</div>{section("projects")}{section("services")}{section("testimonials")}{section("contact")}</>
+      case "commercial": return <><div className={styles.layoutBusiness}>{section("hero")}{section("credentials")}</div>{section("services")}{section("projects")}{section("areas")}{section("contact")}</>
+      case "local-expert": return <><div className={styles.layoutAreaFirst}>{section("areas")}{section("hero")}</div>{section("services")}{section("projects")}{section("about")}{section("contact")}</>
+      case "project-book": return <><div className={styles.layoutBook}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("contact")}</>
+      case "service-desk": return <><div className={styles.layoutDirectory}>{section("hero")}{section("services")}</div>{section("faq")}{section("hours")}{section("areas")}{section("contact")}</>
+      case "craftsman": return <><div className={styles.layoutPortfolio}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("contact")}</>
+      case "bold": return <><div className={styles.layoutStatement}>{section("hero")}</div>{section("services")}{section("projects")}{section("contact")}</>
+      default: return <>{section("hero")}{section("services")}{section("projects")}{section("about")}{section("credentials")}{section("testimonials")}{section("faq")}{section("hours")}{section("areas")}{section("contact")}</>
+    }
+  })()
+
   return (
     <div className={`${styles.site} ${styles.v2} ${styles[`layout-${template}`] || styles.layoutModern} ${themeClass} ${fontClass} ${densityClass} ${buttonClass}`}>
       <header className={styles.header}>
         <a className={styles.brand} href={preview ? undefined : "#home"}>{logo ? <Image src={logo} alt={content.branding.logo_alt || ""} width={64} height={64} unoptimized className={styles.logo} /> : <Hammer size={23} aria-hidden="true" />}<span>{content.identity.company_name}</span></a>
         <nav className={styles.nav} aria-label={t("navigation")}><a href={preview ? undefined : "#services"}>{t("services")}</a><a href={preview ? undefined : "#about"}>{t("about")}</a><a href={preview ? undefined : "#contact"}>{t("contact")} <ArrowUpRight size={15} /></a></nav>
       </header>
-      <main id="home">{sections.map((section) => renderSection(section.key))}</main>
+      <main id="home">{layout}</main>
       <footer className={styles.footer}><span>© {new Date().getFullYear()} {content.identity.company_name}</span><span>{t("poweredBy")}</span></footer>
     </div>
   )
