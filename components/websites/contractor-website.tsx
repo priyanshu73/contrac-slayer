@@ -32,7 +32,7 @@ function WebsiteV2({ site, preview, assetPreviews }: { site: PublicWebsite & { c
   const renderSection = (key: WebsiteSectionKey) => {
     switch (key) {
       case "hero": return (
-        <section className={styles.hero} key={key}>
+        <section data-section={key} className={styles.hero} key={key}>
           <div className={styles.heroCopy}>
             <p className={styles.eyebrow}>{areas || content.identity.custom_trade_label || content.identity.trade_code.replaceAll("_", " ")}</p>
             <h1>{content.identity.headline}</h1>
@@ -49,49 +49,327 @@ function WebsiteV2({ site, preview, assetPreviews }: { site: PublicWebsite & { c
         </section>
       )
       case "services": return content.services.length ? (
-        <section id="services" className={styles.section} key={key}>
+        <section data-section={key} id="services" className={styles.section} key={key}>
           <div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("whatWeDo")}</p><h2>{t("servicesHeading")}</h2></div>
           <div className={styles.services}>{[...content.services].sort((a, b) => a.order - b.order).map((service, index) => <article className={styles.service} key={service.id}><span className={styles.serviceNumber}>{String(index + 1).padStart(2, "0")}</span><div><h3>{service.name}</h3>{service.description && <p>{service.description}</p>}{service.price_label && <small>{service.price_label}</small>}</div><ArrowUpRight size={20} aria-hidden="true" /></article>)}</div>
         </section>
       ) : null
       case "projects": return content.projects.length ? (
-        <section id="projects" className={`${styles.section} ${styles.projectsSection}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("selectedWork")}</p><h2>{t("projectsHeading")}</h2></div><div className={styles.projects}>{[...content.projects].sort((a, b) => a.order - b.order).map((project) => <article className={styles.project} key={project.id}>{project.images[0] && <Image src={asset(project.images[0].asset_id, 960)!} alt={project.images[0].alt || project.title} width={960} height={720} unoptimized /> }<div><p className={styles.projectMeta}>{[project.town, project.approximate_date].filter(Boolean).join(" · ")}</p><h3>{project.title}</h3>{project.description && <p>{project.description}</p>}</div></article>)}</div></section>
+        <section data-section={key} id="projects" className={`${styles.section} ${styles.projectsSection}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("selectedWork")}</p><h2>{t("projectsHeading")}</h2></div><div className={styles.projects}>{[...content.projects].sort((a, b) => a.order - b.order).map((project) => <article className={styles.project} key={project.id}>{project.images[0] && <Image src={asset(project.images[0].asset_id, 960)!} alt={project.images[0].alt || project.title} width={960} height={720} unoptimized /> }<div><p className={styles.projectMeta}>{[project.town, project.approximate_date].filter(Boolean).join(" · ")}</p><h3>{project.title}</h3>{project.description && <p>{project.description}</p>}</div></article>)}</div></section>
       ) : null
-      case "about": return content.identity.about ? <section id="about" className={`${styles.section} ${styles.about}`} key={key}><div><p className={styles.eyebrow}>{t("getToKnowUs")}</p><h2>{content.identity.company_name}</h2>{content.identity.established_year && <p className={styles.factualLine}>{t("established", { year: content.identity.established_year })}</p>}</div><p>{content.identity.about}</p></section> : null
-      case "credentials": return content.credentials.some((item) => item.display_policy !== "hidden") ? <section className={styles.section} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("credentials")}</p><h2>{t("businessDetails")}</h2></div><div className={styles.credentials}>{content.credentials.filter((item) => item.display_policy !== "hidden").map((item) => <div key={item.id}><strong>{item.title}</strong>{item.issuer && <span>{item.issuer}</span>}{item.display_policy === "public_number" && item.public_number && <span>{item.public_number}</span>}</div>)}</div></section> : null
-      case "testimonials": return content.testimonials.length ? <section className={`${styles.section} ${styles.testimonials}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("customerWords")}</p><h2>{t("sharedWithPermission")}</h2></div>{content.testimonials.map((item) => <blockquote key={item.id}><p>“{item.text}”</p><footer>{item.display_name}{item.rating ? ` · ${t("rating", { rating: item.rating })}` : ""}</footer></blockquote>)}</section> : null
-      case "faq": return content.faqs.length ? <section className={`${styles.section} ${styles.faq}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("commonQuestions")}</p><h2>{t("answersHeading")}</h2></div><div>{content.faqs.map((item) => <details key={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div></section> : null
-      case "hours": return content.availability ? <section className={`${styles.section} ${styles.hours}`} key={key}><div><p className={styles.eyebrow}>{t("hours")}</p><h2>{t("availabilityHeading")}</h2><p className={styles.factualLine}>{t("displayHoursDisclaimer")}</p></div><div>{Object.entries(content.availability.weekly).map(([day, value]) => <p key={day}><strong>{day.toUpperCase()}</strong><span>{value.closed ? t("closed") : value.intervals.map((interval) => `${interval.start}–${interval.end}${interval.ends_next_day ? ` ${t("nextDay")}` : ""}`).join(", ")}</span></p>)}</div></section> : null
-      case "areas": return areas ? <section className={`${styles.section} ${styles.areas}`} key={key}><MapPin aria-hidden="true" /><div><p className={styles.eyebrow}>{t("serviceArea")}</p><h2>{areas}</h2></div></section> : null
-      case "contact": return <section id="contact" className={styles.contact} key={key}><div><p className={styles.eyebrow}>{t("getStarted")}</p><h2>{t("contactHeading")}</h2><a className={styles.primary} href={contactUrl}>{t("projectCta")} <ArrowUpRight size={18} /></a></div><div className={styles.contactDetails}>{content.public_contact.phone && <a href={preview ? undefined : `tel:${content.public_contact.phone.replace(/[^+\d]/g, "")}`}><Phone size={18} /> {content.public_contact.phone}</a>}{content.public_contact.email && <a href={preview ? undefined : `mailto:${content.public_contact.email}`}><Mail size={18} /> {content.public_contact.email}</a>}{areas && <p><MapPin size={18} /> {areas}</p>}{content.availability && <p><Clock3 size={18} /> {content.availability.timezone.replaceAll("_", " ")}</p>}{bookingUrl && <a href={preview ? undefined : bookingUrl}>{t("book")} <ArrowUpRight size={18} /></a>}</div></section>
+      case "about": return content.identity.about ? <section data-section={key} id="about" className={`${styles.section} ${styles.about}`} key={key}><div><p className={styles.eyebrow}>{t("getToKnowUs")}</p><h2>{content.identity.company_name}</h2>{content.identity.established_year && <p className={styles.factualLine}>{t("established", { year: content.identity.established_year })}</p>}</div><p>{content.identity.about}</p></section> : null
+      case "credentials": return content.credentials.some((item) => item.display_policy !== "hidden") ? <section data-section={key} className={styles.section} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("credentials")}</p><h2>{t("businessDetails")}</h2></div><div className={styles.credentials}>{content.credentials.filter((item) => item.display_policy !== "hidden").map((item) => <div key={item.id}><strong>{item.title}</strong>{item.issuer && <span>{item.issuer}</span>}{item.display_policy === "public_number" && item.public_number && <span>{item.public_number}</span>}</div>)}</div></section> : null
+      case "testimonials": return content.testimonials.length ? <section data-section={key} className={`${styles.section} ${styles.testimonials}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("customerWords")}</p><h2>{t("sharedWithPermission")}</h2></div>{content.testimonials.map((item) => <blockquote key={item.id}><p>“{item.text}”</p><footer>{item.display_name}{item.rating ? ` · ${t("rating", { rating: item.rating })}` : ""}</footer></blockquote>)}</section> : null
+      case "faq": return content.faqs.length ? <section data-section={key} className={`${styles.section} ${styles.faq}`} key={key}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("commonQuestions")}</p><h2>{t("answersHeading")}</h2></div><div>{content.faqs.map((item) => <details key={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div></section> : null
+      case "hours": return content.availability ? <section data-section={key} className={`${styles.section} ${styles.hours}`} key={key}><div><p className={styles.eyebrow}>{t("hours")}</p><h2>{t("availabilityHeading")}</h2><p className={styles.factualLine}>{t("displayHoursDisclaimer")}</p></div><div>{Object.entries(content.availability.weekly).map(([day, value]) => <p key={day}><strong>{day.toUpperCase()}</strong><span>{value.closed ? t("closed") : value.intervals.map((interval) => `${interval.start}–${interval.end}${interval.ends_next_day ? ` ${t("nextDay")}` : ""}`).join(", ")}</span></p>)}</div></section> : null
+      case "areas": return areas ? <section data-section={key} className={`${styles.section} ${styles.areas}`} key={key}><MapPin aria-hidden="true" /><div><p className={styles.eyebrow}>{t("serviceArea")}</p><h2>{areas}</h2></div></section> : null
+      case "contact": return <section data-section={key} id="contact" className={styles.contact} key={key}><div><p className={styles.eyebrow}>{t("getStarted")}</p><h2>{t("contactHeading")}</h2><a className={styles.primary} href={contactUrl}>{t("projectCta")} <ArrowUpRight size={18} /></a></div><div className={styles.contactDetails}>{content.public_contact.phone && <a href={preview ? undefined : `tel:${content.public_contact.phone.replace(/[^+\d]/g, "")}`}><Phone size={18} /> {content.public_contact.phone}</a>}{content.public_contact.email && <a href={preview ? undefined : `mailto:${content.public_contact.email}`}><Mail size={18} /> {content.public_contact.email}</a>}{areas && <p><MapPin size={18} /> {areas}</p>}{content.availability && <p><Clock3 size={18} /> {content.availability.timezone.replaceAll("_", " ")}</p>}{bookingUrl && <a href={preview ? undefined : bookingUrl}>{t("book")} <ArrowUpRight size={18} /></a>}</div></section>
     }
   }
 
   const rendered = Object.fromEntries(sections.map((section) => [section.key, renderSection(section.key)]))
   const section = (key: WebsiteSectionKey) => rendered[key]
   const layout = (() => {
-    switch (template) {
-      case "established": return <><aside className={styles.layoutRail}>{section("contact")}</aside><div className={styles.layoutBody}>{section("hero")}{section("credentials")}{section("services")}{section("about")}{section("projects")}{section("testimonials")}{section("faq")}{section("hours")}{section("areas")}</div></>
-      case "heritage": return <><div className={styles.layoutMasthead}>{section("hero")}</div><div className={styles.layoutStory}>{section("about")}{section("projects")}{section("testimonials")}{section("services")}</div>{section("contact")}</>
-      case "precision": return <><div className={styles.layoutIndex}>{section("services")}{section("credentials")}{section("areas")}</div><div className={styles.layoutCanvas}>{section("hero")}{section("projects")}{section("about")}{section("faq")}{section("hours")}{section("contact")}</div></>
-      case "quiet-gallery": return <><div className={styles.layoutGallery}>{section("hero")}{section("projects")}</div><div className={styles.layoutDetails}>{section("about")}{section("services")}{section("testimonials")}{section("contact")}</div></>
-      case "steel": return <><div className={styles.layoutIndustrial}>{section("hero")}{section("services")}</div><div className={styles.layoutData}>{section("credentials")}{section("projects")}{section("areas")}{section("hours")}</div>{section("contact")}</>
-      case "neighbour": return <><div className={styles.layoutWelcome}>{section("hero")}{section("areas")}</div><div className={styles.layoutCards}>{section("services")}{section("projects")}{section("testimonials")}{section("faq")}</div>{section("contact")}</>
-      case "field-notes": return <><div className={styles.layoutNotebook}><header className={styles.layoutLabel}>Field notes</header>{section("hero")}{section("about")}</div><div className={styles.layoutNotebookGrid}>{section("services")}{section("projects")}{section("credentials")}{section("hours")}</div>{section("contact")}</>
-      case "rapid-contact": return <><div className={styles.layoutContactFirst}>{section("hero")}{section("contact")}</div>{section("services")}{section("areas")}{section("about")}</>
-      case "garden": return <><div className={styles.layoutLandscape}>{section("hero")}{section("areas")}</div>{section("services")}{section("projects")}{section("about")}{section("contact")}</>
-      case "renovation": return <><div className={styles.layoutBeforeAfter}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("testimonials")}{section("contact")}</>
-      case "roofline": return <><div className={styles.layoutOverlay}>{section("hero")}</div><div className={styles.layoutChecklist}>{section("services")}{section("credentials")}{section("areas")}{section("hours")}</div>{section("projects")}{section("contact")}</>
-      case "comfort": return <><div className={styles.layoutSideHelp}>{section("hero")}{section("faq")}</div>{section("services")}{section("about")}{section("projects")}{section("contact")}</>
-      case "finish": return <><div className={styles.layoutEditorial}>{section("hero")}{section("about")}</div>{section("projects")}{section("services")}{section("testimonials")}{section("contact")}</>
-      case "commercial": return <><div className={styles.layoutBusiness}>{section("hero")}{section("credentials")}</div>{section("services")}{section("projects")}{section("areas")}{section("contact")}</>
-      case "local-expert": return <><div className={styles.layoutAreaFirst}>{section("areas")}{section("hero")}</div>{section("services")}{section("projects")}{section("about")}{section("contact")}</>
-      case "project-book": return <><div className={styles.layoutBook}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("contact")}</>
-      case "service-desk": return <><div className={styles.layoutDirectory}>{section("hero")}{section("services")}</div>{section("faq")}{section("hours")}{section("areas")}{section("contact")}</>
-      case "craftsman": return <><div className={styles.layoutPortfolio}>{section("hero")}{section("projects")}</div>{section("services")}{section("about")}{section("contact")}</>
-      case "bold": return <><div className={styles.layoutStatement}>{section("hero")}</div>{section("services")}{section("projects")}{section("contact")}</>
-      default: return <>{section("hero")}{section("services")}{section("projects")}{section("about")}{section("credentials")}{section("testimonials")}{section("faq")}{section("hours")}{section("areas")}{section("contact")}</>
+    const placed = new Set<WebsiteSectionKey>()
+    const place = (key: WebsiteSectionKey) => {
+      placed.add(key)
+      return section(key)
     }
+
+    let featured: React.ReactNode = null
+    switch (template) {
+      case "established":
+        featured = (
+          <div className={styles.layoutEstablishedWrap}>
+            <div className={styles.layoutBody}>
+              {place("hero")}
+              {place("credentials")}
+              {place("services")}
+              {place("about")}
+              {place("projects")}
+              {place("testimonials")}
+              {place("faq")}
+              {place("hours")}
+              {place("areas")}
+            </div>
+            <aside className={styles.layoutRail}>{place("contact")}</aside>
+          </div>
+        )
+        break
+      case "heritage":
+        featured = (
+          <>
+            <div className={styles.layoutMasthead}>{place("hero")}</div>
+            <div className={styles.layoutStory}>
+              {place("about")}
+              {place("projects")}
+              {place("testimonials")}
+              {place("services")}
+            </div>
+            {place("contact")}
+          </>
+        )
+        break
+      case "precision":
+        featured = (
+          <>
+            <div className={styles.layoutIndex}>
+              {place("services")}
+              {place("credentials")}
+              {place("areas")}
+            </div>
+            <div className={styles.layoutCanvas}>
+              {place("hero")}
+              {place("projects")}
+              {place("about")}
+              {place("faq")}
+              {place("hours")}
+              {place("contact")}
+            </div>
+          </>
+        )
+        break
+      case "quiet-gallery":
+        featured = (
+          <>
+            <div className={styles.layoutGallery}>
+              {place("hero")}
+              {place("projects")}
+            </div>
+            <div className={styles.layoutDetails}>
+              {place("about")}
+              {place("services")}
+              {place("testimonials")}
+              {place("contact")}
+            </div>
+          </>
+        )
+        break
+      case "steel":
+        featured = (
+          <>
+            <div className={styles.layoutIndustrial}>
+              {place("hero")}
+              {place("services")}
+            </div>
+            <div className={styles.layoutData}>
+              {place("credentials")}
+              {place("projects")}
+              {place("areas")}
+              {place("hours")}
+            </div>
+            {place("contact")}
+          </>
+        )
+        break
+      case "neighbour":
+        featured = (
+          <>
+            <div className={styles.layoutWelcome}>
+              {place("hero")}
+              {place("areas")}
+            </div>
+            <div className={styles.layoutCards}>
+              {place("services")}
+              {place("projects")}
+              {place("testimonials")}
+              {place("faq")}
+            </div>
+            {place("contact")}
+          </>
+        )
+        break
+      case "field-notes":
+        featured = (
+          <>
+            <div className={styles.layoutNotebook}>
+              <header className={styles.layoutLabel}>Field notes</header>
+              {place("hero")}
+              {place("about")}
+            </div>
+            <div className={styles.layoutNotebookGrid}>
+              {place("services")}
+              {place("projects")}
+              {place("credentials")}
+              {place("hours")}
+            </div>
+            {place("contact")}
+          </>
+        )
+        break
+      case "rapid-contact":
+        featured = (
+          <>
+            <div className={styles.layoutContactFirst}>
+              {place("hero")}
+              {place("contact")}
+            </div>
+            {place("services")}
+            {place("areas")}
+            {place("about")}
+          </>
+        )
+        break
+      case "garden":
+        featured = (
+          <>
+            <div className={styles.layoutLandscape}>
+              {place("hero")}
+              {place("areas")}
+            </div>
+            {place("services")}
+            {place("projects")}
+            {place("about")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "renovation":
+        featured = (
+          <>
+            <div className={styles.layoutBeforeAfter}>
+              {place("hero")}
+              {place("projects")}
+            </div>
+            {place("services")}
+            {place("about")}
+            {place("testimonials")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "roofline":
+        featured = (
+          <>
+            <div className={styles.layoutOverlay}>{place("hero")}</div>
+            <div className={styles.layoutChecklist}>
+              {place("services")}
+              {place("credentials")}
+              {place("areas")}
+              {place("hours")}
+            </div>
+            {place("projects")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "comfort":
+        featured = (
+          <>
+            <div className={styles.layoutSideHelp}>
+              {place("hero")}
+              {place("faq")}
+            </div>
+            {place("services")}
+            {place("about")}
+            {place("projects")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "finish":
+        featured = (
+          <>
+            <div className={styles.layoutEditorial}>
+              {place("hero")}
+              {place("about")}
+            </div>
+            {place("projects")}
+            {place("services")}
+            {place("testimonials")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "commercial":
+        featured = (
+          <>
+            <div className={styles.layoutBusiness}>
+              {place("hero")}
+              {place("credentials")}
+            </div>
+            {place("services")}
+            {place("projects")}
+            {place("areas")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "local-expert":
+        featured = (
+          <>
+            <div className={styles.layoutAreaFirst}>
+              {place("areas")}
+              {place("hero")}
+            </div>
+            {place("services")}
+            {place("projects")}
+            {place("about")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "project-book":
+        featured = (
+          <>
+            <div className={styles.layoutBook}>
+              {place("hero")}
+              {place("projects")}
+            </div>
+            {place("services")}
+            {place("about")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "service-desk":
+        featured = (
+          <>
+            <div className={styles.layoutDirectory}>
+              {place("hero")}
+              {place("services")}
+            </div>
+            {place("faq")}
+            {place("hours")}
+            {place("areas")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "craftsman":
+        featured = (
+          <>
+            <div className={styles.layoutPortfolio}>
+              {place("hero")}
+              {place("projects")}
+            </div>
+            {place("services")}
+            {place("about")}
+            {place("contact")}
+          </>
+        )
+        break
+      case "bold":
+        featured = (
+          <>
+            <div className={styles.layoutStatement}>{place("hero")}</div>
+            {place("services")}
+            {place("projects")}
+            {place("contact")}
+          </>
+        )
+        break
+      default:
+        return <>{sections.map((s) => section(s.key))}</>
+    }
+
+    const unplaced = sections.filter((s) => !placed.has(s.key)).map((s) => section(s.key))
+    return (
+      <>
+        {featured}
+        {unplaced}
+      </>
+    )
   })()
 
   return (

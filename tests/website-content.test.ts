@@ -1,6 +1,12 @@
 import assert from "node:assert/strict"
+import { createRequire } from "node:module"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
+
+const req = createRequire(import.meta.url)
+if (req.extensions) {
+  req.extensions[".css"] = () => ({})
+}
 
 import { moveSection, normalizedSections, switchTemplate } from "../lib/website-content"
 import { WEBSITE_TEMPLATES, type WebsiteContentV2 } from "../lib/types/website"
@@ -60,3 +66,72 @@ test("both quote request implementations contain no fixed response-time promise"
     assert.match(source, /contractor can review your details and contact you about next steps/i)
   }
 })
+
+test("all twenty templates render all enabled sections in owner order without dropping", async () => {
+  // Dynamic import react-dom/server to render ContractorWebsite to static markup
+  const { renderToStaticMarkup } = await import("react-dom/server")
+  const { ContractorWebsite } = await import("../components/websites/contractor-website")
+  const { JSDOM } = await import("jsdom")
+
+  const fullContent: WebsiteContentV2 = {
+    ...fixture(),
+    credentials: [{ id: "c1", order: 0, kind: "license", title: "Licensed Contractor", issuer: "State Board", jurisdiction: "CA", public_number: "LIC123456", expiry_date: "2028-01-01", display_policy: "public_number" }],
+    testimonials: [{ id: "t1", order: 0, text: "Outstanding quality and craftsmanship.", display_name: "Sarah J.", date: "2026-05", rating: 5, source_label: "Google", source_permalink: null }],
+    faqs: [{ id: "f1", order: 0, question: "Are you insured?", answer: "Yes, fully insured and bonded." }],
+    availability: {
+      timezone: "America/Los_Angeles",
+      weekly: {
+        mon: { closed: false, intervals: [{ start: "08:00", end: "17:00", ends_next_day: false }] },
+        tue: { closed: false, intervals: [{ start: "08:00", end: "17:00", ends_next_day: false }] },
+        wed: { closed: false, intervals: [{ start: "08:00", end: "17:00", ends_next_day: false }] },
+        thu: { closed: false, intervals: [{ start: "08:00", end: "17:00", ends_next_day: false }] },
+        fri: { closed: false, intervals: [{ start: "08:00", end: "17:00", ends_next_day: false }] },
+      },
+      overrides: [],
+      away: null,
+      emergency_available: null,
+      emergency_notice: "",
+    },
+    sections: normalizedSections([]).map((s) => ({ ...s, enabled: true })),
+  }
+
+  const enabledSectionKeys = fullContent.sections.filter((s) => s.enabled).map((s) => s.key)
+  assert.equal(enabledSectionKeys.length, 10, "Expected all 10 section keys to be enabled")
+
+  for (const template of WEBSITE_TEMPLATES) {
+    const siteContent: WebsiteContentV2 = {
+      ...fullContent,
+      branding: {
+        ...fullContent.branding,
+        template_id: template.id,
+      },
+    }
+
+    const publicSite = {
+      slug: "fixture-works",
+      contractor_uuid: "uuid-1234",
+      booking_slug: "book-now",
+      content: siteContent,
+    }
+
+    const html = renderToStaticMarkup(ContractorWebsite({ site: publicSite, preview: false }))
+    const dom = new JSDOM(html)
+    const doc = dom.window.document
+
+    const renderedSectionNodes = Array.from(doc.querySelectorAll("section[data-section]"))
+    const renderedKeys = renderedSectionNodes.map((el) => el.getAttribute("data-section")!)
+
+    assert.equal(
+      renderedKeys.length,
+      10,
+      `Template ${template.id} dropped sections! Expected 10 sections, got ${renderedKeys.length}: [${renderedKeys.join(", ")}]`
+    )
+
+    // Verify all 10 enabled section keys are present
+    const renderedSet = new Set(renderedKeys)
+    for (const key of enabledSectionKeys) {
+      assert.ok(renderedSet.has(key), `Template ${template.id} is missing enabled section "${key}"`)
+    }
+  }
+})
+
