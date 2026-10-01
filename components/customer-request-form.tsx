@@ -134,8 +134,9 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
               <div className="text-left flex-1">
                 <p className="font-semibold text-slate-900 mb-1">What happens next?</p>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  You&apos;ll receive a detailed quote via email within the next <strong className="text-blue-600">2-4 hours</strong> during business hours. We&apos;ll include pricing, timeline, and answer any questions you may have.
-                </p>
+                  Your request has been received. The contractor can review your details and contact you about next steps.
+                
+</p>
               </div>
             </div>
           </div>
@@ -198,10 +199,6 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                     <CheckCircle2 className="w-3 h-3" />
                     Verified
                   </span>
-                </div>
-                <div className="flex items-center gap-1 mt-1.5 text-sm text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Typically responds in 2-4 hours</span>
                 </div>
               </div>
             </div>
