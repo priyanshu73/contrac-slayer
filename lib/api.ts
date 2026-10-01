@@ -65,6 +65,7 @@ import type {
   FrontlineVoiceTrainingSessionStart,
 } from './types/frontline'
 import { AI_ESTIMATE_REQUEST_TIMEOUT_MS } from './ai-estimate-loading'
+import type { PublicWebsite, WebsiteSave, WebsiteState } from './types/website'
 
 // ─── Scope Clarification types ─────────────────────────────────────────────
 
@@ -124,6 +125,42 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.configuredBaseURL = baseURL.replace(/\/+$/, '')
+  }
+
+  async getWebsite(): Promise<WebsiteState> {
+    return this.request('/website')
+  }
+
+  async saveWebsite(data: WebsiteSave): Promise<WebsiteState> {
+    return this.request('/website', { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async publishWebsite(data: WebsiteSave): Promise<WebsiteState> {
+    return this.request('/website/publish', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async unpublishWebsite(): Promise<WebsiteState> {
+    return this.request('/website/unpublish', { method: 'POST' })
+  }
+
+  async getPublicWebsite(slug: string): Promise<PublicWebsite | null> {
+    // Server-render public pages for search engines. A relative browser API URL
+    // needs an explicit backend URL (including /api) on the server.
+    let base = this.getBaseURL()
+    if (typeof window === 'undefined') {
+      base = normalizeEnvUrl(process.env.WEBSITE_API_URL) || base
+      if (base.startsWith('/')) {
+        const origin = normalizeEnvUrl(process.env.NEXT_PUBLIC_FRONTEND_URL)
+        if (!origin) throw new Error('Set WEBSITE_API_URL to the absolute backend API URL for public websites.')
+        base = `${origin.replace(/\/+$/, '')}${base}`
+      }
+    }
+    const response = await fetch(`${base.replace(/\/+$/, '')}/websites/${encodeURIComponent(slug)}`, {
+      cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(15000),
+    })
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error('The website could not be loaded. Please try again.')
+    return response.json()
   }
 
   private get baseURL(): string {

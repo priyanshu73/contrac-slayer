@@ -1,0 +1,20 @@
+.thumbnail { background: #f7faf7; color: #192a28; padding: 18px; height: 180px; overflow: hidden; }
+.modern { background: #f7faf7; }
+.miniNav { display: flex; align-items: center; justify-content: space-between; font-size: 7px; letter-spacing: .08em; padding-bottom: 17px; }
+.miniHero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: center; }
+.miniHero p { font-size: 25px; line-height: 1.08; font-weight: 600; letter-spacing: -.04em; }
+.miniButton { display: inline-block; padding: 6px 8px; background: #245e49; color: white; font-size: 5px; margin-top: 12px; }
+.miniArt { height: 118px; background: #dde8df; border-radius: 40px 0 0 0; position: relative; overflow: hidden; }
+.miniArt i { position: absolute; width: 55%; height: 90%; border: 1px solid #799985; border-radius: 50px 50px 0 0; bottom: -10px; left: 20%; }
+.miniArt i + i { bottom: 15px; left: 40%; }
+.craftsman { background: #faf6ee; color: #352f27; }
+.craftsman .miniHero > div:first-child { order: 1; }
+.craftsman .miniHero p { font-family: Georgia, serif; font-weight: 400; }
+.craftsman .miniArt { background: #eae1d0; border-radius: 70px 70px 0 0; }
+.craftsman .miniArt i { border-color: #a8906e; }
+.craftsman .miniButton { background: #704b35; }
+.bold { background: #fff; color: #000; }
+.bold .miniHero p { font-weight: 900; text-transform: uppercase; font-size: 24px; }
+.bold .miniArt { background: #f3f139; border-radius: 0; }
+.bold .miniArt i { border-color: #000; border-radius: 0; }
+.bold .miniButton { background: #000; }
