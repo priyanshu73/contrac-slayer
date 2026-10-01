@@ -128,7 +128,7 @@ class ApiClient {
   }
 
   async getWebsite(): Promise<WebsiteState> {
-    return this.request('/website')
+    return this.request('/website?supported_schema_version=2')
   }
 
   async saveWebsite(data: WebsiteSave): Promise<WebsiteState> {
@@ -141,6 +141,49 @@ class ApiClient {
 
   async unpublishWebsite(): Promise<WebsiteState> {
     return this.request('/website/unpublish', { method: 'POST' })
+  }
+
+  async convertWebsiteV2(expectedDraftRevision: number): Promise<WebsiteState> {
+    return this.request('/website/convert-v2', {
+      method: 'POST',
+      body: JSON.stringify({ expected_draft_revision: expectedDraftRevision }),
+    })
+  }
+
+  async getWebsiteRevisions(): Promise<Array<{ revision: number; schema_version: number; created_at: string; reason: string }>> {
+    return this.request('/website/revisions')
+  }
+
+  async restoreWebsiteRevision(revision: number, expectedDraftRevision: number): Promise<WebsiteState> {
+    return this.request(`/website/revisions/${revision}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ expected_draft_revision: expectedDraftRevision }),
+    })
+  }
+
+  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project'): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('role', role)
+    formData.append('rights_attested', 'true')
+    const response = await fetch(`${this.baseURL}/website/assets`, {
+      method: 'POST', body: formData, credentials: 'include',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Website image upload failed')
+    }
+    return response.json()
+  }
+
+  async getWebsiteAssetPreview(assetId: string, variant: 480 | 960 | 1600 = 960): Promise<string> {
+    const response = await fetch(`${this.baseURL}/website/assets/${encodeURIComponent(assetId)}/content?variant=${variant}`, {
+      credentials: 'include',
+    })
+    if (!response.ok) throw new Error('Website image preview could not be loaded')
+    const payload = await response.json()
+    if (!payload?.url) throw new Error('Website image preview could not be loaded')
+    return payload.url
   }
 
   async getPublicWebsite(slug: string): Promise<PublicWebsite | null> {
@@ -1037,11 +1080,16 @@ class ApiClient {
       })
     }
 
-    return fetch(`${this.baseURL}/contractors/${contractorUuid}/quote-request`, {
+    const response = await fetch(`${this.baseURL}/contractors/${contractorUuid}/quote-request`, {
       method: 'POST',
       body: formData,
       credentials: 'include',
-    }).then((res) => res.json())
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(this.formatApiErrorDetail(payload?.detail) || 'Failed to submit request')
+    }
+    return payload
   }
 
   async getMyLeads(status?: string, skip = 0, limit = 20) {
