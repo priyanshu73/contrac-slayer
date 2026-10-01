@@ -37,6 +37,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [])
 
   const isPublicRoute =
+    pathname?.match(/^\/(?:[a-z]{2}\/)?sites\//) ||
     pathname === "/" ||
     pathname?.match(/^\/[a-z]{2}$/) || // Matches /en, /es (homepage with locale)
     pathname?.match(/^\/[a-z]{2}\/auth/) || // Matches /en/auth, /es/auth, etc.

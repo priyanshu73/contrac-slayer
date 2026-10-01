@@ -22,6 +22,7 @@ import { useContractorOpsNumber } from "@/hooks/useContractorOpsNumber"
 import { CostBookSettings } from "@/components/cost-book-settings"
 import { AutoReplySettings } from "@/components/auto-reply-settings"
 import { TeamSettings } from "@/components/team-settings"
+import { WebsiteSettings } from "@/components/websites/website-settings"
 import { FollowupsManager } from "@/components/followups-manager"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
 import { IntegrationProviderIcon } from "@/components/integration-provider-icon"
@@ -29,7 +30,7 @@ import { IntegrationProviderSelector } from "@/components/integration-provider-s
 import { MobileDarkModeToggle } from "@/components/mobile-dark-mode-toggle"
 import { AddressData } from "@/lib/types/address"
 
-type SettingsSection = "business" | "pricing" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team" | "followups"
+type SettingsSection = "business" | "pricing" | "billing" | "integrations" | "language" | "cost-book" | "auto-reply" | "team" | "followups" | "website"
 
 // Sub-sections that live behind the "Profile" top tab (shown via the left side-bar).
 const PROFILE_SECTIONS: SettingsSection[] = ["business", "pricing", "team", "integrations", "billing", "auto-reply"]
@@ -148,6 +149,7 @@ export function SettingsTabs() {
   const canSeeBilling = user?.role !== "ADMIN" && user?.role !== "MEMBER"
   const locale = useLocale()
   const t = useTranslations('settings')
+  const tWebsite = useTranslations('website')
   const tAuth = useTranslations('auth')
   const [profile, setProfile] = useState<ContractorProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -222,7 +224,7 @@ export function SettingsTabs() {
 
   useEffect(() => {
     const tab = searchParams.get("tab") as SettingsSection
-    if (tab && ["business", "pricing", "billing", "integrations", "language", "cost-book", "auto-reply", "team", "followups"].includes(tab)) {
+    if (tab && ["business", "pricing", "billing", "integrations", "language", "cost-book", "auto-reply", "team", "followups", "website"].includes(tab)) {
       setActiveSection(tab)
     }
   }, [searchParams])
@@ -534,6 +536,7 @@ export function SettingsTabs() {
   // Top-level tabs. "Profile" is a group that opens a left side-bar of sub-sections.
   const topTabs = [
     { id: "business" as const, label: t('business'), icon: Building2 },
+    { id: "website" as const, label: tWebsite("name"), icon: Globe },
     { id: "followups" as const, label: "Follow-ups", icon: CalendarClock },
     { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
   ]
@@ -615,6 +618,8 @@ export function SettingsTabs() {
         <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-6 pb-24 sm:pb-6">
           <div className="max-w-6xl mx-auto">
             <MobileDarkModeToggle />
+
+            {activeSection === "website" && <WebsiteSettings />}
 
             {/* Profile group: left side-bar + active sub-section content */}
             {isProfileActive && (

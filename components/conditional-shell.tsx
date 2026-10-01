@@ -22,6 +22,7 @@ function isPublicCustomerQuoteRoute(pathname: string): boolean {
 /** Routes that should NOT show the Navbar / shell UI */
 function isPublicShellRoute(pathname: string): boolean {
   return (
+    !!pathname?.match(/^\/(?:[a-z]{2}\/)?sites\//) ||
     !!pathname?.match(/^\/[a-z]{2}\/book\//) ||
     pathname?.startsWith("/book/") ||
     !!pathname?.match(/^\/[a-z]{2}\/auth(\/|$)/) ||
