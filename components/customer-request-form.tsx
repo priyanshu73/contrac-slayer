@@ -123,7 +123,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
             Request Received!
           </h2>
           <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-            Thank you for reaching out to <strong className="text-slate-900">{contractor.company_name}</strong>! We&apos;ve received your project details and our team is reviewing them now.
+            Thank you for reaching out to <strong className="text-slate-900">{contractor.company_name}</strong>. Your project details were received.
           </p>
           
           <div className="bg-blue-50 rounded-xl p-6 mb-8 border border-blue-100">
@@ -135,17 +135,12 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                 <p className="font-semibold text-slate-900 mb-1">What happens next?</p>
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Your request has been received. The contractor can review your details and contact you about next steps.
-                
-</p>
+                </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3 mb-8">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span>We&apos;ll get back to you soon.</span>
-            </div>
             {contractor.phone_number && (
               <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
                 <Phone className="w-5 h-5 text-blue-500" />
@@ -577,4 +572,3 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
     </div>
   )
 }
-
