@@ -98,6 +98,21 @@ test("all twenty templates render all enabled sections in owner order without dr
   const enabledSectionKeys = fullContent.sections.filter((s) => s.enabled).map((s) => s.key)
   assert.equal(enabledSectionKeys.length, 10, "Expected all 10 section keys to be enabled")
 
+  const getRenderedSectionKeys = (content: WebsiteContentV2): string[] => {
+    const publicSite = {
+      slug: "fixture-works",
+      contractor_uuid: "uuid-1234",
+      booking_slug: "book-now",
+      content,
+    }
+    const html = renderToStaticMarkup(ContractorWebsite({ site: publicSite, preview: false }))
+    const dom = new JSDOM(html)
+    return Array.from(dom.window.document.querySelectorAll("section[data-section]")).map(
+      (el) => el.getAttribute("data-section")!
+    )
+  }
+
+  // 1. Verify default enabled order across all 20 templates
   for (const template of WEBSITE_TEMPLATES) {
     const siteContent: WebsiteContentV2 = {
       ...fullContent,
@@ -107,31 +122,68 @@ test("all twenty templates render all enabled sections in owner order without dr
       },
     }
 
-    const publicSite = {
-      slug: "fixture-works",
-      contractor_uuid: "uuid-1234",
-      booking_slug: "book-now",
-      content: siteContent,
-    }
-
-    const html = renderToStaticMarkup(ContractorWebsite({ site: publicSite, preview: false }))
-    const dom = new JSDOM(html)
-    const doc = dom.window.document
-
-    const renderedSectionNodes = Array.from(doc.querySelectorAll("section[data-section]"))
-    const renderedKeys = renderedSectionNodes.map((el) => el.getAttribute("data-section")!)
+    const renderedKeys = getRenderedSectionKeys(siteContent)
 
     assert.equal(
       renderedKeys.length,
-      10,
-      `Template ${template.id} dropped sections! Expected 10 sections, got ${renderedKeys.length}: [${renderedKeys.join(", ")}]`
+      enabledSectionKeys.length,
+      `Template ${template.id} dropped sections! Expected ${enabledSectionKeys.length} sections, got ${renderedKeys.length}: [${renderedKeys.join(", ")}]`
     )
 
-    // Verify all 10 enabled section keys are present
-    const renderedSet = new Set(renderedKeys)
-    for (const key of enabledSectionKeys) {
-      assert.ok(renderedSet.has(key), `Template ${template.id} is missing enabled section "${key}"`)
-    }
+    // Assert exact order matches fullContent.sections order
+    assert.deepEqual(
+      renderedKeys,
+      enabledSectionKeys,
+      `Template ${template.id} did not render sections in owner order!`
+    )
   }
+
+  // 2. Case with custom owner order
+  const customOrderKeys: WebsiteContentV2["sections"][number]["key"][] = [
+    "contact",
+    "testimonials",
+    "hero",
+    "services",
+    "faq",
+    "projects",
+    "hours",
+    "about",
+    "credentials",
+    "areas",
+  ]
+  const customContent: WebsiteContentV2 = {
+    ...fullContent,
+    branding: { ...fullContent.branding, template_id: "steel" },
+    sections: customOrderKeys.map((key, order) => ({ key, order, enabled: true, background: "default" })),
+  }
+  const customRenderedKeys = getRenderedSectionKeys(customContent)
+  assert.deepEqual(
+    customRenderedKeys,
+    customOrderKeys,
+    "Custom owner order was not preserved in rendered DOM"
+  )
+
+  // 3. Case with one section disabled (assert absent, others present and ordered)
+  const disabledKey = "testimonials"
+  const disabledContent: WebsiteContentV2 = {
+    ...fullContent,
+    branding: { ...fullContent.branding, template_id: "established" },
+    sections: fullContent.sections.map((s) => (s.key === disabledKey ? { ...s, enabled: false } : s)),
+  }
+  const expectedDisabledFilteredKeys = fullContent.sections
+    .filter((s) => s.key !== disabledKey && s.enabled)
+    .map((s) => s.key)
+  const disabledRenderedKeys = getRenderedSectionKeys(disabledContent)
+
+  assert.ok(
+    !disabledRenderedKeys.includes(disabledKey),
+    `Disabled section "${disabledKey}" must be absent from rendered DOM`
+  )
+  assert.deepEqual(
+    disabledRenderedKeys,
+    expectedDisabledFilteredKeys,
+    "Remaining enabled sections must be present and match owner order"
+  )
 })
+
 
