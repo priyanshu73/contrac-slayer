@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { WebsiteProofEditor } from "./website-proof-editor"
+import { WebsiteRevisionHistory } from "./website-revision-history"
+import { WebsiteMutationLock } from "@/lib/website-mutation"
+import { approvedTestimonialIds } from "@/lib/website-proof"
 import { ProjectGalleryEditor } from "./project-gallery-editor"
 import { ContractorWebsite } from "./contractor-website"
 import styles from "./editor.module.css"
@@ -29,7 +33,10 @@ function newId(prefix: string): string { return `${prefix}_${crypto.randomUUID()
 
 export function WebsiteSettings() {
   const t = useTranslations("website")
+  const mutationLock = useRef(new WebsiteMutationLock())
   const saveInFlight = useRef(false)
+  const restoreInFlight = useRef(false)
+  const [restoring, setRestoring] = useState(false)
   const [saved, setSaved] = useState<WebsiteState | null>(null)
   const [draft, setDraft] = useState<WebsiteSave | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,24 +54,29 @@ export function WebsiteSettings() {
   const [past, setPast] = useState<WebsiteContentV2[]>([])
   const [future, setFuture] = useState<WebsiteContentV2[]>([])
   const [rightsAttested, setRightsAttested] = useState(false)
-  const [testimonialPermission, setTestimonialPermission] = useState(false)
+  const [testimonialPermissions, setTestimonialPermissions] = useState<Record<string,string>>({})
+  const [inlineEditing, setInlineEditing] = useState(false)
+  function setItemPermission(id:string,fingerprint:string|null) { setTestimonialPermissions(old=>{const next={...old};if(fingerprint===null)delete next[id];else next[id]=fingerprint;return next}) }
+  const uploadPending=useRef(false)
   const [uploading, setUploading] = useState<string | null>(null)
-  const [revisions, setRevisions] = useState<Array<{ revision: number; schema_version: number; created_at: string; reason: string }>>([])
 
   const draftRef = useRef(draft)
   draftRef.current = draft
 
   const v2 = draft && isWebsiteV2(draft.content) ? draft.content : null
+  const testimonialPermission = Boolean(v2 && approvedTestimonialIds(v2,testimonialPermissions).length === v2.testimonials.length)
   const { previews: assetPreviews, failed: previewFailed, retry: retryPreviews } = useWebsiteDraftPreviews(v2, showPreview)
   const dirty = Boolean(saved && draft && websiteDraftSignature(draft) !== websiteDraftSignature(saved))
 
   const accept = useCallback((site: WebsiteState, resetDraft = true) => {
     setSaved(site)
-    if (resetDraft) setDraft({ slug: site.slug, content: site.content, expected_draft_revision: site.draft_revision })
+    setTestimonialPermissions({})
+    if (resetDraft) { setDraft({ slug: site.slug, content: site.content, expected_draft_revision: site.draft_revision }); setPast([]); setFuture([]) }
     setFieldErrors({})
   }, [])
 
   const load = useCallback(async () => {
+    if(mutationLock.current.busy)return
     setLoading(true); setError("")
     try {
       const site = await api.getWebsite()
@@ -78,12 +90,7 @@ export function WebsiteSettings() {
   useEffect(() => { void load(); setOrigin(window.location.origin) }, [load])
   useEffect(() => { if (saved) localStorage.setItem(`website-setup-step:${saved.slug}`, String(step)) }, [saved, step])
   useEffect(() => {
-    if (step !== STEP_KEYS.length - 1 || !v2) return
-    void api.getWebsiteRevisions().then(setRevisions).catch(() => setRevisions([]))
-  }, [step, v2])
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = "" }
+    const warn = (event: BeforeUnloadEvent) => {if(uploadPending.current || document.querySelector("[data-website-uploading]") || dirty || document.querySelector("[data-website-inline-editing]")){ event.preventDefault(); event.returnValue = "" }}
     window.addEventListener("beforeunload", warn)
     return () => window.removeEventListener("beforeunload", warn)
   }, [dirty])
@@ -98,6 +105,7 @@ export function WebsiteSettings() {
     }
     const normalizedDraft = normalizeWebsiteSave(draft)
     const submittedSignature = websiteDraftSignature(draft, false)
+    if(!mutationLock.current.acquire("save")) throw new Error(t("setup.unsavedBlock"))
     saveInFlight.current = true
     setSaveStatus("saving"); setError(""); setMessage("")
     try {
@@ -105,7 +113,7 @@ export function WebsiteSettings() {
         slug: normalizedDraft.slug,
         content: normalizedDraft.content,
         expected_draft_revision: saved.draft_revision,
-        approved_testimonial_ids: publish && testimonialPermission ? draft.content.testimonials.map((item) => item.id) : [],
+        approved_testimonial_ids: publish ? approvedTestimonialIds(draft.content,testimonialPermissions) : [],
       }
       const result = publish ? await api.publishWebsite(payload) : await api.saveWebsite(payload)
       setSaved(result)
@@ -125,11 +133,12 @@ export function WebsiteSettings() {
       throw err
     } finally {
       saveInFlight.current = false
+      mutationLock.current.release("save")
     }
-  }, [draft, saved, t, testimonialPermission])
+  }, [draft, saved, t, testimonialPermissions])
 
   useEffect(() => {
-    if (!dirty || !v2 || publishing || ["saving", "failed", "offline", "conflict"].includes(saveStatus)) return
+    if (!dirty || !v2 || publishing || restoring || unpublishing || ["saving", "failed", "offline", "conflict"].includes(saveStatus)) return
     const validation = validateWebsite(v2, draft?.slug || "")
     if (Object.keys(validation).length) {
       setFieldErrors(validation); setSaveStatus("invalid"); setError(t("setup.fixFields"))
@@ -137,9 +146,10 @@ export function WebsiteSettings() {
     }
     const timer = window.setTimeout(() => { void persist(false).catch(() => undefined) }, 1200)
     return () => window.clearTimeout(timer)
-  }, [dirty, draft?.slug, persist, publishing, saveStatus, t, v2])
+  }, [dirty, draft?.slug, persist, publishing, restoring, unpublishing, saveStatus, t, v2])
 
   function commit(next: WebsiteContentV2 | ((content: WebsiteContentV2) => WebsiteContentV2)) {
+    if (mutationLock.current.blocksEditing) return
     const current = draftRef.current
     if (!current || !isWebsiteV2(current.content)) return
     // Evaluate synchronously so helper errors reach the gallery's handler and
@@ -148,6 +158,8 @@ export function WebsiteSettings() {
     if (updated === current.content) return
     setPast((items) => [...items.slice(-29), copyContent(current.content as WebsiteContentV2)])
     setFuture([])
+    const changed = new Set(current.content.testimonials.filter(old => !updated.testimonials.some(item => item.id===old.id && JSON.stringify(item)===JSON.stringify(old))).map(item=>item.id))
+    if(changed.size) setTestimonialPermissions(old=>Object.fromEntries(Object.entries(old).filter(([id])=>!changed.has(id))))
     const updatedDraft = { ...current, content: updated }
     draftRef.current = updatedDraft
     setDraft(updatedDraft)
@@ -160,12 +172,16 @@ export function WebsiteSettings() {
   function patchBranding(values: Partial<WebsiteContentV2["branding"]>) { if (v2) patch("branding", { ...v2.branding, ...values }) }
 
   function undo() {
+    if (mutationLock.current.blocksEditing) return
     if (!v2 || !draft || !past.length) return
+    setTestimonialPermissions({})
     const previous = past[past.length - 1]
     setPast(past.slice(0, -1)); setFuture([copyContent(v2), ...future]); setDraft({ ...draft, content: previous }); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("")
   }
   function redo() {
+    if (mutationLock.current.blocksEditing) return
     if (!v2 || !draft || !future.length) return
+    setTestimonialPermissions({})
     const next = future[0]
     setFuture(future.slice(1)); setPast([...past, copyContent(v2)]); setDraft({ ...draft, content: next }); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("")
   }
@@ -186,13 +202,14 @@ export function WebsiteSettings() {
   async function uploadAsset(file: File, role: "logo" | "hero" | "project") {
     if (!v2 || !rightsAttested) { setError(t("setup.rightsRequired")); return }
     if (!(["image/jpeg", "image/png", "image/webp"].includes(file.type)) || file.size > 10 * 1024 * 1024) { setError(t("setup.imageRequirements")); return }
-    setUploading(role); setError("")
+    if(mutationLock.current.blocksEditing || uploadPending.current)return
+    uploadPending.current=true;setUploading(role); setError("")
     try {
       const result = await api.uploadWebsiteAsset(file, role)
       const preview = await api.getWebsiteAssetPreview(result.asset_id)
       URL.revokeObjectURL(preview)
-      if (role === "logo") patchBranding({ logo_asset_id: result.asset_id, logo_alt: `${v2.identity.company_name} logo` })
-      if (role === "hero") patchBranding({ hero_asset_id: result.asset_id, hero_alt: t("setup.defaultPhotoAlt", { company: v2.identity.company_name }) })
+      if (role === "logo") commit(latest=>({...latest,branding:{...latest.branding,logo_asset_id:result.asset_id,logo_alt:`${latest.identity.company_name} logo`}}))
+      if (role === "hero") commit(latest=>({...latest,branding:{...latest.branding,hero_asset_id:result.asset_id,hero_alt:t("setup.defaultPhotoAlt",{company:latest.identity.company_name})}}))
       if (role === "project") {
         const project = v2.projects[0] ?? { id: newId("project"), order: 0, title: t("setup.projectDefaultTitle"), service_ids: [], description: "", town: null, approximate_date: null, images: [] }
         const image = { id: newId("image"), order: project.images.length, asset_id: result.asset_id, alt: "", caption: "", pair_id: null, pair_role: null }
@@ -200,30 +217,38 @@ export function WebsiteSettings() {
         patch("projects", v2.projects.length ? [nextProject, ...v2.projects.slice(1)] : [nextProject])
       }
     } catch (err) { setError(err instanceof Error ? err.message : t("setup.uploadError")) }
-    finally { setUploading(null) }
+    finally {uploadPending.current=false;setUploading(null)}
   }
 
   async function publish() {
-    if (!v2) return
+    if (!v2 || mutationLock.current.busy) return
+    if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return}
     const blocker = getPublishBlocker(v2, testimonialPermission, t)
-    if (blocker) { setError(blocker.message); setStep(blocker.step); window.setTimeout(() => document.getElementById(blocker.target)?.focus(), 0); return }
+    if (blocker) { setError(blocker.message); setStep(blocker.step); window.setTimeout(() => (blocker.target==="website-testimonial-permission"?document.querySelector<HTMLElement>("[id^=website-proof-][id$=-permission][data-state=unchecked]"):document.getElementById(blocker.target))?.focus(), 0); return }
     setPublishing(true)
     try { await persist(true) } catch { /* surfaced above */ }
     finally { setPublishing(false) }
   }
 
   async function unpublish() {
+    if(uploadPending.current || document.querySelector("[data-website-uploading]") || dirty || document.querySelector("[data-website-inline-editing]")){setError(t("phase4.saveBeforeRestore"));return}
+    if (!mutationLock.current.acquire("unpublish")) return
+    saveInFlight.current=true
     setUnpublishing(true); setError("")
-    try { const state = await api.unpublishWebsite(); accept(state); setMessage(t("unpublishedMessage")) }
+    try { const state = await api.unpublishWebsite(); accept(state,false); setMessage(t("unpublishedMessage")) }
     catch (err) { setError(err instanceof Error ? err.message : t("unpublishError")) }
-    finally { setUnpublishing(false) }
+    finally { saveInFlight.current=false;mutationLock.current.release("unpublish");setUnpublishing(false) }
   }
 
   async function restoreRevision(revision: number) {
-    if (!saved || !window.confirm(t("setup.restoreConfirm"))) return
+    if (!saved || uploadPending.current || document.querySelector("[data-website-uploading]") || dirty || saveInFlight.current || publishing || restoreInFlight.current || !window.confirm(t("setup.restoreConfirm"))) return
+    if(document.querySelector("[data-website-inline-editing]")) {setError(t("phase4.finishInline"));return}
+    if(!mutationLock.current.acquire("restore"))return
+    restoreInFlight.current = true; saveInFlight.current = true; setRestoring(true)
     setSaveStatus("saving"); setError("")
-    try { const state = await api.restoreWebsiteRevision(revision, saved.draft_revision); accept(state); setMessage(t("setup.restored")); setSaveStatus("saved") }
-    catch (err) { setError(err instanceof Error ? err.message : t("saveError")); setSaveStatus("failed") }
+    try { const state = await api.restoreWebsiteRevision(revision, saved.draft_revision); accept(state); setPast([]); setFuture([]); setInlineEditing(false); setMessage(t("setup.restored")); setSaveStatus("saved") }
+    catch (err) { setError(err instanceof Error ? err.message : t("saveError")); setSaveStatus("failed"); throw err }
+    finally {restoreInFlight.current=false;saveInFlight.current=false;mutationLock.current.release("restore");setRestoring(false)}
   }
 
   async function copyLink() {
@@ -260,7 +285,7 @@ export function WebsiteSettings() {
   const previousStep = () => setStep((value) => Math.max(0, value - 1))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" inert={restoring || unpublishing ? true : undefined} aria-busy={restoring || unpublishing}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-slate-500"><Globe className="h-4 w-4" /> {t("eyebrow")}</div><h1 className="text-3xl font-semibold tracking-tight">{t("name")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{t("setup.intro")}</p></div>
         <div className="flex items-center gap-2"><span className="text-xs text-slate-500" role="status">{statusText}</span><span className={`rounded-full px-3 py-1.5 text-xs font-medium ${saved.is_published ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{status}</span></div>
@@ -282,19 +307,19 @@ export function WebsiteSettings() {
             {step === 0 && <BusinessStep content={v2} slug={draft.slug} locked={!!saved.published_at} origin={origin} updateSlug={(slug) => { setDraft({ ...draft, slug }); setFieldErrors({}); setError(""); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("") }} patchIdentity={patchIdentity} patchContact={patchContact} patchBranding={patchBranding} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} errors={fieldErrors} t={t} />}
             {step === 1 && <WorkStep content={v2} patch={patch} t={t} />}
             {step === 2 && <AvailabilityStep content={v2} patch={patch} profileTimezone={saved.profile_timezone} errors={fieldErrors} t={t} />}
-            {step === 3 && <ProofStep onGalleryChange={commit} content={v2} patch={patch} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} testimonialPermission={testimonialPermission} setTestimonialPermission={setTestimonialPermission} t={t} />}
+            {step === 3 && <ProofStep onGalleryChange={commit} proofPermissions={testimonialPermissions} onItemPermission={setItemPermission} content={v2} patch={patch} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} t={t} />}
             {step === 4 && <BrandStep content={v2} commit={commit} patch={patch} patchBranding={patchBranding} errors={fieldErrors} t={t} />}
-            {step === 5 && <ReviewStep content={v2} saved={saved} testimonialPermission={testimonialPermission} setTestimonialPermission={setTestimonialPermission} revisions={revisions} restoreRevision={restoreRevision} t={t} />}
+            {step === 5 && <ReviewStep blocked={dirty || !!uploading || saveInFlight.current || publishing} content={v2} saved={saved} restoreRevision={restoreRevision} t={t} />}
           </section>
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4">
             <Button type="button" variant="ghost" onClick={previousStep} disabled={step === 0}><ArrowLeft className="mr-2 h-4 w-4" />{t("setup.back")}</Button>
-            <div className="flex flex-wrap items-center justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowPreview((value) => !value)}>{showPreview ? t("setup.hidePreview") : t("setup.showPreview")}</Button>{step < STEP_KEYS.length - 1 ? <Button type="button" onClick={() => void nextStep()}>{t("setup.next")}<ArrowRight className="ml-2 h-4 w-4" /></Button> : <PublishControl content={v2} testimonialPermission={testimonialPermission} publishing={publishing} published={saved.is_published} onPublish={publish} setStep={setStep} t={t} />}</div>
+            <div className="flex flex-wrap items-center justify-end gap-2"><Button type="button" variant="outline" onClick={() => {if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return};setShowPreview((value) => !value)}}>{showPreview ? t("setup.hidePreview") : t("setup.showPreview")}</Button>{step < STEP_KEYS.length - 1 ? <Button type="button" onClick={() => void nextStep()}>{t("setup.next")}<ArrowRight className="ml-2 h-4 w-4" /></Button> : <PublishControl content={v2} testimonialPermission={testimonialPermission} publishing={publishing} published={saved.is_published} onPublish={publish} setStep={setStep} t={t} />}</div>
           </div>
         </div>
       </div>
 
-      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div>{previewFailed && <div role="alert" className="p-3 text-sm text-red-700">{t("gallery.previewFailed")} <Button type="button" onClick={retryPreviews}>{t("gallery.retryPreview")}</Button></div>}<div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><ContractorWebsite site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} /></div></div></div>}
+      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div>{previewFailed && <div role="alert" className="p-3 text-sm text-red-700">{t("gallery.previewFailed")} <Button type="button" onClick={retryPreviews}>{t("gallery.retryPreview")}</Button></div>}<div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><button type="button" className="mb-3 rounded border px-3 py-2 text-sm" onClick={()=>{if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return};setInlineEditing(value=>!value)}}>{t("phase4.inlineToggle")}</button><ContractorWebsite onInlineChange={inlineEditing ? commit : undefined} site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} /></div></div></div>}
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5"><div><p className="text-sm font-medium">{t("setup.publishBoundary")}</p><p className="mt-1 text-xs text-slate-500">{t("draftHelp")}</p></div><div className="flex gap-2">{saved.is_published && <><Button type="button" variant="ghost" onClick={unpublish} disabled={unpublishing}>{unpublishing ? t("unpublishing") : t("unpublish")}</Button><Button type="button" variant="outline" onClick={copyLink}><Copy className="mr-2 h-4 w-4" />{t("copyLink")}</Button><a href={`/sites/${saved.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 text-sm underline">{t("visit")}<ExternalLink className="h-4 w-4" /></a></>}</div></div>
     </div>
@@ -344,21 +369,19 @@ function AvailabilityStep({ content, patch, profileTimezone, errors, t }: { cont
   return <div className="space-y-6"><StepIntro title={t("setup.hoursTitle")} body={t("setup.hoursBody")} /><Field label={t("setup.timezone")} hint={t("setup.hoursDisclaimer")} error={validationText(t, errors.timezone)}><Select value={availability.timezone} onValueChange={(timezone) => update({ ...availability, timezone })}><SelectTrigger id="website-timezone" aria-invalid={!!errors.timezone}><SelectValue /></SelectTrigger><SelectContent>{timezones.map((timezone) => <SelectItem key={timezone} value={timezone}>{timezone.replaceAll("_", " ")}</SelectItem>)}</SelectContent></Select></Field><div className="space-y-2">{DAYS.map((day) => { const value = availability.weekly[day] ?? { closed: day === "sun", intervals: day === "sun" ? [] : [{ start: "08:00", end: "17:00", ends_next_day: false }] }; const interval = value.intervals[0] ?? { start: "08:00", end: "17:00", ends_next_day: false }; const dayError = errors[`hours.${day}`]; return <div key={day} className={`grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[70px_90px_1fr_1fr] ${dayError ? "border-red-300 bg-red-50/40" : ""}`}><span className="text-sm font-medium">{t(`setup.days.${day}`)}</span><label className="flex items-center gap-2 text-xs"><Checkbox checked={value.closed} onCheckedChange={(checked) => update({ ...availability, weekly: { ...availability.weekly, [day]: { closed: checked === true, intervals: checked ? [] : [interval] } } })} />{t("setup.closed")}</label><Input id={`website-hours-${day}-start`} aria-invalid={!!dayError} type="time" disabled={value.closed} value={interval.start} onChange={(event) => update({ ...availability, weekly: { ...availability.weekly, [day]: { closed: false, intervals: [{ ...interval, start: event.target.value }] } } })} /><Input type="time" aria-invalid={!!dayError} disabled={value.closed} value={interval.end} onChange={(event) => update({ ...availability, weekly: { ...availability.weekly, [day]: { closed: false, intervals: [{ ...interval, end: event.target.value }] } } })} />{dayError && <p className="text-xs text-red-700 sm:col-start-3 sm:col-span-2">{validationText(t, dayError)}</p>}</div> })}</div><label className="flex items-start gap-3 rounded-lg bg-slate-50 p-4 text-sm"><Checkbox checked={availability.emergency_available === true} onCheckedChange={(checked) => update({ ...availability, emergency_available: checked === true })} /><span>{t("setup.emergencyQuestion")}<small className="mt-1 block text-slate-500">{t("setup.emergencyHint")}</small></span></label></div>
 }
 
-function ProofStep({ onGalleryChange, content, patch, upload, uploading, rightsAttested, setRightsAttested, testimonialPermission, setTestimonialPermission, t }: { onGalleryChange: (update: (content: WebsiteContentV2) => WebsiteContentV2) => void; content: WebsiteContentV2; patch: <K extends keyof WebsiteContentV2>(key: K, value: WebsiteContentV2[K]) => void; upload: (file: File, role: "logo" | "hero" | "project") => void; uploading: string | null; rightsAttested: boolean; setRightsAttested: (value: boolean) => void; testimonialPermission: boolean; setTestimonialPermission: (value: boolean) => void; t: Translator }) {
+function ProofStep({ proofPermissions, onItemPermission, onGalleryChange, content, patch, upload, uploading, rightsAttested, setRightsAttested, t }: { proofPermissions: Record<string,string>; onItemPermission: (id:string,fingerprint:string|null)=>void; onGalleryChange: (update: (content: WebsiteContentV2) => WebsiteContentV2) => void; content: WebsiteContentV2; patch: <K extends keyof WebsiteContentV2>(key: K, value: WebsiteContentV2[K]) => void; upload: (file: File, role: "logo" | "hero" | "project") => void; uploading: string | null; rightsAttested: boolean; setRightsAttested: (value: boolean) => void; t: Translator }) {
   const credential = content.credentials[0]
-  const testimonial = content.testimonials[0]
-  return <div className="space-y-6"><StepIntro title={t("setup.proofTitle")} body={t("setup.proofBody")} /><Field label={t("about")}><Textarea rows={5} maxLength={2500} value={content.identity.about} onChange={(event) => patch("identity", { ...content.identity, about: event.target.value })} /></Field><UploadRights checked={rightsAttested} setChecked={setRightsAttested} t={t} /><UploadField label={t("setup.heroUpload")} busy={uploading === "hero"} onFile={(file) => upload(file, "hero")} t={t} /><ProjectGalleryEditor content={content} onChange={onGalleryChange} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} /><div className="grid gap-5 sm:grid-cols-2"><Field label={t("setup.credentialOptional")} hint={t("setup.credentialHint")}><Input value={credential?.title || ""} maxLength={160} onChange={(event) => patch("credentials", event.target.value ? [{ id: credential?.id || newId("credential"), order: 0, kind: credential?.kind || "other", title: event.target.value, issuer: credential?.issuer || "", jurisdiction: credential?.jurisdiction || "", public_number: null, expiry_date: null, display_policy: "title_only" }] : [])} /></Field><Field label={t("setup.testimonialOptional")} hint={t("setup.testimonialHint")}><Textarea value={testimonial?.text || ""} maxLength={1500} onChange={(event) => patch("testimonials", event.target.value ? [{ id: testimonial?.id || newId("testimonial"), order: 0, text: event.target.value, display_name: testimonial?.display_name || t("setup.customerNamePlaceholder"), date: null, rating: null, source_label: null, source_permalink: null }] : [])} /></Field></div>{content.testimonials.length > 0 && <label className="flex items-start gap-3 rounded-lg border p-4 text-sm"><Checkbox id="website-testimonial-permission-proof" checked={testimonialPermission} onCheckedChange={(checked) => setTestimonialPermission(checked === true)} /><span>{t("setup.testimonialPermission")}</span></label>}</div>
+  return <div className="space-y-6"><StepIntro title={t("setup.proofTitle")} body={t("setup.proofBody")} /><Field label={t("about")}><Textarea rows={5} maxLength={2500} value={content.identity.about} onChange={(event) => patch("identity", { ...content.identity, about: event.target.value })} /></Field><UploadRights checked={rightsAttested} setChecked={setRightsAttested} t={t} /><UploadField label={t("setup.heroUpload")} busy={uploading === "hero"} onFile={(file) => upload(file, "hero")} t={t} /><ProjectGalleryEditor content={content} onChange={onGalleryChange} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} /><div className="grid gap-5 sm:grid-cols-2"><Field label={t("setup.credentialOptional")} hint={t("setup.credentialHint")}><Input value={credential?.title || ""} maxLength={160} onChange={(event) => patch("credentials", event.target.value ? [{ id: credential?.id || newId("credential"), order: 0, kind: credential?.kind || "other", title: event.target.value, issuer: credential?.issuer || "", jurisdiction: credential?.jurisdiction || "", public_number: null, expiry_date: null, display_policy: "title_only" }] : [])} /></Field></div><WebsiteProofEditor kind="testimonials" content={content} onChange={next=>onGalleryChange(()=>next)} permissions={proofPermissions} onPermission={onItemPermission}/></div>
 }
 
 function BrandStep({ content, commit, patch, patchBranding, errors, t }: { content: WebsiteContentV2; commit: (content: WebsiteContentV2) => void; patch: <K extends keyof WebsiteContentV2>(key: K, value: WebsiteContentV2[K]) => void; patchBranding: (values: Partial<WebsiteContentV2["branding"]>) => void; errors: WebsiteFieldErrors; t: Translator }) {
-  const faq = content.faqs[0]
   const sections = normalizedSections(content.sections)
-  return <div className="space-y-7"><StepIntro title={t("setup.brandTitle")} body={t("setup.brandBody")} /><div><h3 className="mb-3 text-sm font-semibold">{t("chooseLook")}</h3><div className={styles.templateGrid}>{WEBSITE_TEMPLATES.map((template) => <button type="button" key={template.id} aria-pressed={content.branding.template_id === template.id} onClick={() => commit(switchTemplate(content, template.id))} className={content.branding.template_id === template.id ? styles.selectedTemplate : ""}><div className={styles.templateMini} data-family={template.family}><span /><i /><b /></div><strong>{t(`templates.${template.id}.name`)}</strong><small>{t(`templates.${template.id}.description`)}</small></button>)}</div></div><div className="grid gap-4 sm:grid-cols-3"><Field label={t("setup.palette")}><Select value={content.branding.theme.palette} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["palette"]) => patchBranding({ theme: { ...content.branding.theme, palette: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["slate", "forest", "ocean", "earth", "sunset"].map((value) => <SelectItem key={value} value={value}>{t(`setup.palettes.${value}`)}</SelectItem>)}</SelectContent></Select></Field><Field label={t("setup.fonts")}><Select value={content.branding.theme.font_pair_id} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["font_pair_id"]) => patchBranding({ theme: { ...content.branding.theme, font_pair_id: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="system">{t("setup.fontSystem")}</SelectItem><SelectItem value="inter">{t("setup.fontInter")}</SelectItem><SelectItem value="lora-inter">{t("setup.fontEditorial")}</SelectItem></SelectContent></Select></Field><Field label={t("setup.buttonStyle")}><Select value={content.branding.theme.button_style} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["button_style"]) => patchBranding({ theme: { ...content.branding.theme, button_style: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="square">{t("setup.square")}</SelectItem><SelectItem value="rounded">{t("setup.rounded")}</SelectItem><SelectItem value="pill">{t("setup.pill")}</SelectItem></SelectContent></Select></Field></div><div className="grid gap-4 sm:grid-cols-2"><Field label={t("setup.faqQuestion")}><Input maxLength={200} value={faq?.question || ""} onChange={(event) => patch("faqs", event.target.value ? [{ id: faq?.id || newId("faq"), order: 0, question: event.target.value, answer: faq?.answer || "" }] : [])} /></Field><Field label={t("setup.faqAnswer")} error={validationText(t, errors.faq_answer)}><Textarea id="website-faq-answer" aria-invalid={!!errors.faq_answer} maxLength={2000} value={faq?.answer || ""} onChange={(event) => faq && patch("faqs", [{ ...faq, answer: event.target.value }])} /></Field></div><div><h3 className="mb-3 text-sm font-semibold">{t("setup.sectionOrder")}</h3><div className="space-y-2">{sections.map((section, index) => <div key={section.key} className="flex items-center gap-3 rounded-lg border p-3"><Checkbox checked={section.enabled} disabled={section.key === "hero" || section.key === "contact"} onCheckedChange={(checked) => patch("sections", sections.map((item) => item.key === section.key ? { ...item, enabled: checked === true } : item))} /><span className="flex-1 text-sm">{t(`setup.sections.${section.key}`)}</span><Button type="button" size="sm" variant="ghost" disabled={index === 0} aria-label={t("setup.moveUp")} onClick={() => commit(moveSection(content, section.key as WebsiteSectionKey, -1))}><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="sm" variant="ghost" disabled={index === sections.length - 1} aria-label={t("setup.moveDown")} onClick={() => commit(moveSection(content, section.key as WebsiteSectionKey, 1))}><ArrowDown className="h-4 w-4" /></Button></div>)}</div></div></div>
+  return <div className="space-y-7"><StepIntro title={t("setup.brandTitle")} body={t("setup.brandBody")} /><div><h3 className="mb-3 text-sm font-semibold">{t("chooseLook")}</h3><div className={styles.templateGrid}>{WEBSITE_TEMPLATES.map((template) => <button type="button" key={template.id} aria-pressed={content.branding.template_id === template.id} onClick={() => commit(switchTemplate(content, template.id))} className={content.branding.template_id === template.id ? styles.selectedTemplate : ""}><div className={styles.templateMini} data-family={template.family}><span /><i /><b /></div><strong>{t(`templates.${template.id}.name`)}</strong><small>{t(`templates.${template.id}.description`)}</small></button>)}</div></div><div className="grid gap-4 sm:grid-cols-3"><Field label={t("setup.palette")}><Select value={content.branding.theme.palette} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["palette"]) => patchBranding({ theme: { ...content.branding.theme, palette: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["slate", "forest", "ocean", "earth", "sunset"].map((value) => <SelectItem key={value} value={value}>{t(`setup.palettes.${value}`)}</SelectItem>)}</SelectContent></Select></Field><Field label={t("setup.fonts")}><Select value={content.branding.theme.font_pair_id} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["font_pair_id"]) => patchBranding({ theme: { ...content.branding.theme, font_pair_id: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="system">{t("setup.fontSystem")}</SelectItem><SelectItem value="inter">{t("setup.fontInter")}</SelectItem><SelectItem value="lora-inter">{t("setup.fontEditorial")}</SelectItem></SelectContent></Select></Field><Field label={t("setup.buttonStyle")}><Select value={content.branding.theme.button_style} onValueChange={(value: WebsiteContentV2["branding"]["theme"]["button_style"]) => patchBranding({ theme: { ...content.branding.theme, button_style: value } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="square">{t("setup.square")}</SelectItem><SelectItem value="rounded">{t("setup.rounded")}</SelectItem><SelectItem value="pill">{t("setup.pill")}</SelectItem></SelectContent></Select></Field></div><WebsiteProofEditor kind="faqs" content={content} onChange={commit} permissions={{}} onPermission={() => undefined}/><div><h3 className="mb-3 text-sm font-semibold">{t("setup.sectionOrder")}</h3><div className="space-y-2">{sections.map((section, index) => <div key={section.key} className="flex items-center gap-3 rounded-lg border p-3"><Checkbox checked={section.enabled} disabled={section.key === "hero" || section.key === "contact"} onCheckedChange={(checked) => patch("sections", sections.map((item) => item.key === section.key ? { ...item, enabled: checked === true } : item))} /><span className="flex-1 text-sm">{t(`setup.sections.${section.key}`)}</span><Button type="button" size="sm" variant="ghost" disabled={index === 0} aria-label={t("setup.moveUp")} onClick={() => commit(moveSection(content, section.key as WebsiteSectionKey, -1))}><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="sm" variant="ghost" disabled={index === sections.length - 1} aria-label={t("setup.moveDown")} onClick={() => commit(moveSection(content, section.key as WebsiteSectionKey, 1))}><ArrowDown className="h-4 w-4" /></Button></div>)}</div></div></div>
 }
 
-function ReviewStep({ content, saved, testimonialPermission, setTestimonialPermission, revisions, restoreRevision, t }: { content: WebsiteContentV2; saved: WebsiteState; testimonialPermission: boolean; setTestimonialPermission: (value: boolean) => void; revisions: Array<{ revision: number; schema_version: number; created_at: string; reason: string }>; restoreRevision: (revision: number) => void; t: Translator }) {
+function ReviewStep({ blocked, content, saved, restoreRevision, t }: { blocked: boolean; content: WebsiteContentV2; saved: WebsiteState; restoreRevision: (revision: number) => Promise<void>; t: Translator }) {
   const checks = [{ ok: !!content.identity.company_name && !!content.identity.headline, text: t("setup.reviewIdentity") }, { ok: !!content.public_contact.phone || !!content.public_contact.email, text: t("setup.reviewContact") }, { ok: !!content.branding.template_id, text: t("setup.reviewTemplate") }, { ok: !!content.availability, text: t("setup.reviewHours") }, { ok: content.public_contact.address_visibility === "hidden" || !!content.public_contact.display_address, text: t("setup.reviewAddress") }]
-  return <div className="space-y-6"><StepIntro title={t("setup.reviewTitle")} body={t("setup.reviewBody")} /><div className="space-y-2">{checks.map((item) => <div key={item.text} className="flex items-center gap-3 rounded-lg border p-3 text-sm"><span className={`grid h-6 w-6 place-items-center rounded-full ${item.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{item.ok ? <Check className="h-4 w-4" /> : "!"}</span>{item.text}</div>)}</div>{content.testimonials.length > 0 && <label className="flex items-start gap-3 rounded-lg border p-4 text-sm"><Checkbox id="website-testimonial-permission" checked={testimonialPermission} onCheckedChange={(checked) => setTestimonialPermission(checked === true)} /><span>{t("setup.testimonialPermission")}</span></label>}<div className="rounded-lg bg-slate-50 p-4 text-sm"><p className="font-medium">{t("setup.publicDestination")}</p><p className="mt-1 text-slate-600">{content.public_contact.phone || content.public_contact.email}</p><p className="mt-3 text-xs text-slate-500">{saved.is_published ? t("setup.publishUpdates") : t("setup.publishFirstTime")}</p></div>{revisions.length > 0 && <div><h3 className="mb-3 text-sm font-semibold">{t("setup.revisions")}</h3><div className="space-y-2">{revisions.slice(0, 5).map((revision) => <div key={revision.revision} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-xs"><span>{t("setup.revisionLabel", { revision: revision.revision, reason: revision.reason })}</span>{revision.revision !== saved.draft_revision && <Button type="button" size="sm" variant="ghost" onClick={() => restoreRevision(revision.revision)}>{t("setup.restore")}</Button>}</div>)}</div></div>}</div>
+  return <div className="space-y-6"><StepIntro title={t("setup.reviewTitle")} body={t("setup.reviewBody")} /><div className="space-y-2">{checks.map((item) => <div key={item.text} className="flex items-center gap-3 rounded-lg border p-3 text-sm"><span className={`grid h-6 w-6 place-items-center rounded-full ${item.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{item.ok ? <Check className="h-4 w-4" /> : "!"}</span>{item.text}</div>)}</div><div className="rounded-lg bg-slate-50 p-4 text-sm"><p className="font-medium">{t("setup.publicDestination")}</p><p className="mt-1 text-slate-600">{content.public_contact.phone || content.public_contact.email}</p><p className="mt-3 text-xs text-slate-500">{saved.is_published ? t("setup.publishUpdates") : t("setup.publishFirstTime")}</p></div><WebsiteRevisionHistory saved={saved} onRestore={restoreRevision} blocked={blocked}/></div>
 }
 
 function UploadRights({ checked, setChecked, t }: { checked: boolean; setChecked: (value: boolean) => void; t: Translator }) { return <label className="flex items-start gap-3 rounded-lg bg-amber-50 p-4 text-sm text-amber-950"><Checkbox checked={checked} onCheckedChange={(value) => setChecked(value === true)} /><span>{t("setup.imageRights")}<small className="mt-1 block text-amber-800">{t("setup.imagePrivacy")}</small></span></label> }
@@ -378,6 +401,10 @@ function getIanaTimezones(preferred: string): string[] {
 
 function focusFirstError(errors: WebsiteFieldErrors) {
   const field = Object.keys(errors)[0] as WebsiteField | undefined
+  const proofKey=Object.keys(errors).find(key=>key.startsWith("proof."))
+  if(proofKey){const [,id,field]=proofKey.split(".");document.getElementById(`website-proof-${id}-${field}`)?.focus();return}
+  const proofInvalid=document.querySelector<HTMLInputElement>("[id^=website-proof-][aria-invalid=true]")
+  if ((errors.testimonial || errors.faq_answer) && proofInvalid) {proofInvalid.focus();return}
   const ids: Partial<Record<WebsiteField, string>> = { slug: "website-slug", company_name: "website-company-name", trade: "website-trade", headline: "website-headline", phone: "website-phone", email: "website-email", timezone: "website-timezone", faq_answer: "website-faq-answer" }
   const id = field?.startsWith("hours.") ? `website-hours-${field.slice(6)}-start` : field ? ids[field] : undefined
   if (id) window.setTimeout(() => document.getElementById(id)?.focus(), 0)
@@ -389,11 +416,11 @@ function getPublishBlocker(content: WebsiteContentV2, testimonialPermission: boo
   if (!content.identity.company_name.trim()) return { message: t("setup.validation.requiredBusinessName"), action: t("setup.fixBusinessName"), step: 0, target: "website-company-name" }
   if (!content.identity.headline.trim()) return { message: t("setup.validation.requiredHeadline"), action: t("setup.fixHeadline"), step: 0, target: "website-headline" }
   if (!content.public_contact.phone.trim() && !content.public_contact.email?.trim()) return { message: t("setup.publishMissing"), action: t("setup.fixContact"), step: 0, target: "website-phone" }
-  if (content.testimonials.length && !testimonialPermission) return { message: t("setup.testimonialPermissionRequired"), action: t("setup.confirmPermission"), step: 5, target: "website-testimonial-permission" }
+  if (content.testimonials.length && !testimonialPermission) return { message: t("setup.testimonialPermissionRequired"), action: t("setup.confirmPermission"), step: 3, target: "website-testimonial-permission" }
   return null
 }
 
 function PublishControl({ content, testimonialPermission, publishing, published, onPublish, setStep, t }: { content: WebsiteContentV2; testimonialPermission: boolean; publishing: boolean; published: boolean; onPublish: () => void; setStep: (step: number) => void; t: Translator }) {
   const blocker = getPublishBlocker(content, testimonialPermission, t)
   return <div className="flex max-w-md flex-wrap items-center justify-end gap-2">{blocker && <p className="text-right text-xs text-amber-800">{blocker.message} <button type="button" className="font-semibold underline" onClick={() => { setStep(blocker.step); window.setTimeout(() => document.getElementById(blocker.target)?.focus(), 0) }}>{blocker.action}</button></p>}<Button type="button" className="bg-black text-white hover:bg-black/80" onClick={onPublish} disabled={publishing}>{publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}{published ? t("publishChanges") : t("publish")}</Button></div>
-}
+  }
