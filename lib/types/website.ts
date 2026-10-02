@@ -54,7 +54,7 @@ export interface WebsiteContentV2 {
 export type WebsiteContent = WebsiteContentV1 | WebsiteContentV2
 export interface WebsiteSave { slug: string; content: WebsiteContent; expected_draft_revision?: number; approved_testimonial_ids?: string[] }
 export interface PublicWebsite { slug: string; content: WebsiteContent; contractor_uuid: string; booking_slug: string | null }
-export interface WebsiteState extends PublicWebsite { draft_revision: number; published_revision: number | null; is_published: boolean; published_at: string | null; updated_at: string | null; has_unpublished_changes: boolean }
+export interface WebsiteState extends PublicWebsite { draft_revision: number; published_revision: number | null; is_published: boolean; published_at: string | null; updated_at: string | null; has_unpublished_changes: boolean; profile_timezone: string | null }
 
 export interface WebsiteTemplateDefinition {
   id: WebsiteTemplate
