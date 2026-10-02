@@ -1,12 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Copy, ExternalLink, Globe, Loader2, Monitor, Redo2, Smartphone, Undo2, Upload } from "lucide-react"
 import { api } from "@/lib/api"
 import { isWebsiteV2, WEBSITE_TEMPLATES, type WebsiteContentV2, type WebsiteSave, type WebsiteSectionKey, type WebsiteState, type WebsiteTemplate } from "@/lib/types/website"
 import { moveSection, normalizedSections, switchTemplate } from "@/lib/website-content"
 import { hasMeaningfulStepContent, normalizeWebsiteSave, validateStep, validateWebsite, websiteErrorsFromApi, type WebsiteField, type WebsiteFieldErrors, type WebsiteValidationKey } from "@/lib/website-validation"
+import { reconcileWebsiteDraft, websiteDraftSignature } from "@/lib/website-draft"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,7 @@ function newId(prefix: string): string { return `${prefix}_${crypto.randomUUID()
 
 export function WebsiteSettings() {
   const t = useTranslations("website")
+  const saveInFlight = useRef(false)
   const [saved, setSaved] = useState<WebsiteState | null>(null)
   const [draft, setDraft] = useState<WebsiteSave | null>(null)
   const [loading, setLoading] = useState(true)
@@ -48,7 +50,7 @@ export function WebsiteSettings() {
   const [revisions, setRevisions] = useState<Array<{ revision: number; schema_version: number; created_at: string; reason: string }>>([])
 
   const v2 = draft && isWebsiteV2(draft.content) ? draft.content : null
-  const dirty = Boolean(saved && draft && JSON.stringify(normalizeWebsiteSave(draft)) !== JSON.stringify(normalizeWebsiteSave({ slug: saved.slug, content: saved.content })))
+  const dirty = Boolean(saved && draft && websiteDraftSignature(draft) !== websiteDraftSignature(saved))
 
   const accept = useCallback((site: WebsiteState, resetDraft = true) => {
     setSaved(site)
@@ -82,13 +84,15 @@ export function WebsiteSettings() {
 
   const persist = useCallback(async (publish = false) => {
     if (!draft || !saved || !isWebsiteV2(draft.content)) return
+    if (saveInFlight.current) throw new Error(t("setup.unsavedBlock"))
     const validation = validateWebsite(draft.content, draft.slug)
     if (Object.keys(validation).length) {
       setFieldErrors(validation); setSaveStatus("invalid"); setError(t("setup.fixFields"))
       throw new Error(t("setup.fixFields"))
     }
     const normalizedDraft = normalizeWebsiteSave(draft)
-    const submittedSignature = JSON.stringify({ slug: normalizedDraft.slug, content: normalizedDraft.content })
+    const submittedSignature = websiteDraftSignature(draft, false)
+    saveInFlight.current = true
     setSaveStatus("saving"); setError(""); setMessage("")
     try {
       const payload: WebsiteSave = {
@@ -99,15 +103,7 @@ export function WebsiteSettings() {
       }
       const result = publish ? await api.publishWebsite(payload) : await api.saveWebsite(payload)
       setSaved(result)
-      setDraft((current) => {
-        if (!current) return { slug: result.slug, content: result.content, expected_draft_revision: result.draft_revision }
-        const normalizedCurrent = normalizeWebsiteSave(current)
-        const currentSignature = JSON.stringify({ slug: normalizedCurrent.slug, content: normalizedCurrent.content })
-        if (currentSignature === submittedSignature) {
-          return { ...current, slug: result.slug, expected_draft_revision: result.draft_revision }
-        }
-        return { ...current, expected_draft_revision: result.draft_revision }
-      })
+      setDraft((current) => reconcileWebsiteDraft(current, submittedSignature, result))
       setFieldErrors({})
       setSaveStatus("saved")
       if (publish) setMessage(t("publishedMessage"))
@@ -121,6 +117,8 @@ export function WebsiteSettings() {
       else setSaveStatus("failed")
       setError(Object.keys(apiErrors).length ? t("setup.fixFields") : text)
       throw err
+    } finally {
+      saveInFlight.current = false
     }
   }, [draft, saved, t, testimonialPermission])
 
@@ -140,7 +138,7 @@ export function WebsiteSettings() {
     setPast((items) => [...items.slice(-29), copyContent(v2)])
     setFuture([])
     setDraft({ ...draft, content: next })
-    setFieldErrors({}); setError(""); setSaveStatus("idle"); setMessage("")
+    setFieldErrors({}); setError(""); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("")
   }
 
   function patch<K extends keyof WebsiteContentV2>(key: K, value: WebsiteContentV2[K]) { if (v2) commit({ ...v2, [key]: value }) }
@@ -151,12 +149,12 @@ export function WebsiteSettings() {
   function undo() {
     if (!v2 || !draft || !past.length) return
     const previous = past[past.length - 1]
-    setPast(past.slice(0, -1)); setFuture([copyContent(v2), ...future]); setDraft({ ...draft, content: previous }); setSaveStatus("idle"); setMessage("")
+    setPast(past.slice(0, -1)); setFuture([copyContent(v2), ...future]); setDraft({ ...draft, content: previous }); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("")
   }
   function redo() {
     if (!v2 || !draft || !future.length) return
     const next = future[0]
-    setFuture(future.slice(1)); setPast([...past, copyContent(v2)]); setDraft({ ...draft, content: next }); setSaveStatus("idle"); setMessage("")
+    setFuture(future.slice(1)); setPast([...past, copyContent(v2)]); setDraft({ ...draft, content: next }); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("")
   }
 
   async function beginSetup() {
@@ -268,7 +266,7 @@ export function WebsiteSettings() {
           </div>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
-            {step === 0 && <BusinessStep content={v2} slug={draft.slug} locked={!!saved.published_at} origin={origin} updateSlug={(slug) => { setDraft({ ...draft, slug }); setFieldErrors({}); setError(""); setSaveStatus("idle"); setMessage("") }} patchIdentity={patchIdentity} patchContact={patchContact} patchBranding={patchBranding} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} errors={fieldErrors} t={t} />}
+            {step === 0 && <BusinessStep content={v2} slug={draft.slug} locked={!!saved.published_at} origin={origin} updateSlug={(slug) => { setDraft({ ...draft, slug }); setFieldErrors({}); setError(""); setSaveStatus((status) => saveInFlight.current ? status : "idle"); setMessage("") }} patchIdentity={patchIdentity} patchContact={patchContact} patchBranding={patchBranding} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} errors={fieldErrors} t={t} />}
             {step === 1 && <WorkStep content={v2} patch={patch} t={t} />}
             {step === 2 && <AvailabilityStep content={v2} patch={patch} profileTimezone={saved.profile_timezone} errors={fieldErrors} t={t} />}
             {step === 3 && <ProofStep content={v2} patch={patch} upload={uploadAsset} uploading={uploading} rightsAttested={rightsAttested} setRightsAttested={setRightsAttested} testimonialPermission={testimonialPermission} setTestimonialPermission={setTestimonialPermission} t={t} />}
