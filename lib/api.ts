@@ -168,11 +168,38 @@ class ApiClient {
     })
   }
 
-  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project', options: { signal?: AbortSignal } = {}): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project', options: { signal?: AbortSignal; onProgress?: (percent: number) => void } = {}): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('role', role)
     formData.append('rights_attested', 'true')
+    if (options.onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        const abort = () => xhr.abort()
+        const cleanup = () => options.signal?.removeEventListener('abort', abort)
+        if (options.signal?.aborted) { reject(new DOMException('Upload cancelled', 'AbortError')); return }
+        xhr.open('POST', `${this.baseURL}/website/assets`)
+        xhr.withCredentials = true
+        xhr.timeout = 120_000
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) options.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)))
+        }
+        xhr.onload = () => {
+          cleanup()
+          try {
+            const result = JSON.parse(xhr.responseText)
+            if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(this.formatApiErrorDetail(result?.detail) || 'Website image upload failed')); return }
+            resolve(result)
+          } catch { reject(new Error('Website upload returned an invalid response')) }
+        }
+        xhr.onerror = () => { cleanup(); reject(new Error('Website upload failed. Check your connection.')) }
+        xhr.ontimeout = () => { cleanup(); reject(new Error('Website upload timed out; server completion is unknown.')) }
+        xhr.onabort = () => { cleanup(); reject(new DOMException('Upload cancelled; server completion may be unknown', 'AbortError')) }
+        options.signal?.addEventListener('abort', abort, { once: true })
+        xhr.send(formData)
+      })
+    }
     const response = await fetch(`${this.baseURL}/website/assets`, {
       method: 'POST', body: formData, credentials: 'include', signal: options.signal,
     })

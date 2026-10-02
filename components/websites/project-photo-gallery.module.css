@@ -1,0 +1,8 @@
+.photos { min-width: 0; display: grid; gap: 12px; }
+.photos figure { margin: 0; min-width: 0; }
+.photos img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; display: block; border-radius: 5px; }
+.photos figcaption { font-size: 13px; line-height: 1.6; padding-top: 7px; overflow-wrap: anywhere; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair > div { min-width: 0; }
+.pair p { margin: 0 0 7px; font-size: 12px; font-weight: 600; }
+@media (max-width: 420px) { .pair { grid-template-columns: 1fr; } }
