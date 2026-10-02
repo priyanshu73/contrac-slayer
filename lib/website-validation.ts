@@ -10,6 +10,8 @@ export type WebsiteField =
   | "timezone"
   | `hours.${string}`
   | "faq_answer"
+  | "project_title"
+  | "project_date"
   | "form"
 
 export type WebsiteValidationKey =
@@ -63,6 +65,9 @@ export function validateWebsite(content: WebsiteContentV2, slug: string): Websit
     })
   }
 
+  if (content.projects.some((project) => !project.title.trim())) errors.project_title = "invalidField"
+  if (content.projects.some((project) => project.approximate_date && !/^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/.test(project.approximate_date))) errors.project_date = "invalidField"
+
   if (content.faqs.some((faq) => faq.question.trim() && !faq.answer.trim())) errors.faq_answer = "requiredFaqAnswer"
   return errors
 }
@@ -72,7 +77,7 @@ export function validateStep(step: number, errors: WebsiteFieldErrors): WebsiteF
     ["slug", "company_name", "trade", "headline", "phone", "email"],
     [],
     ["timezone", "hours.mon", "hours.tue", "hours.wed", "hours.thu", "hours.fri", "hours.sat", "hours.sun"],
-    [],
+    ["project_title", "project_date"],
     ["faq_answer"],
     Object.keys(errors) as WebsiteField[],
   ]
