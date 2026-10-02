@@ -25,7 +25,7 @@ function WebsiteV2({ site, preview, assetPreviews }: { site: PublicWebsite & { c
   const fontClass = styles[`font-${content.branding.theme.font_pair_id}`] || ""
   const densityClass = styles[`density-${content.branding.theme.density}`] || ""
   const buttonClass = styles[`buttons-${content.branding.theme.button_style}`] || ""
-  const asset = (id: string | null, width: 480 | 960 | 1600 = 960) => id ? (assetPreviews[id] || websiteAssetUrl(site.slug, id, width)) : undefined
+  const asset = (id: string | null, width: 480 | 960 | 1600 = 960) => id ? (assetPreviews[id] || (preview ? undefined : websiteAssetUrl(site.slug, id, width))) : undefined
   const logo = asset(content.branding.logo_asset_id, 480) || safeUrl(content.branding.legacy_logo_url)
   const hero = asset(content.branding.hero_asset_id, 1600) || safeUrl(content.branding.legacy_hero_image_url)
   const areas = content.service_areas.map((area) => area.label).join(" · ") || content.legacy_service_area

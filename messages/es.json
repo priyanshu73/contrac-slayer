@@ -2504,6 +2504,12 @@
       "service-desk": { "name": "Mesa de Servicios", "description": "Directorio claro de servicios con preguntas cercanas." }
     },
     "gallery": {
+      "chooseDisabledRights": "Confirma el permiso de las fotos para añadirlas.",
+      "chooseDisabledLimit": "Este proyecto tiene 20 fotos. Quita una antes de añadir otra.",
+      "pairDisabled": "Elige una foto de Después para activar el par.",
+      "dateFormat": "AAAA o AAAA-MM",
+      "previewFailed": "No se pudieron cargar algunas fotos privadas. No se sustituyen por enlaces públicos.",
+      "confirmRemove": "Quitar del borrador",
       "title": "Muestra el trabajo del que estás orgulloso.",
       "intro": "Añade fotos desde tu teléfono o computadora. Puedes empezar sin fotos y añadirlas más tarde.",
       "rights": "Tengo permiso para publicar estas fotos. He revisado rostros, placas, números de casas y otros detalles privados.",

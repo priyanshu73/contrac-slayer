@@ -1,5 +1,7 @@
 "use client"
 
+import { useWebsiteDraftPreviews } from "@/lib/use-website-draft-previews"
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Copy, ExternalLink, Globe, Loader2, Monitor, Redo2, Smartphone, Undo2, Upload } from "lucide-react"
@@ -47,13 +49,13 @@ export function WebsiteSettings() {
   const [rightsAttested, setRightsAttested] = useState(false)
   const [testimonialPermission, setTestimonialPermission] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
-  const [assetPreviews, setAssetPreviews] = useState<Record<string, string>>({})
   const [revisions, setRevisions] = useState<Array<{ revision: number; schema_version: number; created_at: string; reason: string }>>([])
 
   const draftRef = useRef(draft)
   draftRef.current = draft
 
   const v2 = draft && isWebsiteV2(draft.content) ? draft.content : null
+  const { previews: assetPreviews, failed: previewFailed, retry: retryPreviews } = useWebsiteDraftPreviews(v2, showPreview)
   const dirty = Boolean(saved && draft && websiteDraftSignature(draft) !== websiteDraftSignature(saved))
 
   const accept = useCallback((site: WebsiteState, resetDraft = true) => {
@@ -188,7 +190,7 @@ export function WebsiteSettings() {
     try {
       const result = await api.uploadWebsiteAsset(file, role)
       const preview = await api.getWebsiteAssetPreview(result.asset_id)
-      setAssetPreviews((items) => ({ ...items, [result.asset_id]: preview }))
+      URL.revokeObjectURL(preview)
       if (role === "logo") patchBranding({ logo_asset_id: result.asset_id, logo_alt: `${v2.identity.company_name} logo` })
       if (role === "hero") patchBranding({ hero_asset_id: result.asset_id, hero_alt: t("setup.defaultPhotoAlt", { company: v2.identity.company_name }) })
       if (role === "project") {
@@ -292,7 +294,7 @@ export function WebsiteSettings() {
         </div>
       </div>
 
-      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div><div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><ContractorWebsite site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} /></div></div></div>}
+      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div>{previewFailed && <div role="alert" className="p-3 text-sm text-red-700">{t("gallery.previewFailed")} <Button type="button" onClick={retryPreviews}>{t("gallery.retryPreview")}</Button></div>}<div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><ContractorWebsite site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} /></div></div></div>}
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5"><div><p className="text-sm font-medium">{t("setup.publishBoundary")}</p><p className="mt-1 text-xs text-slate-500">{t("draftHelp")}</p></div><div className="flex gap-2">{saved.is_published && <><Button type="button" variant="ghost" onClick={unpublish} disabled={unpublishing}>{unpublishing ? t("unpublishing") : t("unpublish")}</Button><Button type="button" variant="outline" onClick={copyLink}><Copy className="mr-2 h-4 w-4" />{t("copyLink")}</Button><a href={`/sites/${saved.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 text-sm underline">{t("visit")}<ExternalLink className="h-4 w-4" /></a></>}</div></div>
     </div>

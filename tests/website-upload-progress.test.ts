@@ -28,6 +28,7 @@ test("XHR upload reports real byte events, handles HTTP failure and abort", asyn
     const first = api.uploadWebsiteAsset(file, "project", { onProgress: (value) => progress.push(value) })
     const xhr = FakeXHR.instance
     assert.equal(xhr.withCredentials, true)
+    assert.equal(xhr.timeout, 0, "no deadline-driven automatic duplicate retry")
     xhr.upload.onprogress!({ lengthComputable: true, loaded: 5, total: 10 })
     assert.deepEqual(progress, [50])
     xhr.onload!()

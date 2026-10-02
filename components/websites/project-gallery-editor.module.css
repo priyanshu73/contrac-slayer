@@ -18,9 +18,9 @@
 .uploadSymbol { font-size: 28px; color: #196c62; }
 .drop strong { display: block; margin: 6px 0; }
 .file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.photo { display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 16px; border-bottom: 1px solid #e1e9e8; padding: 18px 0; }
-.thumbnail { width: 80px; height: 80px; object-fit: cover; border-radius: 5px; background: #f1f5f3; }
-.placeholder { width: 80px; height: 80px; background: #f1f5f3; border: 1px solid #b9cfc5; display: grid; place-items: center; color: #426e67; font-size: 12px; text-align: center; }
+.photo { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 16px; border-bottom: 1px solid #e1e9e8; padding: 18px 0; }
+.thumbnail { width: 160px; height: 140px; object-fit: cover; border-radius: 5px; background: #f1f5f3; }
+.placeholder { width: 160px; height: 140px; background: #f1f5f3; border: 1px solid #b9cfc5; display: grid; place-items: center; color: #426e67; font-size: 12px; text-align: center; }
 .photoDetails { min-width: 0; }
 .photoDetails .field { margin-top: 12px; }
 .photoDetails small { display: block; color: #17695f; font-size: 12px; margin-bottom: 10px; }
@@ -31,4 +31,13 @@
 .cover { border-bottom: 1px solid #e1e9e8; padding: 12px 0 20px; margin-bottom: 20px; }
 .browse { border-top: 1px solid #e1e9e8; margin-top: 20px; padding-top: 18px; }
 .gallery :focus-visible { outline: 2px solid #196c62; outline-offset: 3px; }
-@media (max-width: 640px) { .fields { grid-template-columns: 1fr; gap: 0; } .project { padding: 14px; } .photo { grid-template-columns: 65px minmax(0,1fr); gap: 12px; } .thumbnail,.placeholder { width: 65px; height: 72px; } .gallery h3 { font-size: 21px; } }
+@media (max-width: 640px) { .fields { grid-template-columns: 1fr; gap: 0; } .project { padding: 14px; } .photo { grid-template-columns: 100px minmax(0,1fr); gap: 12px; } .thumbnail,.placeholder { width: 100px; height: 110px; } .gallery h3 { font-size: 21px; } }
+
+.gallery button, .gallery select, .gallery input:not([type=file]), .gallery textarea { min-height: 44px; }
+.gallery button { min-width: 44px; }
+.rights { min-height: 44px; cursor: pointer; }
+.rights input { min-height: 17px !important; }
+
+.gallery *, .gallery *::before, .gallery *::after { box-sizing: border-box; }
+
+.gallery button:disabled { opacity: 1; color: #526466; background: #edf2f1; border-color: #b8c7c6; cursor: not-allowed; }

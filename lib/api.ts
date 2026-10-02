@@ -181,7 +181,9 @@ class ApiClient {
         if (options.signal?.aborted) { reject(new DOMException('Upload cancelled', 'AbortError')); return }
         xhr.open('POST', `${this.baseURL}/website/assets`)
         xhr.withCredentials = true
-        xhr.timeout = 120_000
+        // No client deadline: the server may create an asset before a timeout.
+        // The owner can cancel explicitly without an automatic retry.
+        xhr.timeout = 0
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) options.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)))
         }
