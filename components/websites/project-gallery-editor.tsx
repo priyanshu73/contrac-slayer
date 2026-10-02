@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import type { WebsiteContentV2 } from "@/lib/types/website"
 import { addWebsiteProject, addWebsiteProjectImage, updateWebsiteProject, updateWebsiteProjectImage, removeWebsiteProject, removeWebsiteProjectImage, moveWebsiteProject, moveWebsiteProjectImage, pairWebsiteProjectImages, unpairWebsiteProjectImage, MAX_PROJECT_IMAGES, MAX_WEBSITE_PROJECTS } from "@/lib/website-gallery"
+import { PhotoCropEditor } from "./photo-crop-editor"
+import { WebsitePhotoImporter } from "./website-photo-importer"
 import { Button } from "@/components/ui/button"
 import styles from "./project-gallery-editor.module.css"
 
@@ -35,6 +37,15 @@ export function ProjectGalleryEditor({ content, onChange, rightsAttested, setRig
   const [pairChoice, setPairChoice] = useState<Record<string, string>>({})
   const root = useRef<HTMLDivElement | null>(null)
   const [removal, setRemoval] = useState<{ projectId: string; imageId?: string } | null>(null)
+  const [features, setFeatures] = useState({ crop: false, import: false })
+  const [capabilityState, setCapabilityState] = useState<"loading" | "ready" | "failed">("loading")
+  const [cropImage, setCropImage] = useState<string | null>(null)
+  const [importProject, setImportProject] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    api.getWebsiteCapabilities().then(value => { if (live) { setFeatures({ crop: value.gallery_crop === "v1", import: value.photo_import === "v1" }); setCapabilityState("ready") } }).catch(() => { if (live) setCapabilityState("failed") })
+    return () => { live = false }
+  }, [])
   const [coverOpen, setCoverOpen] = useState(false)
   const assetIds = [...new Set([content.branding.hero_asset_id, ...content.projects.flatMap(p => p.images.map(i => i.asset_id))].filter((x): x is string => Boolean(x)))].join(",")
 
@@ -144,8 +155,18 @@ export function ProjectGalleryEditor({ content, onChange, rightsAttested, setRig
         setRemoval(null)
         focusControl(imageId ? `project-remove-${project.id}` : "add-project")
       }}>{t("confirmRemove")}</Button><Button type="button" variant="outline" onClick={() => { const imageId = removal.imageId; setRemoval(null); focusControl(imageId ? `photo-remove-${imageId}` : `project-remove-${project.id}`) }}>{t("cancel")}</Button></div></div>}
+      <Button type="button" variant="outline" data-focus={`import-${project.id}`} disabled={!features.import || project.images.length >= MAX_PROJECT_IMAGES} onClick={() => setImportProject(project.id)}>{t("fromProjects")}</Button>
+      {capabilityState !== "ready" ? <p className={styles.hint} role="status">{t(capabilityState === "loading" ? "capabilityLoading" : "capabilityFailed")}</p> : (!features.crop || !features.import) && <p className={styles.hint}>{t("capabilityUnavailable")}</p>}
+      {project.images.length >= MAX_PROJECT_IMAGES && <p className={styles.hint}>{t("imageLimit")}</p>}
+      {importProject === project.id && features.import && <WebsitePhotoImporter key={project.id} destinationTitle={project.title} enabled={project.images.length < MAX_PROJECT_IMAGES} onCancel={() => { setImportProject(null); focusControl(`import-${project.id}`) }} onAttach={assetId => {
+        const destination = current.current.projects.find(p => p.id === project.id)
+        if (!destination || destination.images.length >= MAX_PROJECT_IMAGES) throw new Error(t("destinationGone"))
+        changeRef.current(latest => addWebsiteProjectImage(latest, project.id, id("image"), assetId))
+      }} />}
       {project.images.map((image, imageIndex) => <div className={styles.photo} key={image.id}>
         {thumbnail(image.asset_id, image.alt || project.title)}<div className={styles.photoDetails}>
+          <Button type="button" variant="outline" data-focus={`frame-${image.id}`} disabled={!features.crop || !previews[image.asset_id]} aria-label={`${t("framePhoto")}: ${image.alt || project.title}`} onClick={() => setCropImage(image.id)}>{t("framePhoto")}</Button>
+          {cropImage === image.id && previews[image.asset_id] && <PhotoCropEditor key={image.id} src={previews[image.asset_id]} crop={image.crop} title={image.alt || project.title} onCancel={() => { setCropImage(null); focusControl(`frame-${image.id}`) }} onApply={crop => { change(latest => updateWebsiteProjectImage(latest, project.id, image.id, { crop })); setCropImage(null); focusControl(`frame-${image.id}`) }} />}
           <small>{t(previews[image.asset_id] ? "ready" : "previewLoading")} · {t("private")}</small>
           <div className={styles.actions}><Button type="button" size="sm" variant="ghost" disabled={imageIndex === 0} aria-label={`${t("photoUp")}: ${image.alt || t("photoNumber", { number: imageIndex + 1 })} (${project.title})`} data-focus={`photo-up-${image.id}`} onClick={() => { change(latest => moveWebsiteProjectImage(latest, project.id, image.id, imageIndex - 1)); focusControl(`photo-down-${image.id}`) }}>↑</Button><Button type="button" size="sm" variant="ghost" disabled={imageIndex === project.images.length - 1} aria-label={`${t("photoDown")}: ${image.alt || t("photoNumber", { number: imageIndex + 1 })} (${project.title})`} data-focus={`photo-down-${image.id}`} onClick={() => { change(latest => moveWebsiteProjectImage(latest, project.id, image.id, imageIndex + 1)); focusControl(`photo-up-${image.id}`) }}>↓</Button><Button type="button" size="sm" variant="ghost" aria-label={`${t("removePhoto")}: ${image.alt || t("photoNumber", { number: imageIndex + 1 })} (${project.title})`} data-focus={`photo-remove-${image.id}`} onClick={() => { setRemoval({ projectId: project.id, imageId: image.id }); focusControl(`confirm-${project.id}`) }}>{t("removePhoto")}</Button></div>
           <label className={styles.field}><span>{t("alt")}</span><input maxLength={200} value={image.alt} onChange={event => { const alt = event.target.value; change(latest => updateWebsiteProjectImage(latest, project.id, image.id, { alt })) }} /></label>
@@ -154,6 +175,6 @@ export function ProjectGalleryEditor({ content, onChange, rightsAttested, setRig
         </div>
       </div>)}
     </section>)}
-    <div className={styles.browse}><strong>{t("fromProjects")}</strong><p className={styles.hint}>{t("importLimit")}</p></div>
+    <div className={styles.browse}><p className={styles.hint}>{t("importSupported")}</p></div>
   </div>
 }
