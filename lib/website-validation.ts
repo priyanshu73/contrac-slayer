@@ -9,6 +9,8 @@ export type WebsiteField =
   | "email"
   | "timezone"
   | `hours.${string}`
+  | `proof.${string}.${string}`
+  | "testimonial"
   | "faq_answer"
   | "project_title"
   | "project_date"
@@ -68,7 +70,10 @@ export function validateWebsite(content: WebsiteContentV2, slug: string): Websit
   if (content.projects.some((project) => !project.title.trim())) errors.project_title = "invalidField"
   if (content.projects.some((project) => project.approximate_date && !/^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/.test(project.approximate_date))) errors.project_date = "invalidField"
 
-  if (content.faqs.some((faq) => faq.question.trim() && !faq.answer.trim())) errors.faq_answer = "requiredFaqAnswer"
+  for(const item of content.testimonials) for(const field of ["text","display_name"] as const) if(!item[field].trim()) errors[`proof.${item.id}.${field}`]="invalidField"
+  if (content.testimonials.some(item=>!item.text.trim() || !item.display_name.trim())) errors.testimonial = "invalidField"
+  for(const item of content.faqs) for(const field of ["question","answer"] as const) if(!item[field].trim()) errors[`proof.${item.id}.${field}`]="invalidField"
+  if (content.faqs.some((faq) => !faq.question.trim() || !faq.answer.trim())) errors.faq_answer = "requiredFaqAnswer"
   return errors
 }
 
@@ -77,7 +82,7 @@ export function validateStep(step: number, errors: WebsiteFieldErrors): WebsiteF
     ["slug", "company_name", "trade", "headline", "phone", "email"],
     [],
     ["timezone", "hours.mon", "hours.tue", "hours.wed", "hours.thu", "hours.fri", "hours.sat", "hours.sun"],
-    ["project_title", "project_date"],
+    ["project_title", "project_date", "testimonial"],
     ["faq_answer"],
     Object.keys(errors) as WebsiteField[],
   ]
