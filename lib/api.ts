@@ -168,13 +168,13 @@ class ApiClient {
     })
   }
 
-  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project'): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project', options: { signal?: AbortSignal } = {}): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('role', role)
     formData.append('rights_attested', 'true')
     const response = await fetch(`${this.baseURL}/website/assets`, {
-      method: 'POST', body: formData, credentials: 'include',
+      method: 'POST', body: formData, credentials: 'include', signal: options.signal,
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
