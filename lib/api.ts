@@ -115,6 +115,13 @@ const API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_API_URL) || DEFAULT_API_
 const BACKEND_WS_ORIGIN = normalizeEnvUrl(process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN)?.replace(/\/+$/, '')
 const CONTRACTOR_AI_API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL)
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly detail: unknown) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
 console.log(`  Backend WS origin: ${BACKEND_WS_ORIGIN || '(derived from API URL)'}`)
@@ -246,6 +253,7 @@ class ApiClient {
 
   private formatApiErrorDetail(detail: unknown): string {
     if (!detail) return 'An error occurred'
+    if (Array.isArray(detail)) return 'Some fields need your attention.'
     let msg: string
     if (typeof detail === 'string') {
       msg = detail
@@ -264,13 +272,17 @@ class ApiClient {
             else { msg = 'An error occurred' }
           } else { msg = 'An error occurred' }
         } else {
-          try { msg = JSON.stringify(detail) } catch { msg = 'An error occurred' }
+          const code = typeof maybe.code === 'string' ? maybe.code : ''
+          if (code === 'testimonial_permission_required') msg = 'Confirm testimonial permission before publishing.'
+          else if (code === 'expired_credential') msg = 'Review the expired credential before publishing.'
+          else if (code === 'stale_revision' || code === 'revision_required') msg = 'This draft changed in another session. Load the latest version.'
+          else msg = 'Something went wrong. Please try again.'
         }
       }
     } else {
       msg = String(detail)
     }
-    if (/sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(msg)) {
+    if (/^\s*[\[{]/.test(msg) || /sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(msg)) {
       return 'Something went wrong. Please try again.'
     }
     return msg
@@ -341,7 +353,7 @@ class ApiClient {
           // ignore
         }
         const detail = parsed?.detail ?? parsed?.message ?? parsed?.error
-        throw new Error(this.formatApiErrorDetail(detail))
+        throw new ApiError(this.formatApiErrorDetail(detail), response.status, detail)
       }
 
       if (response.status === 204) {

@@ -186,4 +186,19 @@ test("all twenty templates render all enabled sections in owner order without dr
   )
 })
 
-
+test("sparse public sites hide empty nav anchors and unspecified trade copy", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server")
+  const { ContractorWebsite } = await import("../components/websites/contractor-website")
+  const { JSDOM } = await import("jsdom")
+  const content = fixture()
+  content.identity = { ...content.identity, trade_code: "unspecified", custom_trade_label: null, about: "" }
+  content.services = []
+  content.service_areas = []
+  content.legacy_service_area = ""
+  const html = renderToStaticMarkup(ContractorWebsite({ site: { slug: "sparse", contractor_uuid: "uuid", booking_slug: null, content }, preview: false }))
+  const document = new JSDOM(html).window.document
+  assert.equal(document.querySelector('nav a[href="#services"]'), null)
+  assert.equal(document.querySelector('nav a[href="#about"]'), null)
+  assert.equal(document.querySelector("section[data-section=\"hero\"] h1")?.previousElementSibling, null)
+  assert.doesNotMatch(document.body.textContent || "", /unspecified/i)
+})
