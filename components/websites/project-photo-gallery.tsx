@@ -1,6 +1,7 @@
 import Image from "next/image"
 import type { WebsiteProjectImage } from "@/lib/types/website"
 import { websitePublicText as t } from "@/lib/website-i18n"
+import { websitePhotoCropStyle } from "@/lib/website-photo-crop"
 import styles from "./project-photo-gallery.module.css"
 
 export function ProjectPhotoGallery({ images, title, asset }: { images: WebsiteProjectImage[]; title: string; asset: (id: string, width: 480 | 960 | 1600) => string | undefined | null }) {
@@ -8,7 +9,7 @@ export function ProjectPhotoGallery({ images, title, asset }: { images: WebsiteP
   const shown = new Set<string>()
   const photo = (image: WebsiteProjectImage) => {
     const src = asset(image.asset_id, 960)
-    return src ? <figure key={image.id}><Image src={src} alt={image.alt || title} width={960} height={720} unoptimized />{image.caption && <figcaption>{image.caption}</figcaption>}</figure> : null
+    return src ? <figure key={image.id}><div className={styles.viewport}><Image src={src} alt={image.alt || title} width={960} height={720} unoptimized style={websitePhotoCropStyle(image.crop)} /></div>{image.caption && <figcaption>{image.caption}</figcaption>}</figure> : null
   }
   return <div className={styles.photos}>{ordered.map(image => {
     if (shown.has(image.id)) return null

@@ -139,11 +139,11 @@ class ApiClient {
   }
 
   async saveWebsite(data: WebsiteSave): Promise<WebsiteState> {
-    return this.request('/website', { method: 'PUT', body: JSON.stringify(data) })
+    return this.request('/website', { method: 'PUT', body: JSON.stringify({ ...data, editor_features: ['gallery-crop-v1'] }) })
   }
 
   async publishWebsite(data: WebsiteSave): Promise<WebsiteState> {
-    return this.request('/website/publish', { method: 'POST', body: JSON.stringify(data) })
+    return this.request('/website/publish', { method: 'POST', body: JSON.stringify({ ...data, editor_features: ['gallery-crop-v1'] }) })
   }
 
   async unpublishWebsite(): Promise<WebsiteState> {
@@ -210,6 +210,25 @@ class ApiClient {
       throw new Error(this.formatApiErrorDetail(error?.detail) || 'Website image upload failed')
     }
     return response.json()
+  }
+
+  async getWebsiteCapabilities(): Promise<{ gallery_crop: string; photo_import: string; crop_aspect_ratio: string; max_zoom: number; import_sources: string[] }> {
+    return this.request('/website/capabilities')
+  }
+
+  async getWebsiteImportCandidates(projectId: number, sourceKind: "attachment" | "project_media", afterId = 0): Promise<{ items: Array<{ source_kind: "attachment" | "project_media"; source_id: number; file_name: string; bytes: number | null; eligible: boolean; reason: string | null }>; next_after_id: number | null }> {
+    return this.request(`/website/import-photos?project_id=${projectId}&source_kind=${sourceKind}&after_id=${afterId}`)
+  }
+
+  async getWebsiteImportPreview(sourceKind: "attachment" | "project_media", sourceId: number, signal?: AbortSignal): Promise<string> {
+    const response = await fetch(`${this.baseURL}/website/import-photos/${sourceKind}/${sourceId}/preview`, { credentials: "include", signal })
+    if (!response.ok) throw new Error("Photo preview unavailable. Re-upload this photo instead.")
+    return URL.createObjectURL(await response.blob())
+  }
+
+  async importWebsitePhoto(data: { source_kind: "attachment" | "project_media"; source_id: number; request_id: string; rights_attested: boolean }): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+    if (!data.rights_attested) throw new Error("Confirm photo permission before importing")
+    return this.request('/website/assets/import', { method: 'POST', body: JSON.stringify(data) })
   }
 
   async getWebsiteAssetPreview(assetId: string, variant: 480 | 960 | 1600 = 960): Promise<string> {

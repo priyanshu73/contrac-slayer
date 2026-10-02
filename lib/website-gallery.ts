@@ -55,7 +55,7 @@ export function addWebsiteProjectImage(content: WebsiteContentV2, projectId: str
     return { ...project, images: [...project.images, image] }
   })
 }
-export function updateWebsiteProjectImage(content: WebsiteContentV2, projectId: string, imageId: string, changes: Partial<Pick<WebsiteProjectImage, "alt" | "caption">>): WebsiteContentV2 {
+export function updateWebsiteProjectImage(content: WebsiteContentV2, projectId: string, imageId: string, changes: Partial<Pick<WebsiteProjectImage, "alt" | "caption" | "crop">>): WebsiteContentV2 {
   return editProject(content, projectId, (project) => {
     requireImage(project, imageId)
     return { ...project, images: project.images.map((image) => image.id === imageId ? { ...image, ...changes } : image) }
