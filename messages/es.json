@@ -2275,6 +2275,51 @@
     }
   },
   "website": {
+    "phase4": {
+      "finishInline": "Termina o cancela la edición de texto antes de continuar.",
+      "itemNumber": "Elemento {number}",
+      "retry": "Reintentar historial",
+      "headlineLabel": "Título",
+      "descriptionLabel": "Descripción",
+      "aboutLabel": "Sobre el negocio",
+      "serviceLabel": "Nombre del servicio",
+      "testimonials": "Testimonios",
+      "faqs": "Preguntas y respuestas",
+      "add": "Agregar elemento",
+      "optional": "Opcional. Las secciones vacías no se muestran.",
+      "words": "Palabras del cliente",
+      "customerName": "Nombre del cliente que se muestra",
+      "permission": "Tengo permiso para publicar estas palabras exactas y este nombre.",
+      "question": "Pregunta",
+      "answer": "Respuesta",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "remove": "Eliminar",
+      "removeConfirm": "¿Eliminar este elemento del borrador privado?",
+      "inlineConflict": "Este texto cambió mientras lo editabas. Cancela y revisa el borrador más reciente. Tu texto sigue aquí.",
+      "required": "Este campo no puede estar vacío.",
+      "cancel": "Cancelar",
+      "done": "Listo",
+      "edit": "Editar",
+      "history": "Historial de versiones",
+      "retention": "Se conservan todos los borradores guardados y las versiones publicadas. No se puede recuperar el historial ya eliminado.",
+      "historyError": "No se pudo cargar el historial. Inténtalo de nuevo.",
+      "revision": "Versión {revision}",
+      "published": "Versión publicada",
+      "current": "Borrador actual",
+      "previewRestore": "Ver y restaurar",
+      "viewAll": "Ver todas las versiones",
+      "loadMore": "Cargar versiones anteriores",
+      "loading": "Cargando…",
+      "restoreHelp": "Restaurar crea un borrador privado nuevo. Tu trabajo actual se conserva y el sitio publicado no cambia.",
+      "previewAssetError": "No se pudieron mostrar algunas fotos. La versión no cambia.",
+      "restore": "Restaurar como borrador",
+      "saveBeforeRestore": "Guarda o resuelve los cambios actuales antes de restaurar.",
+      "inlineToggle": "Activar o desactivar edición directa",
+      "publishedSnapshot": "Versión publicada",
+      "restoredSnapshot": "Borrador restaurado",
+      "savedSnapshot": "Borrador guardado"
+    },
     "loading": "Cargando tu sitio web…",
     "loadError": "No se pudo cargar tu sitio web.",
     "saveError": "No se pudo guardar tu sitio web.",
@@ -2642,4 +2687,4 @@
       "unavailableMetadata": "Sitio web no disponible"
     }
   }
-}
+    }
