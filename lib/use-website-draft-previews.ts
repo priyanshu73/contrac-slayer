@@ -9,7 +9,7 @@ export function useWebsiteDraftPreviews(content: WebsiteContentV2 | null, enable
   const [previews, setPreviews] = useState<Record<string, string>>({})
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  const idsKey = content ? [...new Set([content.branding.logo_asset_id, content.branding.hero_asset_id, ...content.projects.flatMap(project => project.images.map(image => image.asset_id))].filter((id): id is string => Boolean(id)))].join(",") : ""
+  const idsKey = content ? [...new Set([content.branding.logo_asset_id, content.branding.hero_asset_id, ...content.projects.flatMap(project => project.images.map(image => image.asset_id)), ...content.services.map(service=>service.image_asset_id), content.seo.share_image_asset_id].filter((id): id is string => Boolean(id)))].join(",") : ""
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
