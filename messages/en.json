@@ -2275,6 +2275,51 @@
     }
   },
   "website": {
+    "phase4": {
+      "finishInline": "Finish or cancel your inline edit before continuing.",
+      "itemNumber": "Item {number}",
+      "retry": "Retry history",
+      "headlineLabel": "Headline",
+      "descriptionLabel": "Description",
+      "aboutLabel": "About the business",
+      "serviceLabel": "Service name",
+      "testimonials": "Testimonials",
+      "faqs": "Questions & answers",
+      "add": "Add item",
+      "optional": "Optional. Empty sections stay hidden.",
+      "words": "Customer words",
+      "customerName": "Displayed customer name",
+      "permission": "I have permission to publish these exact words and this displayed name.",
+      "question": "Question",
+      "answer": "Answer",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove",
+      "removeConfirm": "Remove this item from the private draft?",
+      "inlineConflict": "This text changed while you were editing. Cancel and review the latest draft. Your text is still here.",
+      "required": "This field cannot be empty.",
+      "cancel": "Cancel",
+      "done": "Done",
+      "edit": "Edit",
+      "history": "Revision history",
+      "retention": "All saved drafts and publish snapshots are retained. Previously removed history cannot be recovered.",
+      "historyError": "Could not load revision history. Try again.",
+      "revision": "Revision {revision}",
+      "published": "Published snapshot",
+      "current": "Current draft",
+      "previewRestore": "Preview & restore",
+      "viewAll": "View all revisions",
+      "loadMore": "Load older revisions",
+      "loading": "Loading…",
+      "restoreHelp": "Restoring creates a new private draft. Your current work stays in history and the published site is unchanged.",
+      "previewAssetError": "Some photos could not be previewed. The snapshot is unchanged.",
+      "restore": "Restore as draft",
+      "saveBeforeRestore": "Save or resolve your current changes before restoring.",
+      "inlineToggle": "Toggle inline editing",
+      "publishedSnapshot": "Publish snapshot",
+      "restoredSnapshot": "Restored draft",
+      "savedSnapshot": "Saved draft"
+    },
     "loading": "Loading your website…",
     "loadError": "Couldn't load your website.",
     "saveError": "Couldn't save your website.",
@@ -2642,4 +2687,4 @@
       "unavailableMetadata": "Website unavailable"
     }
   }
-}
+  }
