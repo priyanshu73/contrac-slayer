@@ -6,3 +6,6 @@
 .pair > div { min-width: 0; }
 .pair p { margin: 0 0 7px; font-size: 12px; font-weight: 600; }
 @media (max-width: 420px) { .pair { grid-template-columns: 1fr; } }
+
+.viewport { overflow: hidden; aspect-ratio: 4 / 3; border-radius: 5px; }
+.viewport img { height: 100%; border-radius: 0; }

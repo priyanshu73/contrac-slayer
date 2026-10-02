@@ -26,7 +26,8 @@ export interface WebsiteDayHours { closed: boolean; intervals: WebsiteHoursInter
 export interface WebsiteAvailability { timezone: string; weekly: Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", WebsiteDayHours>>; overrides: Array<WebsiteDayHours & { date: string }>; away: { start: string; end: string; notice: string } | null; emergency_available: boolean | null; emergency_notice: string }
 export interface WebsiteService { id: string; order: number; name: string; description: string; image_asset_id: string | null; price_label: string | null }
 export interface WebsiteServiceArea { id: string; order: number; label: string; kind: "town" | "postal_region" | "radius"; country: string | null; region: string | null; geometry: null | { latitude: number; longitude: number; kilometers: number } }
-export interface WebsiteProjectImage { id: string; order: number; asset_id: string; alt: string; caption: string; pair_id: string | null; pair_role: "before" | "after" | null }
+export interface WebsitePhotoCrop { x: number; y: number; zoom: number }
+export interface WebsiteProjectImage { crop?: WebsitePhotoCrop | null; id: string; order: number; asset_id: string; alt: string; caption: string; pair_id: string | null; pair_role: "before" | "after" | null }
 export interface WebsiteProject { id: string; order: number; title: string; service_ids: string[]; description: string; town: string | null; approximate_date: string | null; images: WebsiteProjectImage[] }
 export interface WebsiteCredential { id: string; order: number; kind: "license" | "insurance" | "certification" | "membership" | "other"; title: string; issuer: string; jurisdiction: string; public_number: string | null; expiry_date: string | null; display_policy: "hidden" | "title_only" | "public_number" }
 export interface WebsiteTestimonial { id: string; order: number; text: string; display_name: string; date: string | null; rating: number | null; source_label: string | null; source_permalink: string | null }
@@ -52,7 +53,7 @@ export interface WebsiteContentV2 {
 }
 
 export type WebsiteContent = WebsiteContentV1 | WebsiteContentV2
-export interface WebsiteSave { slug: string; content: WebsiteContent; expected_draft_revision?: number; approved_testimonial_ids?: string[] }
+export interface WebsiteSave { editor_features?: ["gallery-crop-v1"]; slug: string; content: WebsiteContent; expected_draft_revision?: number; approved_testimonial_ids?: string[] }
 export interface PublicWebsite { slug: string; content: WebsiteContent; contractor_uuid: string; booking_slug: string | null }
 export interface WebsiteState extends PublicWebsite { draft_revision: number; published_revision: number | null; is_published: boolean; published_at: string | null; updated_at: string | null; has_unpublished_changes: boolean; profile_timezone: string | null }
 
