@@ -14,7 +14,8 @@ test("real gallery edits projects/photos and attaches only confirmed uploads wit
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" })
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement })
   Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true })
-  dom.window.confirm = () => true
+  globalThis.requestAnimationFrame = callback => { callback(0); return 0 }
+  dom.window.confirm = () => { throw new Error("Native confirm must not be used") }
   const req = createRequire(import.meta.url)
   req.extensions[".css"] = () => ({})
   const { render, fireEvent, cleanup, act } = req("@testing-library/react")
@@ -54,6 +55,15 @@ test("real gallery edits projects/photos and attaches only confirmed uploads wit
     assert.equal(latest.projects[0].title, "Newer edit while uploading")
     assert.equal(latest.projects[0].images.length, 2)
     assert.equal(latest.projects[0].images[1].asset_id, "asset2")
+    const hiddenInput = fileInput()
+    assert.equal(hiddenInput.tabIndex, -1)
+    assert.equal(hiddenInput.getAttribute("aria-hidden"), "true")
+    assert.equal(view.queryByRole("button", { name: "Browse" }), null)
+    fireEvent.click(view.getByRole("button", { name: /^Move photo up: Photo 2/ }))
+    assert.equal(latest.projects[0].images[0].asset_id, "asset2")
+    fireEvent.click(view.getByRole("button", { name: /^Move photo down: Photo 1/ }))
+    assert.equal(latest.projects[0].images[0].asset_id, "asset1")
+
     fireEvent.click(view.getByRole("button", { name: "Add a project" }))
     assert.equal(latest.projects.length, 2)
     const projects = view.getAllByLabelText(/Project [12]/).filter((el: HTMLElement) => el.tagName === "SECTION")
@@ -68,7 +78,8 @@ test("real gallery edits projects/photos and attaches only confirmed uploads wit
     assert.equal(view.queryByText("revoked-asset"), null)
     fireEvent.click(view.getByRole("checkbox"))
     await act(async () => { fireEvent.change(fileInput(), { target: { files: [file] } }) })
-    fireEvent.click(view.getAllByRole("button", { name: "Remove project" })[0])
+    fireEvent.click(view.getAllByRole("button", { name: /^Remove project:/ })[0])
+    fireEvent.click(view.getByRole("button", { name: "Remove from draft" }))
     await act(async () => { finishUpload!({ asset_id: "deleted-project-asset" }) })
     assert.equal(latest.projects.length, 1)
     assert.equal(latest.projects[0].images.length, 0, "deleted destination cannot redirect its photo to another project")
@@ -91,4 +102,19 @@ test("public project gallery renders all photos, captions and explicit before/af
   assert.equal(doc.querySelectorAll("img").length, 3)
   assert.equal(doc.querySelectorAll("figcaption").length, 3)
   assert.match(doc.body.textContent || "", /Before.*After/)
+})
+
+
+test("private draft renderer uses authenticated blob previews and never public fallback", () => {
+  const req = createRequire(import.meta.url); req.extensions[".css"] = () => ({})
+  const { renderToStaticMarkup } = req("react-dom/server")
+  const { ContractorWebsite } = req("../components/websites/contractor-website")
+  let content = addWebsiteProject(fixture(), "p1", "Private project")
+  content = addWebsiteProjectImage(content, "p1", "i1", "private-asset")
+  content.sections = [{ key: "projects", enabled: true, order: 0, background: "default" }]
+  const site = { slug: "demo", contractor_uuid: "demo", content }
+  const renderDoc = (preview: boolean, assetPreviews: Record<string, string>) => new JSDOM(renderToStaticMarkup(React.createElement(ContractorWebsite, { site, preview, assetPreviews }))).window.document
+  assert.equal(renderDoc(true, {}).querySelector("img"), null)
+  assert.equal(renderDoc(true, { "private-asset": "blob:authenticated" }).querySelector("img")?.getAttribute("src"), "blob:authenticated")
+  assert.match(renderDoc(false, {}).querySelector("img")?.getAttribute("src") || "", /websites\/demo\/assets\/private-asset\/960/)
 })

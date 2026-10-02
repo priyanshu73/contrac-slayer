@@ -2504,6 +2504,12 @@
       "service-desk": { "name": "Service Desk", "description": "A clear service directory with questions close at hand." }
     },
     "gallery": {
+      "chooseDisabledRights": "Check the photo permission box to add photos.",
+      "chooseDisabledLimit": "This project has 20 photos. Remove one before adding another.",
+      "pairDisabled": "Choose an After photo to enable pairing.",
+      "dateFormat": "YYYY or YYYY-MM",
+      "previewFailed": "Some private photos could not be loaded. They are not replaced with public URLs.",
+      "confirmRemove": "Remove from draft",
       "title": "Show the work you're proud of.",
       "intro": "Add photos from your phone or computer. You can start without photos and add them later.",
       "rights": "I have permission to publish these photos. I've checked faces, plates, house numbers and other private details.",
