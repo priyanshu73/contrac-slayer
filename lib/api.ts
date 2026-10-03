@@ -528,10 +528,11 @@ class ApiClient {
   }
 
   /** Onboarding: Place Details for the picked result. Ends the Google billing session. */
-  async placesDetails(placeId: string, sessionToken: string, language: string): Promise<PlaceDetails> {
+  async placesDetails(placeId: string, sessionToken: string, language: string, signal?: AbortSignal): Promise<PlaceDetails> {
     return this.request<PlaceDetails>('/onboarding/places/details', {
       method: 'POST',
       body: JSON.stringify({ place_id: placeId, session_token: sessionToken, language }),
+      signal,
     })
   }
 
