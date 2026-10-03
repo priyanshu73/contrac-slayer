@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,13 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Upload, X, Check, CalendarDays, Sparkles, User, Mail, Phone, MapPin, FileText, Loader2, CheckCircle2, Clock, ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
-import { Measurements } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
-import { AddressData } from "@/lib/types/address"
-import { geocodeAddress } from "@/lib/mapbox"
-import { callSummaryToDescription } from "@/lib/call-summary"
+import { useEstimateRequest } from "@/components/estimate/use-estimate-request"
 
 interface PrefillData {
   name?: string
@@ -35,36 +32,7 @@ interface CustomerRequestFormProps {
 
 
 export function CustomerRequestForm({ contractorUuid, contractor, prefillData, prefillLoading }: CustomerRequestFormProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    project_type: "",
-    description: "",
-  })
-  const [hasPrefilled, setHasPrefilled] = useState(false)
-
-  // Update form when prefillData becomes available
-  useEffect(() => {
-    if (prefillData && !hasPrefilled) {
-      setFormData(prev => ({
-        ...prev,
-        name: prefillData.name || prev.name,
-        phone: prefillData.phone || prev.phone,
-        address: prefillData.address || prev.address,
-        project_type: prefillData.project_type || prev.project_type,
-        description: callSummaryToDescription(prefillData.description) || prev.description,
-      }))
-      setHasPrefilled(true)
-    }
-  }, [prefillData, hasPrefilled])
-  const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState("")
-  const [addressData, setAddressData] = useState<AddressData | null>(null)
+  const {formData,setFormData,hasPrefilled,measurements,setMeasurements,uploadedFiles,isSubmitting,isSubmitted,error,addressData,setAddressData,handleFileUpload,removeFile,handleSubmit}=useEstimateRequest({contractorUuid,prefillData})
 
   // Build the full booking URL from the calendar_link slug
   const bookingUrl = useMemo(() => {
@@ -75,42 +43,6 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
       (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
     return `${base}/book/${slug}`
   }, [contractor?.calendar_link])
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      setUploadedFiles((prev) => [...prev, ...newFiles])
-    }
-  }
-
-  const removeFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsSubmitting(true)
-
-    try {
-      const { api } = await import("@/lib/api")
-      // Address typed without picking a suggestion? Try to normalize it to a
-      // real Mapbox address so it still lands as structured address data.
-      let resolvedAddressData = addressData
-      if (!resolvedAddressData && formData.address.trim()) {
-        resolvedAddressData = await geocodeAddress(formData.address)
-      }
-      const submissionData = {
-        ...formData,
-        ...(resolvedAddressData && { address_data: resolvedAddressData })
-      }
-      await api.submitQuoteRequest(contractorUuid || "", submissionData, uploadedFiles, measurements)
-      setIsSubmitted(true)
-    } catch (err: any) {
-      setError(err.message || "Failed to submit request")
-      setIsSubmitting(false)
-    }
-  }
 
   if (isSubmitted) {
     return (

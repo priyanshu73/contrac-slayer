@@ -1,4 +1,5 @@
 "use client"
+import { WebsiteEstimatePage } from "@/components/estimate/website-estimate-page"
 
 import { useWebsiteDraftPreviews } from "@/lib/use-website-draft-previews"
 
@@ -56,6 +57,7 @@ export function WebsiteSettings() {
   const [rightsAttested, setRightsAttested] = useState(false)
   const [testimonialPermissions, setTestimonialPermissions] = useState<Record<string,string>>({})
   const [inlineEditing, setInlineEditing] = useState(false)
+  const [estimatePreview, setEstimatePreview] = useState(false)
   function setItemPermission(id:string,fingerprint:string|null) { setTestimonialPermissions(old=>{const next={...old};if(fingerprint===null)delete next[id];else next[id]=fingerprint;return next}) }
   const uploadPending=useRef(false)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -295,7 +297,7 @@ export function WebsiteSettings() {
 
       <div className={styles.wizardShell}>
         <aside className={styles.progress} aria-label={t("setup.progressLabel")}>
-          {STEP_KEYS.map((key, index) => <button key={key} type="button" onClick={() => setStep(index)} aria-current={step === index ? "step" : undefined} className={step === index ? styles.currentStep : ""}><span>{index + 1}</span><span>{t(`setup.steps.${key}`)}</span>{hasMeaningfulStepContent(v2, index, draft.slug) && <Check className="h-4 w-4" />}</button>)}
+          {STEP_KEYS.map((key, index) => <button key={key} type="button" onClick={() => setStep(index)} aria-label={`${index + 1}. ${t(`setup.steps.${key}`)}`} aria-current={step === index ? "step" : undefined} className={step === index ? styles.currentStep : ""}><span>{index + 1}</span><span>{t(`setup.steps.${key}`)}</span>{hasMeaningfulStepContent(v2, index, draft.slug) && <Check className="h-4 w-4" />}</button>)}
         </aside>
         <div className="min-w-0 space-y-5">
           <div className="flex items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3">
@@ -319,7 +321,7 @@ export function WebsiteSettings() {
         </div>
       </div>
 
-      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div>{previewFailed && <div role="alert" className="p-3 text-sm text-red-700">{t("gallery.previewFailed")} <Button type="button" onClick={retryPreviews}>{t("gallery.retryPreview")}</Button></div>}<div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><button type="button" className="mb-3 rounded border px-3 py-2 text-sm" onClick={()=>{if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return};setInlineEditing(value=>!value)}}>{t("phase4.inlineToggle")}</button><ContractorWebsite onInlineChange={inlineEditing ? commit : undefined} site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} /></div></div></div>}
+      {showPreview && <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><div className="flex items-center justify-between border-b bg-white px-4 py-3"><span className="text-xs font-medium text-slate-600">{t("preview")}</span><div className="flex gap-1"><Button type="button" size="sm" variant={mobilePreview ? "ghost" : "secondary"} aria-label={t("widePreview")} onClick={() => setMobilePreview(false)}><Monitor className="h-4 w-4" /></Button><Button type="button" size="sm" variant={mobilePreview ? "secondary" : "ghost"} aria-label={t("mobilePreview")} onClick={() => setMobilePreview(true)}><Smartphone className="h-4 w-4" /></Button></div></div>{previewFailed && <div role="alert" className="p-3 text-sm text-red-700">{t("gallery.previewFailed")} <Button type="button" onClick={retryPreviews}>{t("gallery.retryPreview")}</Button></div>}<div className="max-h-[820px] overflow-y-auto"><div className={mobilePreview ? "mx-auto max-w-[390px]" : "w-full"}><button type="button" className="mb-3 rounded border px-3 py-2 text-sm" onClick={()=>{if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return};setInlineEditing(value=>!value)}}>{t("phase4.inlineToggle")}</button><button type="button" className="mb-3 ml-2 rounded border px-3 py-2 text-sm" onClick={()=>{if(document.querySelector("[data-website-inline-editing]")){setError(t("phase4.finishInline"));return};setEstimatePreview(value=>!value)}}>{t(estimatePreview ? "phase5.websitePreview" : "phase5.estimatePreview")}</button>{estimatePreview ? <WebsiteEstimatePage site={{...draft,contractor_uuid:saved.contractor_uuid,booking_slug:saved.booking_slug}} preview assetPreviews={assetPreviews}/> : <ContractorWebsite onInlineChange={inlineEditing ? commit : undefined} site={{ ...draft, contractor_uuid: saved.contractor_uuid, booking_slug: saved.booking_slug }} preview assetPreviews={assetPreviews} />}</div></div></div>}
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5"><div><p className="text-sm font-medium">{t("setup.publishBoundary")}</p><p className="mt-1 text-xs text-slate-500">{t("draftHelp")}</p></div><div className="flex gap-2">{saved.is_published && <><Button type="button" variant="ghost" onClick={unpublish} disabled={unpublishing}>{unpublishing ? t("unpublishing") : t("unpublish")}</Button><Button type="button" variant="outline" onClick={copyLink}><Copy className="mr-2 h-4 w-4" />{t("copyLink")}</Button><a href={`/sites/${saved.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 text-sm underline">{t("visit")}<ExternalLink className="h-4 w-4" /></a></>}</div></div>
     </div>
@@ -423,4 +425,4 @@ function getPublishBlocker(content: WebsiteContentV2, testimonialPermission: boo
 function PublishControl({ content, testimonialPermission, publishing, published, onPublish, setStep, t }: { content: WebsiteContentV2; testimonialPermission: boolean; publishing: boolean; published: boolean; onPublish: () => void; setStep: (step: number) => void; t: Translator }) {
   const blocker = getPublishBlocker(content, testimonialPermission, t)
   return <div className="flex max-w-md flex-wrap items-center justify-end gap-2">{blocker && <p className="text-right text-xs text-amber-800">{blocker.message} <button type="button" className="font-semibold underline" onClick={() => { setStep(blocker.step); window.setTimeout(() => document.getElementById(blocker.target)?.focus(), 0) }}>{blocker.action}</button></p>}<Button type="button" className="bg-black text-white hover:bg-black/80" onClick={onPublish} disabled={publishing}>{publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}{published ? t("publishChanges") : t("publish")}</Button></div>
-  }
+}

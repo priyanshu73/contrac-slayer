@@ -309,3 +309,43 @@
   .layout-established .header { padding: 20px 6%; }
   .layout-established .hero { padding: 44px 6%; }
 }
+
+/* Dedicated estimate child page uses the same site tokens and button variants. */
+.estimateLayout {max-width:1320px;margin:auto;padding:64px 5% 88px;display:grid;grid-template-columns:.85fr 1.15fr;gap:8%;align-items:start}
+.estimateIntro {min-width:0}
+.estimateBack {display:inline-block;min-height:44px;font-size:13px;margin-bottom:30px}
+.estimateIntro h1 {font-size:clamp(38px,4.7cqw,64px);margin-bottom:24px}
+.estimateIntro>p:not(.eyebrow){color:var(--muted);line-height:1.8;margin-top:20px}
+.estimateForm {min-width:0;padding:28px;border:1px solid var(--line);border-radius:var(--radius,6px);background:var(--paper);font-size:14px}
+.estimateFields {min-width:0;border:0;padding:0;margin:22px 0;display:grid;gap:20px}
+.estimateFields legend {font-size:18px;font-weight:600;margin-bottom:20px}
+.estimateFields:disabled {opacity:.8}
+.estimateRow {display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.estimateField {display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;font-weight:600}
+.estimateField input,.estimateField select,.estimateField textarea,.estimateAddress {width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--line);border-radius:var(--radius,6px);background:var(--paper);color:var(--ink);font:inherit;font-size:16px;padding:12px;min-height:46px;line-height:1.5;box-shadow:none}
+.estimateField textarea {resize:vertical}
+.estimateField small,.estimateExtras summary span {font-weight:400;color:var(--muted);font-size:12px;line-height:1.7}
+.estimateField input:focus-visible,.estimateField select:focus-visible,.estimateField textarea:focus-visible,.estimateForm button:focus-visible,.estimateExtras summary:focus-visible {outline:3px solid var(--accent);outline-offset:3px}
+.estimateField [aria-invalid=true] {border-color:#b91c1c}
+.estimateNote {font-size:12px;line-height:1.8;color:var(--muted);margin-top:16px!important}
+.estimateForm>.primary {border:0;cursor:pointer;min-height:48px;margin-top:12px;justify-content:center;width:100%}
+.estimateForm>.primary:disabled {opacity:.65;cursor:not-allowed}
+.estimateExtras {border-top:1px solid var(--line);padding-top:20px}
+.estimateExtras summary {cursor:pointer;min-height:44px;font-size:14px;font-weight:600}
+.estimateExtras .estimateField {margin:14px 0}
+.estimateExtras button {min-height:44px}
+.estimateError,.estimateNotice {padding:14px;border:1px solid var(--line);margin-top:16px!important;line-height:1.7;font-size:13px;background:var(--soft)}
+.estimateError {border-color:#b91c1c;color:#991b1b;background:#fff5f5}
+.estimateError a {display:block;text-decoration:underline!important;min-height:32px}
+.estimateFieldError {color:#b91c1c;font-size:12px;font-weight:400}
+.estimateSuccess {padding:32px;border:1px solid var(--line);line-height:1.8}
+.estimateSuccess h2,.estimateSuccess p {margin-bottom:20px}
+.estimateSuccess>.primary {margin-top:20px}
+.estimateTrap {position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.density-compact .estimateLayout {padding-top:44px;padding-bottom:56px}
+.density-spacious .estimateLayout {padding-top:88px;padding-bottom:100px}
+@container (max-width:700px) {.estimateLayout{grid-template-columns:1fr;gap:28px;padding:32px 6% 48px}.estimateIntro h1{font-size:40px}.estimateBack{margin-bottom:14px}.estimateForm{padding:20px}.estimateRow{grid-template-columns:1fr;gap:20px}}
+.estimateExtras input, .estimateExtras button[role=combobox] {border-color:var(--line);background:var(--paper);color:var(--ink);font-family:inherit}
+.estimateExtras button {color:var(--ink)}
+.estimateField input::placeholder,.estimateField textarea::placeholder {color:var(--muted);opacity:1;font-weight:400}
+.estimateField input,.estimateField select,.estimateField textarea {font-weight:400}

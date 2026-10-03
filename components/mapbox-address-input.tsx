@@ -16,6 +16,8 @@ interface MapboxAddressInputProps {
   id?: string;
   className?: string;
   inputClassName?: string;
+  errorId?: string;
+  fallbackToPlain?: boolean;
 }
 
 /**
@@ -37,6 +39,8 @@ export function MapboxAddressInput({
   id = 'address-input',
   className = '',
   inputClassName = '',
+  errorId,
+  fallbackToPlain = false,
 }: MapboxAddressInputProps) {
   const [inputValue, setInputValue] = useState(defaultValue);
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
@@ -76,7 +80,7 @@ export function MapboxAddressInput({
   // Fetch suggestions from Mapbox
   const fetchSuggestions = async (query: string) => {
     if (!accessToken) {
-      console.error('Mapbox access token not found. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN in .env');
+      if (!fallbackToPlain) console.error('Mapbox access token not found. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN in .env');
       return;
     }
 
@@ -180,7 +184,7 @@ export function MapboxAddressInput({
   };
 
   // Warn if no access token
-  if (!accessToken) {
+  if (!accessToken && !fallbackToPlain) {
     return (
       <div className={className}>
         {label && (
@@ -213,7 +217,9 @@ export function MapboxAddressInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           required={required}
-          autoComplete="off"
+          autoComplete={fallbackToPlain ? "street-address" : "off"}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           className={`${error ? 'border-red-500' : ''} ${inputClassName}`.trim()}
         />
         
