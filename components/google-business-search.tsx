@@ -15,6 +15,8 @@ interface Props {
   onChange: (text: string) => void
   /** Called with Google's details after the user taps a result. */
   onPlaceSelected: (details: PlaceDetails) => void
+  /** Called when the user picks the "use what I typed" row. */
+  onUseTyped?: () => void
   language: string
   disabled?: boolean
   placeholder?: string
@@ -41,6 +43,7 @@ export function GoogleBusinessSearch({
   value,
   onChange,
   onPlaceSelected,
+  onUseTyped,
   language,
   disabled,
   placeholder,
@@ -57,7 +60,9 @@ export function GoogleBusinessSearch({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
-  const skipNextSearchRef = useRef(false)
+  const genRef = useRef(0) // invalidates in-flight picks when the user types or chooses manual
+  const pickingRef = useRef(false)
+  const listId = `${id ?? "company"}-listbox`
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -87,6 +92,8 @@ export function GoogleBusinessSearch({
     timerRef.current = setTimeout(async () => {
       const controller = new AbortController()
       abortRef.current = controller
+      let timedOut = false
+      const timeout = setTimeout(() => { timedOut = true; controller.abort() }, 3000)
       setLoading(true)
       try {
         const res = await api.placesAutocomplete(text.trim(), tokenRef.current, language, controller.signal)
@@ -101,51 +108,61 @@ export function GoogleBusinessSearch({
         setActive(-1)
         setOpen(true)
       } catch (err: any) {
-        if (err?.name === "AbortError") return
+        if (timedOut) { setPredictions([]); setOpen(false); return } // slow lookup: stay a plain input
+        if (controller.signal.aborted || err?.name === "AbortError") return // superseded by newer typing
         // 429, network, anything else: never block onboarding
         setSearchDisabled(true)
         setPredictions([])
         setOpen(false)
       } finally {
-        if (!controller.signal.aborted) setLoading(false)
+        clearTimeout(timeout)
+        if (!controller.signal.aborted || timedOut) setLoading(false)
       }
     }, DEBOUNCE_MS)
   }
 
   const handleInput = (text: string) => {
+    genRef.current += 1 // typing supersedes any pending pick
     onChange(text)
-    if (skipNextSearchRef.current) {
-      skipNextSearchRef.current = false
-      return
-    }
     runSearch(text)
   }
 
   const pick = async (p: PlacePrediction) => {
+    if (pickingRef.current) return // ignore duplicate Enter/click while Details is in flight
+    pickingRef.current = true
+    if (timerRef.current) clearTimeout(timerRef.current)
+    abortRef.current?.abort()
+    const gen = ++genRef.current
     setPicking(p.place_id)
+    setOpen(false)
     try {
-      const details = await api.placesDetails(p.place_id, tokenRef.current, language)
+      const details = await Promise.race([
+        api.placesDetails(p.place_id, tokenRef.current, language),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("details timeout")), 6000)),
+      ])
       // Session is over after details: rotate the token for the next search.
       tokenRef.current = newPlacesSessionToken()
+      if (gen !== genRef.current) return // user typed or chose manual meanwhile
       if (details.available) {
-        skipNextSearchRef.current = true
         onPlaceSelected(details)
-        setOpen(false)
       } else {
-        // Google failed at the last step: keep what they typed, treat as manual.
-        setSearchDisabled(true)
-        setOpen(false)
+        setSearchDisabled(true) // Google failed at the last step: keep what they typed
       }
     } catch {
-      setSearchDisabled(true)
-      setOpen(false)
+      if (gen === genRef.current) setSearchDisabled(true)
     } finally {
+      pickingRef.current = false
       setPicking(null)
     }
   }
 
   const keepTyped = () => {
+    genRef.current += 1
+    if (timerRef.current) clearTimeout(timerRef.current)
+    abortRef.current?.abort()
+    setPredictions([])
     setOpen(false)
+    onUseTyped?.()
   }
 
   const rows = predictions.length + 1 // + "use typed" row
@@ -180,13 +197,16 @@ export function GoogleBusinessSearch({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-controls={listId}
+        aria-activedescendant={open && active >= 0 ? `${listId}-opt-${active}` : undefined}
         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
       />
       {loading && !open && (
-        <span className="absolute right-3 top-3.5 text-xs text-gray-400">{labels.searching}</span>
+        <span role="status" aria-live="polite" className="absolute right-3 top-3.5 text-xs text-gray-400">{labels.searching}</span>
       )}
       {open && (
         <div
+          id={listId}
           role="listbox"
           className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
         >
@@ -194,6 +214,7 @@ export function GoogleBusinessSearch({
             <button
               type="button"
               key={p.place_id}
+              id={`${listId}-opt-${i}`}
               role="option"
               aria-selected={active === i}
               onClick={() => void pick(p)}
@@ -210,6 +231,7 @@ export function GoogleBusinessSearch({
           ))}
           <button
             type="button"
+            id={`${listId}-opt-${predictions.length}`}
             role="option"
             aria-selected={active === predictions.length}
             onClick={keepTyped}
@@ -220,7 +242,7 @@ export function GoogleBusinessSearch({
             {labels.useTyped(value.trim())}
           </button>
           {/* Required Google Maps attribution (text form allowed when space is limited). */}
-          <div className="px-3 py-1 text-right text-[10px] text-gray-500">Google Maps</div>
+          <div translate="no" className="px-3 py-1 text-right text-xs text-gray-500">Google Maps</div>
         </div>
       )}
     </div>
