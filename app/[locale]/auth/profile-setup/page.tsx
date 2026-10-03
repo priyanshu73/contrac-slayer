@@ -75,6 +75,10 @@ export default function ProfileSetupPage() {
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
   const google = useGoogleBusinessFill({ formData, setFormData, setAddressData, setManualAddress })
+  useEffect(() => {
+    google.cancel() // leaving or re-entering a step invalidates any pending Google work
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
@@ -517,9 +521,16 @@ export default function ProfileSetupPage() {
                       <GoogleBusinessSearch
                         id="company_name"
                         value={formData.company_name}
-                        onChange={(text) => { google.userEdited('company_name'); setFormData({ ...formData, company_name: text }) }}
+                        onChange={(text) => {
+                          google.userEdited('company_name')
+                          if (google.googlePlaceId) google.resetToManual() // typing after a pick drops the old Google identity
+                          setFormData({ ...formData, company_name: text })
+                        }}
                         onPlaceSelected={(d) => void google.applyPlace(d)}
                         onUseTyped={google.resetToManual}
+                        op={google}
+                        resetKey={google.resetKey}
+                        showAttribution={!!google.googlePlaceId}
                         language={locale}
                         disabled={isLoading}
                         placeholder={t('companyInfo.googleSearch.placeholder')}
@@ -533,6 +544,9 @@ export default function ProfileSetupPage() {
                       {google.googlePlaceId && (
                         <button type="button" onClick={google.clearGoogleFill}
                           className="text-xs text-blue-600 hover:underline">{t('companyInfo.googleSearch.searchAgain')}</button>
+                      )}
+                      {google.googlePlaceId && (
+                        <p className="text-xs text-sky-700">{t('companyInfo.googleSearch.checkBanner')}</p>
                       )}
                       {google.closedWarning && (
                         <p className="text-xs text-amber-700">{t('companyInfo.googleSearch.closedWarning')}</p>
