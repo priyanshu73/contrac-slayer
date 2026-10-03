@@ -75,6 +75,10 @@ export default function ProfileSetupPage() {
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
   const google = useGoogleBusinessFill({ formData, setFormData, setAddressData, setManualAddress })
+  useEffect(() => {
+    google.cancel() // leaving or re-entering a step invalidates any pending Google work
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
@@ -513,12 +517,20 @@ export default function ProfileSetupPage() {
 
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *</Label>
+                      <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *{google.fromGoogle.company_name && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <GoogleBusinessSearch
                         id="company_name"
                         value={formData.company_name}
-                        onChange={(text) => setFormData({ ...formData, company_name: text })}
+                        onChange={(text) => {
+                          google.userEdited('company_name')
+                          if (google.googlePlaceId) google.resetToManual({ keepSearchUi: true }) // typing after a pick drops the old Google identity
+                          setFormData({ ...formData, company_name: text })
+                        }}
                         onPlaceSelected={(d) => void google.applyPlace(d)}
+                        onUseTyped={() => google.resetToManual()}
+                        op={google}
+                        resetKey={google.resetKey}
+                        showAttribution={!!google.googlePlaceId}
                         language={locale}
                         disabled={isLoading}
                         placeholder={t('companyInfo.googleSearch.placeholder')}
@@ -532,6 +544,9 @@ export default function ProfileSetupPage() {
                       {google.googlePlaceId && (
                         <button type="button" onClick={google.clearGoogleFill}
                           className="text-xs text-blue-600 hover:underline">{t('companyInfo.googleSearch.searchAgain')}</button>
+                      )}
+                      {google.googlePlaceId && (
+                        <p className="text-xs text-sky-700">{t('companyInfo.googleSearch.checkBanner')}</p>
                       )}
                       {google.closedWarning && (
                         <p className="text-xs text-amber-700">{t('companyInfo.googleSearch.closedWarning')}</p>
@@ -557,7 +572,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}{google.fromGoogle.phone_number && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}{google.fromGoogle.phone_number && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Input
                         id="phone_number"
                         type="tel"
@@ -571,7 +586,7 @@ export default function ProfileSetupPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}{google.fromGoogle.address && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}{google.fromGoogle.address && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                         <button
                           type="button"
                           onClick={() => setManualAddress(!manualAddress)}
@@ -622,7 +637,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}{google.fromGoogle.default_zip_code && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}{google.fromGoogle.default_zip_code && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Input
                         id="default_zip_code"
                         placeholder={t('companyInfo.defaultZipCodePlaceholder')}
@@ -719,10 +734,11 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">{t('companyInfo.typeOfWork')}</Label>
+                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">{t('companyInfo.typeOfWork')}{google.fromGoogle.contractor_type && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Select
                         value={formData.contractor_type}
                         onValueChange={(value) => {
+                          google.userEdited('contractor_type')
                           setFormData({ ...formData, contractor_type: value })
                           if (value !== "other") {
                             setOtherContractorType("")
@@ -791,7 +807,7 @@ export default function ProfileSetupPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}{google.fromGoogle.website_url && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}{google.fromGoogle.website_url && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                         <Input
                           id="website_url"
                           type="url"
