@@ -50,29 +50,44 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   const latest = useRef(formData)
   latest.current = formData
 
+  const genRef = useRef(0) // bumps on every new pick / manual reset; stale async results are dropped
+  const editedRef = useRef<Set<Field>>(new Set()) // fields the user touched since the current pick started
+
   const applyPlace = async (d: PlaceDetails) => {
+    const gen = ++genRef.current
+    editedRef.current = new Set()
+
+    // Geocode first (only when the address box is still empty), then decide every fill against the
+    // CURRENT form state so nothing typed during the await is overwritten.
+    let geocoded: AddressData | null | undefined
+    const wantsAddress = !d.is_service_area && !!d.address && !latest.current.address?.trim()
+    if (wantsAddress) geocoded = await geocodeWithMapbox(d.address as string)
+    if (gen !== genRef.current) return // a newer pick or a manual reset superseded this one
+
     const cur = latest.current
+    const edited = editedRef.current
+    const empty = (f: Field, v: unknown) => !String(v ?? "").trim() && !edited.has(f)
     const filled: Partial<Record<Field, true>> = {}
     const next: Record<string, any> = {}
 
-    if (d.name) { next.company_name = d.name; filled.company_name = true }
-    if (d.phone && !cur.phone_number?.trim()) { next.phone_number = d.phone; filled.phone_number = true }
-    if (d.website && !cur.website_url?.trim()) { next.website_url = d.website; filled.website_url = true }
-    if (d.zip && !cur.default_zip_code?.trim()) {
+    if (d.name && !edited.has("company_name")) { next.company_name = d.name; filled.company_name = true }
+    if (d.phone && empty("phone_number", cur.phone_number)) { next.phone_number = d.phone; filled.phone_number = true }
+    if (d.website && empty("website_url", cur.website_url)) { next.website_url = d.website; filled.website_url = true }
+    if (d.zip && empty("default_zip_code", cur.default_zip_code)) {
       next.default_zip_code = d.zip
       filled.default_zip_code = true
       try { localStorage.setItem("contractorops_pending_zip", d.zip) } catch { /* ignore */ }
     }
-    if (d.suggested_contractor_type && !cur.contractor_type) {
+    if (d.suggested_contractor_type && empty("contractor_type", cur.contractor_type)) {
       next.contractor_type = d.suggested_contractor_type
       filled.contractor_type = true
     }
 
     let nextAddressData: AddressData | null | undefined
-    if (!d.is_service_area && d.address && !cur.address?.trim()) {
+    if (wantsAddress && empty("address", cur.address)) {
       next.address = d.address
       filled.address = true
-      nextAddressData = await geocodeWithMapbox(d.address)
+      nextAddressData = geocoded
     }
 
     setFormData((prev: any) => ({ ...prev, ...next }))
@@ -87,16 +102,28 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     setClosedWarning(d.business_status === "CLOSED_PERMANENTLY" || d.business_status === "CLOSED_TEMPORARILY")
   }
 
+  /** The user chose "use what I typed": drop Google provenance but keep every value they have. */
+  const resetToManual = () => {
+    genRef.current += 1
+    setGooglePlaceId(null)
+    setFromGoogle({})
+    setIsServiceArea(false)
+    setClosedWarning(false)
+  }
+
   /** Call from onChange of a Google-fillable field so the chip disappears once the user edits it. */
-  const userEdited = (field: Field) =>
+  const userEdited = (field: Field) => {
+    editedRef.current.add(field)
     setFromGoogle((prev) => {
       if (!prev[field]) return prev
       const { [field]: _drop, ...rest } = prev
       return rest
     })
+  }
 
   /** "Not your business? Search again": clear only the Google-filled fields. */
   const clearGoogleFill = () => {
+    genRef.current += 1
     setFormData((prev: any) => {
       const copy = { ...prev }
       for (const f of Object.keys(fromGoogle) as Field[]) copy[f] = ""
@@ -122,6 +149,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     applyPlace,
     userEdited,
     clearGoogleFill,
+    resetToManual,
     businessSource: (googlePlaceId ? "google_places" : "manual") as "google_places" | "manual",
   }
 }
