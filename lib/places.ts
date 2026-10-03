@@ -24,6 +24,8 @@ export interface PlaceDetails {
   suggested_contractor_type?: string | null
   is_service_area?: boolean
   business_status?: string | null
+  /** Data providers Google requires us to show for this place. */
+  attributions?: { provider: string; provider_uri?: string | null }[]
 }
 
 /** Google session token: one per search visit, a new one after each pick. 16-64 chars [A-Za-z0-9_-]. */

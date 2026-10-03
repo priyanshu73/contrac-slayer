@@ -63,6 +63,8 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   const genRef = useRef(0)
   const ctrlRef = useRef<AbortController | null>(null)
   const editedRef = useRef<Set<Field>>(new Set()) // fields the user touched since the current pick started
+  const [attributions, setAttributions] = useState<{ provider: string; provider_uri?: string | null }[]>([])
+  const [offered, setOffered] = useState<Partial<Record<Field, string>>>({}) // Google values we did not apply
   const [resetKey, setResetKey] = useState(0) // tells the search box to drop predictions
 
   /** Start a new operation: invalidates and aborts the previous one. */
@@ -140,6 +142,20 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
       setManualAddress(nextAddressData === null) // no Mapbox match: show plain text box with the text
       setAddressKey((k) => k + 1)
     }
+    // Google values we did not apply because the field already had something else: offer a per-field replace.
+    const finalVal = (f: Field) => String(f in next ? next[f] : cur[f] ?? "").trim().toLowerCase()
+    const offers: Partial<Record<Field, string>> = {}
+    const offer = (f: Field, v: string | null | undefined) => {
+      if (v && !filled[f] && finalVal(f) !== v.trim().toLowerCase()) offers[f] = v
+    }
+    offer("company_name", d.name)
+    offer("phone_number", d.phone)
+    offer("website_url", d.website)
+    offer("default_zip_code", d.zip)
+    offer("contractor_type", d.suggested_contractor_type)
+    if (!d.is_service_area) offer("address", d.address)
+    setOffered(offers)
+    setAttributions(d.attributions ?? [])
     setGooglePlaceId(d.place_id ?? null)
     setFromGoogle(filled)
     setIsServiceArea(!!d.is_service_area)
@@ -152,6 +168,8 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     if (opts?.keepSearchUi) invalidate()
     else cancel()
     setGooglePlaceId(null)
+    setOffered({})
+    setAttributions([])
     setFromGoogle({})
     setIsServiceArea(false)
     setClosedWarning(false)
@@ -162,6 +180,27 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     editedRef.current.add(field)
     setFromGoogle((prev) => {
       if (!prev[field]) return prev
+      const { [field]: _drop, ...rest } = prev
+      return rest
+    })
+  }
+
+  /** Apply Google's value for one field the user chose to replace. Only valid while this place is still applied. */
+  const replaceWithGoogle = (field: Field) => {
+    const v = offered[field]
+    if (!v || !googlePlaceId) return
+    setFormData((prev: any) => ({ ...prev, [field]: v }))
+    if (field === "address") {
+      setAddressData(null)
+      setManualAddress(true) // plain text box holding Google's address; no Mapbox geometry
+      setAddressKey((k) => k + 1)
+    }
+    if (field === "default_zip_code") {
+      try { localStorage.setItem("contractorops_pending_zip", v) } catch { /* ignore */ }
+    }
+    editedRef.current.delete(field)
+    setFromGoogle((prev) => ({ ...prev, [field]: true }))
+    setOffered((prev) => {
       const { [field]: _drop, ...rest } = prev
       return rest
     })
@@ -181,6 +220,8 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
       setAddressKey((k) => k + 1)
     }
     setGooglePlaceId(null)
+    setOffered({})
+    setAttributions([])
     setFromGoogle({})
     setIsServiceArea(false)
     setClosedWarning(false)
@@ -189,6 +230,9 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   return {
     googlePlaceId,
     fromGoogle,
+    attributions,
+    offered,
+    replaceWithGoogle,
     isServiceArea,
     closedWarning,
     addressKey,
