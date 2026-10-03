@@ -523,11 +523,11 @@ export default function ProfileSetupPage() {
                         value={formData.company_name}
                         onChange={(text) => {
                           google.userEdited('company_name')
-                          if (google.googlePlaceId) google.resetToManual() // typing after a pick drops the old Google identity
+                          if (google.googlePlaceId) google.resetToManual({ keepSearchUi: true }) // typing after a pick drops the old Google identity
                           setFormData({ ...formData, company_name: text })
                         }}
                         onPlaceSelected={(d) => void google.applyPlace(d)}
-                        onUseTyped={google.resetToManual}
+                        onUseTyped={() => google.resetToManual()}
                         op={google}
                         resetKey={google.resetKey}
                         showAttribution={!!google.googlePlaceId}
