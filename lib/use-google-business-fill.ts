@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AddressData, MapboxFeature, mapboxFeatureToAddressData } from "@/lib/types/address"
 import type { PlaceDetails } from "@/lib/places"
 
@@ -15,14 +15,19 @@ interface Args {
 
 /** Forward-geocode a confirmed address with the SAME Mapbox service the address box uses, so
  *  `addresses` rows stay Mapbox-keyed and no Google lat/lng is ever persisted. */
-async function geocodeWithMapbox(text: string): Promise<AddressData | null> {
+async function geocodeWithMapbox(text: string, parent?: AbortSignal): Promise<AddressData | null> {
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
   if (!token || !text) return null
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 3000)
+  const onParentAbort = () => controller.abort()
+  parent?.addEventListener("abort", onParentAbort)
   try {
     const res = await fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
         text,
       )}.json?access_token=${token}&autocomplete=false&types=address&country=us&limit=1`,
+      { signal: controller.signal },
     )
     if (!res.ok) return null
     const json = await res.json()
@@ -31,6 +36,9 @@ async function geocodeWithMapbox(text: string): Promise<AddressData | null> {
     return mapboxFeatureToAddressData(feature)
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
+    parent?.removeEventListener("abort", onParentAbort)
   }
 }
 
@@ -50,19 +58,55 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   const latest = useRef(formData)
   latest.current = formData
 
-  const genRef = useRef(0) // bumps on every new pick / manual reset; stale async results are dropped
+  // ONE operation generation for every async path (Details, Mapbox, typing, manual, Search-again,
+  // step change, unmount). Anything that finishes under a stale generation must not commit.
+  const genRef = useRef(0)
+  const ctrlRef = useRef<AbortController | null>(null)
   const editedRef = useRef<Set<Field>>(new Set()) // fields the user touched since the current pick started
+  const [resetKey, setResetKey] = useState(0) // tells the search box to drop predictions
+
+  /** Start a new operation: invalidates and aborts the previous one. */
+  const begin = () => {
+    ctrlRef.current?.abort()
+    const controller = new AbortController()
+    ctrlRef.current = controller
+    genRef.current += 1
+    editedRef.current = new Set()
+    return { gen: genRef.current, signal: controller.signal }
+  }
+  const isCurrent = (gen: number) => gen === genRef.current
+  /** Invalidate and abort in-flight work (typing). Does not touch the search box UI. */
+  const invalidate = () => {
+    ctrlRef.current?.abort()
+    ctrlRef.current = null
+    genRef.current += 1
+  }
+  /** Invalidate, abort and tell the search box to drop its predictions (Search again, step change). */
+  const cancel = () => {
+    ctrlRef.current?.abort()
+    ctrlRef.current = null
+    genRef.current += 1
+    setResetKey((k) => k + 1)
+  }
+
+  useEffect(
+    () => () => {
+      ctrlRef.current?.abort()
+      genRef.current += 1
+    },
+    [],
+  )
 
   const applyPlace = async (d: PlaceDetails) => {
-    const gen = ++genRef.current
-    editedRef.current = new Set()
+    const gen = genRef.current // the pick that started this call owns the generation (see begin())
+    const signal = ctrlRef.current?.signal
 
     // Geocode first (only when the address box is still empty), then decide every fill against the
     // CURRENT form state so nothing typed during the await is overwritten.
     let geocoded: AddressData | null | undefined
     const wantsAddress = !d.is_service_area && !!d.address && !latest.current.address?.trim()
-    if (wantsAddress) geocoded = await geocodeWithMapbox(d.address as string)
-    if (gen !== genRef.current) return // a newer pick or a manual reset superseded this one
+    if (wantsAddress) geocoded = await geocodeWithMapbox(d.address as string, signal)
+    if (gen !== genRef.current) return // superseded by typing, a newer pick, manual, step change or unmount
 
     const cur = latest.current
     const edited = editedRef.current
@@ -104,7 +148,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
 
   /** The user chose "use what I typed": drop Google provenance but keep every value they have. */
   const resetToManual = () => {
-    genRef.current += 1
+    cancel()
     setGooglePlaceId(null)
     setFromGoogle({})
     setIsServiceArea(false)
@@ -123,7 +167,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
 
   /** "Not your business? Search again": clear only the Google-filled fields. */
   const clearGoogleFill = () => {
-    genRef.current += 1
+    cancel()
     setFormData((prev: any) => {
       const copy = { ...prev }
       for (const f of Object.keys(fromGoogle) as Field[]) copy[f] = ""
@@ -150,6 +194,11 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     userEdited,
     clearGoogleFill,
     resetToManual,
+    begin,
+    isCurrent,
+    invalidate,
+    cancel,
+    resetKey,
     businessSource: (googlePlaceId ? "google_places" : "manual") as "google_places" | "manual",
   }
 }
