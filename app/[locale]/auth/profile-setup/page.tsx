@@ -26,8 +26,6 @@ import { AREA_CODES_BY_STATE_MAP, getAllStates, getAreaCodesForState, type State
 import { useTranslations, useLocale } from "next-intl"
 import { useLanguage } from "@/hooks/useLanguage"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
-import { GoogleBusinessSearch } from "@/components/google-business-search"
-import { useGoogleBusinessFill } from "@/lib/use-google-business-fill"
 import { AddressData } from "@/lib/types/address"
 import { saveContractorOpsNumberPrefs } from "@/lib/contractor-ops-number-prefs"
 import {
@@ -74,7 +72,6 @@ export default function ProfileSetupPage() {
   const [otherContractorType, setOtherContractorType] = useState("")
   const [addressData, setAddressData] = useState<AddressData | null>(null)
   const [manualAddress, setManualAddress] = useState(false)
-  const google = useGoogleBusinessFill({ formData, setFormData, setAddressData, setManualAddress })
   const [selectedState, setSelectedState] = useState<StateAbbrev | null>(null)
   const [selectedAreaCodes, setSelectedAreaCodes] = useState<string[]>([])
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([])
@@ -154,10 +151,6 @@ export default function ProfileSetupPage() {
       }
       if (!formData.email) {
         setError(t('companyInfo.errors.emailRequired'))
-        return
-      }
-      if (google.isServiceArea && !formData.default_zip_code?.trim()) {
-        setError(t('companyInfo.googleSearch.zipRequired'))
         return
       }
     }
@@ -291,8 +284,6 @@ export default function ProfileSetupPage() {
       if (addressData) {
         profilePayload.address_data = addressData
       }
-      profilePayload.business_source = google.businessSource
-      if (google.googlePlaceId) profilePayload.google_place_id = google.googlePlaceId
 
       if (!profileExists) {
         setSubmitProgress("Creating profile...")
@@ -514,33 +505,14 @@ export default function ProfileSetupPage() {
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *</Label>
-                      <GoogleBusinessSearch
+                      <Input
                         id="company_name"
+                        placeholder={t('companyInfo.companyNamePlaceholder')}
                         value={formData.company_name}
-                        onChange={(text) => setFormData({ ...formData, company_name: text })}
-                        onPlaceSelected={(d) => void google.applyPlace(d)}
-                        language={locale}
+                        onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                         disabled={isLoading}
-                        placeholder={t('companyInfo.googleSearch.placeholder')}
-                        labels={{
-                          useTyped: (typed) => t('companyInfo.googleSearch.useTyped', { name: typed }),
-                          searching: t('companyInfo.googleSearch.searching'),
-                          loadingPlace: t('companyInfo.googleSearch.loadingPlace'),
-                        }}
+                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
-                      <p className="text-xs text-gray-500">{t('companyInfo.googleSearch.helper')}</p>
-                      {google.googlePlaceId && (
-                        <button type="button" onClick={google.clearGoogleFill}
-                          className="text-xs text-blue-600 hover:underline">{t('companyInfo.googleSearch.searchAgain')}</button>
-                      )}
-                      {google.closedWarning && (
-                        <p className="text-xs text-amber-700">{t('companyInfo.googleSearch.closedWarning')}</p>
-                      )}
-                      {google.isServiceArea && (
-                        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                          {t('companyInfo.googleSearch.serviceAreaNote')}
-                        </div>
-                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -557,13 +529,13 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}{google.fromGoogle.phone_number && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}</Label>
                       <Input
                         id="phone_number"
                         type="tel"
                         placeholder={t('companyInfo.phoneNumberPlaceholder')}
                         value={formData.phone_number}
-                        onChange={(e) => { google.userEdited('phone_number'); setFormData({ ...formData, phone_number: e.target.value }) }}
+                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                         disabled={isLoading}
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
@@ -571,7 +543,7 @@ export default function ProfileSetupPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}{google.fromGoogle.address && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}</Label>
                         <button
                           type="button"
                           onClick={() => setManualAddress(!manualAddress)}
@@ -582,12 +554,10 @@ export default function ProfileSetupPage() {
                       </div>
                       {manualAddress ? (
                         <Input
-                          key={google.addressKey}
                           id="address"
                           placeholder={t('companyInfo.businessAddressPlaceholder')}
                           value={formData.address}
                           onChange={(e) => {
-                            google.userEdited('address')
                             setFormData({ ...formData, address: e.target.value })
                             setAddressData(null)
                           }}
@@ -596,7 +566,6 @@ export default function ProfileSetupPage() {
                         />
                       ) : (
                         <MapboxAddressInput
-                          key={google.addressKey}
                           label=""
                           placeholder={t('companyInfo.businessAddressPlaceholder')}
                           defaultValue={formData.address}
@@ -611,10 +580,9 @@ export default function ProfileSetupPage() {
                               }))
                             }
                           }}
-                          onInputChange={(text) => {
-                            google.userEdited('address')
+                          onInputChange={(text) =>
                             setFormData((prev: any) => ({ ...prev, address: text }))
-                          }}
+                          }
                           id="address"
                           className="[&_input]:h-12 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:focus:ring-blue-500"
                         />
@@ -622,14 +590,13 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}{google.fromGoogle.default_zip_code && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}</Label>
                       <Input
                         id="default_zip_code"
                         placeholder={t('companyInfo.defaultZipCodePlaceholder')}
                         value={formData.default_zip_code}
                         onChange={(e) => {
                           const nextZip = e.target.value
-                          google.userEdited('default_zip_code')
                           setFormData({ ...formData, default_zip_code: nextZip })
                           try {
                             if (nextZip?.trim()) {
@@ -791,13 +758,13 @@ export default function ProfileSetupPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}{google.fromGoogle.website_url && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
+                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}</Label>
                         <Input
                           id="website_url"
                           type="url"
                           placeholder={t('branding.websiteUrlPlaceholder')}
                           value={formData.website_url}
-                          onChange={(e) => { google.userEdited('website_url'); setFormData({ ...formData, website_url: e.target.value }) }}
+                          onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
                           disabled={isLoading}
                           className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -1110,3 +1077,4 @@ export default function ProfileSetupPage() {
     </div>
   )
 }
+
