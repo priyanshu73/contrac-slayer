@@ -35,7 +35,6 @@ interface Props {
     useTyped: (typed: string) => string
     searching: string
     loadingPlace: string
-    serviceAreaBusiness?: string
     closedWarning?: string
   }
 }
@@ -171,9 +170,6 @@ export function GoogleBusinessSearch({
     needsNewTokenRef.current = true
     setPicking(p.place_id)
     setOpen(false)
-    // The billing session ends at dispatch: the old result set must not reopen on focus or be picked again.
-    setPredictions([])
-    setActive(-1)
     const timeout = setTimeout(() => detailsCtrl.abort(), 3000)
     const detailsCtrl = new AbortController()
     const onAbort = () => detailsCtrl.abort()
@@ -269,7 +265,7 @@ export function GoogleBusinessSearch({
             >
               <span className="block text-sm font-semibold text-gray-800">{p.name}</span>
               <span className="block text-xs text-gray-500">
-                {picking === p.place_id ? labels.loadingPlace : p.secondary_text || labels.serviceAreaBusiness || ""}
+                {picking === p.place_id ? labels.loadingPlace : p.secondary_text}
               </span>
             </button>
           ))}

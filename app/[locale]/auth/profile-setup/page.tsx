@@ -517,7 +517,7 @@ export default function ProfileSetupPage() {
 
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *{google.fromGoogle.company_name && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.company_name && google.offered.company_name.trim().toLowerCase() !== String(formData.company_name ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('company_name')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                      <Label htmlFor="company_name" className="text-gray-700 font-medium">{t('companyInfo.companyName')} *{google.fromGoogle.company_name && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <GoogleBusinessSearch
                         id="company_name"
                         value={formData.company_name}
@@ -538,23 +538,12 @@ export default function ProfileSetupPage() {
                           useTyped: (typed) => t('companyInfo.googleSearch.useTyped', { name: typed }),
                           searching: t('companyInfo.googleSearch.searching'),
                           loadingPlace: t('companyInfo.googleSearch.loadingPlace'),
-                          serviceAreaBusiness: t('companyInfo.googleSearch.serviceAreaBusiness'),
                         }}
                       />
                       <p className="text-xs text-gray-500">{t('companyInfo.googleSearch.helper')}</p>
                       {google.googlePlaceId && (
                         <button type="button" onClick={google.clearGoogleFill}
                           className="text-xs text-blue-600 hover:underline">{t('companyInfo.googleSearch.searchAgain')}</button>
-                      )}
-                      {google.googlePlaceId && google.attributions.length > 0 && (
-                        <p translate="no" className="text-xs text-gray-500">
-                          {google.attributions.map((a, i) => (
-                            <span key={i}>
-                              {i > 0 && ', '}
-                              {a.provider_uri ? <a href={a.provider_uri} target="_blank" rel="noopener noreferrer" className="underline">{a.provider}</a> : a.provider}
-                            </span>
-                          ))}
-                        </p>
                       )}
                       {google.googlePlaceId && (
                         <p className="text-xs text-sky-700">{t('companyInfo.googleSearch.checkBanner')}</p>
@@ -583,7 +572,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}{google.fromGoogle.phone_number && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.phone_number && google.offered.phone_number.trim().toLowerCase() !== String(formData.phone_number ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('phone_number')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                      <Label htmlFor="phone_number" className="text-gray-700 font-medium">{t('companyInfo.phoneNumber')}{google.fromGoogle.phone_number && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Input
                         id="phone_number"
                         type="tel"
@@ -597,7 +586,7 @@ export default function ProfileSetupPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}{google.fromGoogle.address && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.address && google.offered.address.trim().toLowerCase() !== String(formData.address ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('address')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                        <Label htmlFor="address" className="text-gray-700 font-medium">{t('companyInfo.businessAddress')}{google.fromGoogle.address && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                         <button
                           type="button"
                           onClick={() => setManualAddress(!manualAddress)}
@@ -648,7 +637,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}{google.fromGoogle.default_zip_code && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.default_zip_code && google.offered.default_zip_code.trim().toLowerCase() !== String(formData.default_zip_code ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('default_zip_code')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                      <Label htmlFor="default_zip_code" className="text-gray-700 font-medium">{t('companyInfo.defaultZipCode')}{google.fromGoogle.default_zip_code && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Input
                         id="default_zip_code"
                         placeholder={t('companyInfo.defaultZipCodePlaceholder')}
@@ -745,7 +734,7 @@ export default function ProfileSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">{t('companyInfo.typeOfWork')}{google.fromGoogle.contractor_type && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.contractor_type && google.offered.contractor_type.trim().toLowerCase() !== String(formData.contractor_type ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('contractor_type')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                      <Label htmlFor="contractor_type" className="text-gray-700 font-medium">{t('companyInfo.typeOfWork')}{google.fromGoogle.contractor_type && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                       <Select
                         value={formData.contractor_type}
                         onValueChange={(value) => {
@@ -818,7 +807,7 @@ export default function ProfileSetupPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}{google.fromGoogle.website_url && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}{google.offered.website_url && google.offered.website_url.trim().toLowerCase() !== String(formData.website_url ?? '').trim().toLowerCase() && <button type="button" onClick={() => google.replaceWithGoogle('website_url')} className="ml-2 text-xs font-normal text-blue-600 hover:underline">{t('companyInfo.googleSearch.replaceWithGoogle')}</button>}</Label>
+                        <Label htmlFor="website_url" className="text-gray-700 font-medium">{t('branding.websiteUrl')}{google.fromGoogle.website_url && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">{t('companyInfo.googleSearch.fromGoogle')}</span>}</Label>
                         <Input
                           id="website_url"
                           type="url"
