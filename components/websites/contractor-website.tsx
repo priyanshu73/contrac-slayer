@@ -1,4 +1,5 @@
 "use client"
+import { WebsiteFrame } from "./website-frame"
 import { WebsiteInlineText } from "./website-inline-text"
 import { ProjectPhotoGallery } from "./project-photo-gallery"
 import Image from "next/image"
@@ -22,21 +23,14 @@ function WebsiteV2({ site, preview, assetPreviews, onInlineChange }: { site: Pub
   function text(value:string,label:string,maxLength:number,onCommit:(value:string)=>WebsiteContentV2,required=false,multiline=false) { return onInlineChange && preview ? <WebsiteInlineText value={value} label={label} maxLength={maxLength} required={required} multiline={multiline} onCommit={value=>onInlineChange(onCommit(value))}/> : value }
   const template = content.branding.template_id
   const sections = normalizedSections(content.sections).filter((section) => section.enabled)
-  const quoteUrl = `/en/quote-request/${encodeURIComponent(site.contractor_uuid)}`
+  const quoteUrl = `/sites/${encodeURIComponent(site.slug)}/estimate`
   const bookingUrl = site.booking_slug ? `/book/${encodeURIComponent(site.booking_slug)}` : null
   const contactUrl = preview ? undefined : quoteUrl
-  const themeClass = styles[`palette-${content.branding.theme.palette}`] || ""
-  const fontClass = styles[`font-${content.branding.theme.font_pair_id}`] || ""
-  const densityClass = styles[`density-${content.branding.theme.density}`] || ""
-  const buttonClass = styles[`buttons-${content.branding.theme.button_style}`] || ""
   const asset = (id: string | null, width: 480 | 960 | 1600 = 960) => id ? (assetPreviews[id] || (preview ? undefined : websiteAssetUrl(site.slug, id, width))) : undefined
-  const logo = asset(content.branding.logo_asset_id, 480) || safeUrl(content.branding.legacy_logo_url)
   const hero = asset(content.branding.hero_asset_id, 1600) || safeUrl(content.branding.legacy_hero_image_url)
   const areas = content.service_areas.map((area) => area.label).join(" · ") || content.legacy_service_area
   const trade = content.identity.custom_trade_label?.trim() || (!["", "unspecified", "other"].includes(content.identity.trade_code) ? content.identity.trade_code.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "")
   const eyebrow = areas.trim() || trade
-  const hasServices = sections.some((section) => section.key === "services") && content.services.length > 0
-  const hasAbout = sections.some((section) => section.key === "about") && Boolean(content.identity.about.trim())
 
   const renderSection = (key: WebsiteSectionKey) => {
     switch (key) {
@@ -76,28 +70,19 @@ function WebsiteV2({ site, preview, assetPreviews, onInlineChange }: { site: Pub
     }
   }
 
-  const rendered = Object.fromEntries(sections.map((section) => [section.key, renderSection(section.key)]))
-  const section = (key: WebsiteSectionKey) => rendered[key]
   const layout = <>{sections.map((s) => renderSection(s.key))}</>
 
   return (
-    <div className={`${styles.site} ${styles.v2} ${styles[`layout-${template}`] || styles.layoutModern} ${themeClass} ${fontClass} ${densityClass} ${buttonClass}`}>
-      <header className={styles.header}>
-        <a className={styles.brand} href={preview ? undefined : "#home"}>{logo ? <Image src={logo} alt={content.branding.logo_alt || ""} width={64} height={64} unoptimized className={styles.logo} /> : <Hammer size={23} aria-hidden="true" />}<span>{content.identity.company_name}</span></a>
-        <nav className={styles.nav} aria-label={t("navigation")}>{hasServices && <a href={preview ? undefined : "#services"}>{t("services")}</a>}{hasAbout && <a href={preview ? undefined : "#about"}>{t("about")}</a>}<a href={preview ? undefined : "#contact"}>{t("contact")} <ArrowUpRight size={15} /></a></nav>
-      </header>
-      <main id="home">{layout}</main>
-      <footer className={styles.footer}><span>© {new Date().getFullYear()} {content.identity.company_name}</span><span>{t("poweredBy")}</span></footer>
-    </div>
+    <WebsiteFrame site={site} preview={preview} assetPreviews={assetPreviews}>{layout}</WebsiteFrame>
   )
 }
 
 function LegacyWebsite({ site, preview }: { site: PublicWebsite & { content: WebsiteContentV1 }; preview: boolean }) {
   const { content } = site
-  const quoteUrl = `/en/quote-request/${encodeURIComponent(site.contractor_uuid)}`
+  const quoteUrl = `/sites/${encodeURIComponent(site.slug)}/estimate`
   const bookingUrl = site.booking_slug ? `/book/${encodeURIComponent(site.booking_slug)}` : null
   const contactUrl = preview ? undefined : quoteUrl
-  return <div className={`${styles.site} ${styles[content.template]}`}><header className={styles.header}><a className={styles.brand} href={preview ? undefined : "#home"}>{safeUrl(content.logo_url) ? <Image src={safeUrl(content.logo_url)!} alt="" width={38} height={38} unoptimized className={styles.logo} /> : <Hammer size={23} aria-hidden="true" />}<span>{content.company_name}</span></a><nav className={styles.nav} aria-label={t("navigation")}>{content.services.length > 0 && <a href={preview ? undefined : "#services"}>{t("services")}</a>}{content.about.trim() && <a href={preview ? undefined : "#about"}>{t("about")}</a>}<a href={preview ? undefined : "#contact"}>{t("contact")} <ArrowUpRight size={15} /></a></nav></header><main id="home"><section className={styles.hero}><div className={styles.heroCopy}>{content.service_area.trim() && <p className={styles.eyebrow}>{content.service_area}</p>}<h1>{content.headline}</h1>{content.description && <p className={styles.description}>{content.description}</p>}<div className={styles.actions}><a className={styles.primary} href={contactUrl}>{t("estimate")} <ArrowUpRight size={18} /></a>{content.phone && <a className={styles.phone} href={preview ? undefined : `tel:${content.phone.replace(/[^+\d]/g, "")}`}><Phone size={16} /> {content.phone}</a>}</div></div><div className={styles.heroVisual}>{safeUrl(content.hero_image_url) ? <Image src={safeUrl(content.hero_image_url)!} alt={t("workBy", { company: content.company_name })} width={1000} height={1000} unoptimized className={styles.heroImage} fetchPriority="high" /> : <div className={styles.architecture} aria-hidden="true"><div /><div /><div /><span>{t("builtAroundYou")}</span></div>}</div></section>{content.services.length > 0 && <section id="services" className={styles.section}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("whatWeDo")}</p><h2>{t("servicesHeading")}</h2></div><div className={styles.services}>{content.services.map((service, index) => <div className={styles.service} key={`${service}-${index}`}><span className={styles.serviceNumber}>{String(index + 1).padStart(2, "0")}</span><h3>{service}</h3></div>)}</div></section>}{content.about && <section id="about" className={`${styles.section} ${styles.about}`}><div><p className={styles.eyebrow}>{t("getToKnowUs")}</p><h2>{content.company_name}</h2></div><p>{content.about}</p></section>}<section id="contact" className={styles.contact}><div><p className={styles.eyebrow}>{t("getStarted")}</p><h2>{t("contactHeading")}</h2><a className={styles.primary} href={contactUrl}>{t("projectCta")}</a></div><div className={styles.contactDetails}>{content.phone && <a href={preview ? undefined : `tel:${content.phone.replace(/[^+\d]/g, "")}`}><Phone size={18} /> {content.phone}</a>}{content.email && <a href={preview ? undefined : `mailto:${content.email}`}><Mail size={18} /> {content.email}</a>}{content.service_area && <p><MapPin size={18} /> {content.service_area}</p>}{bookingUrl && <a href={preview ? undefined : bookingUrl}>{t("book")}</a>}</div></section></main><footer className={styles.footer}><span>© {new Date().getFullYear()} {content.company_name}</span><span>{t("poweredBy")}</span></footer></div>
+  return <WebsiteFrame site={site} preview={preview}><section className={styles.hero}><div className={styles.heroCopy}>{content.service_area.trim() && <p className={styles.eyebrow}>{content.service_area}</p>}<h1>{content.headline}</h1>{content.description && <p className={styles.description}>{content.description}</p>}<div className={styles.actions}><a className={styles.primary} href={contactUrl}>{t("estimate")} <ArrowUpRight size={18} /></a>{content.phone && <a className={styles.phone} href={preview ? undefined : `tel:${content.phone.replace(/[^+\d]/g, "")}`}><Phone size={16} /> {content.phone}</a>}</div></div><div className={styles.heroVisual}>{safeUrl(content.hero_image_url) ? <Image src={safeUrl(content.hero_image_url)!} alt={t("workBy", { company: content.company_name })} width={1000} height={1000} unoptimized className={styles.heroImage} fetchPriority="high" /> : <div className={styles.architecture} aria-hidden="true"><div /><div /><div /><span>{t("builtAroundYou")}</span></div>}</div></section>{content.services.length > 0 && <section id="services" className={styles.section}><div className={styles.sectionHeading}><p className={styles.eyebrow}>{t("whatWeDo")}</p><h2>{t("servicesHeading")}</h2></div><div className={styles.services}>{content.services.map((service, index) => <div className={styles.service} key={`${service}-${index}`}><span className={styles.serviceNumber}>{String(index + 1).padStart(2, "0")}</span><h3>{service}</h3></div>)}</div></section>}{content.about && <section id="about" className={`${styles.section} ${styles.about}`}><div><p className={styles.eyebrow}>{t("getToKnowUs")}</p><h2>{content.company_name}</h2></div><p>{content.about}</p></section>}<section id="contact" className={styles.contact}><div><p className={styles.eyebrow}>{t("getStarted")}</p><h2>{t("contactHeading")}</h2><a className={styles.primary} href={contactUrl}>{t("projectCta")}</a></div><div className={styles.contactDetails}>{content.phone && <a href={preview ? undefined : `tel:${content.phone.replace(/[^+\d]/g, "")}`}><Phone size={18} /> {content.phone}</a>}{content.email && <a href={preview ? undefined : `mailto:${content.email}`}><Mail size={18} /> {content.email}</a>}{content.service_area && <p><MapPin size={18} /> {content.service_area}</p>}{bookingUrl && <a href={preview ? undefined : bookingUrl}>{t("book")}</a>}</div></section></WebsiteFrame>
 }
 
 function safeUrl(url: string | null | undefined): string | undefined { return url && /^https?:\/\//i.test(url) ? url : undefined }
