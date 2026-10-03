@@ -204,8 +204,6 @@ export interface ContractorProfile {
   default_zip_code?: string
   logo_url?: string
   website_url?: string
-  google_place_id?: string | null
-  business_source?: 'google_places' | 'manual' | null
   contractor_ai_sp_id?: number
   calendar_link?: string
   service_radius_miles?: number
