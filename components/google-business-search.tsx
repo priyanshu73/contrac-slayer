@@ -17,6 +17,16 @@ interface Props {
   onPlaceSelected: (details: PlaceDetails) => void
   /** Called when the user picks the "use what I typed" row. */
   onUseTyped?: () => void
+  /** Parent-owned operation generation (see useGoogleBusinessFill). */
+  op: {
+    begin: () => { gen: number; signal: AbortSignal }
+    isCurrent: (gen: number) => boolean
+    invalidate: () => void
+  }
+  /** Changes when the parent wants predictions dropped (Search again, step change). */
+  resetKey?: number
+  /** Show the Google Maps attribution under the field while a Google pick is applied. */
+  showAttribution?: boolean
   language: string
   disabled?: boolean
   placeholder?: string
@@ -44,6 +54,9 @@ export function GoogleBusinessSearch({
   onChange,
   onPlaceSelected,
   onUseTyped,
+  op,
+  resetKey,
+  showAttribution,
   language,
   disabled,
   placeholder,
@@ -60,7 +73,7 @@ export function GoogleBusinessSearch({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
-  const genRef = useRef(0) // invalidates in-flight picks when the user types or chooses manual
+  const needsNewTokenRef = useRef(false) // a Details call ended the last billing session
   const pickingRef = useRef(false)
   const listId = `${id ?? "company"}-listbox`
 
@@ -80,6 +93,16 @@ export function GoogleBusinessSearch({
     [],
   )
 
+  useEffect(() => {
+    // Parent asked to drop everything (Search again, step change): no stale predictions, no pending debounce.
+    if (timerRef.current) clearTimeout(timerRef.current)
+    abortRef.current?.abort()
+    setPredictions([])
+    setActive(-1)
+    setOpen(false)
+    setLoading(false)
+  }, [resetKey])
+
   const runSearch = (text: string) => {
     if (searchDisabled) return
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -90,6 +113,11 @@ export function GoogleBusinessSearch({
       return
     }
     timerRef.current = setTimeout(async () => {
+      if (needsNewTokenRef.current) {
+        // New search lifecycle: rotate the Places session token here, never on request completion.
+        tokenRef.current = newPlacesSessionToken()
+        needsNewTokenRef.current = false
+      }
       const controller = new AbortController()
       abortRef.current = controller
       let timedOut = false
@@ -122,7 +150,7 @@ export function GoogleBusinessSearch({
   }
 
   const handleInput = (text: string) => {
-    genRef.current += 1 // typing supersedes any pending pick
+    op.invalidate() // typing supersedes any pending pick or prefill
     onChange(text)
     runSearch(text)
   }
@@ -132,35 +160,38 @@ export function GoogleBusinessSearch({
     pickingRef.current = true
     if (timerRef.current) clearTimeout(timerRef.current)
     abortRef.current?.abort()
-    const gen = ++genRef.current
+    const { gen, signal } = op.begin()
     setPicking(p.place_id)
     setOpen(false)
+    const timeout = setTimeout(() => detailsCtrl.abort(), 6000)
+    const detailsCtrl = new AbortController()
+    const onAbort = () => detailsCtrl.abort()
+    signal.addEventListener("abort", onAbort)
     try {
-      const details = await Promise.race([
-        api.placesDetails(p.place_id, tokenRef.current, language),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("details timeout")), 6000)),
-      ])
-      // Session is over after details: rotate the token for the next search.
-      tokenRef.current = newPlacesSessionToken()
-      if (gen !== genRef.current) return // user typed or chose manual meanwhile
+      const details = await api.placesDetails(p.place_id, tokenRef.current, language, detailsCtrl.signal)
+      needsNewTokenRef.current = true // Details ends the billing session, whatever happens next
+      if (!op.isCurrent(gen)) return // typing, manual, Search again, step change or a newer pick won
       if (details.available) {
         onPlaceSelected(details)
       } else {
         setSearchDisabled(true) // Google failed at the last step: keep what they typed
       }
     } catch {
-      if (gen === genRef.current) setSearchDisabled(true)
+      if (op.isCurrent(gen)) setSearchDisabled(true)
     } finally {
+      clearTimeout(timeout)
+      signal.removeEventListener("abort", onAbort)
       pickingRef.current = false
       setPicking(null)
     }
   }
 
   const keepTyped = () => {
-    genRef.current += 1
+    op.invalidate()
     if (timerRef.current) clearTimeout(timerRef.current)
     abortRef.current?.abort()
     setPredictions([])
+    setActive(-1)
     setOpen(false)
     onUseTyped?.()
   }
@@ -201,6 +232,9 @@ export function GoogleBusinessSearch({
         aria-activedescendant={open && active >= 0 ? `${listId}-opt-${active}` : undefined}
         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
       />
+      {showAttribution && !open && (
+        <div translate="no" className="mt-1 text-right text-xs text-gray-500">Google Maps</div>
+      )}
       {loading && !open && (
         <span role="status" aria-live="polite" className="absolute right-3 top-3.5 text-xs text-gray-400">{labels.searching}</span>
       )}
