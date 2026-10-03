@@ -147,8 +147,10 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   }
 
   /** The user chose "use what I typed": drop Google provenance but keep every value they have. */
-  const resetToManual = () => {
-    cancel()
+  /** keepSearchUi: typing path. Drop identity and invalidate work, but leave the search box alone so it can run the new query. */
+  const resetToManual = (opts?: { keepSearchUi?: boolean }) => {
+    if (opts?.keepSearchUi) invalidate()
+    else cancel()
     setGooglePlaceId(null)
     setFromGoogle({})
     setIsServiceArea(false)
