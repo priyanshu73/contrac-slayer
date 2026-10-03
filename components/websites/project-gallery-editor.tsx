@@ -145,7 +145,7 @@ export function ProjectGalleryEditor({ content, onChange, rightsAttested, setRig
         <div className={styles.uploadSymbol} aria-hidden="true">↑</div><strong>{t("drop")}</strong><p className={styles.hint}>{t("requirements")}</p>
         <Button type="button" variant="outline" disabled={!rightsAttested || !!controller.current || project.images.length >= MAX_PROJECT_IMAGES} onClick={() => inputs.current[project.id]?.click()}>{t("choose")}</Button>{!rightsAttested && <p className={styles.hint}>{t("chooseDisabledRights")}</p>}{project.images.length >= MAX_PROJECT_IMAGES && <p className={styles.hint}>{t("chooseDisabledLimit")}</p>}<input ref={element => { inputs.current[project.id] = element }} className={styles.file} tabIndex={-1} aria-hidden="true" type="file" accept="image/jpeg,image/png,image/webp" disabled={!rightsAttested || !!controller.current || project.images.length >= MAX_PROJECT_IMAGES} onChange={event => { pick(project.id, event.target.files); event.target.value = "" }} />
       </div>
-      {transfer?.projectId === project.id && <div role="status" className={`${styles.status} ${transfer.status === "failed" || transfer.status === "cancelled" ? styles.error : ""}`}><strong>{transfer.file.name}</strong><p>{t(transfer.status)}</p>{transfer.status === "uploading" && <progress max={100} value={transfer.progress} aria-label={t("progress")} />}{transfer.error && <p>{transfer.error}</p>}
+      {transfer?.projectId === project.id && <div role="status" data-website-uploading={transfer.status === "uploading" || transfer.status === "confirming" ? true : undefined} className={`${styles.status} ${transfer.status === "failed" || transfer.status === "cancelled" ? styles.error : ""}`}><strong>{transfer.file.name}</strong><p>{t(transfer.status)}</p>{transfer.status === "uploading" && <progress max={100} value={transfer.progress} aria-label={t("progress")} />}{transfer.error && <p>{transfer.error}</p>}
         {transfer.status === "uploading" || transfer.status === "confirming" ? <Button type="button" size="sm" variant="outline" onClick={() => controller.current?.abort()}>{t("cancel")}</Button> : (transfer.status === "failed" && <Button type="button" size="sm" variant="outline" disabled={!rightsAttested} onClick={() => void upload(project.id, transfer.file, transfer.assetId)}>{t(transfer.assetId ? "retryConfirmation" : "retry")}</Button>)}
         {transfer.status === "cancelled" && <p className={styles.hint}>{t("cancelHint")}</p>}
       </div>}
@@ -177,4 +177,4 @@ export function ProjectGalleryEditor({ content, onChange, rightsAttested, setRig
     </section>)}
     <div className={styles.browse}><p className={styles.hint}>{t("importSupported")}</p></div>
   </div>
-}
+      }

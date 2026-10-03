@@ -19,7 +19,7 @@ test("draft previews hydrate on reload and asset change, retry failures and revo
   let reject = false
   const calls: Array<[string, number]> = []
   api.getWebsiteAssetPreview = async (id: string, width: number) => { calls.push([id, width]); if (reject) throw new Error("offline"); return `blob:${id}` }
-  const content = (id: string) => ({ branding: { logo_asset_id: null, hero_asset_id: null }, projects: [{ images: [{ asset_id: id }] }] }) as WebsiteContentV2
+  const content = (id: string) => ({ branding: { logo_asset_id: null, hero_asset_id: null }, services: [], seo: {share_image_asset_id:null}, projects: [{ images: [{ asset_id: id }] }] }) as unknown as WebsiteContentV2
   let result: { previews: Record<string, string>; failed: boolean; retry: () => void }
   function Harness({ id }: { id: string }) { result = useWebsiteDraftPreviews(content(id), true); return null }
   try {
