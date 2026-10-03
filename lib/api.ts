@@ -414,6 +414,10 @@ class ApiClient {
 
       // Handle timeout/abort errors
       if (error instanceof Error) {
+        if (fetchOptions.signal?.aborted) {
+          // Caller cancelled (e.g. superseded search): keep abort semantics so callers can ignore it.
+          throw error
+        }
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
           const seconds = Math.round(timeoutMs / 1000)
           throw new Error(
