@@ -107,9 +107,12 @@ export function GoogleBusinessSearch({
     if (searchDisabled) return
     if (timerRef.current) clearTimeout(timerRef.current)
     abortRef.current?.abort()
+    // The query changed: results for the previous text must not stay clickable.
+    setPredictions([])
+    setActive(-1)
+    setOpen(false)
     if (text.trim().length < MIN_CHARS) {
-      setPredictions([])
-      setOpen(false)
+      setLoading(false)
       return
     }
     timerRef.current = setTimeout(async () => {
@@ -118,14 +121,15 @@ export function GoogleBusinessSearch({
         tokenRef.current = newPlacesSessionToken()
         needsNewTokenRef.current = false
       }
+      const token = tokenRef.current // this request's session, captured once
       const controller = new AbortController()
       abortRef.current = controller
       let timedOut = false
       const timeout = setTimeout(() => { timedOut = true; controller.abort() }, 3000)
       setLoading(true)
       try {
-        const res = await api.placesAutocomplete(text.trim(), tokenRef.current, language, controller.signal)
-        if (controller.signal.aborted) return
+        const res = await api.placesAutocomplete(text.trim(), token, language, controller.signal)
+        if (controller.signal.aborted || abortRef.current !== controller) return // stale response
         if (!res.available) {
           setSearchDisabled(true) // key missing / Google down: act like a plain input
           setPredictions([])
@@ -161,15 +165,17 @@ export function GoogleBusinessSearch({
     if (timerRef.current) clearTimeout(timerRef.current)
     abortRef.current?.abort()
     const { gen, signal } = op.begin()
+    // Details ends the Google billing session the moment it is dispatched, even if it is later aborted.
+    const token = tokenRef.current
+    needsNewTokenRef.current = true
     setPicking(p.place_id)
     setOpen(false)
-    const timeout = setTimeout(() => detailsCtrl.abort(), 6000)
+    const timeout = setTimeout(() => detailsCtrl.abort(), 3000)
     const detailsCtrl = new AbortController()
     const onAbort = () => detailsCtrl.abort()
     signal.addEventListener("abort", onAbort)
     try {
-      const details = await api.placesDetails(p.place_id, tokenRef.current, language, detailsCtrl.signal)
-      needsNewTokenRef.current = true // Details ends the billing session, whatever happens next
+      const details = await api.placesDetails(p.place_id, token, language, detailsCtrl.signal)
       if (!op.isCurrent(gen)) return // typing, manual, Search again, step change or a newer pick won
       if (details.available) {
         onPlaceSelected(details)
