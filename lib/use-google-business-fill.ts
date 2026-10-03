@@ -63,6 +63,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   const genRef = useRef(0)
   const ctrlRef = useRef<AbortController | null>(null)
   const editedRef = useRef<Set<Field>>(new Set()) // fields the user touched since the current pick started
+  const [attributions, setAttributions] = useState<{ provider: string; provider_uri?: string | null }[]>([])
   const [offered, setOffered] = useState<Partial<Record<Field, string>>>({}) // Google values we did not apply
   const [resetKey, setResetKey] = useState(0) // tells the search box to drop predictions
 
@@ -154,6 +155,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     offer("contractor_type", d.suggested_contractor_type)
     if (!d.is_service_area) offer("address", d.address)
     setOffered(offers)
+    setAttributions(d.attributions ?? [])
     setGooglePlaceId(d.place_id ?? null)
     setFromGoogle(filled)
     setIsServiceArea(!!d.is_service_area)
@@ -167,6 +169,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     else cancel()
     setGooglePlaceId(null)
     setOffered({})
+    setAttributions([])
     setFromGoogle({})
     setIsServiceArea(false)
     setClosedWarning(false)
@@ -218,6 +221,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
     }
     setGooglePlaceId(null)
     setOffered({})
+    setAttributions([])
     setFromGoogle({})
     setIsServiceArea(false)
     setClosedWarning(false)
@@ -226,6 +230,7 @@ export function useGoogleBusinessFill({ formData, setFormData, setAddressData, s
   return {
     googlePlaceId,
     fromGoogle,
+    attributions,
     offered,
     replaceWithGoogle,
     isServiceArea,
