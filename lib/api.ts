@@ -2,6 +2,7 @@
  * API client layer for backend communication
  */
 
+import type { PlacesAutocompleteResult, PlaceDetails } from '@/lib/places'
 import type {
   Campaign,
   CampaignDetail,
@@ -506,6 +507,28 @@ class ApiClient {
 
   async getCurrentUser(): Promise<User> {
     return this.request<User>('/auth/me')
+  }
+
+  /** Onboarding: Google Places autocomplete. Never throws for Google/key problems (available=false). */
+  async placesAutocomplete(
+    query: string,
+    sessionToken: string,
+    language: string,
+    signal?: AbortSignal,
+  ): Promise<PlacesAutocompleteResult> {
+    return this.request<PlacesAutocompleteResult>('/onboarding/places/autocomplete', {
+      method: 'POST',
+      body: JSON.stringify({ query, session_token: sessionToken, language }),
+      signal,
+    })
+  }
+
+  /** Onboarding: Place Details for the picked result. Ends the Google billing session. */
+  async placesDetails(placeId: string, sessionToken: string, language: string): Promise<PlaceDetails> {
+    return this.request<PlaceDetails>('/onboarding/places/details', {
+      method: 'POST',
+      body: JSON.stringify({ place_id: placeId, session_token: sessionToken, language }),
+    })
   }
 
   async createContractorProfile(data: any) {
