@@ -546,6 +546,16 @@ export default function ProfileSetupPage() {
                         <button type="button" onClick={google.clearGoogleFill}
                           className="text-xs text-blue-600 hover:underline">{t('companyInfo.googleSearch.searchAgain')}</button>
                       )}
+                      {google.googlePlaceId && google.attributions.length > 0 && (
+                        <p translate="no" className="text-xs text-gray-500">
+                          {google.attributions.map((a, i) => (
+                            <span key={i}>
+                              {i > 0 && ', '}
+                              {a.provider_uri ? <a href={a.provider_uri} target="_blank" rel="noopener noreferrer" className="underline">{a.provider}</a> : a.provider}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                       {google.googlePlaceId && (
                         <p className="text-xs text-sky-700">{t('companyInfo.googleSearch.checkBanner')}</p>
                       )}
