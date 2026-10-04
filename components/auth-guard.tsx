@@ -137,4 +137,4 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Otherwise show nothing (will redirect)
   return null
-                    }
+}
