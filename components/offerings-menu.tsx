@@ -23,6 +23,30 @@ export function OfferingsMenu({
   const t = useTranslations("offerings");
   const items = [
     { path: "trade-schools", key: "schools" },
+
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export function OfferingsMenu({
+  mobile = false,
+  solid = false,
+  onNavigate,
+}: {
+  mobile?: boolean;
+  solid?: boolean;
+  onNavigate?: () => void;
+}) {
+  const locale = useLocale();
+  const t = useTranslations("offerings");
+  const items = [
+    { path: "trade-schools", key: "schools" },
     { path: "enterprise", key: "enterprise" },
   ];
   if (mobile)
@@ -48,6 +72,7 @@ export function OfferingsMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={t("label")}
           className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${solid ? "text-slate-700 hover:bg-[#f4ede6]/55" : "text-white/78 hover:bg-white/10"}`}
         >
           {t("label")}
