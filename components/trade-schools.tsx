@@ -1,33 +1,719 @@
-"use client"
+"use client";
 
-import { useRef, useState, type KeyboardEvent } from "react"
-import Image from "next/image"
-import { useLocale, useTranslations } from "next-intl"
+import { useRef, useState, type KeyboardEvent } from "react";
+import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 
-type Stage = { label: string; title: string; desc: string; learn: string }
+type Stage = { label: string; title: string; desc: string; learn: string };
 
 export function TradeSchools() {
-  const t = useTranslations("tradeSchools")
-  const locale = useLocale()
-  const [current, setCurrent] = useState(0)
-  const tabs = useRef<(HTMLButtonElement | null)[]>([])
-  const stages: Stage[] = Array.from({length:5},(_,index)=>({label:t(`stage${index}label`),title:t(`stage${index}title`),desc:t(`stage${index}desc`),learn:t(`stage${index}learn`)}))
-  const select = (index:number, focus=false) => {
-    setCurrent(index)
-    if(focus) tabs.current[index]?.focus({preventScroll:true})
-    if(window.innerWidth<760) tabs.current[index]?.scrollIntoView({block:"nearest",inline:"center",behavior:"smooth"})
-  }
-  const onTabKey=(event:KeyboardEvent<HTMLButtonElement>,index:number)=>{
-    const next = event.key==="ArrowRight"?(index+1)%5:event.key==="ArrowLeft"?(index+4)%5:event.key==="Home"?0:event.key==="End"?4:null
-    if(next===null)return
-    event.preventDefault();select(next,true)
-  }
+  const t = useTranslations("tradeSchools");
+  const locale = useLocale();
+  const [current, setCurrent] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const stages: Stage[] = Array.from({ length: 5 }, (_, index) => ({
+    label: t(`stage${index}label`),
+    title: t(`stage${index}title`),
+    desc: t(`stage${index}desc`),
+    learn: t(`stage${index}learn`),
+  }));
+  const select = (index: number, focus = false) => {
+    setCurrent(index);
+    if (focus) tabs.current[index]?.focus({ preventScroll: true });
+    if (window.innerWidth < 760)
+      tabs.current[index]?.scrollIntoView({
+        block: "nearest",
+        inline: "center",
+        behavior: "smooth",
+      });
+  };
+  const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % 5
+        : event.key === "ArrowLeft"
+          ? (index + 4) % 5
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? 4
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    select(next, true);
+  };
   const artifacts = [
-<div key="0"><div className="intro-artifact"><div className="artifact-header"><span>{t("copy31")}</span><b>{t("copy32")}</b></div><div className="contact-summary"><span className="contact-avatar">{t("copy33")}</span><div><h4>{t("copy34")}</h4><p>{t("copy35")}</p></div><span className="fit-chip">{t("copy36")}</span></div><div className="email-artifact"><div className="email-meta"><span>{t("copy37")}</span><b>{t("copy34")}</b><span>{t("copy38")}</span><b>{t("copy39")}</b></div><h4>{t("copy40")}</h4><p>{t("copy41")}</p><div className="email-sig">{t("copy42")}<br /><b>{t("copy43")}</b></div></div><div className="product-split"><div><span>{t("copy44")}</span><b>{t("copy45")}</b></div><div><span>{t("copy46")}</span><b>{t("copy47")}</b></div></div><div className="review-row"><span>{t("copy48")}</span><b>{t("copy49")}</b></div></div></div>,
-<div key="1"><div className="ops-app"><aside><b className="ops-mark">{t("copy122")}<span>{t("copy116")}</span></b><small>{t("copy123")}</small><span className="">{t("copy124")}<i>{t("copy125")}</i></span><span className="active">{t("copy126")}<i>{t("copy127")}</i></span><span className="">{t("copy128")}<i>{t("copy129")}</i></span><span className="">{t("copy130")}<i>{t("copy131")}</i></span><span className="">{t("copy132")}<i>{t("copy133")}</i></span><div className="ops-user">{t("copy134")}<span>{t("copy135")}</span></div></aside><main><div className="ops-bar"><span>{t("copy127")}</span><span className="ops-avatar">{t("copy134")}</span></div><div className="ops-body"><div className="ops-page-head"><div><small>{t("copy136")}</small><h4>{t("copy137")}</h4></div><span className="ops-badge">{t("copy138")}</span></div><div className="ops-inbox"><div className="inbox-list"><span className="mini-filter">{t("copy139")}<b>{t("copy140")}</b></span><div className="inbox-selected"><b>{t("copy141")}</b><span>{t("copy142")}</span><p>{t("copy143")}</p><small>{t("copy144")}</small></div><div className="inbox-empty">{t("copy145")}<br />{t("copy146")}</div></div><div className="inbox-detail"><b>{t("copy147")}</b><span className="ops-badge">{t("copy140")}</span><small>{t("copy148")}</small><p>{t("copy149")}</p><div className="ops-field"><span>{t("copy150")}</span><b>{t("copy151")}</b></div><div className="ops-field"><span>{t("copy152")}</span><b>{t("copy153")}</b></div><span className="ops-primary">{t("copy154")}</span></div></div></div></main></div></div>,
-<div key="2"><div className="ops-app"><aside><b className="ops-mark">{t("copy122")}<span>{t("copy116")}</span></b><small>{t("copy123")}</small><span className="">{t("copy124")}<i>{t("copy125")}</i></span><span className="">{t("copy126")}<i>{t("copy127")}</i></span><span className="active">{t("copy128")}<i>{t("copy129")}</i></span><span className="">{t("copy130")}<i>{t("copy131")}</i></span><span className="">{t("copy132")}<i>{t("copy133")}</i></span><div className="ops-user">{t("copy134")}<span>{t("copy135")}</span></div></aside><main><div className="ops-bar"><span>{t("copy129")}</span><span className="ops-avatar">{t("copy134")}</span></div><div className="ops-body"><div className="ops-page-head"><div><small>{t("copy155")}</small><h4>{t("copy156")}</h4></div><span className="ops-badge">{t("copy157")}</span></div><div className="ops-schedule"><div className="week-head"><span>{t("copy158")}<small>{t("copy159")}</small></span><span>{t("copy160")}<small>{t("copy161")}</small></span><span>{t("copy162")}<small>{t("copy163")}</small></span><span className="selected">{t("copy164")}<small>{t("copy165")}</small></span><span>{t("copy166")}<small>{t("copy167")}</small></span></div><div className="week-grid"><div className="calendar-event"><small>{t("copy168")}</small><b>{t("copy169")}</b><span>{t("copy34")}</span></div></div></div><div className="ops-job-line"><span className="ops-dot"></span><div><b>{t("copy170")}</b><p>{t("copy171")}</p></div><span className="ops-badge">{t("copy172")}</span></div></div></main></div></div>,
-<div key="3"><div className="ops-app"><aside><b className="ops-mark">{t("copy122")}<span>{t("copy116")}</span></b><small>{t("copy123")}</small><span className="">{t("copy124")}<i>{t("copy125")}</i></span><span className="">{t("copy126")}<i>{t("copy127")}</i></span><span className="">{t("copy128")}<i>{t("copy129")}</i></span><span className="active">{t("copy130")}<i>{t("copy131")}</i></span><span className="">{t("copy132")}<i>{t("copy133")}</i></span><div className="ops-user">{t("copy134")}<span>{t("copy135")}</span></div></aside><main><div className="ops-bar"><span>{t("copy131")}</span><span className="ops-avatar">{t("copy134")}</span></div><div className="ops-body"><div className="ops-page-head"><div><small>{t("copy173")}</small><h4>{t("copy95")}</h4></div><span className="ops-badge">{t("quoteStatus")}</span></div><div className="ops-doc-meta"><span>{t("copy175")}<b>{t("copy141")}</b></span><span>{t("copy176")}<b>{t("copy177")}</b></span></div><div className="ops-table"><div className="ops-th"><span>{t("copy178")}</span><span>{t("copy179")}</span><span>{t("copy180")}</span></div><div><span>{t("copy181")}</span><span>{t("copy182")}</span><b>{t("copy75")}</b></div><div><span>{t("copy183")}</span><span>{t("copy182")}</span><b>{t("copy77")}</b></div></div><div className="ops-total"><span>{t("copy184")}</span><b>{t("copy78")}</b></div><div className="ops-doc-foot"><span>{t("approval")}</span><span className="ops-primary">{t("copy186")}</span></div></div></main></div></div>,
-<div key="4"><div className="ops-app"><aside><b className="ops-mark">{t("copy122")}<span>{t("copy116")}</span></b><small>{t("copy123")}</small><span className="">{t("copy124")}<i>{t("copy125")}</i></span><span className="">{t("copy126")}<i>{t("copy127")}</i></span><span className="">{t("copy128")}<i>{t("copy129")}</i></span><span className="">{t("copy130")}<i>{t("copy131")}</i></span><span className="active">{t("copy132")}<i>{t("copy133")}</i></span><div className="ops-user">{t("copy134")}<span>{t("copy135")}</span></div></aside><main><div className="ops-bar"><span>{t("copy133")}</span><span className="ops-avatar">{t("copy134")}</span></div><div className="ops-body"><div className="ops-page-head"><div><small>{t("copy187")}</small><h4>{t("copy95")}</h4></div><span className="ops-badge">{t("copy80")}</span></div><div className="ops-doc-meta"><span>{t("copy188")}<b>{t("copy141")}</b></span><span>{t("copy189")}<b>{t("copy190")}</b></span></div><div className="ops-invoice-summary"><span>{t("copy191")}<b>{t("copy78")}</b></span><span>{t("copy192")}<b>{t("copy78")}</b></span><span className="balance">{t("copy193")}<b>{t("copy83")}</b></span></div><div className="ops-payment"><small>{t("copy194")}</small><div><span className="payment-tick">{t("copy195")}</span><div><b>{t("copy81")}</b><p>{t("copy196")}</p></div><strong>{t("copy78")}</strong></div></div><div className="ops-tip">{t("copy197")}</div></div></main></div></div>
-  ]
-  return <div className="trade-school"><section className="school-hero" id="trade-schools"><div className="wrap hero-split"><div className="hero-copy"><span className="plain-kicker">{t("copy0")}</span><h1>{t("copy1")}<br /><span>{t("copy2")}</span></h1><p>{t("copy3")}</p><div className="hero-proof"><b>{t("copy4")}</b><span>{t("copy5")}</span></div></div><div className="hero-photo"><Image src="/trade-school-workshop.svg" unoptimized priority alt={t("photoAlt")} width={900} height={600} /><div className="photo-caption"><span>{t("copy6")}</span><b>{t("copy7")}</b></div></div></div><div className="wrap"><div className="photo-credit">{t("copy8")}<a href="https://www.pexels.com/photo/people-in-a-workshop-5265333/" target="_blank" rel="noreferrer">{t("copy9")}</a></div></div></section><section className="block" id="journey"><div className="wrap"><div className="kicker">{t("copy10")}</div><h2 className="section-title">{t("copy11")}<br />{t("copy12")}</h2><p className="section-sub">{t("copy13")}</p><div className="journey-demo"><div className="journey-tabs" role="tablist" aria-label={t('journeyLabel')}>{stages.map((stage,index)=><button key={index} ref={node=>{tabs.current[index]=node}} id={`tab-${index}`} role="tab" aria-selected={current===index} aria-controls="stage-panel" tabIndex={current===index?0:-1} onClick={()=>select(index)} onKeyDown={event=>onTabKey(event,index)}><span>0{index+1}</span>{t(`tab${index}`)}</button>)}</div><div id="stage-panel" className="stage-panel" role="tabpanel" aria-labelledby={`tab-${current}`}><div className="stage-copy"><span className="stage-label">{stages[current].label}</span><h3>{stages[current].title}</h3><p className="stage-desc">{stages[current].desc}</p><div className="student-learns"><span>{t("copy27")}</span><p className="stage-learn">{stages[current].learn}</p></div></div><div className="stage-screen"><div className="screen-top"><span>{t('workflowLabel')}</span><span>0{current + 1} / 05</span></div><div className="screen-content">{artifacts[current]}</div></div></div><div className="journey-bottom"><span>{t("copy50")}</span><button className="next-step" onClick={()=>select((current+1)%stages.length,true)}>{t(`next${current}`)}</button></div></div></div></section><div className="setup-strip"><div className="wrap"><b>{t("copy52")}</b><p>{t("copy53")}</p><span>{t("copy54")}</span></div></div><section className="block paths-compact" id="schools"><div className="wrap"><span className="kicker">{t("copy55")}</span><div className="simple-paths"><div><span>{t("copy56")}</span><h3>{t("copy57")}</h3><div className="path-artifacts employee-artifacts"><div className="path-doc"><small>{t("copy58")}</small><b>{t("copy59")}</b><dl><dt>{t("copy60")}</dt><dd>{t("copy34")}</dd><dt>{t("copy61")}</dt><dd>{t("copy62")}</dd></dl></div><span className="artifact-arrow">{t("copy63")}</span><div className="path-doc"><small>{t("copy64")}</small><b>{t("copy65")}</b><div className="check-row">{t("copy66")}</div><div className="check-row">{t("copy67")}</div><div className="check-row">{t("copy68")}</div></div></div><p>{t("copy69")}</p></div><div><span>{t("copy70")}</span><h3>{t("copy71")}</h3><div className="path-artifacts owner-artifacts"><div className="path-doc"><small>{t("copy72")}</small><b>{t("copy73")}</b><dl><dt>{t("copy74")}</dt><dd>{t("copy75")}</dd><dt>{t("copy76")}</dt><dd>{t("copy77")}</dd></dl><strong>{t("copy78")}</strong></div><span className="artifact-arrow">{t("copy63")}</span><div className="path-doc paid-doc"><small>{t("copy79")}</small><b><span className="paid-pill">{t("copy80")}</span></b><strong>{t("copy78")}</strong><div className="check-row">{t("copy81")}</div><div className="balance-line">{t("copy82")}<b>{t("copy83")}</b></div></div></div><p>{t("copy84")}</p></div></div></div></section><section className="block classroom-v6" id="workshop"><div className="wrap"><span className="kicker">{t("copy85")}</span><h2 className="section-title">{t("copy86")}<br />{t("copy87")}</h2><p className="section-sub">{t("copy88")}</p><div className="exercise-layout"><div className="exercise"><span className="sample-label">{t("copy89")}</span><div className="exercise-turn customer-turn"><span>{t("copy90")}</span><p>{t("copy91")}</p></div><div className="exercise-turn student-turn"><span>{t("copy92")}</span><p>{t("copy93")}</p></div><div className="exercise-docs"><div><small>{t("copy94")}</small><b>{t("copy95")}</b><p>{t("copy96")}</p><strong>{t("copy78")}</strong></div><div><small>{t("copy97")}</small><b>{t("copy98")}</b><p>{t("copy99")}</p></div></div><p className="exercise-caption">{t("copy100")}</p></div><div className="workshop-outcomes"><span className="case-label">{t("copy101")}</span><h3>{t("copy102")}</h3><div className="rubric"><div><span>{t("copy14")}</span><section><b>{t("copy103")}</b><p>{t("copy104")}</p><small>{t("copy105")}</small></section></div><div><span>{t("copy16")}</span><section><b>{t("copy106")}</b><p>{t("copy107")}</p><small>{t("copy108")}</small></section></div><div><span>{t("copy18")}</span><section><b>{t("copy109")}</b><p>{t("copy110")}</p><small>{t("copy111")}</small></section></div></div></div></div></div><section className="close-band school-next" id="pilot"><div className="wrap"><span className="badge">{t("copy112")}</span><h2>{t("copy113")}</h2><p>{t("copy114")}</p><a className="btn btn-white" href="mailto:support@contractorops.ai?subject=Trade%20school%20classroom%20demo">{t("copy115")}</a></div></section><footer className="school-footer"><div className="wrap footer-row"><div><b>{t("copy116")}</b><p>{t("copy117")}</p></div><nav aria-label="Footer offerings"><a href="#trade-schools">{t("copy118")}</a><a href={`/${locale}/enterprise`} rel="noreferrer">{t("copy119")}</a><a href="mailto:support@contractorops.ai">{t("copy120")}</a></nav></div><div className="wrap footer-note">{t("copy121")}</div></footer></section></div>
+    <div key="0">
+      <div className="intro-artifact">
+        <div className="artifact-header">
+          <span>{t("copy31")}</span>
+          <b>{t("copy32")}</b>
+        </div>
+        <div className="contact-summary">
+          <span className="contact-avatar">{t("copy33")}</span>
+          <div>
+            <h4>{t("copy34")}</h4>
+            <p>{t("copy35")}</p>
+          </div>
+          <span className="fit-chip">{t("copy36")}</span>
+        </div>
+        <div className="email-artifact">
+          <div className="email-meta">
+            <span>{t("copy37")}</span>
+            <b>{t("copy34")}</b>
+            <span>{t("copy38")}</span>
+            <b>{t("copy39")}</b>
+          </div>
+          <h4>{t("copy40")}</h4>
+          <p>{t("copy41")}</p>
+          <div className="email-sig">
+            {t("copy42")}
+            <br />
+            <b>{t("copy43")}</b>
+          </div>
+        </div>
+        <div className="product-split">
+          <div>
+            <span>{t("copy44")}</span>
+            <b>{t("copy45")}</b>
+          </div>
+          <div>
+            <span>{t("copy46")}</span>
+            <b>{t("copy47")}</b>
+          </div>
+        </div>
+        <div className="review-row">
+          <span>{t("copy48")}</span>
+          <b>{t("copy49")}</b>
+        </div>
+      </div>
+    </div>,
+    <div key="1">
+      <div className="ops-app">
+        <aside>
+          <b className="ops-mark">
+            {t("copy122")}
+            <span>{t("copy116")}</span>
+          </b>
+          <small>{t("copy123")}</small>
+          <span className="">
+            {t("copy124")}
+            <i>{t("copy125")}</i>
+          </span>
+          <span className="active">
+            {t("copy126")}
+            <i>{t("copy127")}</i>
+          </span>
+          <span className="">
+            {t("copy128")}
+            <i>{t("copy129")}</i>
+          </span>
+          <span className="">
+            {t("copy130")}
+            <i>{t("copy131")}</i>
+          </span>
+          <span className="">
+            {t("copy132")}
+            <i>{t("copy133")}</i>
+          </span>
+          <div className="ops-user">
+            {t("copy134")}
+            <span>{t("copy135")}</span>
+          </div>
+        </aside>
+        <main>
+          <div className="ops-bar">
+            <span>{t("copy127")}</span>
+            <span className="ops-avatar">{t("copy134")}</span>
+          </div>
+          <div className="ops-body">
+            <div className="ops-page-head">
+              <div>
+                <small>{t("copy136")}</small>
+                <h4>{t("copy137")}</h4>
+              </div>
+              <span className="ops-badge">{t("copy138")}</span>
+            </div>
+            <div className="ops-inbox">
+              <div className="inbox-list">
+                <span className="mini-filter">
+                  {t("copy139")}
+                  <b>{t("copy140")}</b>
+                </span>
+                <div className="inbox-selected">
+                  <b>{t("copy141")}</b>
+                  <span>{t("copy142")}</span>
+                  <p>{t("copy143")}</p>
+                  <small>{t("copy144")}</small>
+                </div>
+                <div className="inbox-empty">
+                  {t("copy145")}
+                  <br />
+                  {t("copy146")}
+                </div>
+              </div>
+              <div className="inbox-detail">
+                <b>{t("copy147")}</b>
+                <span className="ops-badge">{t("copy140")}</span>
+                <small>{t("copy148")}</small>
+                <p>{t("copy149")}</p>
+                <div className="ops-field">
+                  <span>{t("copy150")}</span>
+                  <b>{t("copy151")}</b>
+                </div>
+                <div className="ops-field">
+                  <span>{t("copy152")}</span>
+                  <b>{t("copy153")}</b>
+                </div>
+                <span className="ops-primary">{t("copy154")}</span>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>,
+    <div key="2">
+      <div className="ops-app">
+        <aside>
+          <b className="ops-mark">
+            {t("copy122")}
+            <span>{t("copy116")}</span>
+          </b>
+          <small>{t("copy123")}</small>
+          <span className="">
+            {t("copy124")}
+            <i>{t("copy125")}</i>
+          </span>
+          <span className="">
+            {t("copy126")}
+            <i>{t("copy127")}</i>
+          </span>
+          <span className="active">
+            {t("copy128")}
+            <i>{t("copy129")}</i>
+          </span>
+          <span className="">
+            {t("copy130")}
+            <i>{t("copy131")}</i>
+          </span>
+          <span className="">
+            {t("copy132")}
+            <i>{t("copy133")}</i>
+          </span>
+          <div className="ops-user">
+            {t("copy134")}
+            <span>{t("copy135")}</span>
+          </div>
+        </aside>
+        <main>
+          <div className="ops-bar">
+            <span>{t("copy129")}</span>
+            <span className="ops-avatar">{t("copy134")}</span>
+          </div>
+          <div className="ops-body">
+            <div className="ops-page-head">
+              <div>
+                <small>{t("copy155")}</small>
+                <h4>{t("copy156")}</h4>
+              </div>
+              <span className="ops-badge">{t("copy157")}</span>
+            </div>
+            <div className="ops-schedule">
+              <div className="week-head">
+                <span>
+                  {t("copy158")}
+                  <small>{t("copy159")}</small>
+                </span>
+                <span>
+                  {t("copy160")}
+                  <small>{t("copy161")}</small>
+                </span>
+                <span>
+                  {t("copy162")}
+                  <small>{t("copy163")}</small>
+                </span>
+                <span className="selected">
+                  {t("copy164")}
+                  <small>{t("copy165")}</small>
+                </span>
+                <span>
+                  {t("copy166")}
+                  <small>{t("copy167")}</small>
+                </span>
+              </div>
+              <div className="week-grid">
+                <div className="calendar-event">
+                  <small>{t("copy168")}</small>
+                  <b>{t("copy169")}</b>
+                  <span>{t("copy34")}</span>
+                </div>
+              </div>
+            </div>
+            <div className="ops-job-line">
+              <span className="ops-dot"></span>
+              <div>
+                <b>{t("copy170")}</b>
+                <p>{t("copy171")}</p>
+              </div>
+              <span className="ops-badge">{t("copy172")}</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>,
+    <div key="3">
+      <div className="ops-app">
+        <aside>
+          <b className="ops-mark">
+            {t("copy122")}
+            <span>{t("copy116")}</span>
+          </b>
+          <small>{t("copy123")}</small>
+          <span className="">
+            {t("copy124")}
+            <i>{t("copy125")}</i>
+          </span>
+          <span className="">
+            {t("copy126")}
+            <i>{t("copy127")}</i>
+          </span>
+          <span className="">
+            {t("copy128")}
+            <i>{t("copy129")}</i>
+          </span>
+          <span className="active">
+            {t("copy130")}
+            <i>{t("copy131")}</i>
+          </span>
+          <span className="">
+            {t("copy132")}
+            <i>{t("copy133")}</i>
+          </span>
+          <div className="ops-user">
+            {t("copy134")}
+            <span>{t("copy135")}</span>
+          </div>
+        </aside>
+        <main>
+          <div className="ops-bar">
+            <span>{t("copy131")}</span>
+            <span className="ops-avatar">{t("copy134")}</span>
+          </div>
+          <div className="ops-body">
+            <div className="ops-page-head">
+              <div>
+                <small>{t("copy173")}</small>
+                <h4>{t("copy95")}</h4>
+              </div>
+              <span className="ops-badge">{t("quoteStatus")}</span>
+            </div>
+            <div className="ops-doc-meta">
+              <span>
+                {t("copy175")}
+                <b>{t("copy141")}</b>
+              </span>
+              <span>
+                {t("copy176")}
+                <b>{t("copy177")}</b>
+              </span>
+            </div>
+            <div className="ops-table">
+              <div className="ops-th">
+                <span>{t("copy178")}</span>
+                <span>{t("copy179")}</span>
+                <span>{t("copy180")}</span>
+              </div>
+              <div>
+                <span>{t("copy181")}</span>
+                <span>{t("copy182")}</span>
+                <b>{t("copy75")}</b>
+              </div>
+              <div>
+                <span>{t("copy183")}</span>
+                <span>{t("copy182")}</span>
+                <b>{t("copy77")}</b>
+              </div>
+            </div>
+            <div className="ops-total">
+              <span>{t("copy184")}</span>
+              <b>{t("copy78")}</b>
+            </div>
+            <div className="ops-doc-foot">
+              <span>{t("approval")}</span>
+              <span className="ops-primary">{t("copy186")}</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>,
+    <div key="4">
+      <div className="ops-app">
+        <aside>
+          <b className="ops-mark">
+            {t("copy122")}
+            <span>{t("copy116")}</span>
+          </b>
+          <small>{t("copy123")}</small>
+          <span className="">
+            {t("copy124")}
+            <i>{t("copy125")}</i>
+          </span>
+          <span className="">
+            {t("copy126")}
+            <i>{t("copy127")}</i>
+          </span>
+          <span className="">
+            {t("copy128")}
+            <i>{t("copy129")}</i>
+          </span>
+          <span className="">
+            {t("copy130")}
+            <i>{t("copy131")}</i>
+          </span>
+          <span className="active">
+            {t("copy132")}
+            <i>{t("copy133")}</i>
+          </span>
+          <div className="ops-user">
+            {t("copy134")}
+            <span>{t("copy135")}</span>
+          </div>
+        </aside>
+        <main>
+          <div className="ops-bar">
+            <span>{t("copy133")}</span>
+            <span className="ops-avatar">{t("copy134")}</span>
+          </div>
+          <div className="ops-body">
+            <div className="ops-page-head">
+              <div>
+                <small>{t("copy187")}</small>
+                <h4>{t("copy95")}</h4>
+              </div>
+              <span className="ops-badge">{t("copy80")}</span>
+            </div>
+            <div className="ops-doc-meta">
+              <span>
+                {t("copy188")}
+                <b>{t("copy141")}</b>
+              </span>
+              <span>
+                {t("copy189")}
+                <b>{t("copy190")}</b>
+              </span>
+            </div>
+            <div className="ops-invoice-summary">
+              <span>
+                {t("copy191")}
+                <b>{t("copy78")}</b>
+              </span>
+              <span>
+                {t("copy192")}
+                <b>{t("copy78")}</b>
+              </span>
+              <span className="balance">
+                {t("copy193")}
+                <b>{t("copy83")}</b>
+              </span>
+            </div>
+            <div className="ops-payment">
+              <small>{t("copy194")}</small>
+              <div>
+                <span className="payment-tick">{t("copy195")}</span>
+                <div>
+                  <b>{t("copy81")}</b>
+                  <p>{t("copy196")}</p>
+                </div>
+                <strong>{t("copy78")}</strong>
+              </div>
+            </div>
+            <div className="ops-tip">{t("copy197")}</div>
+          </div>
+        </main>
+      </div>
+    </div>,
+  ];
+  return (
+    <div className="trade-school">
+      <section className="school-hero" id="trade-schools">
+        <div className="wrap hero-split">
+          <div className="hero-copy">
+            <span className="plain-kicker">{t("copy0")}</span>
+            <h1>
+              {t("copy1")}
+              <br />
+              <span>{t("copy2")}</span>
+            </h1>
+            <p>{t("copy3")}</p>
+            <div className="hero-proof">
+              <b>{t("copy4")}</b>
+              <span>{t("copy5")}</span>
+            </div>
+          </div>
+          <div className="hero-photo">
+            <Image
+              src="/trade-school-workshop.svg"
+              unoptimized
+              priority
+              alt={t("photoAlt")}
+              width={900}
+              height={600}
+            />
+            <div className="photo-caption">
+              <span>{t("copy6")}</span>
+              <b>{t("copy7")}</b>
+            </div>
+          </div>
+        </div>
+        <div className="wrap">
+          <div className="photo-credit">
+            {t("copy8")}
+            <a
+              href="https://www.pexels.com/photo/people-in-a-workshop-5265333/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t("copy9")}
+            </a>
+          </div>
+        </div>
+      </section>
+      <section className="block" id="journey">
+        <div className="wrap">
+          <div className="kicker">{t("copy10")}</div>
+          <h2 className="section-title">
+            {t("copy11")}
+            <br />
+            {t("copy12")}
+          </h2>
+          <p className="section-sub">{t("copy13")}</p>
+          <div className="journey-demo">
+            <div
+              className="journey-tabs"
+              role="tablist"
+              aria-label={t("journeyLabel")}
+            >
+              {stages.map((stage, index) => (
+                <button
+                  key={index}
+                  ref={(node) => {
+                    tabs.current[index] = node;
+                  }}
+                  id={`tab-${index}`}
+                  role="tab"
+                  aria-selected={current === index}
+                  aria-controls="stage-panel"
+                  tabIndex={current === index ? 0 : -1}
+                  onClick={() => select(index)}
+                  onKeyDown={(event) => onTabKey(event, index)}
+                >
+                  <span>0{index + 1}</span>
+                  {t(`tab${index}`)}
+                </button>
+              ))}
+            </div>
+            <div
+              id="stage-panel"
+              className="stage-panel"
+              role="tabpanel"
+              aria-labelledby={`tab-${current}`}
+            >
+              <div className="stage-copy">
+                <span className="stage-label">{stages[current].label}</span>
+                <h3>{stages[current].title}</h3>
+                <p className="stage-desc">{stages[current].desc}</p>
+                <div className="student-learns">
+                  <span>{t("copy27")}</span>
+                  <p className="stage-learn">{stages[current].learn}</p>
+                </div>
+              </div>
+              <div className="stage-screen">
+                <div className="screen-top">
+                  <span>{t("workflowLabel")}</span>
+                  <span>0{current + 1} / 05</span>
+                </div>
+                <div className="screen-content">{artifacts[current]}</div>
+              </div>
+            </div>
+            <div className="journey-bottom">
+              <span>{t("copy50")}</span>
+              <button
+                className="next-step"
+                onClick={() => select((current + 1) % stages.length, true)}
+              >
+                {t(`next${current}`)}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div className="setup-strip">
+        <div className="wrap">
+          <b>{t("copy52")}</b>
+          <p>{t("copy53")}</p>
+          <span>{t("copy54")}</span>
+        </div>
+      </div>
+      <section className="block paths-compact" id="schools">
+        <div className="wrap">
+          <span className="kicker">{t("copy55")}</span>
+          <div className="simple-paths">
+            <div>
+              <span>{t("copy56")}</span>
+              <h3>{t("copy57")}</h3>
+              <div className="path-artifacts employee-artifacts">
+                <div className="path-doc">
+                  <small>{t("copy58")}</small>
+                  <b>{t("copy59")}</b>
+                  <dl>
+                    <dt>{t("copy60")}</dt>
+                    <dd>{t("copy34")}</dd>
+                    <dt>{t("copy61")}</dt>
+                    <dd>{t("copy62")}</dd>
+                  </dl>
+                </div>
+                <span className="artifact-arrow">{t("copy63")}</span>
+                <div className="path-doc">
+                  <small>{t("copy64")}</small>
+                  <b>{t("copy65")}</b>
+                  <div className="check-row">{t("copy66")}</div>
+                  <div className="check-row">{t("copy67")}</div>
+                  <div className="check-row">{t("copy68")}</div>
+                </div>
+              </div>
+              <p>{t("copy69")}</p>
+            </div>
+            <div>
+              <span>{t("copy70")}</span>
+              <h3>{t("copy71")}</h3>
+              <div className="path-artifacts owner-artifacts">
+                <div className="path-doc">
+                  <small>{t("copy72")}</small>
+                  <b>{t("copy73")}</b>
+                  <dl>
+                    <dt>{t("copy74")}</dt>
+                    <dd>{t("copy75")}</dd>
+                    <dt>{t("copy76")}</dt>
+                    <dd>{t("copy77")}</dd>
+                  </dl>
+                  <strong>{t("copy78")}</strong>
+                </div>
+                <span className="artifact-arrow">{t("copy63")}</span>
+                <div className="path-doc paid-doc">
+                  <small>{t("copy79")}</small>
+                  <b>
+                    <span className="paid-pill">{t("copy80")}</span>
+                  </b>
+                  <strong>{t("copy78")}</strong>
+                  <div className="check-row">{t("copy81")}</div>
+                  <div className="balance-line">
+                    {t("copy82")}
+                    <b>{t("copy83")}</b>
+                  </div>
+                </div>
+              </div>
+              <p>{t("copy84")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section className="block classroom-v6" id="workshop">
+        <div className="wrap">
+          <span className="kicker">{t("copy85")}</span>
+          <h2 className="section-title">
+            {t("copy86")}
+            <br />
+            {t("copy87")}
+          </h2>
+          <p className="section-sub">{t("copy88")}</p>
+          <div className="exercise-layout">
+            <div className="exercise">
+              <span className="sample-label">{t("copy89")}</span>
+              <div className="exercise-turn customer-turn">
+                <span>{t("copy90")}</span>
+                <p>{t("copy91")}</p>
+              </div>
+              <div className="exercise-turn student-turn">
+                <span>{t("copy92")}</span>
+                <p>{t("copy93")}</p>
+              </div>
+              <div className="exercise-docs">
+                <div>
+                  <small>{t("copy94")}</small>
+                  <b>{t("copy95")}</b>
+                  <p>{t("copy96")}</p>
+                  <strong>{t("copy78")}</strong>
+                </div>
+                <div>
+                  <small>{t("copy97")}</small>
+                  <b>{t("copy98")}</b>
+                  <p>{t("copy99")}</p>
+                </div>
+              </div>
+              <p className="exercise-caption">{t("copy100")}</p>
+            </div>
+            <div className="workshop-outcomes">
+              <span className="case-label">{t("copy101")}</span>
+              <h3>{t("copy102")}</h3>
+              <div className="rubric">
+                <div>
+                  <span>{t("copy14")}</span>
+                  <section>
+                    <b>{t("copy103")}</b>
+                    <p>{t("copy104")}</p>
+                    <small>{t("copy105")}</small>
+                  </section>
+                </div>
+                <div>
+                  <span>{t("copy16")}</span>
+                  <section>
+                    <b>{t("copy106")}</b>
+                    <p>{t("copy107")}</p>
+                    <small>{t("copy108")}</small>
+                  </section>
+                </div>
+                <div>
+                  <span>{t("copy18")}</span>
+                  <section>
+                    <b>{t("copy109")}</b>
+                    <p>{t("copy110")}</p>
+                    <small>{t("copy111")}</small>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <section className="close-band school-next" id="pilot">
+          <div className="wrap">
+            <span className="badge">{t("copy112")}</span>
+            <h2>{t("copy113")}</h2>
+            <p>{t("copy114")}</p>
+            <a
+              className="btn btn-white"
+              href="mailto:support@contractorops.ai?subject=Trade%20school%20classroom%20demo"
+            >
+              {t("copy115")}
+            </a>
+          </div>
+        </section>
+        <footer className="school-footer">
+          <div className="wrap footer-row">
+            <div>
+              <b>{t("copy116")}</b>
+              <p>{t("copy117")}</p>
+            </div>
+            <nav aria-label="Footer offerings">
+              <a href="#trade-schools">{t("copy118")}</a>
+              <a href={`/${locale}/enterprise`} rel="noreferrer">
+                {t("copy119")}
+              </a>
+              <a href="mailto:support@contractorops.ai">{t("copy120")}</a>
+            </nav>
+          </div>
+          <div className="wrap footer-note">{t("copy121")}</div>
+        </footer>
+      </section>
+    </div>
+  );
 }
