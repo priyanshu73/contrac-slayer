@@ -452,7 +452,7 @@ export function TradeSchools() {
           </div>
           <div className="hero-photo">
             <Image
-              src="/trade-school-workshop.svg"
+              src="/api/trade-school-photo"
               unoptimized
               priority
               alt={t("photoAlt")}
@@ -716,4 +716,4 @@ export function TradeSchools() {
       </section>
     </div>
   );
-}
+            }
