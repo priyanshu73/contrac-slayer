@@ -2,6 +2,10 @@ import {notFound} from 'next/navigation';
 import {getRequestConfig} from 'next-intl/server';
 import enFallback from '../messages/en.json';
 import esFallback from '../messages/es.json';
+import schoolEn from '../messages/trade-schools/en.json';
+import schoolEs from '../messages/trade-schools/es.json';
+import offeringsEn from '../messages/trade-schools/offerings-en.json';
+import offeringsEs from '../messages/trade-schools/offerings-es.json';
 
 // Can be imported from a shared config
 export const locales = ['en', 'es'] as const;
@@ -38,7 +42,7 @@ export default getRequestConfig(async ({locale}) => {
     locale = 'en';
   }
 
-  const fallback = locale === 'es' ? esFallback : enFallback;
+  const fallback = { ...(locale === 'es' ? esFallback : enFallback), offerings: locale === 'es' ? offeringsEs : offeringsEn, tradeSchools: locale === 'es' ? schoolEs : schoolEn };
 
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
