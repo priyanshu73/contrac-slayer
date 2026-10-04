@@ -31,10 +31,10 @@ test('page is React rendered, state-driven and non-live', () => {
   const source = fs.readFileSync('components/trade-schools.tsx', 'utf8')
   assert.doesNotMatch(source, /dangerouslySetInnerHTML|innerHTML|querySelector|aria-live/)
   assert.match(source, /useState/)
-  assert.match(source, /aria-selected=\{current===index\}/)
+  assert.match(source, /aria-selected=\{current === index\}/)
   assert.match(source, /aria-labelledby=\{`tab-\$\{current\}`\}/)
   assert.match(source, /ArrowRight/)
-  assert.match(source, /focus\(\{preventScroll:true\}\)/)
+  assert.match(source, /focus\(\{ preventScroll: true \}\)/)
 })
 test('public school routes bypass auth and product shell', () => {
   for (const file of ['components/auth-guard.tsx', 'components/conditional-shell.tsx']) assert.match(fs.readFileSync(file, 'utf8'), /enterprise\|trade-schools\|blog/)
