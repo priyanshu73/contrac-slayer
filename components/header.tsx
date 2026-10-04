@@ -42,7 +42,7 @@ type FeatureMenuItem = {
   icon: ComponentType<{ className?: string }>
 }
 
-export function Header() {
+export function Header({ solid = false }: { solid?: boolean } = {}) {
   const locale = useLocale()
   const pathname = usePathname()
   const router = useRouter()
@@ -58,8 +58,7 @@ export function Header() {
   const isLandingPage = pathname === `/${locale}` || pathname === '/'
   const isFeaturesPage = pathname === `/${locale}/features` || pathname?.startsWith(`/${locale}/features/`)
   const isAwayFromHome = isLandingPage && activeLandingSection !== 'hero'
-  const isSchoolPage = pathname === `/${locale}/trade-schools`
-  const isHeaderSolid = scrolled || isAwayFromHome || isSchoolPage
+  const isHeaderSolid = scrolled || isAwayFromHome || solid
 
   useEffect(() => {
     const updateScrolled = () => setScrolled(window.scrollY > 60)
@@ -495,7 +494,7 @@ export function Header() {
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${isHeaderSolid ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
+            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${scrolled || solid ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -567,7 +566,7 @@ export function Header() {
                     )
                   })}
                   <OfferingsMenu mobile onNavigate={() => setMobileOpen(false)} />
-              {pageLinks.map(({ href, label }) => (
+                  {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
@@ -625,7 +624,7 @@ export function Header() {
                     </button>
                   ))}
                   <OfferingsMenu mobile onNavigate={() => setMobileOpen(false)} />
-              {pageLinks.map(({ href, label }) => (
+                  {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
