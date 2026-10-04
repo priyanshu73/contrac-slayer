@@ -15,7 +15,7 @@ for (const [locale, data] of [['en', en], ['es', es]] as const) {
     assert.match(data.stages[4].html, /\$0/)
     assert.doesNotMatch(data.stages[1].html, /CALL SUMMARY/)
     assert.doesNotMatch(data.markup, /hero-ctas|mock-note|site-nav/)
-    assert.match(data.markup, /\/trade-school-workshop.jpg/)
+    assert.match(data.markup, /\/trade-school-workshop.svg/)
   })
 }
 test('inspection occupies only Thursday in the same fictional week', () => {
