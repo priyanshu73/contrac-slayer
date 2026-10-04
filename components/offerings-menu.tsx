@@ -48,6 +48,7 @@ export function OfferingsMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={t("label")}
           className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${solid ? "text-slate-700 hover:bg-[#f4ede6]/55" : "text-white/78 hover:bg-white/10"}`}
         >
           {t("label")}
