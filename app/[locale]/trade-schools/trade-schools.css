@@ -147,3 +147,7 @@ html,body,#root{margin:0;min-height:100%}body{background:#fbf6f1}.trade-school{m
 .trade-school [id]{scroll-margin-top:90px}.trade-school .calendar-event{overflow-wrap:normal}.trade-school .calendar-event b{word-break:normal}
 
 .trade-school [id]{scroll-margin-top:90px}.trade-school .calendar-event{overflow-wrap:normal}.trade-school .calendar-event b{word-break:normal}
+
+/* Keep the classroom rubric and demo CTA visually distinct. */
+.trade-school .school-next { margin-top: 64px !important; }
+@media (max-width: 760px) { .trade-school .school-next { margin-top: 44px !important; } }
