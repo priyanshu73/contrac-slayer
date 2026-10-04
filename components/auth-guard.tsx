@@ -50,7 +50,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.match(/^\/(terms|support)$/) || // Legacy non-i18n
     pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) || // Public marketing feature pages
     pathname?.startsWith("/features") || // Legacy non-i18n feature routes
-    pathname?.match(/^\/[a-z]{2}\/(enterprise|blog)(\/|$)/) || // Public enterprise and blog pages
+    pathname?.match(/^\/[a-z]{2}\/(enterprise|trade-schools|blog)(\/|$)/) || // Public marketing pages
+    pathname?.match(/^\/(enterprise|trade-schools|blog)(\/|$)/) ||
     pathname?.match(/^\/[a-z]{2}\/quote-request/) || // Matches /en/quote-request, /es/quote-request, etc.
     pathname?.startsWith("/quote-request") || // Legacy non-i18n routes
     // Public customer views for quotes and invoices (no auth required)
@@ -136,4 +137,4 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Otherwise show nothing (will redirect)
   return null
-}
+                    }
