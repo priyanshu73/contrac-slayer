@@ -46,6 +46,7 @@ export function Header() {
   const pathname = usePathname()
   const router = useRouter()
   const t = useTranslations('landing')
+  const offerings = useTranslations('offerings')
   const { referralId } = useReferral()
   const { changeLanguage, isChanging } = useLanguageContext()
   const signupUrl = buildSignupUrl(locale, referralId)
@@ -57,7 +58,8 @@ export function Header() {
   const isLandingPage = pathname === `/${locale}` || pathname === '/'
   const isFeaturesPage = pathname === `/${locale}/features` || pathname?.startsWith(`/${locale}/features/`)
   const isAwayFromHome = isLandingPage && activeLandingSection !== 'hero'
-  const isHeaderSolid = scrolled || isAwayFromHome
+  const isSchoolPage = pathname === `/${locale}/trade-schools`
+  const isHeaderSolid = scrolled || isAwayFromHome || isSchoolPage
 
   useEffect(() => {
     const updateScrolled = () => setScrolled(window.scrollY > 60)
@@ -199,7 +201,6 @@ export function Header() {
   }
 
   const pageLinks = [
-    { href: `/${locale}/enterprise`, label: 'Enterprise' },
     { href: `/${locale}/blog`, label: 'Blog' },
   ]
   const isPageLinkActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`)
@@ -340,6 +341,23 @@ export function Header() {
                   </button>
                 )
               })}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${isHeaderSolid ? 'text-slate-700 hover:bg-[#f4ede6]/55' : 'text-white/78 hover:bg-white/10'}`}>
+                    {offerings('label')}<ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" sideOffset={14} className="w-72 rounded-2xl border-[#eadfd7] bg-[#fffaf7] p-2 text-slate-950 shadow-xl">
+                  {['trade-schools', 'enterprise'].map((path) => (
+                    <DropdownMenuItem key={path} asChild className="rounded-xl p-0">
+                      <Link href={`/${locale}/${path}`} aria-current={isPageLinkActive(`/${locale}/${path}`) ? 'page' : undefined} className="block px-4 py-3">
+                        <span className="block font-bold">{offerings(path === 'enterprise' ? 'enterprise' : 'schools')}</span>
+                        <span className="mt-1 block text-xs text-slate-600">{offerings(path === 'enterprise' ? 'enterpriseDescription' : 'schoolsDescription')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {pageLinks.map(({ href, label }) => (
                 <Link
                   key={href}
@@ -442,6 +460,23 @@ export function Header() {
                   {label}
                 </button>
               ))}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${isHeaderSolid ? 'text-slate-700 hover:bg-[#f4ede6]/55' : 'text-white/78 hover:bg-white/10'}`}>
+                    {offerings('label')}<ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" sideOffset={14} className="w-72 rounded-2xl border-[#eadfd7] bg-[#fffaf7] p-2 text-slate-950 shadow-xl">
+                  {['trade-schools', 'enterprise'].map((path) => (
+                    <DropdownMenuItem key={path} asChild className="rounded-xl p-0">
+                      <Link href={`/${locale}/${path}`} aria-current={isPageLinkActive(`/${locale}/${path}`) ? 'page' : undefined} className="block px-4 py-3">
+                        <span className="block font-bold">{offerings(path === 'enterprise' ? 'enterprise' : 'schools')}</span>
+                        <span className="mt-1 block text-xs text-slate-600">{offerings(path === 'enterprise' ? 'enterpriseDescription' : 'schoolsDescription')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {pageLinks.map(({ href, label }) => (
                 <Link
                   key={href}
@@ -492,7 +527,7 @@ export function Header() {
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${scrolled ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
+            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${isHeaderSolid ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -563,7 +598,24 @@ export function Header() {
                       </button>
                     )
                   })}
-                  {pageLinks.map(({ href, label }) => (
+                  <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${isHeaderSolid ? 'text-slate-700 hover:bg-[#f4ede6]/55' : 'text-white/78 hover:bg-white/10'}`}>
+                    {offerings('label')}<ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" sideOffset={14} className="w-72 rounded-2xl border-[#eadfd7] bg-[#fffaf7] p-2 text-slate-950 shadow-xl">
+                  {['trade-schools', 'enterprise'].map((path) => (
+                    <DropdownMenuItem key={path} asChild className="rounded-xl p-0">
+                      <Link href={`/${locale}/${path}`} aria-current={isPageLinkActive(`/${locale}/${path}`) ? 'page' : undefined} className="block px-4 py-3">
+                        <span className="block font-bold">{offerings(path === 'enterprise' ? 'enterprise' : 'schools')}</span>
+                        <span className="mt-1 block text-xs text-slate-600">{offerings(path === 'enterprise' ? 'enterpriseDescription' : 'schoolsDescription')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
@@ -620,7 +672,24 @@ export function Header() {
                       {label}
                     </button>
                   ))}
-                  {pageLinks.map(({ href, label }) => (
+                  <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${isHeaderSolid ? 'text-slate-700 hover:bg-[#f4ede6]/55' : 'text-white/78 hover:bg-white/10'}`}>
+                    {offerings('label')}<ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" sideOffset={14} className="w-72 rounded-2xl border-[#eadfd7] bg-[#fffaf7] p-2 text-slate-950 shadow-xl">
+                  {['trade-schools', 'enterprise'].map((path) => (
+                    <DropdownMenuItem key={path} asChild className="rounded-xl p-0">
+                      <Link href={`/${locale}/${path}`} aria-current={isPageLinkActive(`/${locale}/${path}`) ? 'page' : undefined} className="block px-4 py-3">
+                        <span className="block font-bold">{offerings(path === 'enterprise' ? 'enterprise' : 'schools')}</span>
+                        <span className="mt-1 block text-xs text-slate-600">{offerings(path === 'enterprise' ? 'enterpriseDescription' : 'schoolsDescription')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
