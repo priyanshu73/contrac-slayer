@@ -14,5 +14,5 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function TradeSchoolsPage({ params }: PageProps) {
   const { locale } = await params
-  return <main className="trade-school-page"><Header /><NextIntlClientProvider locale={locale} messages={{ tradeSchools: locale === 'es' ? es : en }}><TradeSchools /></NextIntlClientProvider></main>
+  return <main className="trade-school-page"><Header solid /><NextIntlClientProvider locale={locale} messages={{ tradeSchools: locale === 'es' ? es : en }}><TradeSchools /></NextIntlClientProvider></main>
 }
