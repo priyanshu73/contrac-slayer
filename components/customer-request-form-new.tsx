@@ -93,10 +93,10 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
             <Check className="w-10 h-10 text-white" strokeWidth={3} />
           </div>
           <h2 className="text-3xl font-bold mb-4 text-gray-900">
-            Request Received! 🎉
+            Request Received
           </h2>
           <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-            Thank you for reaching out to <strong>{contractor.company_name}</strong>! We've received your project details and our team is reviewing them now.
+            Thank you for reaching out to <strong>{contractor.company_name}</strong>. Your project details were received.
           </p>
           
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
@@ -109,7 +109,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
               <div className="text-left flex-1">
                 <p className="font-semibold text-gray-900 mb-1">What happens next?</p>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  You'll receive a detailed quote via email within the next <strong className="text-blue-600">2-4 hours</strong> during business hours. We'll include pricing, timeline, and answer any questions you may have.
+                  Your request has been received. The contractor can review your details and contact you about next steps.
                 </p>
               </div>
             </div>
@@ -120,7 +120,7 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
               <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span>Confirmation sent to <strong>{formData.email}</strong></span>
+              <span>Contact email: <strong>{formData.email}</strong></span>
             </div>
             {contractor.phone_number && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -451,4 +451,3 @@ export function CustomerRequestForm({ contractorUuid, contractor }: CustomerRequ
     </div>
   )
 }
-

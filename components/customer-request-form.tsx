@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,13 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Upload, X, Check, CalendarDays, Sparkles, User, Mail, Phone, MapPin, FileText, Loader2, CheckCircle2, Clock, ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { MeasurementsInput } from "@/components/measurements-input"
-import { Measurements } from "@/lib/types"
 import { formatPhoneForDisplay } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapboxAddressInput } from "@/components/mapbox-address-input"
-import { AddressData } from "@/lib/types/address"
-import { geocodeAddress } from "@/lib/mapbox"
-import { callSummaryToDescription } from "@/lib/call-summary"
+import { useEstimateRequest } from "@/components/estimate/use-estimate-request"
 
 interface PrefillData {
   name?: string
@@ -35,36 +32,7 @@ interface CustomerRequestFormProps {
 
 
 export function CustomerRequestForm({ contractorUuid, contractor, prefillData, prefillLoading }: CustomerRequestFormProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    project_type: "",
-    description: "",
-  })
-  const [hasPrefilled, setHasPrefilled] = useState(false)
-
-  // Update form when prefillData becomes available
-  useEffect(() => {
-    if (prefillData && !hasPrefilled) {
-      setFormData(prev => ({
-        ...prev,
-        name: prefillData.name || prev.name,
-        phone: prefillData.phone || prev.phone,
-        address: prefillData.address || prev.address,
-        project_type: prefillData.project_type || prev.project_type,
-        description: callSummaryToDescription(prefillData.description) || prev.description,
-      }))
-      setHasPrefilled(true)
-    }
-  }, [prefillData, hasPrefilled])
-  const [measurements, setMeasurements] = useState<Measurements>({ items: [] })
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState("")
-  const [addressData, setAddressData] = useState<AddressData | null>(null)
+  const {formData,setFormData,hasPrefilled,measurements,setMeasurements,uploadedFiles,isSubmitting,isSubmitted,error,addressData,setAddressData,handleFileUpload,removeFile,handleSubmit}=useEstimateRequest({contractorUuid,prefillData})
 
   // Build the full booking URL from the calendar_link slug
   const bookingUrl = useMemo(() => {
@@ -75,42 +43,6 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
       (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
     return `${base}/book/${slug}`
   }, [contractor?.calendar_link])
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      setUploadedFiles((prev) => [...prev, ...newFiles])
-    }
-  }
-
-  const removeFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsSubmitting(true)
-
-    try {
-      const { api } = await import("@/lib/api")
-      // Address typed without picking a suggestion? Try to normalize it to a
-      // real Mapbox address so it still lands as structured address data.
-      let resolvedAddressData = addressData
-      if (!resolvedAddressData && formData.address.trim()) {
-        resolvedAddressData = await geocodeAddress(formData.address)
-      }
-      const submissionData = {
-        ...formData,
-        ...(resolvedAddressData && { address_data: resolvedAddressData })
-      }
-      await api.submitQuoteRequest(contractorUuid || "", submissionData, uploadedFiles, measurements)
-      setIsSubmitted(true)
-    } catch (err: any) {
-      setError(err.message || "Failed to submit request")
-      setIsSubmitting(false)
-    }
-  }
 
   if (isSubmitted) {
     return (
@@ -123,7 +55,7 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
             Request Received!
           </h2>
           <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-            Thank you for reaching out to <strong className="text-slate-900">{contractor.company_name}</strong>! We&apos;ve received your project details and our team is reviewing them now.
+            Thank you for reaching out to <strong className="text-slate-900">{contractor.company_name}</strong>. Your project details were received.
           </p>
           
           <div className="bg-blue-50 rounded-xl p-6 mb-8 border border-blue-100">
@@ -134,17 +66,13 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
               <div className="text-left flex-1">
                 <p className="font-semibold text-slate-900 mb-1">What happens next?</p>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  You&apos;ll receive a detailed quote via email within the next <strong className="text-blue-600">2-4 hours</strong> during business hours. We&apos;ll include pricing, timeline, and answer any questions you may have.
+                  Your request has been received. The contractor can review your details and contact you about next steps.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3 mb-8">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span>We&apos;ll get back to you soon.</span>
-            </div>
             {contractor.phone_number && (
               <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
                 <Phone className="w-5 h-5 text-blue-500" />
@@ -198,10 +126,6 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
                     <CheckCircle2 className="w-3 h-3" />
                     Verified
                   </span>
-                </div>
-                <div className="flex items-center gap-1 mt-1.5 text-sm text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Typically responds in 2-4 hours</span>
                 </div>
               </div>
             </div>
@@ -580,4 +504,3 @@ export function CustomerRequestForm({ contractorUuid, contractor, prefillData, p
     </div>
   )
 }
-

@@ -67,6 +67,7 @@ import {
   parseCalendarDateYmd,
 } from "@/lib/frontline-datetime";
 import { FrontlineVoiceTrainingPanel } from "@/components/frontline/frontline-voice-training-panel";
+import { AiLineEmptyState } from "@/components/ai-line-empty-state";
 import { FrontlineInitialSetupCard } from "@/components/frontline/frontline-initial-setup-card";
 import type {
   FrontlineActivityEvent,
@@ -1092,6 +1093,7 @@ export function FrontlinePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsNumber, setNeedsNumber] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [operatorEditing, setOperatorEditing] = useState(false);
   const [operatorDraftVoiceId, setOperatorDraftVoiceId] = useState("matthew");
@@ -1103,6 +1105,7 @@ export function FrontlinePage() {
     try {
       setLoading(true);
       setError(null);
+      setNeedsNumber(false);
       const [settingsResponse, coreFieldsResponse, knowledgeResponse, activityResponse, approvalResponse, statsResponse] =
         await Promise.all([
           api.getFrontlineSettings(),
@@ -1120,7 +1123,12 @@ export function FrontlinePage() {
       setApprovals(approvalResponse.approvals || []);
       setStats(statsResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadError"));
+      const message = err instanceof Error ? err.message : "";
+      if (/not linked|messaging service|contact not found/i.test(message)) {
+        setNeedsNumber(true);
+      } else {
+        setError(message || t("loadError"));
+      }
     } finally {
       setLoading(false);
     }
@@ -1350,6 +1358,17 @@ export function FrontlinePage() {
           </p>
         </header>
 
+        {needsNumber ? (
+          <AiLineEmptyState
+            title={t("noNumberTitle")}
+            description={t("noNumberDesc")}
+            ctaLabel={t("noNumberCta")}
+            retryLabel={t("noNumberRetry")}
+            onRetry={() => void load()}
+            onConnected={() => void load()}
+          />
+        ) : (
+        <>
         {settings && !settings.initial_setup_done && (
           <FrontlineInitialSetupCard
             onComplete={() => void load()}
@@ -1886,6 +1905,8 @@ export function FrontlinePage() {
               </Surface>
             </div>}
           </div>
+        )}
+        </>
         )}
       </div>
       <Dialog open={Boolean(coreFactSuggestion)} onOpenChange={(open) => !open && setCoreFactSuggestion(null)}>

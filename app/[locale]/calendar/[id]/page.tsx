@@ -1,7 +1,8 @@
 import { JobDetail } from "@/components/job-detail"
 import { Button } from "@/components/ui/button"
 
-export default function JobDetailPage({ params }: { params: { id: string } }) {
+export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -23,7 +24,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
       </header>
 
       <main className="container mx-auto px-4 py-4 pb-24 md:py-6 md:pb-6">
-        <JobDetail jobId={params.id} />
+        <JobDetail jobId={id} />
       </main>
     </div>
   )

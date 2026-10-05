@@ -64,6 +64,7 @@ type CrewSubcontractor = {
   availability_notes?: string | null
   address?: string | null
   trades?: CrewTrade[]
+  direct_tasks?: CrewTask[]
   contractor_name?: string | null
   contractor_logo_url?: string | null
 }
@@ -284,22 +285,19 @@ export default function CrewPortalPage() {
     }
   }
 
-  const handleTaskStatusChange = async (tradeUuid: string, taskId: number, newStatus: string) => {
+  const handleTaskStatusChange = async (taskId: number, newStatus: string) => {
     setUpdatingTaskId(taskId)
     try {
-      const updated = await api.updateTradeTaskStatusPublic(tradeUuid, taskId, newStatus)
+      const updated = await api.updatePublicCrewTaskStatus(uuid, taskId, newStatus)
       setSub((prev) =>
         prev
           ? {
               ...prev,
-              trades: (prev.trades || []).map((tr) =>
-                tr.uuid === tradeUuid
-                  ? {
-                      ...tr,
-                      tasks: (tr.tasks || []).map((tk) => (tk.id === taskId ? { ...tk, ...updated } : tk)),
-                    }
-                  : tr
-              ),
+              trades: (prev.trades || []).map((tr) => ({
+                ...tr,
+                tasks: (tr.tasks || []).map((tk) => (tk.id === taskId ? { ...tk, ...updated } : tk)),
+              })),
+              direct_tasks: (prev.direct_tasks || []).map((tk) => tk.id === taskId ? { ...tk, ...updated } : tk),
             }
           : prev
       )
@@ -331,6 +329,7 @@ export default function CrewPortalPage() {
   }
 
   const trades = sub.trades || []
+  const directTasks = sub.direct_tasks || []
   const showAvailability = view === "portal" || view === "availability"
   const showScope = view === "portal" || view === "scope"
 
@@ -527,7 +526,32 @@ export default function CrewPortalPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Your Scope of Work</h2>
               </div>
 
-              {trades.length === 0 ? (
+              {directTasks.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white p-5 mb-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Tasks assigned to you</h3>
+                  {directTasks.map((task) => (
+                    <div key={task.id} className="rounded-lg border border-slate-200 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-slate-900">{task.title}</span>
+                        <select
+                          aria-label={`Status for ${task.title}`}
+                          value={task.status || "NOT_STARTED"}
+                          onChange={(e) => handleTaskStatusChange(task.id, e.target.value)}
+                          disabled={updatingTaskId === task.id}
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm"
+                        >
+                          {TASK_STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+                        </select>
+                      </div>
+                      {task.description && <p className="text-sm text-slate-600">{task.description}</p>}
+                      {(task.scheduled_start_date || task.scheduled_end_date) && (
+                        <p className="text-xs text-slate-500">{task.scheduled_start_date || ""}{task.scheduled_end_date ? ` - ${task.scheduled_end_date}` : ""}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {trades.length === 0 && directTasks.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
                   <p className="text-slate-500 text-sm">No scope has been assigned to you yet.</p>
                   <p className="text-slate-400 text-xs mt-1">Check back once your contractor assigns work.</p>
@@ -679,7 +703,7 @@ export default function CrewPortalPage() {
                                         <select
                                           value={task.status || "NOT_STARTED"}
                                           onChange={(e) =>
-                                            handleTaskStatusChange(trade.uuid, task.id, e.target.value)
+                                            handleTaskStatusChange(task.id, e.target.value)
                                           }
                                           disabled={updatingTaskId === task.id}
                                           className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"

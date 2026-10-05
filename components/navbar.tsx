@@ -231,6 +231,9 @@ export function Navbar() {
   const currentRoute = getLocalizedRoute(pathname);
   const getPageTitle = () => {
     if (currentRoute === "/dashboard") return t("dashboard");
+    if (currentRoute === "/mobile/sales") return "Sales";
+    if (currentRoute === "/mobile/work") return "Work";
+    if (currentRoute === "/mobile/engage") return "Customer Engagement";
     if (currentRoute === "/leads") return t("leads");
     if (currentRoute.startsWith("/leads/")) return "Lead Details";
     if (currentRoute === "/proposals/new") return "Create Proposal";

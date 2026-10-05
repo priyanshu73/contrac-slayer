@@ -17,7 +17,7 @@ export default function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   // Public booking route should stay locale-agnostic and outside app chrome.
-  if (pathname.startsWith('/book/')) {
+  if (pathname.startsWith('/book/') || pathname.startsWith('/sites/')) {
     return NextResponse.next();
   }
 
@@ -33,12 +33,12 @@ export default function middleware(request: NextRequest) {
   }
 
   // Normalize localized booking links to the public route.
-  const localizedMatch = pathname.match(/^\/(en|es)\/book\/(.+)$/);
+  const localizedMatch = pathname.match(/^\/(en|es)\/(book|sites)\/(.+)$/);
   if (localizedMatch) {
-    const slug = localizedMatch[2];
+    const slug = localizedMatch[3];
     if (slug) {
       const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = `/book/${slug}`;
+      redirectUrl.pathname = `/${localizedMatch[2]}/${slug}`;
       redirectUrl.search = search;
       return NextResponse.redirect(redirectUrl);
     }

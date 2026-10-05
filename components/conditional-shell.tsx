@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { EmailVerificationBanner } from "@/components/email-verification-banner"
 import { AgentChatPanel } from "@/components/agent-chat-panel"
+import { MobileWorkspaceNav } from "@/components/mobile-workspace-nav"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed"
 
@@ -21,6 +22,7 @@ function isPublicCustomerQuoteRoute(pathname: string): boolean {
 /** Routes that should NOT show the Navbar / shell UI */
 function isPublicShellRoute(pathname: string): boolean {
   return (
+    !!pathname?.match(/^\/(?:[a-z]{2}\/)?sites\//) ||
     !!pathname?.match(/^\/[a-z]{2}\/book\//) ||
     pathname?.startsWith("/book/") ||
     !!pathname?.match(/^\/[a-z]{2}\/auth(\/|$)/) ||
@@ -32,7 +34,8 @@ function isPublicShellRoute(pathname: string): boolean {
     pathname === "/support" ||
     !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
     pathname?.startsWith("/features") ||
-    !!pathname?.match(/^\/[a-z]{2}\/(enterprise|blog)(\/|$)/) ||
+    !!pathname?.match(/^\/[a-z]{2}\/(enterprise|trade-schools|blog)(\/|$)/) ||
+    !!pathname?.match(/^\/(enterprise|trade-schools|blog)(\/|$)/) ||
     !!pathname?.match(/^\/[a-z]{2}\/?$/) ||  // landing page (e.g. /en, /es/)
     pathname === "/" ||
     // Public quote-request forms — no contractor shell
@@ -95,10 +98,11 @@ export function ConditionalShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />
-      <div className={`transition-[margin] duration-300 ease-in-out ${marginClass} pb-16 md:pb-0`}>
+      <div className={`transition-[margin] duration-300 ease-in-out ${marginClass} pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-0`}>
         <EmailVerificationBanner />
         {children}
       </div>
+      <MobileWorkspaceNav />
       <AgentChatPanel />
     </>
   )

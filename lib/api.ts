@@ -65,6 +65,7 @@ import type {
   FrontlineVoiceTrainingSessionStart,
 } from './types/frontline'
 import { AI_ESTIMATE_REQUEST_TIMEOUT_MS } from './ai-estimate-loading'
+import type { PublicWebsite, WebsiteSave, WebsiteState } from './types/website'
 
 // ─── Scope Clarification types ─────────────────────────────────────────────
 
@@ -114,6 +115,13 @@ const API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_API_URL) || DEFAULT_API_
 const BACKEND_WS_ORIGIN = normalizeEnvUrl(process.env.NEXT_PUBLIC_BACKEND_WS_ORIGIN)?.replace(/\/+$/, '')
 const CONTRACTOR_AI_API_URL = normalizeEnvUrl(process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL)
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly detail: unknown) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 console.log('🔧 API Configuration:')
 console.log(`  Main API URL: ${API_URL}`)
 console.log(`  Backend WS origin: ${BACKEND_WS_ORIGIN || '(derived from API URL)'}`)
@@ -124,6 +132,133 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.configuredBaseURL = baseURL.replace(/\/+$/, '')
+  }
+
+  async getWebsite(): Promise<WebsiteState> {
+    return this.request('/website?supported_schema_version=2')
+  }
+
+  async saveWebsite(data: WebsiteSave): Promise<WebsiteState> {
+    return this.request('/website', { method: 'PUT', body: JSON.stringify({ ...data, editor_features: ['gallery-crop-v1'] }) })
+  }
+
+  async publishWebsite(data: WebsiteSave): Promise<WebsiteState> {
+    return this.request('/website/publish', { method: 'POST', body: JSON.stringify({ ...data, editor_features: ['gallery-crop-v1'] }) })
+  }
+
+  async unpublishWebsite(): Promise<WebsiteState> {
+    return this.request('/website/unpublish', { method: 'POST' })
+  }
+
+  async convertWebsiteV2(expectedDraftRevision: number): Promise<WebsiteState> {
+    return this.request('/website/convert-v2', {
+      method: 'POST',
+      body: JSON.stringify({ expected_draft_revision: expectedDraftRevision }),
+    })
+  }
+
+  async getWebsiteRevisions(): Promise<Array<{ revision: number; schema_version: number; created_at: string; reason: string }>> {
+    return this.request('/website/revisions')
+  }
+
+  async restoreWebsiteRevision(revision: number, expectedDraftRevision: number): Promise<WebsiteState> {
+    return this.request(`/website/revisions/${revision}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ expected_draft_revision: expectedDraftRevision }),
+    })
+  }
+
+  async uploadWebsiteAsset(file: File, role: 'logo' | 'hero' | 'project', options: { signal?: AbortSignal; onProgress?: (percent: number) => void } = {}): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('role', role)
+    formData.append('rights_attested', 'true')
+    if (options.onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        const abort = () => xhr.abort()
+        const cleanup = () => options.signal?.removeEventListener('abort', abort)
+        if (options.signal?.aborted) { reject(new DOMException('Upload cancelled', 'AbortError')); return }
+        xhr.open('POST', `${this.baseURL}/website/assets`)
+        xhr.withCredentials = true
+        // No client deadline: the server may create an asset before a timeout.
+        // The owner can cancel explicitly without an automatic retry.
+        xhr.timeout = 0
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) options.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)))
+        }
+        xhr.onload = () => {
+          cleanup()
+          try {
+            const result = JSON.parse(xhr.responseText)
+            if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(this.formatApiErrorDetail(result?.detail) || 'Website image upload failed')); return }
+            resolve(result)
+          } catch { reject(new Error('Website upload returned an invalid response')) }
+        }
+        xhr.onerror = () => { cleanup(); reject(new Error('Website upload failed. Check your connection.')) }
+        xhr.ontimeout = () => { cleanup(); reject(new Error('Website upload timed out; server completion is unknown.')) }
+        xhr.onabort = () => { cleanup(); reject(new DOMException('Upload cancelled; server completion may be unknown', 'AbortError')) }
+        options.signal?.addEventListener('abort', abort, { once: true })
+        xhr.send(formData)
+      })
+    }
+    const response = await fetch(`${this.baseURL}/website/assets`, {
+      method: 'POST', body: formData, credentials: 'include', signal: options.signal,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Website image upload failed')
+    }
+    return response.json()
+  }
+
+  async getWebsiteCapabilities(): Promise<{ gallery_crop: string; photo_import: string; crop_aspect_ratio: string; max_zoom: number; import_sources: string[] }> {
+    return this.request('/website/capabilities')
+  }
+
+  async getWebsiteImportCandidates(projectId: number, sourceKind: "attachment" | "project_media", afterId = 0): Promise<{ items: Array<{ source_kind: "attachment" | "project_media"; source_id: number; file_name: string; bytes: number | null; eligible: boolean; reason: string | null }>; next_after_id: number | null }> {
+    return this.request(`/website/import-photos?project_id=${projectId}&source_kind=${sourceKind}&after_id=${afterId}`)
+  }
+
+  async getWebsiteImportPreview(sourceKind: "attachment" | "project_media", sourceId: number, signal?: AbortSignal): Promise<string> {
+    const response = await fetch(`${this.baseURL}/website/import-photos/${sourceKind}/${sourceId}/preview`, { credentials: "include", signal })
+    if (!response.ok) throw new Error("Photo preview unavailable. Re-upload this photo instead.")
+    return URL.createObjectURL(await response.blob())
+  }
+
+  async importWebsitePhoto(data: { source_kind: "attachment" | "project_media"; source_id: number; request_id: string; rights_attested: boolean }): Promise<{ asset_id: string; mime: string; width: number; height: number; status: string }> {
+    if (!data.rights_attested) throw new Error("Confirm photo permission before importing")
+    return this.request('/website/assets/import', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async getWebsiteAssetPreview(assetId: string, variant: 480 | 960 | 1600 = 960): Promise<string> {
+    const response = await fetch(`${this.baseURL}/website/assets/${encodeURIComponent(assetId)}/content?variant=${variant}`, {
+      credentials: 'include',
+    })
+    if (!response.ok) throw new Error('Website image preview could not be loaded')
+    const payload = await response.json()
+    if (!payload?.url) throw new Error('Website image preview could not be loaded')
+    return payload.url
+  }
+
+  async getPublicWebsite(slug: string): Promise<PublicWebsite | null> {
+    // Server-render public pages for search engines. A relative browser API URL
+    // needs an explicit backend URL (including /api) on the server.
+    let base = this.getBaseURL()
+    if (typeof window === 'undefined') {
+      base = normalizeEnvUrl(process.env.WEBSITE_API_URL) || base
+      if (base.startsWith('/')) {
+        const origin = normalizeEnvUrl(process.env.NEXT_PUBLIC_FRONTEND_URL)
+        if (!origin) throw new Error('Set WEBSITE_API_URL to the absolute backend API URL for public websites.')
+        base = `${origin.replace(/\/+$/, '')}${base}`
+      }
+    }
+    const response = await fetch(`${base.replace(/\/+$/, '')}/websites/${encodeURIComponent(slug)}`, {
+      cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(15000),
+    })
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error('The website could not be loaded. Please try again.')
+    return response.json()
   }
 
   private get baseURL(): string {
@@ -166,6 +301,7 @@ class ApiClient {
 
   private formatApiErrorDetail(detail: unknown): string {
     if (!detail) return 'An error occurred'
+    if (Array.isArray(detail)) return 'Some fields need your attention.'
     let msg: string
     if (typeof detail === 'string') {
       msg = detail
@@ -184,13 +320,17 @@ class ApiClient {
             else { msg = 'An error occurred' }
           } else { msg = 'An error occurred' }
         } else {
-          try { msg = JSON.stringify(detail) } catch { msg = 'An error occurred' }
+          const code = typeof maybe.code === 'string' ? maybe.code : ''
+          if (code === 'testimonial_permission_required') msg = 'Confirm testimonial permission before publishing.'
+          else if (code === 'expired_credential') msg = 'Review the expired credential before publishing.'
+          else if (code === 'stale_revision' || code === 'revision_required') msg = 'This draft changed in another session. Load the latest version.'
+          else msg = 'Something went wrong. Please try again.'
         }
       }
     } else {
       msg = String(detail)
     }
-    if (/sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(msg)) {
+    if (/^\s*[\[{]/.test(msg) || /sqlalchemy|psycopg|traceback|stacktrace|\[SQL:/i.test(msg)) {
       return 'Something went wrong. Please try again.'
     }
     return msg
@@ -261,7 +401,7 @@ class ApiClient {
           // ignore
         }
         const detail = parsed?.detail ?? parsed?.message ?? parsed?.error
-        throw new Error(this.formatApiErrorDetail(detail))
+        throw new ApiError(this.formatApiErrorDetail(detail), response.status, detail)
       }
 
       if (response.status === 204) {
@@ -1000,11 +1140,16 @@ class ApiClient {
       })
     }
 
-    return fetch(`${this.baseURL}/contractors/${contractorUuid}/quote-request`, {
+    const response = await fetch(`${this.baseURL}/contractors/${contractorUuid}/quote-request`, {
       method: 'POST',
       body: formData,
       credentials: 'include',
-    }).then((res) => res.json())
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(this.formatApiErrorDetail(payload?.detail) || 'Failed to submit request')
+    }
+    return payload
   }
 
   async getMyLeads(status?: string, skip = 0, limit = 20) {
@@ -2496,6 +2641,19 @@ class ApiClient {
     return this.request(`/projects/trade/${tradeUuid}/reject`, {
       method: 'POST',
     })
+  }
+
+  async updatePublicCrewTaskStatus(crewUuid: string, taskId: number, status: string) {
+    const response = await fetch(`${this.baseURL}/subcontractors/public/${crewUuid}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(this.formatApiErrorDetail(error?.detail) || 'Failed to update task status')
+    }
+    return response.json()
   }
 
   async updateTradeTaskStatusPublic(tradeUuid: string, taskId: number, status: string) {

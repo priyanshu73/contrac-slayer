@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useReferral, buildSignupUrl } from '@/contexts/ReferralContext'
+import { OfferingsMenu } from '@/components/offerings-menu'
 import { useLanguageContext } from '@/contexts/LanguageContext'
 
 const languageOptions = [
@@ -41,7 +42,7 @@ type FeatureMenuItem = {
   icon: ComponentType<{ className?: string }>
 }
 
-export function Header() {
+export function Header({ solid = false }: { solid?: boolean } = {}) {
   const locale = useLocale()
   const pathname = usePathname()
   const router = useRouter()
@@ -57,7 +58,7 @@ export function Header() {
   const isLandingPage = pathname === `/${locale}` || pathname === '/'
   const isFeaturesPage = pathname === `/${locale}/features` || pathname?.startsWith(`/${locale}/features/`)
   const isAwayFromHome = isLandingPage && activeLandingSection !== 'hero'
-  const isHeaderSolid = scrolled || isAwayFromHome
+  const isHeaderSolid = scrolled || isAwayFromHome || solid
 
   useEffect(() => {
     const updateScrolled = () => setScrolled(window.scrollY > 60)
@@ -199,7 +200,6 @@ export function Header() {
   }
 
   const pageLinks = [
-    { href: `/${locale}/enterprise`, label: 'Enterprise' },
     { href: `/${locale}/blog`, label: 'Blog' },
   ]
   const isPageLinkActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`)
@@ -340,6 +340,7 @@ export function Header() {
                   </button>
                 )
               })}
+              <OfferingsMenu solid={isHeaderSolid} />
               {pageLinks.map(({ href, label }) => (
                 <Link
                   key={href}
@@ -442,6 +443,7 @@ export function Header() {
                   {label}
                 </button>
               ))}
+              <OfferingsMenu solid={isHeaderSolid} />
               {pageLinks.map(({ href, label }) => (
                 <Link
                   key={href}
@@ -492,7 +494,7 @@ export function Header() {
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${scrolled ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
+            <Button variant="ghost" size="icon" className={`rounded-full md:hidden ${scrolled || solid ? 'text-slate-950 hover:bg-slate-950/[0.04]' : 'text-white hover:bg-white/10 hover:text-white'}`} aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -563,6 +565,7 @@ export function Header() {
                       </button>
                     )
                   })}
+                  <OfferingsMenu mobile onNavigate={() => setMobileOpen(false)} />
                   {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
@@ -620,6 +623,7 @@ export function Header() {
                       {label}
                     </button>
                   ))}
+                  <OfferingsMenu mobile onNavigate={() => setMobileOpen(false)} />
                   {pageLinks.map(({ href, label }) => (
                     <Link
                       key={href}
