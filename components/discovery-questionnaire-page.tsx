@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useLocale, useTranslations } from "next-intl"
@@ -22,6 +22,7 @@ const TEAM_SIZES = ["solo", "2_5", "6_15", "16_plus"] as const
 const REVENUE_RANGES = ["under_100k", "100k_500k", "500k_1m", "over_1m"] as const
 const ESTIMATE_METHODS = ["paper", "documents", "software"] as const
 const INTEREST_OPTIONS = ["yes", "maybe", "no"] as const
+const SUBMITTED_MARKER = "contractorops_discovery_submitted_v1"
 
 const initialValues: DiscoveryQuestionnaire = {
   business_name: "",
@@ -46,6 +47,9 @@ export function DiscoveryQuestionnairePage() {
   const t = useTranslations("discovery")
   const [step, setStep] = useState(0)
   const [ready, setReady] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submissionError, setSubmissionError] = useState(false)
+  const submissionInFlight = useRef(false)
   const form = useForm<DiscoveryQuestionnaire>({
     resolver: zodResolver(discoveryQuestionnaireSchema),
     defaultValues: initialValues,
@@ -54,13 +58,44 @@ export function DiscoveryQuestionnairePage() {
   const values = form.watch()
   const errors = form.formState.errors
 
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SUBMITTED_MARKER) === "true") {
+        setReady(true)
+      }
+    } catch {
+      // The form still works when browser storage is unavailable.
+    }
+  }, [])
+
   async function continueToNextStep() {
     const valid = await form.trigger(DISCOVERY_STEP_FIELDS[step], { shouldFocus: true })
     if (!valid) return
-    if (step === DISCOVERY_STEP_FIELDS.length - 1) {
-      setReady(true)
-    } else {
+    if (step !== DISCOVERY_STEP_FIELDS.length - 1) {
       setStep((current) => current + 1)
+    } else if (!submissionInFlight.current) {
+      submissionInFlight.current = true
+      setSubmitting(true)
+      setSubmissionError(false)
+      try {
+        const response = await fetch("/api/discovery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form.getValues()),
+        })
+        if (!response.ok) throw new Error("Discovery submission failed")
+        try {
+          window.localStorage.setItem(SUBMITTED_MARKER, "true")
+        } catch {
+          // A successful server submission does not depend on browser storage.
+        }
+        setReady(true)
+      } catch {
+        setSubmissionError(true)
+      } finally {
+        submissionInFlight.current = false
+        setSubmitting(false)
+      }
     }
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -118,11 +153,9 @@ export function DiscoveryQuestionnairePage() {
               <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-[#e8f4ed] text-[#176b67]"><CheckCircle2 className="size-8" /></span>
               <h2 className="mt-6 text-2xl font-semibold tracking-tight text-[#183c33] sm:text-3xl">{t("readyTitle")}</h2>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#667269]">{t("readyBody")}</p>
-              <p className="mx-auto mt-4 max-w-md rounded-xl bg-[#fff4df] px-4 py-3 text-xs leading-5 text-[#71552a]">{t("previewNotice")}</p>
               <a href={DISCOVERY_CALL_URL} target="_blank" rel="noopener noreferrer" className="mx-auto mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#176b67] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#105954] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b67] focus-visible:ring-offset-2">
                 <CalendarDays className="size-4" /> {t("bookCall")}
               </a>
-              <button type="button" onClick={() => { setReady(false); setStep(3) }} className="mt-5 block w-full text-sm font-medium text-[#426f60] underline underline-offset-4">{t("editAnswers")}</button>
             </div>
           ) : (
             <form onSubmit={(event) => { event.preventDefault(); void continueToNextStep() }} noValidate>
@@ -215,8 +248,11 @@ export function DiscoveryQuestionnairePage() {
               </div>
 
               <div className="flex items-center justify-between gap-3 border-t border-[#ebeae3] px-6 py-5 sm:px-10">
-                <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[#547668] disabled:invisible"><ArrowLeft className="size-4" />{t("back")}</button>
-                <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#176b67] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#105954] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b67] focus-visible:ring-offset-2">{step === 3 ? t("finishPreview") : t("continue")}<ArrowRight className="size-4" /></button>
+                <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0 || submitting} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[#547668] disabled:invisible"><ArrowLeft className="size-4" />{t("back")}</button>
+                <div className="flex flex-col items-end gap-2">
+                  {step === 3 && submissionError && <p role="alert" className="max-w-xs text-right text-xs text-red-700">{t("submissionError")}</p>}
+                  <button type="submit" disabled={submitting} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#176b67] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#105954] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b67] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">{step === 3 ? t(submitting ? "submitting" : "submit") : t("continue")}<ArrowRight className="size-4" /></button>
+                </div>
               </div>
             </form>
           )}
