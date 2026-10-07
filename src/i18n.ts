@@ -60,7 +60,7 @@ export default getRequestConfig(async ({locale}) => {
     console.error(`Failed to load messages for locale ${locale}:`, error);
     return {
       messages: fallback,
-      locale: 'en',
+      locale,
       timeZone: 'America/Mexico_City'
     };
   }
