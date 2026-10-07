@@ -78,7 +78,7 @@ export function DiscoveryQuestionnairePage() {
       setSubmitting(true)
       setSubmissionError(false)
       try {
-        const response = await fetch("/api/discovery", {
+        const response = await fetch(`/${locale}/discover/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form.getValues()),

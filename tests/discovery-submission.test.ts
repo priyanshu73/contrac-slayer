@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 
-import { POST } from "../app/api/discovery/route"
+import { POST } from "../app/[locale]/(public)/discover/submit/route"
 import { toSheetDbRow } from "../lib/discovery-sheetdb"
 
 const answers = {
@@ -23,7 +23,7 @@ const answers = {
 } as const
 
 function request(body: unknown) {
-  return new Request("http://localhost/api/discovery", {
+  return new Request("http://localhost/en/discover/submit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
