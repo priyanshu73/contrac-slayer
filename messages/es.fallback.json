@@ -46,7 +46,9 @@
     "pagePrivacy": "Privacidad",
     "requestSettings": "Configuración de solicitudes",
     "quoteRequest": "Solicitud de presupuesto",
-    "pageAvailability": "Disponibilidad"
+    "pageAvailability": "Disponibilidad",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
   },
   "projects": {
     "emptyState": "Aún no hay proyectos. Crea uno desde un presupuesto aceptado o agrégalo manualmente.",
