@@ -211,6 +211,239 @@
       "awaiting": "Awaiting",
       "awaitingCount": "{count, plural, one {# estimate} other {# estimates}}",
       "totalUnpaid": "Total unpaid"
+    },
+    "assistant": {
+      "view": {
+        "conversations": "Conversations",
+        "notifications": "Notifications",
+        "chatCount": "{count, plural, one {# chat} other {# chats}}",
+        "unreadCount": "{count} unread",
+        "chatFallback": "Chat",
+        "newConversation": "New conversation",
+        "backToChat": "Back to chat",
+        "viewNotifications": "View notifications",
+        "viewConversations": "View conversations",
+        "newChat": "New chat",
+        "collapse": "Collapse Bob AI",
+        "expand": "Expand Bob AI",
+        "close": "Close Bob AI",
+        "open": "Open Bob AI"
+      },
+      "convList": {
+        "empty": "No conversations yet",
+        "startNew": "Start a new chat",
+        "delete": "Delete conversation"
+      },
+      "notif": {
+        "updates": "Updates from your business",
+        "markAllRead": "Mark all read",
+        "unavailable": "Notifications unavailable",
+        "unavailableDesc": "The connected backend does not have notifications enabled yet.",
+        "empty": "No notifications yet",
+        "emptyDesc": "Estimate activity, payments, and new requests will appear here.",
+        "delete": "Delete notification",
+        "deleteNamed": "Delete notification: {title}"
+      },
+      "scope": {
+        "title": "Clarify scope",
+        "analyzing": "Analyzing project context…",
+        "selectAll": "(select all that apply)",
+        "somethingElse": "Something else?",
+        "addMore": "Add anything not covered by the options above…",
+        "typeAnswer": "Type your answer…",
+        "back": "Back",
+        "skipAll": "Skip all",
+        "skip": "Skip",
+        "submit": "Submit & generate",
+        "next": "Next →"
+      },
+      "context": {
+        "estimateContext": "Estimate context",
+        "projectContext": "Project context",
+        "estimateType": "Estimate type (optional)",
+        "projectType": "Project type (optional)",
+        "estimateDescription": "Estimate description",
+        "projectDescription": "Project description",
+        "typePlaceholder": "e.g., Patio Installation, Deck Construction",
+        "descPlaceholder": "Describe the project (materials, labor, installation, etc.)",
+        "includeBrief": "Include project brief in context",
+        "noBrief": "No project brief loaded yet for this estimate.",
+        "proposalContext": "Proposal context",
+        "filled": "filled",
+        "proposalTitle": "Proposal title",
+        "proposalTitlePlaceholder": "e.g., Backyard Renovation Proposal",
+        "project": "Project",
+        "projectNamePlaceholder": "Project name",
+        "description": "Description",
+        "proposalDescPlaceholder": "Describe the scope, goals, and approach",
+        "includeLineItems": "Include estimate line items in context"
+      },
+      "switch": {
+        "title": "Switch project context?",
+        "auto": "You navigated to <b>{name}</b>. Switching will start a new chat so Bob stays scoped to the right project files.",
+        "manual": "Switch context to <b>{name}</b>? This will start a new chat so Bob stays scoped to the right project files.",
+        "confirm": "Switch and start new chat",
+        "keep": "Keep current project"
+      },
+      "gen": {
+        "dismiss": "Dismiss generation status",
+        "generateEstimate": "Generate estimate",
+        "generateProposal": "Generate proposal",
+        "editContext": "Edit context",
+        "addDescription": "Add at least a short project description before generating.",
+        "aiEstimate": "Generate AI estimate",
+        "aiProposal": "Generate AI proposal"
+      },
+      "welcome": {
+        "title": "Ask Bob from anywhere",
+        "body": "Bob can look up your leads, clients, estimates, projects, calendar, and more.",
+        "briefing": "Morning briefing",
+        "briefingPrompt": "Good morning! Give me my daily briefing.",
+        "followUps": "Follow-ups",
+        "followUpsPrompt": "What should I follow up on today?"
+      },
+      "thinking": "Thinking…",
+      "picker": {
+        "current": "Current project",
+        "projectNumber": "Project #{id}",
+        "remove": "Remove project context",
+        "switch": "Switch context",
+        "select": "Select context",
+        "search": "Search context…",
+        "loading": "Loading context…",
+        "none": "No context found.",
+        "projects": "Projects"
+      },
+      "input": {
+        "askAbout": "Ask Bob about {name}…",
+        "askAnything": "Ask Bob anything…"
+      },
+      "banner": {
+        "estimateFor": "Create an estimate for {client}.",
+        "estimateClient": "Create an estimate for this client.",
+        "briefNamed": "{project} brief loaded.",
+        "brief": "Project brief loaded.",
+        "proposalFor": "Create a proposal for {name}.",
+        "proposalQuote": "Create a proposal for this estimate.",
+        "proposalProject": "Create a proposal for this project.",
+        "lineItemsNamed": "{project} line items loaded.",
+        "lineItems": "Estimate line items loaded."
+      },
+      "step": {
+        "estimateTitle": "Generating AI estimate",
+        "estimateDetail": "Handing the scope to the estimate builder now.",
+        "proposalTitle": "Generating AI proposal",
+        "proposalDetail": "Handing the scope to the proposal builder now.",
+        "openingRoute": "Opening {route}…",
+        "openingPage": "Opening page…",
+        "openingDialog": "Opening {dialog}…",
+        "openingDialogGeneric": "Opening dialog…",
+        "copying": "Copying to clipboard…",
+        "updatingForm": "Updating form in real time…",
+        "running": "Running {tool}…"
+      },
+      "action": {
+        "copied": "Copied to clipboard",
+        "confirmTitle": "Confirm action",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "failed": "Action failed",
+        "failedDesc": "The requested action could not be completed.",
+        "completed": "Action completed",
+        "runError": "An error occurred during execution.",
+        "reviewBelow": "Please review the action below:",
+        "chatError": "Sorry, I encountered an error. Please try again.",
+        "cancelled": "Action cancelled",
+        "cancelledDesc": "The command was successfully rejected.",
+        "replayed": "Action replayed",
+        "approved": "Action approved",
+        "replayedDesc": "This command was already executed and the result was safely replayed.",
+        "executedDesc": "The command was successfully executed.",
+        "execError": "Execution error",
+        "processFailed": "Failed to process the command.",
+        "executing": "Executing…",
+        "projectName": "Project name"
+      },
+      "time": {
+        "justNow": "Just now",
+        "minutes": "{count}m ago",
+        "hours": "{count}h ago",
+        "days": "{count}d ago"
+      },
+      "suggest": {
+        "client_detail": {
+          "0": "Tell me about this client",
+          "1": "Show their estimates",
+          "2": "Any upcoming bookings?",
+          "3": "Create an estimate for them"
+        },
+        "lead_detail": {
+          "0": "Tell me about this lead",
+          "1": "What's the status?",
+          "2": "Convert to client",
+          "3": "Schedule a follow-up"
+        },
+        "project_detail": {
+          "0": "Summarize this project",
+          "1": "Show project tasks",
+          "2": "What's the status?",
+          "3": "Any blockers?"
+        },
+        "proposal_builder": {
+          "0": "Summarize this proposal",
+          "1": "What sections are in this proposal?",
+          "2": "Help me write the scope summary",
+          "3": "What's the project overview?"
+        },
+        "quote_detail": {
+          "0": "Summarize this estimate",
+          "1": "What's the total?",
+          "2": "Add a line item",
+          "3": "Send to customer"
+        },
+        "subcontractor_detail": {
+          "0": "Tell me about this crew member",
+          "1": "What trades do they handle?",
+          "2": "Show their projects"
+        },
+        "contacts": {
+          "0": "List all my clients",
+          "1": "Any inactive clients?",
+          "2": "Add a new client",
+          "3": "Dashboard summary"
+        },
+        "leads": {
+          "0": "How many new leads?",
+          "1": "Show unconverted leads",
+          "2": "Lead status breakdown",
+          "3": "Dashboard summary"
+        },
+        "projects": {
+          "0": "Show active projects",
+          "1": "Any blocked tasks?",
+          "2": "Project status overview",
+          "3": "Dashboard summary"
+        },
+        "quotes": {
+          "0": "Show draft estimates",
+          "1": "Any pending estimates?",
+          "2": "Create a new estimate",
+          "3": "Dashboard summary"
+        },
+        "calendar": {
+          "0": "What's my public booking link?",
+          "1": "What's on my calendar this week?",
+          "2": "Show upcoming appointments",
+          "3": "Dashboard summary"
+        },
+        "default": {
+          "0": "What's my booking link?",
+          "1": "How many leads do I have?",
+          "2": "Show my active projects",
+          "3": "What's on my calendar?",
+          "4": "Dashboard summary"
+        }
+      }
     }
   },
   "settings": {
