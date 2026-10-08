@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import {
     X, Send, Loader2, Plus,
     MessageSquare, ChevronLeft, Trash2, Clock,
@@ -27,509 +27,43 @@ import { useToast } from "@/hooks/use-toast"
 import type { ProjectListItem } from "@/lib/types"
 import type { AppNotification } from "@/lib/types/notification"
 import { agUiState } from "@/lib/ag-ui-state"
+import { WelcomeActions } from "@/components/agent-chat/welcome-actions"
+import { SideViews } from "@/components/agent-chat/side-views"
 import { AgentActionCard } from "@/components/agent-action-card"
+import {
+    type QuoteEstimateContext,
+    type ProposalContext,
+    type AIGenerationStatus,
+    API_URL,
+    type PageContext,
+    type QuotePageContext,
+    type ContextEnvelope,
+    type SelectedProjectContext,
+    type PendingProjectContextSwitch,
+    preferProjectScope,
+    enrichPageContext,
+    pageTypeToEntityType,
+    buildPreloadedSnapshot,
+    buildContextEnvelope,
+    DETAIL_ROUTES,
+    LIST_ROUTES,
+    parsePageContext,
+    parseProjectRouteId,
+    type ProcessStep,
+    type ActionCardOption,
+    type ActionCard,
+    type Message,
+    type Conversation,
+    type PanelView,
+    type ChatLaunchMode,
+} from "@/lib/agent-chat-context"
+export type { Message, ActionCard, ActionCardOption } from "@/lib/agent-chat-context"
 
-interface QuoteEstimateContext {
-    projectType: string
-    projectTitle?: string | null
-    serviceDescription: string
-    laborRate: number
-    laborChargeType: string
-    projectBrief?: Record<string, any> | null
-    includeProjectBriefInContext?: boolean
-    projectId?: number | null
-    clientId?: number | null
-    clientName?: string | null
-    clientEmail?: string | null
-    clientPhone?: string | null
-}
 
-interface ProposalContext {
-    proposalTitle: string
-    projectTitle: string
-    description: string
-    projectBrief?: Record<string, any> | null
-    includeProjectBriefInContext?: boolean
-    includeLineItemsInContext?: boolean
-    projectId?: number | null
-    proposalId?: number | null
-    clientId?: number | null
-    clientEmail?: string | null
-    clientPhone?: string | null
-    jobId?: number | null
-    lineItems?: Array<{ id: number; title?: string | null; description?: string | null }> | null
-}
-
-interface AIGenerationStatus {
-    kind: "estimate" | "proposal"
-    phase: "running" | "succeeded" | "failed"
-    title: string
-    detail?: string
-}
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
-
-// ─── Route → Page Context mapping ──────────────────────────────
-
-interface PageContext {
-    page: string
-    entity_id?: string
-    job_id?: number
-    project_id?: number
-    client_id?: number
-    lead_id?: number
-    proposal_id?: number
-    booking_id?: number
-    client_email?: string
-    client_phone?: string
-    locale?: string
-    frontend_origin?: string
-    customer_quote_url?: string
-    route?: string
-}
-
-interface QuotePageContext {
-    job_id: number
-    project_id?: number
-    client_id?: number
-    lead_id?: number
-    client_email?: string
-    quote_public_link?: string
-    customer_quote_url?: string
-    frontend_origin?: string
-}
-
-interface ContextEnvelope {
-    surface: string
-    page: {
-        page_type: string
-        route?: string
-        locale?: string
-        frontend_origin?: string
-    }
-    selection?: {
-        entity_type?: string
-        entity_id?: string | number
-    }
-    related_refs?: {
-        job_id?: number
-        project_id?: number
-        client_id?: number
-        lead_id?: number
-        proposal_id?: number
-        booking_id?: number
-    }
-    ui_hints?: {
-        client_email?: string
-        client_phone?: string
-        customer_quote_url?: string
-    }
-    preloaded_snapshot?: Record<string, unknown>
-}
-
-interface SelectedProjectContext {
-    type: "project"
-    projectId: number
-    projectName: string
-    source: "auto" | "manual"
-}
-
-interface PendingProjectContextSwitch {
-    projectId: number
-    projectName: string
-    source: "auto" | "manual"
-}
-
-function preferProjectScope<T extends { project_id?: number | null; client_id?: number | null }>(value: T): T {
-    if (value.project_id != null) {
-        return {
-            ...value,
-            client_id: undefined,
-        }
-    }
-    return value
-}
-
-function enrichPageContext(
-    base: PageContext,
-    locale: string,
-    estimateContext: QuoteEstimateContext,
-    proposalContext: ProposalContext,
-): PageContext {
-    const origin =
-        typeof window !== "undefined" ? window.location.origin : undefined
-    let ctx: PageContext = origin ? { ...base, frontend_origin: origin } : { ...base }
-
-    if (typeof window === "undefined") {
-        return { ...ctx, locale }
-    }
-
-    const win = window as Window & { quotePageContext?: QuotePageContext }
-    if (ctx.page === "quote_detail") {
-        const quoteCtx = win.quotePageContext
-        if (quoteCtx?.job_id) {
-            ctx = {
-                ...ctx,
-                entity_id: String(quoteCtx.job_id),
-                job_id: quoteCtx.job_id,
-                project_id: quoteCtx.project_id,
-                client_id: quoteCtx.client_id,
-                lead_id: quoteCtx.lead_id,
-                client_email: quoteCtx.client_email,
-                locale,
-                frontend_origin: quoteCtx.frontend_origin ?? origin,
-                customer_quote_url: quoteCtx.customer_quote_url,
-            }
-        }
-    }
-
-    if (ctx.page === "proposal_builder") {
-        const proposalId =
-            proposalContext.proposalId != null ? String(proposalContext.proposalId) : ctx.entity_id
-        ctx = preferProjectScope({
-            ...ctx,
-            entity_id: proposalId,
-            proposal_id: proposalContext.proposalId ?? ctx.proposal_id,
-            project_id: proposalContext.projectId ?? ctx.project_id,
-            client_id: proposalContext.clientId ?? ctx.client_id,
-            job_id: proposalContext.jobId ?? ctx.job_id,
-            client_email: proposalContext.clientEmail ?? ctx.client_email,
-            client_phone: proposalContext.clientPhone ?? ctx.client_phone,
-        })
-    }
-
-    if (ctx.page === "unknown") {
-        const hasEstimateContext =
-            !!estimateContext.projectId ||
-            !!estimateContext.projectType?.trim() ||
-            !!estimateContext.serviceDescription?.trim()
-        if (hasEstimateContext) {
-            ctx = preferProjectScope({
-                ...ctx,
-                page: "quote_builder",
-                project_id: estimateContext.projectId ?? ctx.project_id,
-                client_id: estimateContext.clientId ?? ctx.client_id,
-                client_email: estimateContext.clientEmail ?? ctx.client_email,
-                client_phone: estimateContext.clientPhone ?? ctx.client_phone,
-            })
-        }
-    }
-
-    return {
-        ...ctx,
-        locale,
-        route: ctx.route ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
-    }
-}
-
-function pageTypeToEntityType(pageType: string): string | undefined {
-    switch (pageType) {
-        case "quote_detail":
-            return "quote"
-        case "project_detail":
-            return "project"
-        case "client_detail":
-            return "client"
-        case "lead_detail":
-            return "lead"
-        case "booking_detail":
-            return "booking"
-        case "proposal_builder":
-            return "proposal"
-        case "subcontractor_detail":
-            return "subcontractor"
-        case "invoice_detail":
-            return "invoice"
-        default:
-            return undefined
-    }
-}
-
-function buildPreloadedSnapshot(
-    pageContext: PageContext,
-    estimateContext: QuoteEstimateContext,
-    proposalContext: ProposalContext,
-): Record<string, unknown> {
-    const snapshot: Record<string, unknown> = {}
-
-    if (pageContext.page === "quote_builder") {
-        snapshot.quote_builder = preferProjectScope({
-            client_name: estimateContext.clientName ?? null,
-            project_title: estimateContext.projectTitle ?? null,
-            project_type: estimateContext.projectType,
-            service_description: estimateContext.serviceDescription,
-            labor_rate: estimateContext.laborRate,
-            labor_charge_type: estimateContext.laborChargeType,
-            include_project_brief: estimateContext.includeProjectBriefInContext ?? true,
-            project_brief: estimateContext.projectBrief ?? null,
-            project_id: estimateContext.projectId ?? null,
-            client_id: estimateContext.clientId ?? null,
-            client_email: estimateContext.clientEmail ?? null,
-            client_phone: estimateContext.clientPhone ?? null,
-        })
-    }
-
-    if (pageContext.page === "proposal_builder") {
-        snapshot.proposal_builder = preferProjectScope({
-            proposal_title: proposalContext.proposalTitle,
-            project_title: proposalContext.projectTitle,
-            description: proposalContext.description,
-            include_project_brief: proposalContext.includeProjectBriefInContext ?? true,
-            project_brief: proposalContext.projectBrief ?? null,
-            project_id: proposalContext.projectId ?? null,
-            proposal_id: proposalContext.proposalId ?? null,
-            client_id: proposalContext.clientId ?? null,
-            client_email: proposalContext.clientEmail ?? null,
-            client_phone: proposalContext.clientPhone ?? null,
-            job_id: proposalContext.jobId ?? null,
-        })
-    }
-
-    return snapshot
-}
-
-function buildContextEnvelope(
-    pageContext: PageContext,
-    pathname: string,
-    locale: string,
-    activeProjectId: number | null,
-    estimateContext: QuoteEstimateContext,
-    proposalContext: ProposalContext,
-): ContextEnvelope {
-    const frontendOrigin =
-        pageContext.frontend_origin ||
-        (typeof window !== "undefined" ? window.location.origin : undefined)
-    const entityType = pageTypeToEntityType(pageContext.page)
-    const relatedRefs = preferProjectScope<NonNullable<ContextEnvelope["related_refs"]>>({
-        job_id: pageContext.job_id,
-        project_id: activeProjectId ?? pageContext.project_id ?? undefined,
-        client_id: pageContext.client_id,
-        lead_id: pageContext.lead_id,
-        proposal_id: pageContext.proposal_id,
-        booking_id: pageContext.booking_id,
-    })
-
-    if (pageContext.page === "project_detail" && pageContext.entity_id && !relatedRefs.project_id) {
-        const parsed = Number(pageContext.entity_id)
-        if (Number.isFinite(parsed)) relatedRefs.project_id = parsed
-    }
-    if (pageContext.page === "quote_detail" && pageContext.job_id && !relatedRefs.job_id) {
-        relatedRefs.job_id = pageContext.job_id
-    }
-    if (pageContext.page === "proposal_builder" && pageContext.entity_id && !relatedRefs.proposal_id) {
-        const parsed = Number(pageContext.entity_id)
-        if (Number.isFinite(parsed)) relatedRefs.proposal_id = parsed
-    }
-    if (pageContext.page === "booking_detail" && pageContext.entity_id && !relatedRefs.booking_id) {
-        const parsed = Number(pageContext.entity_id)
-        if (Number.isFinite(parsed)) relatedRefs.booking_id = parsed
-    }
-
-    return {
-        surface: "chat_panel",
-        page: {
-            page_type: pageContext.page,
-            route: pathname,
-            locale,
-            frontend_origin: frontendOrigin,
-        },
-        selection: entityType
-            ? {
-                  entity_type: entityType,
-                  entity_id: pageContext.entity_id,
-              }
-            : undefined,
-        related_refs: relatedRefs,
-        ui_hints: {
-            client_email: pageContext.client_email,
-            client_phone: pageContext.client_phone,
-            customer_quote_url: pageContext.customer_quote_url,
-        },
-        preloaded_snapshot: buildPreloadedSnapshot(pageContext, estimateContext, proposalContext),
-    }
-}
-
-const DETAIL_ROUTES: { pattern: RegExp; page: string }[] = [
-    { pattern: /\/crew\/([^/]+)/, page: "subcontractor_detail" },
-    { pattern: /\/clients\/([^/]+)/, page: "client_detail" },
-    { pattern: /\/leads\/([^/]+)/, page: "lead_detail" },
-    { pattern: /\/projects\/\d+\/proposals\/([^/]+)/, page: "proposal_builder" },
-    { pattern: /\/quotes\/(\d+)\/proposal/, page: "proposal_builder" },
-    { pattern: /\/projects\/([^/]+)/, page: "project_detail" },
-    { pattern: /\/quotes\/([^/]+)/, page: "quote_detail" },
-    { pattern: /\/calendar\/([^/]+)/, page: "booking_detail" },
-    { pattern: /\/invoices\/([^/]+)/, page: "invoice_detail" },
-]
-
-const LIST_ROUTES: { pattern: RegExp; page: string }[] = [
-    { pattern: /\/dashboard/, page: "dashboard" },
-    { pattern: /\/(clients|crew)/, page: "contacts" },
-    { pattern: /\/leads/, page: "leads" },
-    { pattern: /\/projects/, page: "projects" },
-    { pattern: /\/quotes/, page: "quotes" },
-    { pattern: /\/calendar/, page: "calendar" },
-    { pattern: /\/invoices/, page: "invoices" },
-    { pattern: /\/settings/, page: "settings" },
-]
-
-function parsePageContext(pathname: string): PageContext {
-    // Strip locale prefix (e.g. /en/contacts/42 → /contacts/42)
-    const stripped = pathname.replace(/^\/[a-z]{2}/, "")
-
-    // Check detail routes first (more specific)
-    for (const route of DETAIL_ROUTES) {
-        const match = stripped.match(route.pattern)
-        if (match && match[1] && match[1] !== "new" && match[1] !== "copy") {
-            return { page: route.page, entity_id: match[1] }
-        }
-    }
-
-    // Check list routes
-    for (const route of LIST_ROUTES) {
-        if (route.pattern.test(stripped)) {
-            return { page: route.page }
-        }
-    }
-
-    return { page: "unknown" }
-}
-
-function parseProjectRouteId(pathname: string): number | null {
-    const stripped = pathname.replace(/^\/[a-z]{2}/, "")
-    const match = stripped.match(/^\/projects\/(\d+)(?:\/|$)/)
-    if (!match) return null
-    const parsed = Number(match[1])
-    return Number.isFinite(parsed) ? parsed : null
-}
-
-// ─── Contextual suggestions per page type ──────────────────────
-
-const SUGGESTIONS: Record<string, string[]> = {
-    client_detail: [
-        "Tell me about this client",
-        "Show their quotes",
-        "Any upcoming bookings?",
-        "Create a quote for them",
-    ],
-    lead_detail: [
-        "Tell me about this lead",
-        "What's the status?",
-        "Convert to client",
-        "Schedule a follow-up",
-    ],
-    project_detail: [
-        "Summarize this project",
-        "Show project tasks",
-        "What's the status?",
-        "Any blockers?",
-    ],
-    proposal_builder: [
-        "Summarize this proposal",
-        "What sections are in this proposal?",
-        "Help me write the scope summary",
-        "What's the project overview?",
-    ],
-    quote_detail: [
-        "Summarize this quote",
-        "What's the total?",
-        "Add a line item",
-        "Send to customer",
-    ],
-    subcontractor_detail: [
-        "Tell me about this crew member",
-        "What trades do they handle?",
-        "Show their projects",
-    ],
-    contacts: [
-        "List all my clients",
-        "Any inactive clients?",
-        "Add a new client",
-        "Dashboard summary",
-    ],
-    leads: [
-        "How many new leads?",
-        "Show unconverted leads",
-        "Lead status breakdown",
-        "Dashboard summary",
-    ],
-    projects: [
-        "Show active projects",
-        "Any blocked tasks?",
-        "Project status overview",
-        "Dashboard summary",
-    ],
-    quotes: [
-        "Show draft quotes",
-        "Any pending quotes?",
-        "Create a new quote",
-        "Dashboard summary",
-    ],
-    calendar: [
-        "What's my public booking link?",
-        "What's on my calendar this week?",
-        "Show upcoming appointments",
-        "Dashboard summary",
-    ],
-    default: [
-        "What's my booking link?",
-        "How many leads do I have?",
-        "Show my active projects",
-        "What's on my calendar?",
-        "Dashboard summary",
-    ],
-}
+const SUGGESTION_COUNTS: Record<string, number> = {"client_detail": 4, "lead_detail": 4, "project_detail": 4, "proposal_builder": 4, "quote_detail": 4, "subcontractor_detail": 3, "contacts": 4, "leads": 4, "projects": 4, "quotes": 4, "calendar": 4, "default": 5}
 
 // ─── Types ─────────────────────────────────────────────────────
 
-interface ProcessStep {
-    id?: string
-    step: string
-    tool?: string
-    toolCallId?: string
-    status?: "running" | "completed" | "error"
-}
-
-export interface ActionCardOption {
-    id: string
-    label: string
-    prompt: string
-    style?: "primary" | "secondary" | "ghost" | string
-}
-
-export interface ActionCard {
-    action?: string
-    title: string
-    description?: string
-    options: ActionCardOption[]
-    entity?: Record<string, unknown>
-    interruptId?: string
-    commandId?: number | string
-    approvalToken?: string
-    status?: "pending" | "approved" | "rejected" | "executing" | "completed" | "failed"
-    result?: Record<string, unknown>
-    editedPayload?: Record<string, unknown>
-    replayed?: boolean
-}
-
-export interface Message {
-    id: string
-    role: "user" | "assistant"
-    content: string
-    processSteps?: ProcessStep[]
-    actionCard?: ActionCard
-}
-
-interface Conversation {
-    id: number
-    title: string
-    created_at: string
-    updated_at: string
-    is_archived: boolean
-}
-
-// ─── View type ─────────────────────────────────────────────────
-type PanelView = "chat" | "conversations" | "notifications" | "scope"
-type ChatLaunchMode = "general" | "quote_estimate" | "proposal"
 
 // ─── Status color map (value → color class) ─────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -585,6 +119,9 @@ function colorizeStatusText(text: string): React.ReactNode {
 export function AgentChatPanel() {
     const router = useRouter()
     const locale = useLocale()
+    const t = useTranslations("dashboard")
+    const tRef = useRef(t)
+    tRef.current = t
     const pathname = usePathname()
     const { toast } = useToast()
     const [isOpen, setIsOpen] = useState(false)
@@ -731,7 +268,9 @@ export function AgentChatPanel() {
         ),
         [activeProjectId, estimateContext, locale, pageContext, pathname, proposalContext]
     )
-    const suggestions = SUGGESTIONS[pageContext.page] || SUGGESTIONS.default
+    const suggestionPage = pageContext.page in SUGGESTION_COUNTS ? pageContext.page : "default"
+    const suggestions = Array.from({ length: SUGGESTION_COUNTS[suggestionPage] }, (_, n) =>
+        t(`assistant.suggest.${suggestionPage}.${n}`))
     const selectedProjectLabel = selectedContext
         ? `project: ${selectedContext.projectName}`
         : null
@@ -976,14 +515,14 @@ export function AgentChatPanel() {
 
     const estimateClientPrompt = useMemo(() => {
         const client = estimateContext.clientName?.trim()
-        return client ? `Create an estimate for ${client}.` : "Create an estimate for this client."
-    }, [estimateContext.clientName])
+        return client ? t("assistant.banner.estimateFor", { client }) : t("assistant.banner.estimateClient")
+    }, [estimateContext.clientName, t])
 
     const estimateProjectPrompt = useMemo(() => {
         const project = estimateContext.projectTitle?.trim() || estimateContext.projectType?.trim()
-        if (project && estimateContext.projectBrief) return `${project} brief loaded.`
+        if (project && estimateContext.projectBrief) return t("assistant.banner.briefNamed", { project })
         if (project) return project
-        if (estimateContext.projectBrief) return "Project brief loaded."
+        if (estimateContext.projectBrief) return t("assistant.banner.brief")
         return ""
     }, [
         estimateContext.projectBrief,
@@ -995,22 +534,22 @@ export function AgentChatPanel() {
         const proposal = proposalContext.proposalTitle?.trim()
         const project = proposalContext.projectTitle?.trim()
 
-        if (proposal) return `Create a proposal for ${proposal}.`
-        if (isOnQuoteProposalPage) return "Create a proposal for this quote."
-        if (project) return `Create a proposal for ${project}.`
-        return "Create a proposal for this project."
+        if (proposal) return t("assistant.banner.proposalFor", { name: proposal })
+        if (isOnQuoteProposalPage) return t("assistant.banner.proposalQuote")
+        if (project) return t("assistant.banner.proposalFor", { name: project })
+        return t("assistant.banner.proposalProject")
     }, [isOnQuoteProposalPage, proposalContext.projectTitle, proposalContext.proposalTitle])
 
     const proposalProjectPrompt = useMemo(() => {
         const project = proposalContext.projectTitle?.trim() || proposalContext.proposalTitle?.trim()
-        if (project && proposalContext.projectBrief) return `${project} brief loaded.`
+        if (project && proposalContext.projectBrief) return t("assistant.banner.briefNamed", { project })
         if (project && proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
-            return `${project} line items loaded.`
+            return t("assistant.banner.lineItemsNamed", { project })
         }
         if (project && !isOnQuoteProposalPage) return project
-        if (proposalContext.projectBrief) return "Project brief loaded."
+        if (proposalContext.projectBrief) return t("assistant.banner.brief")
         if (proposalContext.includeLineItemsInContext !== false && (proposalContext.lineItems?.length ?? 0) > 0) {
-            return "Quote line items loaded."
+            return t("assistant.banner.lineItems")
         }
         return ""
     }, [
@@ -1246,8 +785,8 @@ export function AgentChatPanel() {
         setGenerationStatus({
             kind: "estimate",
             phase: "running",
-            title: "Generating AI estimate",
-            detail: "Handing the scope to the quote builder now.",
+            title: tRef.current("assistant.step.estimateTitle"),
+            detail: tRef.current("assistant.step.estimateDetail"),
         })
         setPanelView("chat")
         setIsOpen(true)
@@ -1269,8 +808,8 @@ export function AgentChatPanel() {
         setGenerationStatus({
             kind: "proposal",
             phase: "running",
-            title: "Generating AI proposal",
-            detail: "Handing the scope to the proposal builder now.",
+            title: tRef.current("assistant.step.proposalTitle"),
+            detail: tRef.current("assistant.step.proposalDetail"),
         })
         setPanelView("chat")
         setIsOpen(true)
@@ -1486,15 +1025,15 @@ export function AgentChatPanel() {
                             let stepLabel = parsed.metadata?.label
                             if (!stepLabel) {
                                 if (toolName === "ui_navigate") {
-                                    stepLabel = parsed.arguments?.reason || `Opening ${parsed.arguments?.route || "page"}...`
+                                    stepLabel = parsed.arguments?.reason || (parsed.arguments?.route ? tRef.current("assistant.step.openingRoute", { route: parsed.arguments.route }) : tRef.current("assistant.step.openingPage"))
                                 } else if (toolName === "ui_open_dialog") {
-                                    stepLabel = `Opening ${parsed.arguments?.dialog?.replace(/_/g, " ") || "dialog"}...`
+                                    stepLabel = (parsed.arguments?.dialog ? tRef.current("assistant.step.openingDialog", { dialog: String(parsed.arguments.dialog).replace(/_/g, " ") }) : tRef.current("assistant.step.openingDialogGeneric"))
                                 } else if (toolName === "ui_copy_to_clipboard") {
-                                    stepLabel = parsed.arguments?.label || "Copying to clipboard..."
+                                    stepLabel = parsed.arguments?.label || tRef.current("assistant.step.copying")
                                 } else if (toolName === "ui_patch_state") {
-                                    stepLabel = parsed.arguments?.reason || "Updating form in real time..."
+                                    stepLabel = parsed.arguments?.reason || tRef.current("assistant.step.updatingForm")
                                 } else {
-                                    stepLabel = `Running ${toolName}...`
+                                    stepLabel = tRef.current("assistant.step.running", { tool: String(toolName) })
                                 }
                             }
                             const stepId = parsed.toolCallId || parsed.id || `step-${Date.now()}`
@@ -1565,7 +1104,7 @@ export function AgentChatPanel() {
                                             if (typeof navigator !== "undefined" && navigator.clipboard) {
                                                 void navigator.clipboard.writeText(resultObj.text)
                                                 toast({
-                                                    title: "Copied to clipboard",
+                                                    title: tRef.current("assistant.action.copied"),
                                                     description: resultObj.text,
                                                 })
                                             }
@@ -1583,11 +1122,11 @@ export function AgentChatPanel() {
                                         const cardData = resultObj.action_card
                                         const actionCard: ActionCard = {
                                             action: cardData.action,
-                                            title: cardData.title || "Confirm Action",
+                                            title: cardData.title || tRef.current("assistant.action.confirmTitle"),
                                             description: cardData.description,
                                             options: cardData.options || [
-                                                { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
-                                                { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                                { id: "confirm", label: tRef.current("assistant.action.confirm"), prompt: "Yes, proceed", style: "primary" },
+                                                { id: "cancel", label: tRef.current("assistant.action.cancel"), prompt: "Cancel action", style: "secondary" },
                                             ],
                                             entity: cardData.entity,
                                             interruptId: cardData.interruptId,
@@ -1612,13 +1151,13 @@ export function AgentChatPanel() {
                                     if (resultObj.message && !resultObj.client_action) {
                                         if (parsed.error || resultObj.status === "failed") {
                                             toast({
-                                                title: "Action Failed",
-                                                description: resultObj.message || "The requested action could not be completed.",
+                                                title: tRef.current("assistant.action.failed"),
+                                                description: resultObj.message || tRef.current("assistant.action.failedDesc"),
                                                 variant: "destructive",
                                             })
                                         } else if (resultObj.status === "completed" || resultObj.success) {
                                             toast({
-                                                title: "Action Completed",
+                                                title: tRef.current("assistant.action.completed"),
                                                 description: resultObj.message,
                                             })
                                         }
@@ -1647,7 +1186,7 @@ export function AgentChatPanel() {
                             flushPendingText(assistantId)
                         } else if (parsed.type === "RUN_ERROR") {
                             flushPendingText(assistantId)
-                            const errorMessage = parsed.message || "An error occurred during execution."
+                            const errorMessage = parsed.message || tRef.current("assistant.action.runError")
                             setMessages((prev) => prev.map((m) =>
                                 m.id === assistantId
                                     ? {
@@ -1664,11 +1203,11 @@ export function AgentChatPanel() {
                                 const interrupt = parsed.outcome.interrupts[0]
                                 const actionCard: ActionCard = {
                                     action: interrupt.metadata?.action,
-                                    title: interrupt.metadata?.title || "Confirm Action",
+                                    title: interrupt.metadata?.title || tRef.current("assistant.action.confirmTitle"),
                                     description: interrupt.message,
                                     options: interrupt.metadata?.options || [
-                                        { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
-                                        { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                        { id: "confirm", label: tRef.current("assistant.action.confirm"), prompt: "Yes, proceed", style: "primary" },
+                                        { id: "cancel", label: tRef.current("assistant.action.cancel"), prompt: "Cancel action", style: "secondary" },
                                     ],
                                     entity: interrupt.metadata?.entity,
                                     interruptId: interrupt.id,
@@ -1724,11 +1263,11 @@ export function AgentChatPanel() {
                             const cardData = parsed.action_card as any
                             const actionCard: ActionCard = {
                                 action: cardData.action,
-                                title: cardData.title || "Confirm Action",
+                                title: cardData.title || tRef.current("assistant.action.confirmTitle"),
                                 description: cardData.description,
                                 options: cardData.options || [
-                                    { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
-                                    { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                    { id: "confirm", label: tRef.current("assistant.action.confirm"), prompt: "Yes, proceed", style: "primary" },
+                                    { id: "cancel", label: tRef.current("assistant.action.cancel"), prompt: "Cancel action", style: "secondary" },
                                 ],
                                 entity: cardData.entity,
                                 interruptId: cardData.interruptId,
@@ -1776,11 +1315,11 @@ export function AgentChatPanel() {
                         if (interrupt) {
                             const actionCard: ActionCard = {
                                 action: interrupt.metadata?.action,
-                                title: interrupt.metadata?.title || "Confirm Action",
+                                title: interrupt.metadata?.title || tRef.current("assistant.action.confirmTitle"),
                                 description: interrupt.message,
                                 options: interrupt.metadata?.options || [
-                                    { id: "confirm", label: "Confirm", prompt: "Yes, proceed", style: "primary" },
-                                    { id: "cancel", label: "Cancel", prompt: "Cancel action", style: "secondary" },
+                                    { id: "confirm", label: tRef.current("assistant.action.confirm"), prompt: "Yes, proceed", style: "primary" },
+                                    { id: "cancel", label: tRef.current("assistant.action.cancel"), prompt: "Cancel action", style: "secondary" },
                                 ],
                                 entity: interrupt.metadata?.entity,
                                 interruptId: interrupt.id,
@@ -1791,7 +1330,7 @@ export function AgentChatPanel() {
                             setMessages((prev) =>
                                 prev.map((m) =>
                                     m.id === assistantId
-                                        ? { ...m, actionCard, content: m.content || "Please review the action below:" }
+                                        ? { ...m, actionCard, content: m.content || tRef.current("assistant.action.reviewBelow") }
                                         : m
                                 )
                             )
@@ -1808,7 +1347,7 @@ export function AgentChatPanel() {
                         m.id === assistantId
                             ? {
                                 ...m,
-                                content: "Sorry, I encountered an error. Please try again.",
+                                content: tRef.current("assistant.action.chatError"),
                             }
                             : m
                     )
@@ -1870,8 +1409,8 @@ export function AgentChatPanel() {
                         )
                     )
                     toast({
-                        title: "Action Cancelled",
-                        description: "The command was successfully rejected.",
+                        title: tRef.current("assistant.action.cancelled"),
+                        description: tRef.current("assistant.action.cancelledDesc"),
                     })
                 } else {
                     const res = await api.approveAgentCommand(
@@ -1895,17 +1434,17 @@ export function AgentChatPanel() {
                         )
                     )
                     toast({
-                        title: res.replayed ? "Action Replayed" : "Action Approved",
+                        title: res.replayed ? tRef.current("assistant.action.replayed") : tRef.current("assistant.action.approved"),
                         description: res.replayed
-                            ? "This command was already executed and the result was safely replayed."
-                            : "The command was successfully executed.",
+                            ? tRef.current("assistant.action.replayedDesc")
+                            : tRef.current("assistant.action.executedDesc"),
                     })
                 }
             } catch (err: any) {
                 console.error("Agent command execution failed:", err)
                 toast({
-                    title: "Execution Error",
-                    description: err?.message || "Failed to process the command.",
+                    title: tRef.current("assistant.action.execError"),
+                    description: err?.message || tRef.current("assistant.action.processFailed"),
                     variant: "destructive",
                 })
             } finally {
@@ -1938,21 +1477,6 @@ export function AgentChatPanel() {
 
     // ─── Helpers ────────────────────────────────────────────────
 
-    function formatTimeAgo(dateStr: string): string {
-        const date = new Date(dateStr)
-        const now = new Date()
-        const diffMs = now.getTime() - date.getTime()
-        const diffMins = Math.floor(diffMs / 60000)
-        const diffHours = Math.floor(diffMs / 3600000)
-        const diffDays = Math.floor(diffMs / 86400000)
-
-        if (diffMins < 1) return "Just now"
-        if (diffMins < 60) return `${diffMins}m ago`
-        if (diffHours < 24) return `${diffHours}h ago`
-        if (diffDays < 7) return `${diffDays}d ago`
-        return date.toLocaleDateString()
-    }
-
     // ─── Trigger Button (FAB) ───────────────────────────────────
     if (!isOpen) {
         return (
@@ -1966,8 +1490,8 @@ export function AgentChatPanel() {
                    transition-all duration-300
                    hover:scale-105 hover:shadow-[0_22px_54px_rgba(2,132,199,0.42)]
                    active:scale-95"
-                title="Open Bob AI"
-                aria-label="Open Bob AI"
+                title={t("assistant.view.open")}
+                aria-label={t("assistant.view.open")}
             >
                 <div className="flex h-9 w-9 md:h-7 md:w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm p-1">
                     <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
@@ -2000,7 +1524,7 @@ export function AgentChatPanel() {
                         <button
                             onClick={() => setPanelView("chat")}
                             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted md:h-8 md:w-8"
-                            title="Back to chat"
+                            title={t("assistant.view.backToChat")}
                         >
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
@@ -2011,16 +1535,16 @@ export function AgentChatPanel() {
                     )}
                     <div className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-[750] leading-tight tracking-tight text-foreground md:text-sm md:font-semibold">
-                            {panelView === "conversations" ? "Conversations" : panelView === "notifications" ? "Notifications" : "Bob AI"}
+                            {panelView === "conversations" ? t("assistant.view.conversations") : panelView === "notifications" ? t("assistant.view.notifications") : "Bob AI"}
                         </h3>
                         <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground md:mt-0 md:text-[11px]">
                             {panelView === "conversations"
-                                ? `${conversations.length} chat${conversations.length !== 1 ? "s" : ""}`
+                                ? t("assistant.view.chatCount", { count: conversations.length })
                                 : panelView === "notifications"
-                                    ? `${unreadNotifications} unread`
+                                    ? t("assistant.view.unreadCount", { count: unreadNotifications })
                                 : activeConversationId
-                                    ? conversations.find(c => c.id === activeConversationId)?.title || "Chat"
-                                    : "New conversation"
+                                    ? conversations.find(c => c.id === activeConversationId)?.title || t("assistant.view.chatFallback")
+                                    : t("assistant.view.newConversation")
                             }
                         </p>
                     </div>
@@ -2032,8 +1556,8 @@ export function AgentChatPanel() {
                             size="icon"
                             className="relative h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                             onClick={() => setPanelView("notifications")}
-                            title="View notifications"
-                            aria-label="View notifications"
+                            title={t("assistant.view.viewNotifications")}
+                            aria-label={t("assistant.view.viewNotifications")}
                         >
                             <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
                             {unreadNotifications > 0 && (
@@ -2050,7 +1574,7 @@ export function AgentChatPanel() {
                                 size="icon"
                                 className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                                 onClick={() => setPanelView("conversations")}
-                                title="View conversations"
+                                title={t("assistant.view.viewConversations")}
                             >
                                 <MessageSquare className="h-4 w-4 md:h-3.5 md:w-3.5" />
                             </Button>
@@ -2059,7 +1583,7 @@ export function AgentChatPanel() {
                                 size="icon"
                                 className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                                 onClick={handleNewChat}
-                                title="New chat"
+                                title={t("assistant.view.newChat")}
                             >
                                 <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
                             </Button>
@@ -2071,7 +1595,7 @@ export function AgentChatPanel() {
                             size="icon"
                             className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                             onClick={handleNewChat}
-                            title="New chat"
+                            title={t("assistant.view.newChat")}
                         >
                             <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
                         </Button>
@@ -2082,7 +1606,7 @@ export function AgentChatPanel() {
                             size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-foreground hidden md:flex"
                             onClick={() => setIsExpanded(!isExpanded)}
-                            title={isExpanded ? "Collapse Bob AI" : "Expand Bob AI"}
+                            title={isExpanded ? t("assistant.view.collapse") : t("assistant.view.expand")}
                         >
                             {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                         </Button>
@@ -2092,533 +1616,35 @@ export function AgentChatPanel() {
                         size="icon"
                         className="h-10 w-10 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
                         onClick={() => setIsOpen(false)}
-                        title="Close Bob AI"
-                        aria-label="Close Bob AI"
+                        title={t("assistant.view.close")}
+                        aria-label={t("assistant.view.close")}
                     >
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
             </div>
 
-            {/* ── Conversations List View ── */}
-            {panelView === "conversations" && (
-                <div className="flex-1 overflow-y-auto">
-                    {isLoadingConversations ? (
-                        <div className="flex items-center justify-center h-full">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : conversations.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted md:h-12 md:w-12">
-                                <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <p className="mb-3 text-[15px] font-medium text-muted-foreground md:text-sm">No conversations yet</p>
-                            <button
-                                onClick={handleNewChat}
-                                className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600
-                                       min-h-11 px-4 py-2 text-sm font-semibold text-white shadow-sm md:min-h-0 md:text-xs md:font-medium
-                                       hover:shadow-md transition-all"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                                Start a new chat
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="py-1">
-                            {conversations.map((conv) => (
-                                <div
-                                    key={conv.id}
-                                    className={`group flex min-h-[64px] items-center gap-3 px-4 py-3 md:min-h-0
-                                        cursor-pointer transition-colors
-                                        hover:bg-muted/60
-                                        ${activeConversationId === conv.id
-                                            ? "bg-sky-500/8 border-l-2 border-sky-500"
-                                            : "border-l-2 border-transparent"
-                                        }`}
-                                    onClick={() => loadConversation(conv.id)}
-                                >
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted md:h-8 md:w-8 md:rounded-lg">
-                                        <MessageSquare className="h-4 w-4 text-muted-foreground md:h-3.5 md:w-3.5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="truncate text-[15px] font-semibold text-foreground md:text-sm md:font-medium">
-                                            {conv.title}
-                                        </p>
-                                        <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground md:mt-0 md:text-[11px]">
-                                            <Clock className="h-3 w-3" />
-                                            {formatTimeAgo(conv.updated_at)}
-                                        </div>
-                                    </div>
-                                    <button
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity
-                                               p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            archiveConversation(conv.id)
-                                        }}
-                                        title="Delete conversation"
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {panelView === "notifications" && (
-                <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-                        <p className="text-xs text-muted-foreground">Updates from your business</p>
-                        {unreadNotifications > 0 && (
-                            <button type="button" onClick={markAllNotificationsRead} className="text-xs font-semibold text-sky-700 hover:underline">
-                                Mark all read
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex-1 overflow-y-auto">
-                        {notificationsLoading && notifications.length === 0 ? (
-                            <div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-                        ) : notificationsError ? (
-                            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                                <BellRing className="mb-3 h-6 w-6 text-muted-foreground" />
-                                <p className="text-sm font-semibold text-foreground">Notifications unavailable</p>
-                                <p className="mt-1 text-xs leading-5 text-muted-foreground">The connected backend does not have notifications enabled yet.</p>
-                            </div>
-                        ) : notifications.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600"><BellRing className="h-5 w-5" /></div>
-                                <p className="text-sm font-semibold text-foreground">No notifications yet</p>
-                                <p className="mt-1 text-xs leading-5 text-muted-foreground">Quote activity, payments, and new requests will appear here.</p>
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-border">
-                                {notifications.map((notification) => (
-                                    <div
-                                        key={notification.id}
-                                        className={`flex w-full items-start gap-2 px-4 py-3 transition hover:bg-muted/60 ${notification.read_at ? "bg-card" : "bg-sky-50/60"}`}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => openNotification(notification)}
-                                            className="flex min-w-0 flex-1 gap-3 text-left"
-                                        >
-                                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.read_at ? "bg-slate-300" : "bg-sky-500"}`} />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block text-sm font-semibold text-foreground">{notification.title}</span>
-                                                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{notification.body}</span>
-                                                <span className="mt-1 block text-[11px] text-muted-foreground/80">{formatTimeAgo(notification.created_at)}</span>
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void deleteNotification(notification)}
-                                            className="mt-0.5 shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-600"
-                                            title="Delete notification"
-                                            aria-label={`Delete notification: ${notification.title}`}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* ── Scope Clarification Inline View ── */}
-            {panelView === "scope" && (() => {
-                const q = scopeQuestions[scopeStep]
-                const isLast = scopeStep === scopeQuestions.length - 1
-                const fireSkipAll = async () => {
-                    try { await api.skipScopeSession(
-                        (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
-                    ) } catch { /* non-critical */ }
-                    setPanelView("chat")
-                    if (scopeTrigger === "estimate") _fireEstimate(null)
-                    else _fireProposal(null)
-                }
-                const fireSubmit = async () => {
-                    const pid = (scopeTrigger === "estimate" ? estimateContext.projectId : proposalContext.projectId) as number
-                    setScopeSubmitting(true)
-                    try {
-                        const answerList = scopeQuestions.map((sq) => ({
-                            ...(scopeAnswers[sq.id] ?? {}),
-                            question_id: sq.id,
-                        }))
-                        const scope = await api.submitScopeAnswers(pid, {
-                            answers: answerList,
-                            questions: scopeQuestions,
-                            trigger: scopeTrigger,
-                        })
-                        setPanelView("chat")
-                        if (scopeTrigger === "estimate") _fireEstimate(scope)
-                        else _fireProposal(scope)
-                    } catch {
-                        setPanelView("chat")
-                        if (scopeTrigger === "estimate") _fireEstimate(null)
-                        else _fireProposal(null)
-                    } finally {
-                        setScopeSubmitting(false)
-                    }
-                }
-                return (
-                    <div className="flex flex-col flex-1 overflow-hidden">
-                        {/* Header: title + progress dots */}
-                        <div className="px-4 pt-4 pb-3 border-b border-border">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-semibold text-foreground">Clarify Scope</p>
-                                {scopeQuestions.length > 0 && (
-                                    <span className="text-xs text-muted-foreground">
-                                        {scopeStep + 1} / {scopeQuestions.length}
-                                    </span>
-                                )}
-                            </div>
-                            {/* Progress bar */}
-                            {scopeQuestions.length > 0 && (
-                                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                                    <div
-                                        className="h-full bg-sky-500 rounded-full transition-all duration-300"
-                                        style={{ width: `${((scopeStep + 1) / scopeQuestions.length) * 100}%` }}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Question body */}
-                        <div className="flex-1 overflow-y-auto px-4 py-5">
-                            {scopeLoading && (
-                                <div className="flex items-center justify-center h-full text-muted-foreground">
-                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                    <span className="text-sm">Analyzing project context…</span>
-                                </div>
-                            )}
-                            {!scopeLoading && q && (
-                                <div className="space-y-3">
-                                    <p className="text-sm font-medium leading-snug text-foreground">
-                                        {q.text}
-                                        {q.type === "multi_select" && (
-                                            <span className="text-muted-foreground font-normal"> (select all that apply)</span>
-                                        )}
-                                    </p>
-                                    {q.type === "multi_select" && q.options && (
-                                        <div className="space-y-3">
-                                            {q.options.map((opt, oi) => {
-                                                const selected = scopeAnswers[q.id]?.selected_options?.includes(opt.id) ?? false
-                                                return (
-                                                    <button
-                                                        key={opt.id}
-                                                        type="button"
-                                                        onClick={() => setScopeAnswers((prev) => {
-                                                            const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
-                                                            const sel = existing.selected_options ?? []
-                                                            const next = sel.includes(opt.id) ? sel.filter((id) => id !== opt.id) : [...sel, opt.id]
-                                                            return { ...prev, [q.id]: { ...existing, selected_options: next } }
-                                                        })}
-                                                        className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                                                            selected
-                                                                ? "border-sky-500 bg-sky-500/8"
-                                                                : "border-border bg-card hover:bg-muted/50"
-                                                        }`}
-                                                    >
-                                                        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${
-                                                            selected ? "bg-sky-500 text-white" : "bg-muted text-muted-foreground"
-                                                        }`}>
-                                                            {["A","B","C","D"][oi] ?? oi + 1}
-                                                        </span>
-                                                        <span className="text-sm text-foreground">{opt.label}</span>
-                                                    </button>
-                                                )
-                                            })}
-                                            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3">
-                                                <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                                                    Something else?
-                                                </p>
-                                                <textarea
-                                                    placeholder="Add anything not covered by the options above…"
-                                                    rows={3}
-                                                    value={scopeAnswers[q.id]?.free_text ?? ""}
-                                                    onChange={(e) => setScopeAnswers((prev) => {
-                                                        const existing = prev[q.id] ?? { question_id: q.id, selected_options: [] }
-                                                        return {
-                                                            ...prev,
-                                                            [q.id]: { ...existing, free_text: e.target.value },
-                                                        }
-                                                    })}
-                                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                    {q.type === "free_text" && (
-                                        <textarea
-                                            placeholder="Type your answer…"
-                                            rows={3}
-                                            value={scopeAnswers[q.id]?.free_text ?? ""}
-                                            onChange={(e) => setScopeAnswers((prev) => ({
-                                                ...prev,
-                                                [q.id]: { question_id: q.id, free_text: e.target.value },
-                                            }))}
-                                            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                                        />
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Footer: back / skip-question / next-or-submit */}
-                        <div className="px-4 py-3 border-t border-border bg-card flex items-center justify-between gap-2">
-                            {/* Left: Back (hidden on first) or skip-all */}
-                            <div className="flex items-center gap-3">
-                                {scopeStep > 0 ? (
-                                    <button
-                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                                        onClick={() => setScopeStep((s) => s - 1)}
-                                        disabled={scopeSubmitting}
-                                    >
-                                        Back
-                                    </button>
-                                ) : (
-                                    <button
-                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                                        disabled={scopeSubmitting}
-                                        onClick={fireSkipAll}
-                                    >
-                                        Skip all
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Right: skip-this / next-or-submit */}
-                            <div className="flex items-center gap-2">
-                                {!isLast && (
-                                    <button
-                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                                        disabled={scopeSubmitting || scopeLoading}
-                                        onClick={() => setScopeStep((s) => s + 1)}
-                                    >
-                                        Skip
-                                    </button>
-                                )}
-                                <button
-                                    disabled={scopeLoading || scopeSubmitting || scopeQuestions.length === 0}
-                                    onClick={isLast ? fireSubmit : () => setScopeStep((s) => s + 1)}
-                                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600
-                                               px-4 py-2 text-sm font-semibold text-white shadow-sm
-                                               hover:shadow-md transition-all disabled:opacity-40 disabled:shadow-none"
-                                >
-                                    {scopeSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                                    {isLast ? "Submit & Generate" : "Next →"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            })()}
-
-            {/* ── Quote Estimate Context (shown on quote pages) ── */}
-            {panelView === "chat" && isOnQuotePage && (() => {
-                const isStandaloneQuote = !estimateContext.projectId
-                return (
-                <div className="border-b border-border bg-muted/30">
-                    <button
-                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
-                        onClick={() => setContextExpanded((v) => !v)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Zap className="h-3.5 w-3.5 text-sky-500" />
-                            <span className="text-xs font-semibold text-foreground">{isStandaloneQuote ? "Quote Context" : "Project Context"}</span>
-                            {estimateContextSummary && (
-                                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
-                                    {estimateContextSummary}
-                                </span>
-                            )}
-                        </div>
-                        {contextExpanded
-                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        }
-                    </button>
-                    {contextExpanded && (
-                        <div className="px-4 pb-3 space-y-2">
-                            <div>
-                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    {isStandaloneQuote ? "Quote Type (Optional)" : "Project Type (Optional)"}
-                                </label>
-                                <input
-                                    type="text"
-                                    value={estimateContext.projectType}
-                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, projectType: e.target.value }))}
-                                    placeholder="e.g., Patio Installation, Deck Construction"
-                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    {isStandaloneQuote ? "Quote Description" : "Project Description"}
-                                </label>
-                                <textarea
-                                    value={estimateContext.serviceDescription}
-                                    onChange={(e) => setEstimateContext((prev) => ({ ...prev, serviceDescription: e.target.value }))}
-                                    placeholder="Describe the project (materials, labor, installation, etc.)"
-                                    rows={3}
-                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                                />
-                            </div>
-                            {!isStandaloneQuote && (
-                                <>
-                                    <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                                        <input
-                                            type="checkbox"
-                                            checked={estimateContext.includeProjectBriefInContext ?? true}
-                                            onChange={(e) => setEstimateContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
-                                            className="h-3.5 w-3.5 rounded border-gray-300 accent-sky-600"
-                                        />
-                                        Include project brief in context
-                                    </label>
-                                    {!estimateContext.projectBrief && (
-                                        <p className="text-[11px] text-muted-foreground/80">
-                                            No project brief loaded yet for this quote.
-                                        </p>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-                )
-            })()}
-
-            {/* ── Proposal Context (shown on proposal builder pages) ── */}
-            {panelView === "chat" && isOnProposalPage && (
-                <div className="border-b border-border bg-muted/30">
-                    <button
-                        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
-                        onClick={() => setProposalContextExpanded((v) => !v)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Zap className="h-3.5 w-3.5 text-violet-500" />
-                            <span className="text-xs font-semibold text-foreground">Proposal Context</span>
-                            {(proposalContext.proposalTitle || proposalContext.projectTitle || proposalContext.description) && (
-                                <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
-                                    filled
-                                </span>
-                            )}
-                        </div>
-                        {proposalContextExpanded
-                            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        }
-                    </button>
-                    {proposalContextExpanded && (
-                        <div className="px-4 pb-3 space-y-2">
-                            <div>
-                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    Proposal Title
-                                </label>
-                                <input
-                                    type="text"
-                                    value={proposalContext.proposalTitle}
-                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, proposalTitle: e.target.value }))}
-                                    placeholder="e.g., Backyard Renovation Proposal"
-                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                                />
-                            </div>
-                            {!isOnQuoteProposalPage && (
-                                <div>
-                                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                        Project
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={proposalContext.projectTitle}
-                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, projectTitle: e.target.value }))}
-                                        placeholder="Project name"
-                                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                                    />
-                                </div>
-                            )}
-                            <div>
-                                <label className="mb-1 block text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                    Description
-                                </label>
-                                <textarea
-                                    value={proposalContext.description}
-                                    onChange={(e) => setProposalContext((prev) => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Describe the scope, goals, and approach"
-                                    rows={3}
-                                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                                />
-                            </div>
-                            {(proposalContext.lineItems?.length ?? 0) > 0 && (
-                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                                    <input
-                                        type="checkbox"
-                                        checked={proposalContext.includeLineItemsInContext ?? true}
-                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeLineItemsInContext: e.target.checked }))}
-                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
-                                    />
-                                    Include quote line items in context
-                                </label>
-                            )}
-                            {proposalContext.projectBrief && (
-                                <label className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                                    <input
-                                        type="checkbox"
-                                        checked={proposalContext.includeProjectBriefInContext ?? true}
-                                        onChange={(e) => setProposalContext((prev) => ({ ...prev, includeProjectBriefInContext: e.target.checked }))}
-                                        className="h-3.5 w-3.5 rounded border-gray-300 accent-violet-600"
-                                    />
-                                    Include project brief in context
-                                </label>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {panelView === "chat" && pendingProjectSwitch && (
-                <div className="border-b border-border bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.92))] px-4 py-3">
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 shadow-sm">
-                            <p className="text-sm font-semibold text-amber-950">
-                                Switch project context?
-                            </p>
-                            <p className="mt-1 text-xs leading-5 text-amber-900/80">
-                                {pendingProjectSwitch.source === "auto"
-                                    ? (
-                                        <>
-                                            You navigated to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>.
-                                            Switching will start a new chat so Bob stays scoped to the right project files.
-                                        </>
-                                    ) : (
-                                        <>
-                                            Switch context to <span className="font-semibold">{pendingProjectSwitch.projectName}</span>?
-                                            This will start a new chat so Bob stays scoped to the right project files.
-                                        </>
-                                    )}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleSwitchProjectContext}
-                                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
-                                >
-                                    Switch and start new chat
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleKeepCurrentProjectContext}
-                                    className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-3.5 py-2 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
-                                >
-                                    Keep current project
-                                </button>
-                            </div>
-                    </div>
-                </div>
-            )}
-
+            <SideViews
+                panelView={panelView} setPanelView={setPanelView} conversations={conversations}
+                isLoadingConversations={isLoadingConversations} activeConversationId={activeConversationId}
+                loadConversation={loadConversation} archiveConversation={archiveConversation}
+                handleNewChat={handleNewChat} notifications={notifications}
+                notificationsLoading={notificationsLoading} notificationsError={notificationsError}
+                unreadNotifications={unreadNotifications} openNotification={openNotification}
+                deleteNotification={deleteNotification} markAllNotificationsRead={markAllNotificationsRead}
+                scopeQuestions={scopeQuestions} scopeTrigger={scopeTrigger} scopeSubmitting={scopeSubmitting}
+                setScopeSubmitting={setScopeSubmitting} scopeStep={scopeStep} setScopeStep={setScopeStep}
+                scopeLoading={scopeLoading} scopeAnswers={scopeAnswers} setScopeAnswers={setScopeAnswers}
+                estimateContext={estimateContext} setEstimateContext={setEstimateContext}
+                proposalContext={proposalContext} setProposalContext={setProposalContext}
+                contextExpanded={contextExpanded} setContextExpanded={setContextExpanded}
+                proposalContextExpanded={proposalContextExpanded} setProposalContextExpanded={setProposalContextExpanded}
+                estimateContextSummary={estimateContextSummary} isOnQuotePage={isOnQuotePage}
+                isOnProposalPage={isOnProposalPage} isOnQuoteProposalPage={isOnQuoteProposalPage}
+                pendingProjectSwitch={pendingProjectSwitch} handleSwitchProjectContext={handleSwitchProjectContext}
+                handleKeepCurrentProjectContext={handleKeepCurrentProjectContext}
+                _fireEstimate={_fireEstimate} _fireProposal={_fireProposal}
+            />
             {/* ── Messages (Chat View) ── */}
             {panelView === "chat" && (
                 <>
@@ -2653,7 +1679,7 @@ export function AgentChatPanel() {
                                         type="button"
                                         onClick={() => setGenerationStatus(null)}
                                         className="rounded-full p-1 text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
-                                        aria-label="Dismiss generation status"
+                                        aria-label={t("assistant.gen.dismiss")}
                                     >
                                         <X className="h-4 w-4" />
                                     </button>
@@ -2682,19 +1708,19 @@ export function AgentChatPanel() {
                                             ) : (
                                                 <Zap className="h-4 w-4" />
                                             )}
-                                            Generate Estimate
+                                            {t("assistant.gen.generateEstimate")}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setContextExpanded(true)}
                                             className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                                         >
-                                            Edit Context
+                                            {t("assistant.gen.editContext")}
                                         </button>
                                     </div>
                                     {!quoteEstimateReady ? (
                                         <p className="mt-2 text-xs leading-5 text-slate-500">
-                                            Add at least a short project description before generating.
+                                            {t("assistant.gen.addDescription")}
                                         </p>
                                     ) : null}
                                 </div>
@@ -2722,14 +1748,14 @@ export function AgentChatPanel() {
                                             ) : (
                                                 <Zap className="h-4 w-4" />
                                             )}
-                                            Generate Proposal
+                                            {t("assistant.gen.generateProposal")}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setProposalContextExpanded(true)}
                                             className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                                         >
-                                            Edit Context
+                                            {t("assistant.gen.editContext")}
                                         </button>
                                     </div>
                                 </div>
@@ -2742,94 +1768,20 @@ export function AgentChatPanel() {
                                     <img src="/bob-ai-mark.png" alt="Bob AI" className="h-full w-full object-contain" />
                                 </div>
                                 <h4 className="mb-1.5 text-[20px] font-[760] tracking-tight text-foreground md:text-sm md:font-semibold">
-                                    Ask Bob from anywhere
+                                    {t("assistant.welcome.title")}
                                 </h4>
                                 <p className="mb-4 max-w-[280px] text-[14px] leading-5 text-muted-foreground md:mb-3 md:max-w-[260px] md:text-xs">
-                                    Bob can look up your leads, clients, quotes, projects, calendar, and more.
+                                    {t("assistant.welcome.body")}
                                 </p>
 
-                                {/* ── Quick Action Buttons ── */}
-                                {isOnQuotePage && chatLaunchMode === "general" ? (
-                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
-                                        <button
-                                            onClick={() => {
-                                                const hasContext = estimateContext.projectType?.trim() || estimateContext.serviceDescription?.trim()
-                                                if (hasContext) {
-                                                    handleGenerateEstimate()
-                                                } else {
-                                                    setContextExpanded(true)
-                                                }
-                                            }}
-                                            disabled={isLoading || estimateLoading}
-                                            className="flex w-full items-center justify-center gap-2
-                                                rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-blue-600/15
-                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
-                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/50
-                                                hover:scale-[1.02] active:scale-[0.98]
-                                                disabled:opacity-50 disabled:pointer-events-none"
-                                        >
-                                            {estimateLoading ? (
-                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
-                                            ) : (
-                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                            )}
-                                            Generate AI Estimate
-                                        </button>
-                                    </div>
-                                ) : isOnProposalPage ? (
-                                    <div className="mb-4 w-full max-w-[330px] md:max-w-[300px]">
-                                        <button
-                                            onClick={() => {
-                                                const hasContext = proposalContext.proposalTitle?.trim() || proposalContext.description?.trim()
-                                                setChatLaunchMode("proposal")
-                                                if (!hasContext) setProposalContextExpanded(true)
-                                            }}
-                                            disabled={isLoading || proposalLoading}
-                                            className="flex w-full items-center justify-center gap-2
-                                                rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-fuchsia-600/15
-                                                min-h-12 px-4 py-2.5 text-[13px] font-semibold text-violet-700 dark:text-violet-400 md:min-h-0 md:text-xs md:font-medium
-                                                transition-all hover:shadow-md hover:shadow-violet-500/10 hover:border-violet-500/50
-                                                hover:scale-[1.02] active:scale-[0.98]
-                                                disabled:opacity-50 disabled:pointer-events-none"
-                                        >
-                                            {proposalLoading ? (
-                                                <Loader2 className="h-4 w-4 md:h-3.5 md:w-3.5 animate-spin" />
-                                            ) : (
-                                                <Zap className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                            )}
-                                            Generate AI Proposal
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="mb-4 flex w-full max-w-[330px] gap-2 md:max-w-[300px]">
-                                        <button
-                                            onClick={() => handleQuickAction("Good morning! Give me my daily briefing.")}
-                                            disabled={isLoading}
-                                            className="flex-1 flex items-center justify-center gap-1.5
-                                                rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10
-                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-amber-700 dark:text-amber-400 md:min-h-0 md:text-xs md:font-medium
-                                                transition-all hover:shadow-md hover:shadow-amber-500/10 hover:border-amber-500/40
-                                                hover:scale-[1.02] active:scale-[0.98]
-                                                disabled:opacity-50 disabled:pointer-events-none"
-                                        >
-                                            <Sun className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                            Morning Briefing
-                                        </button>
-                                        <button
-                                            onClick={() => handleQuickAction("What should I follow up on today?")}
-                                            disabled={isLoading}
-                                            className="flex-1 flex items-center justify-center gap-1.5
-                                                rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-blue-500/10
-                                                min-h-12 px-3 py-2.5 text-[13px] font-semibold text-sky-700 dark:text-sky-400 md:min-h-0 md:text-xs md:font-medium
-                                                transition-all hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-500/40
-                                                hover:scale-[1.02] active:scale-[0.98]
-                                                disabled:opacity-50 disabled:pointer-events-none"
-                                        >
-                                            <BellRing className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                                            Follow-Ups
-                                        </button>
-                                    </div>
-                                )}
+                                <WelcomeActions
+                                    chatLaunchMode={chatLaunchMode} setChatLaunchMode={setChatLaunchMode}
+                                    estimateContext={estimateContext} proposalContext={proposalContext}
+                                    estimateLoading={estimateLoading} proposalLoading={proposalLoading}
+                                    isLoading={isLoading} isOnQuotePage={isOnQuotePage} isOnProposalPage={isOnProposalPage}
+                                    handleGenerateEstimate={handleGenerateEstimate} handleQuickAction={handleQuickAction}
+                                    setContextExpanded={setContextExpanded} setProposalContextExpanded={setProposalContextExpanded}
+                                />
 
                                 <div className="flex max-w-[340px] flex-wrap justify-center gap-2 md:max-w-none md:gap-1.5">
                                     {suggestions.map((suggestion) => (
@@ -2906,7 +1858,7 @@ export function AgentChatPanel() {
                                             {!msg.content && isLoading && (!msg.processSteps || msg.processSteps.length === 0) && (
                                                 <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    <span className="text-xs">Thinking...</span>
+                                                    <span className="text-xs">{t("assistant.thinking")}</span>
                                                 </div>
                                             )}
 
@@ -3051,8 +2003,8 @@ export function AgentChatPanel() {
                                         type="button"
                                         onClick={handleDismissSelectedContext}
                                         className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/80 transition hover:text-foreground"
-                                        aria-label="Remove project context"
-                                        title="Remove project context"
+                                        aria-label={t("assistant.picker.remove")}
+                                        title={t("assistant.picker.remove")}
                                     >
                                         <X className="h-3 w-3" />
                                     </button>
@@ -3064,7 +2016,7 @@ export function AgentChatPanel() {
                                         <button
                                             type="button"
                                             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition hover:border-border hover:text-foreground"
-                                            title="Switch context"
+                                            title={t("assistant.picker.switch")}
                                         >
                                             <FolderKanban className="h-3 w-3" />
                                         </button>
@@ -3074,24 +2026,24 @@ export function AgentChatPanel() {
                                             className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
                                         >
                                             <FolderKanban className="h-3 w-3" />
-                                            <span>Select context</span>
+                                            <span>{t("assistant.picker.select")}</span>
                                             <ChevronDown className="h-3 w-3" />
                                         </button>
                                     )}
                                 </PopoverTrigger>
                                 <PopoverContent align="end" className="w-72 p-0">
                                     <Command>
-                                        <CommandInput placeholder="Search context..." className="h-9" />
+                                        <CommandInput placeholder={t("assistant.picker.search")} className="h-9" />
                                         <CommandList>
                                             {projectsLoading ? (
                                                 <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    Loading context...
+                                                    {t("assistant.picker.loading")}
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <CommandEmpty>No context found.</CommandEmpty>
-                                                    <CommandGroup heading="Projects">
+                                                    <CommandEmpty>{t("assistant.picker.none")}</CommandEmpty>
+                                                    <CommandGroup heading={t("assistant.picker.projects")}>
                                                         {availableProjects.map((project) => {
                                                             const isSelected = selectedContext?.projectId === project.id
                                                             return (
@@ -3125,7 +2077,7 @@ export function AgentChatPanel() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={selectedContext?.projectName ? `Ask Bob about ${selectedContext.projectName}...` : "Ask Bob anything..."}
+                                placeholder={selectedContext?.projectName ? t("assistant.input.askAbout", { name: selectedContext.projectName }) : t("assistant.input.askAnything")}
                                 rows={1}
                                 className="flex-1 resize-none rounded-2xl border border-border bg-muted/50
                                px-4 py-3 text-[16px] leading-5 placeholder:text-muted-foreground md:rounded-xl md:px-3.5 md:py-2.5 md:text-sm
