@@ -81,7 +81,9 @@
       "linkSuccess": "Presupuesto vinculado correctamente",
       "linkError": "No se pudo vincular el presupuesto",
       "linkQuoteDialogTitle": "Vincular presupuesto al proyecto",
-      "linkQuoteDialogDescription": "Selecciona un presupuesto existente para asociarlo a este proyecto. Un presupuesto solo puede pertenecer a un proyecto a la vez."
+      "linkQuoteDialogDescription": "Selecciona un presupuesto existente para asociarlo a este proyecto. Un presupuesto solo puede pertenecer a un proyecto a la vez.",
+      "linking": "Vinculando…",
+      "forClient": " para {name}"
     }
   },
   "auth": {
@@ -108,6 +110,23 @@
     "quoteRequest": {
       "title": "Formulario de Solicitud de Presupuesto",
       "linkCopiedDesc": "El enlace de solicitud de presupuesto ha sido copiado al portapapeles."
+    },
+    "recentEstimates": {
+      "hint": "Tus presupuestos más recientes aparecerán aquí cuando los crees.",
+      "numberLabel": "N.º de presupuesto",
+      "unknownClient": "Cliente desconocido",
+      "addProposal": "Agregar propuesta",
+      "createProject": "Crear proyecto",
+      "status": {
+        "DRAFT": "Borrador",
+        "SENT": "Enviado",
+        "VIEWED": "Visto",
+        "ACCEPTED": "Aceptado",
+        "REJECTED": "Rechazado",
+        "PAID": "Pagado",
+        "IN_PROGRESS": "En curso",
+        "COMPLETED": "Completado"
+      }
     }
   },
   "settings": {
@@ -460,6 +479,58 @@
       "perSf": "Por pie cuadrado",
       "chooseSub": "Elegir sustituto",
       "projectNum": "Proyecto n.º {id}"
+    },
+    "pages": {
+      "edit": {
+        "loadFailed": "No se pudo cargar el presupuesto",
+        "errorTitle": "Error al cargar el presupuesto",
+        "tryAgain": "Intentar de nuevo",
+        "notFound": "Presupuesto no encontrado",
+        "notFoundDesc": "El presupuesto que buscas no existe.",
+        "back": "Volver a presupuestos",
+        "title": "Editar presupuesto n.º {id}",
+        "subtitle": "Actualiza los detalles y las partidas del presupuesto",
+        "aiBtn": "Presupuestar con IA"
+      },
+      "new": {
+        "loadFailed": "No se pudo cargar el presupuesto para copiar",
+        "copying": "Copiando del presupuesto n.º {id}",
+        "fromProject": "Desde un proyecto: cliente y proyecto prellenados",
+        "fromClient": "Desde un cliente: datos básicos prellenados",
+        "fromLead": "Desde un prospecto: precios con IA",
+        "ai": "Precios con IA",
+        "loadingCopy": "Cargando el presupuesto para copiar…",
+        "startBlank": "Empezar con un presupuesto en blanco",
+        "title": "Crear presupuesto",
+        "aiBtn": "Presupuestar con IA"
+      },
+      "copy": {
+        "title": "Elige un presupuesto para copiar",
+        "subtitle": "Elige un presupuesto existente como punto de partida",
+        "emptyTitle": "No hay presupuestos para copiar",
+        "emptyFiltered": "No se encontraron presupuestos con estado {status}",
+        "emptyNone": "Aún no has creado ningún presupuesto.",
+        "createBlank": "Crear un presupuesto en blanco",
+        "estimateNum": "Presupuesto n.º {id}",
+        "created": "Creado el {date}",
+        "select": "Seleccionar"
+      }
+    },
+    "dialogs": {
+      "newFromLead": {
+        "defaultTitle": "Presupuesto de {name}",
+        "titleRequired": "El título del presupuesto es obligatorio",
+        "title": "Crear presupuesto nuevo desde un prospecto",
+        "linkedTo": "- vinculado al cliente {name}",
+        "desc": "Revisa el alcance abajo y luego continúa al creador de presupuestos para calcular precios con IA.",
+        "linkedClient": "Cliente vinculado",
+        "titleLabel": "Título del presupuesto",
+        "titlePh": "p. ej., Remodelación de baño",
+        "scopeLabel": "Alcance / descripción",
+        "scopePh": "Describe el trabajo que se va a presupuestar…",
+        "cancel": "Cancelar",
+        "continue": "Continuar al creador"
+      }
     }
   },
   "leads": {
