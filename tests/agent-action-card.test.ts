@@ -37,6 +37,7 @@ const cardMessages = {
         approved: "Action approved",
         cancelled: "Action cancelled",
         executing: "Executing…",
+        replayed: "Action replayed",
         projectName: "Project name",
       },
     },
@@ -198,7 +199,7 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
 
     const replayed = getByTestId("action-card-replayed");
     assert.ok(replayed);
-    assert.equal(replayed.textContent?.trim(), "(Replayed)");
+    assert.equal(replayed.textContent?.trim(), "(Action replayed)");
 
     // No interactive buttons should be present when completed
     assert.equal(queryByTestId("action-card-button-approve-action"), null);
