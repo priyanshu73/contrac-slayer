@@ -1054,4 +1054,4 @@ function TranscriptToggleSection({
       )}
     </div>
   )
-                    }
+}
