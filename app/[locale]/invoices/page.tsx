@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -92,11 +92,13 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
 
 // Date-only SQL dates (issue/due) render as their exact calendar day.
-const formatDate = (dateStr: string | null) => formatCalendarDate(dateStr)
+const formatDate = (dateStr: string | null, locale?: string) => formatCalendarDate(dateStr, undefined, locale)
 
 export default function InvoicesPage() {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("invoicesPage")
+  const tFilters = useTranslations("filters")
   const basePath = `/${locale}/invoices`
 
   const [invoices, setInvoices] = useState<any[]>([])
@@ -216,21 +218,21 @@ export default function InvoicesPage() {
 
   const statusLabel = useMemo(() => {
     const map: Record<string, string> = {
-      DRAFT: "Draft",
-      SENT: "Sent",
-      PARTIALLY_PAID: "Partially Paid",
-      PAID: "Paid",
-      OVERDUE: "Overdue",
-      CANCELLED: "Cancelled",
+      DRAFT: tFilters("draft"),
+      SENT: tFilters("sent"),
+      PARTIALLY_PAID: t("partiallyPaid"),
+      PAID: tFilters("paid"),
+      OVERDUE: tFilters("overdue"),
+      CANCELLED: tFilters("cancelled"),
     }
     return (code: string) => map[code] ?? formatStatusLabel(code)
-  }, [])
+  }, [t, tFilters])
 
   const statusFilterLabel = useMemo(() => {
-    if (activeStatuses.length === 0) return "All Statuses"
+    if (activeStatuses.length === 0) return tFilters("allStatuses")
     if (activeStatuses.length === 1) return statusLabel(activeStatuses[0])
-    return `${activeStatuses.length} statuses`
-  }, [activeStatuses, statusLabel])
+    return t("statusesCount", { count: activeStatuses.length })
+  }, [activeStatuses, statusLabel, t, tFilters])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-24 md:pb-10">
@@ -242,9 +244,9 @@ export default function InvoicesPage() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Receipt className="h-5 w-5" />
               </span>
-              Invoices
+              {t("title")}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1.5 pl-0 sm:pl-12">Manage and track your invoices</p>
+            <p className="text-sm text-muted-foreground mt-1.5 pl-0 sm:pl-12">{t("subtitle")}</p>
           </div>
         </div>
 
@@ -256,9 +258,9 @@ export default function InvoicesPage() {
               <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search by client name or invoice number..."
+                placeholder={t("searchPlaceholder")}
                 className="h-12 rounded-xl bg-background pl-9 text-base shadow-xs md:h-10 md:rounded-lg md:bg-transparent md:text-sm md:shadow-none"
-                aria-label="Search invoices"
+                aria-label={t("searchAria")}
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
@@ -311,10 +313,10 @@ export default function InvoicesPage() {
                   onValueChange={(v) => setClientFilterId(v === "all" ? undefined : parseInt(v, 10))}
                 >
                   <SelectTrigger className="h-11 w-full min-w-0 rounded-xl bg-background md:h-10 md:rounded-lg md:bg-transparent">
-                    <SelectValue placeholder="All Clients" />
+                    <SelectValue placeholder={t("allClients")} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[280px]">
-                    <SelectItem value="all">All Clients</SelectItem>
+                    <SelectItem value="all">{t("allClients")}</SelectItem>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={String(c.id)} textValue={c.name}>
                         <span className="truncate block">{c.name}</span>
@@ -326,7 +328,7 @@ export default function InvoicesPage() {
               </div>
               {hasActiveFilters && (
                 <Button type="button" variant="ghost" size="sm" className="h-11 rounded-xl px-3 text-xs md:h-10 md:rounded-lg" onClick={clearFilters}>
-                  Clear Filters
+                  {t("clearFilters")}
                 </Button>
               )}
             </div>
@@ -355,16 +357,16 @@ export default function InvoicesPage() {
                 <Receipt className="w-7 h-7 text-primary" />
               </div>
               <h3 className="text-lg font-semibold">
-                {hasActiveFilters ? "No invoices match your filters" : "No invoices yet"}
+                {hasActiveFilters ? t("noMatches") : t("noInvoicesYet")}
               </h3>
               <p className="text-sm text-muted-foreground">
                 {hasActiveFilters
-                  ? "Try adjusting your filters or search query."
-                  : "Invoices will appear here once you create them from accepted quotes."}
+                  ? t("tryAdjust")
+                  : t("emptyHint")}
               </p>
               {hasActiveFilters && (
                 <Button size="sm" variant="outline" className="mt-2 w-full md:w-auto" onClick={clearFilters}>
-                  Clear Filters
+                  {t("clearFilters")}
                 </Button>
               )}
             </div>
@@ -391,7 +393,7 @@ export default function InvoicesPage() {
                         </Badge>
                       </div>
                       <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                        {invoice.client_name || "Unknown Client"}
+                        {invoice.client_name || t("unknownClient")}
                       </h3>
                       {invoice.title?.trim() && (
                         <p className="text-sm text-muted-foreground line-clamp-1">{invoice.title}</p>
@@ -401,11 +403,11 @@ export default function InvoicesPage() {
                         {invoice.client_phone && <span>{invoice.client_phone}</span>}
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:mt-0 md:flex md:flex-wrap md:gap-x-4 md:gap-y-0 md:pt-0.5">
-                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">{String(invoice.status).toUpperCase() === "DRAFT" ? "Invoice date" : "Issued"} {formatDate(invoice.issue_date)}</span>
-                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">Due {formatDate(invoice.due_date)}</span>
+                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">{String(invoice.status).toUpperCase() === "DRAFT" ? t("invoiceDate") : t("issued")} {formatDate(invoice.issue_date, locale)}</span>
+                        <span className="rounded-lg bg-muted/50 px-2 py-1 md:bg-transparent md:p-0">{t("due")} {formatDate(invoice.due_date, locale)}</span>
                         {invoice.balance_due > 0 && invoice.balance_due < invoice.total_amount && (
                           <span className="col-span-2 rounded-lg bg-amber-50 px-2 py-1 font-medium text-amber-700 md:bg-transparent md:p-0 md:text-amber-600">
-                            Balance: {formatCurrency(invoice.balance_due)}
+                            {t("balance")}: {formatCurrency(invoice.balance_due)}
                           </span>
                         )}
                       </div>
@@ -422,7 +424,7 @@ export default function InvoicesPage() {
                           e.stopPropagation()
                           router.push(`${basePath}/${invoice.id}`)
                         }}
-                        title="Open"
+                        title={t("open")}
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -441,9 +443,9 @@ export default function InvoicesPage() {
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
-                  Previous
+                  {t("previous")}
                 </Button>
-                <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">Page {currentPage}</span>
+                <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">{t("page", { page: currentPage })}</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -451,7 +453,7 @@ export default function InvoicesPage() {
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >
-                  Next
+                  {t("next")}
                 </Button>
               </div>
             )}

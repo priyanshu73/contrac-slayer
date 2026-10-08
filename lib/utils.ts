@@ -44,10 +44,11 @@ export function parseCalendarDate(dateStr: string | null | undefined): Date | nu
 export function formatCalendarDate(
   dateStr: string | null | undefined,
   options?: Intl.DateTimeFormatOptions,
+  locale: string = "en-US",
 ): string {
   if (!dateStr) return "—"
   const opts = options ?? { month: "short", day: "numeric", year: "numeric" }
   const d = parseCalendarDate(dateStr) ?? new Date(dateStr)
   if (isNaN(d.getTime())) return "—"
-  return d.toLocaleDateString("en-US", opts)
+  return d.toLocaleDateString(locale, opts)
 }
