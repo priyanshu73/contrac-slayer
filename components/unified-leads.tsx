@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations, useLocale } from "next-intl"
-import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, ChevronUp, Send, AlertCircle, Languages, Loader2, RotateCcw, Menu, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
+import { Search, Phone, Mail, MapPin, Calendar, MessageSquare, ArrowLeft, ChevronDown, AlertCircle, Languages, Loader2, RotateCcw, Menu, Inbox, Filter, ArrowUpDown, Link2, Sparkles, Plus, Eye, FolderOpen, FileText, User as UserIcon } from "lucide-react"
 import { PropertyInsightsCard } from "@/components/property-insights-card"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
 import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog"
@@ -26,141 +26,10 @@ import { SaveClientFromLeadDialog, type SaveClientAction } from "@/components/cl
 import { parseApiUtcDate } from "@/lib/frontline-datetime"
 import { formatProjectType, isUsableProjectType } from "@/lib/project-type"
 import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
+import { isFrontlineVoiceLead, isQuoteRequestLead, normalizeLeadLabel, normalizePhoneToE164, translateWithCache, type LeadSourceCheck } from "@/lib/lead-core"
+import { ConversationMessages, CallHistorySection } from "@/components/unified-leads-conversation"
+import { buildFooterFacts, buildSummaryTitle, formatLeadAge, getLeadSourceLabelKey, intlLocale, leadStatusLabel, type LeadT } from "@/lib/lead-labels"
 
-// ============================================
-// Translation Cache Utilities (localStorage)
-// ============================================
-const TRANSLATION_CACHE_KEY = 'contractor_translations_cache'
-const CACHE_EXPIRY_DAYS = 7
-
-interface TranslationCacheEntry {
-  translation: string
-  timestamp: number
-}
-
-interface TranslationCache {
-  [key: string]: TranslationCacheEntry
-}
-
-// Generate a cache key from the original text
-const generateCacheKey = (text: string, targetLang: string): string => {
-  // Use a hash of the text + target language
-  const hash = text.split('').reduce((acc, char) => {
-    return ((acc << 5) - acc) + char.charCodeAt(0) | 0
-  }, 0)
-  return `${targetLang}_${hash}_${text.length}`
-}
-
-// Get translation from cache
-const getCachedTranslation = (text: string, targetLang: string): string | null => {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
-    if (!cacheStr) return null
-
-    const cache: TranslationCache = JSON.parse(cacheStr)
-    const key = generateCacheKey(text, targetLang)
-    const entry = cache[key]
-
-    if (!entry) return null
-
-    // Check if cache entry is expired
-    const expiryTime = CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-    if (Date.now() - entry.timestamp > expiryTime) {
-      // Remove expired entry
-      delete cache[key]
-      localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
-      return null
-    }
-
-    return entry.translation
-  } catch (error) {
-    console.error('Error reading translation cache:', error)
-    return null
-  }
-}
-
-// Save translation to cache
-const setCachedTranslation = (text: string, targetLang: string, translation: string): void => {
-  if (typeof window === 'undefined') return
-
-  try {
-    const cacheStr = localStorage.getItem(TRANSLATION_CACHE_KEY)
-    const cache: TranslationCache = cacheStr ? JSON.parse(cacheStr) : {}
-
-    const key = generateCacheKey(text, targetLang)
-    cache[key] = {
-      translation,
-      timestamp: Date.now()
-    }
-
-    // Limit cache size (keep last 500 entries)
-    const keys = Object.keys(cache)
-    if (keys.length > 500) {
-      // Sort by timestamp and remove oldest
-      const sorted = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)
-      sorted.slice(0, keys.length - 500).forEach(k => delete cache[k])
-    }
-
-    localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache))
-  } catch (error) {
-    console.error('Error saving to translation cache:', error)
-  }
-}
-
-// Translate text with caching
-const translateWithCache = async (
-  text: string,
-  targetLang: string,
-  sourceLang?: string
-): Promise<string> => {
-  // Check cache first
-  const cached = getCachedTranslation(text, targetLang)
-  if (cached) {
-    console.log('🔄 Using cached translation')
-    return cached
-  }
-
-  // Call API
-  const response = await api.translateText(text, targetLang, sourceLang)
-
-  // Cache the result
-  setCachedTranslation(text, targetLang, response.translated_text)
-
-  return response.translated_text
-}
-
-// Format transcript translation - replace speaker names
-const formatTranscriptTranslation = (translatedText: string): string => {
-  return translatedText
-    .replace(/\bContractor\b/gi, 'Contratista')
-    .replace(/\bCustomer\b/gi, 'Cliente')
-    .replace(/\bClient\b/gi, 'Cliente')
-}
-
-// Utility function to normalize phone numbers to E.164 format (+1XXXXXXXXXX)
-const normalizePhoneToE164 = (phone: string | undefined | null): string => {
-  if (!phone) return ''
-
-  // Remove all non-digit characters
-  const digits = phone.replace(/\D/g, '')
-
-  // Handle US numbers - convert to +1XXXXXXXXXX format
-  if (digits.length === 10) {
-    // 10 digits: assume US number, add +1
-    return `+1${digits}`
-  } else if (digits.length === 11 && digits.startsWith('1')) {
-    // 11 digits starting with 1: US number with country code
-    return `+${digits}`
-  } else if (phone.startsWith('+')) {
-    // Already in E.164 format
-    return phone
-  }
-
-  // Return original if can't normalize (shouldn't happen for US numbers)
-  return phone
-}
 
 // Unified lead interface that combines both systems
 interface UnifiedLead {
@@ -231,73 +100,9 @@ interface UnifiedLead {
   source?: string
 }
 
-function normalizeLeadLabel(value?: string | null): string {
-  return (value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
-}
 
-function isAiOperatorCallLabel(value?: string | null): boolean {
-  const norm = normalizeLeadLabel(value)
-  return norm === 'ai operator call' || norm === 'frontline voice'
-}
-
-type LeadSourceCheck = {
-  source?: string | null
-  project_type?: string | null
-  interaction_type?: string | null
-  is_frontline_ai?: boolean | null
-  consolidation_status?: string | null
-  contractor_ai_call_lead_id?: number | null
-  contractor_ai_customer_id?: number | null
-  type?: string | null
-}
-
-function isFrontlineVoiceLead(lead?: LeadSourceCheck | null): boolean {
-  if (!lead) return false
-  const source = normalizeLeadLabel(lead.source)
-  const projectType = normalizeLeadLabel(lead.project_type)
-  const interactionType = normalizeLeadLabel(lead.interaction_type)
-  const consolidationStatus = normalizeLeadLabel(lead.consolidation_status)
-  return Boolean(
-    lead.is_frontline_ai ||
-    consolidationStatus === 'both' ||
-    consolidationStatus === 'call_only' ||
-    lead.contractor_ai_call_lead_id ||
-    lead.contractor_ai_customer_id ||
-    lead.type === 'call' ||
-    source === 'frontline' ||
-    source === 'frontline voice' ||
-    source === 'frontline_voice' ||
-    source === 'consolidated' ||
-    source === 'call' ||
-    isAiOperatorCallLabel(lead.source) ||
-    isAiOperatorCallLabel(lead.project_type) ||
-    interactionType === 'frontline voice' ||
-    interactionType === 'frontline_voice' ||
-    interactionType === 'phone call' ||
-    interactionType === 'phone_call'
-  )
-}
-
-function isQuoteRequestLead(lead: LeadSourceCheck & { has_filled_form?: boolean | null; quote_requests?: Array<unknown> | null }): boolean {
-  const normConsolidation = normalizeLeadLabel(lead.consolidation_status)
-  const normSource = normalizeLeadLabel(lead.source)
-  const normType = normalizeLeadLabel(lead.type)
-
-  return Boolean(
-    lead.has_filled_form ||
-    normConsolidation === 'both' ||
-    normConsolidation === 'form_only' ||
-    (Array.isArray(lead.quote_requests) && lead.quote_requests.length > 0) ||
-    normType === 'request' ||
-    normSource === 'website form' ||
-    normSource === 'website_form' ||
-    normSource === 'request'
-  )
-}
-
-function getLeadSourceLabel(lead: LeadSourceCheck): string {
-  if (isFrontlineVoiceLead(lead)) return 'Frontline Voice'
-  return lead.type === 'call' ? 'Frontline Voice' : 'Request'
+function getLeadSourceLabel(lead: LeadSourceCheck, t: LeadT): string {
+  return t(getLeadSourceLabelKey(isFrontlineVoiceLead(lead), lead))
 }
 
 function getLeadProjectLabel(value?: string | null, fallback?: string | null): string | null {
@@ -308,101 +113,6 @@ function getLeadProjectLabel(value?: string | null, fallback?: string | null): s
   return null
 }
 
-interface SummaryFact {
-  label: string
-  value: string
-}
-
-const sentenceCase = (value: string): string => {
-  const clean = value.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!clean) return clean
-  return clean.charAt(0).toUpperCase() + clean.slice(1)
-}
-
-const inferServiceLabel = (lead: UnifiedLead, text: string): string => {
-  const explicit = lead.service_type || lead.project_type
-  if (explicit) return sentenceCase(explicit)
-
-  const lower = text.toLowerCase()
-  const matches: Array<[string, string]> = [
-    ['garden bed', 'Landscaping - Garden bed'],
-    ['landscap', 'Landscaping'],
-    ['hardscape', 'Hardscaping'],
-    ['patio', 'Patio work'],
-    ['retaining wall', 'Retaining wall'],
-    ['irrigation', 'Irrigation'],
-    ['lawn', 'Lawn care'],
-    ['kitchen', 'Kitchen renovation'],
-    ['bathroom', 'Bathroom renovation'],
-    ['floor', 'Flooring'],
-    ['paint', 'Painting'],
-  ]
-
-  return matches.find(([needle]) => lower.includes(needle))?.[1] || 'General inquiry'
-}
-
-const inferLocationLabel = (lead: UnifiedLead, text: string): string => {
-  if (lead.address) return lead.address
-
-  const normalized = text.replace(/\s+/g, ' ')
-  const streetMatch = normalized.match(/\b\d{2,6}\s+[A-Za-z0-9 .'-]+(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|court|ct\.?|way|boulevard|blvd\.?)\b(?:,\s*[A-Za-z .'-]+)?/i)
-  if (streetMatch?.[0]) return sentenceCase(streetMatch[0])
-
-  const placeMatch = normalized.match(/\b(?:from|in|near|around|at)\s+([^.!?]{4,70}?)(?:\s+(?:regarding|requesting|for|about)|[.!?]|$)/i)
-  if (placeMatch?.[1]) return sentenceCase(placeMatch[1].replace(/\b(the|a)\s+caller\b/i, '').trim())
-
-  return 'No address on file'
-}
-
-const inferNextStepLabel = (text: string): string => {
-  const lower = text.toLowerCase()
-  if ((lower.includes('quote link') || lower.includes('quote request')) && (lower.includes('photo') || lower.includes('upload'))) {
-    return 'Awaiting photos via quote link'
-  }
-  if (lower.includes('quote link') || lower.includes('quote request') || lower.includes('estimate')) {
-    return 'Prepare quote follow-up'
-  }
-  if (lower.includes('book') || lower.includes('schedule') || lower.includes('appointment')) {
-    return 'Schedule consultation'
-  }
-  if (lower.includes('owner') || lower.includes('escalat') || lower.includes('call back')) {
-    return 'Owner follow-up'
-  }
-  return 'Review and follow up'
-}
-
-const inferStageLabel = (text: string): string | null => {
-  const lower = text.toLowerCase()
-  // Order matters: check the most specific stage first.
-  if (lower.includes('planning') || lower.includes('plan stage') || lower.includes('early stage')) return 'Planning'
-  if (lower.includes('quote') || lower.includes('estimate') || lower.includes('quoting')) return 'Quoting'
-  if (lower.includes('scheduled') || lower.includes('booked') || lower.includes('appointment set')) return 'Scheduled'
-  if (lower.includes('in progress') || lower.includes('underway') || lower.includes('ongoing')) return 'In progress'
-  if (lower.includes('completed') || lower.includes('finished') || lower.includes('wrapped up')) return 'Completed'
-  return null
-}
-
-// Title shown in the AI summary header, e.g. "Johnson · bathroom renovation".
-const buildSummaryTitle = (lead: UnifiedLead, summaryText: string): string => {
-  const contextText = [summaryText, lead.description, lead.project_type, lead.service_type].filter(Boolean).join(' ')
-  const service = inferServiceLabel(lead, contextText)
-  const serviceLabel = service !== 'General inquiry' ? service.toLowerCase() : null
-  const name = lead.name?.trim()
-  if (name) return serviceLabel ? `${name} · ${serviceLabel}` : name
-  return serviceLabel ? sentenceCase(serviceLabel) : 'Call summary'
-}
-
-// Only the scannable facts the prose doesn't already carry; placeholders are dropped.
-const buildFooterFacts = (lead: UnifiedLead, summaryText: string): SummaryFact[] => {
-  const contextText = [summaryText, lead.description, lead.project_type, lead.service_type, lead.address].filter(Boolean).join(' ')
-  const candidates: Array<SummaryFact | null> = [
-    (() => { const v = inferLocationLabel(lead, contextText); return v === 'No address on file' ? null : { label: 'Location', value: v } })(),
-    (() => { const v = inferStageLabel(contextText); return v ? { label: 'Stage', value: v } : null })(),
-    (() => { const v = inferNextStepLabel(contextText); return v === 'Review and follow up' ? null : { label: 'Next step', value: v } })(),
-  ]
-  return candidates.filter((f): f is SummaryFact => f !== null)
-}
-
 // Drops a redundant "<Name> called regarding/about …" lead-in since the title already carries who + what.
 const cleanNarrative = (text: string): string => {
   const introRe = /^\s*[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]+){0,2}\s+(?:called|phoned|reached out|contacted us|got in touch)\s+(?:regarding|about|concerning|to discuss|to ask about|asking about|to inquire about)\s+/
@@ -411,8 +121,8 @@ const cleanNarrative = (text: string): string => {
   return stripped.charAt(0).toUpperCase() + stripped.slice(1)
 }
 
-const formatBrowserPhoneTime = (): string => {
-  return new Intl.DateTimeFormat(undefined, {
+const formatBrowserPhoneTime = (locale: string): string => {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date())
@@ -427,6 +137,9 @@ export function UnifiedLeads() {
   const tFilters = useTranslations('filters')
   const tLeads = useTranslations('leads')
   const tCommon = useTranslations('common')
+  const locale = useLocale()
+  const tLeadsRef = useRef(tLeads)
+  tLeadsRef.current = tLeads
 
   const [leads, setLeads] = useState<UnifiedLead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<UnifiedLead[]>([])
@@ -505,7 +218,7 @@ export function UnifiedLeads() {
 
         return {
           id: isCallOnly ? `call-${callInteractionId}` : `request-${lead.id}`,
-          name: lead.name || (isCallOnly ? `Customer ${lead.phone?.slice(-4)}` : "Unknown"),
+          name: lead.name || (isCallOnly ? tLeadsRef.current('unified.customerLast4', { last4: lead.phone?.slice(-4) ?? '' }) : tLeadsRef.current('unified.unknown')),
           type: isCallOnly ? 'call' : 'request',
           status: lead.status,
           priority: lead.priority,
@@ -545,7 +258,7 @@ export function UnifiedLeads() {
       setLoadingCallLeads(false)
     } catch (err: any) {
       console.error('Failed to fetch leads:', err)
-      setError(err.message || "Failed to load leads")
+      setError(err.message || tLeadsRef.current('unified.loadFailed'))
       setLoading(false)
       setLoadingCallLeads(false)
     }
@@ -657,7 +370,7 @@ export function UnifiedLeads() {
       const fullLead: UnifiedLead = {
         ...(currentLead as UnifiedLead),
         id: `call-${lead.id}`,
-        name: currentLead?.name || lead.name || `Customer ${lead.phone_number?.slice(-4)}`,
+        name: currentLead?.name || lead.name || tLeadsRef.current('unified.customerLast4', { last4: lead.phone_number?.slice(-4) ?? '' }),
         type: 'call' as const,
         status: normalizeCallStatus(lead.status),
         priority: lead.priority,
@@ -741,7 +454,7 @@ export function UnifiedLeads() {
         lead.name.toLowerCase().includes(searchLower) ||
         lead.phone?.includes(searchTerm) ||
         lead.email?.toLowerCase().includes(searchLower) ||
-        getLeadSourceLabel(lead).toLowerCase().includes(searchLower) ||
+        getLeadSourceLabel(lead, tLeads).toLowerCase().includes(searchLower) ||
         (isQuoteRequestLead(lead) && 'request'.includes(searchLower)) ||
         (isFrontlineVoiceLead(lead) && 'frontline voice'.includes(searchLower)) ||
         (isUsableProjectType(lead.project_type ?? undefined) && lead.project_type?.toLowerCase().includes(searchLower)) ||
@@ -807,13 +520,7 @@ export function UnifiedLeads() {
   const formatTime = (dateString: string) => {
     const date = parseApiUtcDate(dateString)
     if (!date) return ""
-    const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours} hours ago`
-    if (diffInHours < 48) return "1 day ago"
-    return `${Math.floor(diffInHours / 24)} days ago`
+    return formatLeadAge(date, tLeads)
   }
 
   const getQuoteRequestWarning = (lead: UnifiedLead) => {
@@ -823,7 +530,7 @@ export function UnifiedLeads() {
 
     if (!hasQuoteBeenSent) {
       return (
-        <div title="Quote request hasn't been sent">
+        <div title={tLeads('unified.estimateNotSent')}>
           <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
         </div>
       )
@@ -899,7 +606,7 @@ export function UnifiedLeads() {
     const active = selectedLeadId === lead.id
     const isFrontlineVoice = isFrontlineVoiceLead(lead)
     const hasQuoteRequest = isQuoteRequestLead(lead)
-    const sourceLabel = getLeadSourceLabel(lead)
+    const sourceLabel = getLeadSourceLabel(lead, tLeads)
     const initial = (lead.name || 'C').charAt(0).toUpperCase()
 
     return (
@@ -956,19 +663,19 @@ export function UnifiedLeads() {
               {lead.status && normalizeLeadLabel(lead.status) !== 'converted' && (
                 <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 ${getStatusColor(lead.status)} border-current/20`}>
                   <span className="h-1 w-1 rounded-full bg-current" />
-                  {lead.status}
+                  {leadStatusLabel(lead.status, tLeads)}
                 </span>
               )}
               {isFrontlineVoice && (
                 <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
                   <Sparkles className="h-2.5 w-2.5" />
-                  Frontline Voice
+                  {tLeads('unified.source.frontlineVoice')}
                 </span>
               )}
               {hasQuoteRequest && (
                 <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 border-border bg-background text-muted-foreground">
                   <FileText className="h-2.5 w-2.5" />
-                  Request
+                  {tLeads('unified.source.request')}
                 </span>
               )}
               {!isFrontlineVoice && !hasQuoteRequest && (
@@ -999,7 +706,7 @@ export function UnifiedLeads() {
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             </div>
           </div>
-          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">Loading request leads...</p>
+          <p className="mt-4 text-sm font-medium text-blue-600 text-center animate-pulse">{tLeads('unified.loadingRequests')}</p>
         </div>
       </div>
     )
@@ -1020,8 +727,8 @@ export function UnifiedLeads() {
                       <Inbox className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Inbox</p>
-                      <p className="text-[11px] text-muted-foreground">{counts.all} active leads</p>
+                      <p className="text-sm font-semibold text-foreground">{tLeads('unified.inbox')}</p>
+                      <p className="text-[11px] text-muted-foreground">{tLeads('unified.activeLeads', { count: counts.all })}</p>
                     </div>
                   </div>
                 </div>
@@ -1132,7 +839,7 @@ export function UnifiedLeads() {
                       <div className="rounded-xl border border-border bg-background p-3">
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                          <p className="text-xs text-muted-foreground">Loading call leads...</p>
+                          <p className="text-xs text-muted-foreground">{tLeads('unified.loadingCalls')}</p>
                         </div>
                       </div>
                       {[...Array(3)].map((_, i) => (
@@ -1155,10 +862,10 @@ export function UnifiedLeads() {
                       <MessageSquare className="h-6 w-6" />
                     </div>
                     <h3 className="font-semibold mb-2">
-                      {searchTerm ? 'No matching leads' : 'No leads yet'}
+                      {searchTerm ? tLeads('unified.empty.noMatch') : tLeads('unified.empty.none')}
                     </h3>
                     <p className="text-sm mb-4">
-                      {searchTerm ? 'Try adjusting your search terms.' : 'Share your quote request page to start receiving leads!'}
+                      {searchTerm ? tLeads('unified.empty.noMatchHint') : tLeads('unified.empty.noneHint')}
                     </p>
                   </div>
                 ) : (
@@ -1174,7 +881,7 @@ export function UnifiedLeads() {
               <Card className="h-full flex items-center justify-center">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-sm text-muted-foreground">Loading full details...</p>
+                  <p className="text-sm text-muted-foreground">{tLeads('unified.loadingDetails')}</p>
                 </div>
               </Card>
             ) : selectedLead ? (
@@ -1200,8 +907,8 @@ export function UnifiedLeads() {
               <Card className="h-full flex items-center justify-center">
                 <div className="text-center text-muted-foreground">
                   <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">Select a Lead</h3>
-                  <p className="text-sm">Choose a lead from the list to view details</p>
+                  <h3 className="text-lg font-semibold mb-2">{tLeads('unified.selectLead')}</h3>
+                  <p className="text-sm">{tLeads('unified.selectLeadHint')}</p>
                 </div>
               </Card>
             )}
@@ -1264,12 +971,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   }, [lead.converted_to_client_id, lead.id])
 
   useEffect(() => {
-    const updatePhoneClock = () => setPhoneClock(formatBrowserPhoneTime())
+    const updatePhoneClock = () => setPhoneClock(formatBrowserPhoneTime(locale))
     updatePhoneClock()
 
     const interval = window.setInterval(updatePhoneClock, 30_000)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [locale])
 
   const handleTranslate = async (
     text: string,
@@ -1298,13 +1005,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
   const formatTime = (dateString: string) => {
     const date = parseApiUtcDate(dateString)
     if (!date) return ""
-    const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours} hours ago`
-    if (diffInHours < 48) return "1 day ago"
-    return `${Math.floor(diffInHours / 24)} days ago`
+    return formatLeadAge(date, tLeads)
   }
 
   const getStatusColor = (status: string) => {
@@ -1326,7 +1027,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
   const isFrontlineVoice = isFrontlineVoiceLead(lead)
   const hasQuoteRequest = isQuoteRequestLead(lead)
-  const sourceLabel = getLeadSourceLabel(lead)
+  const sourceLabel = getLeadSourceLabel(lead, tLeads)
   const isCallOrMessagesLead = lead.type === 'call' || !!(lead as any).contractor_ai_call_lead_id || isFrontlineVoice
   const projectTypeLabel = getLeadProjectLabel(lead.project_type, lead.service_type)
   const quoteHref = lead.converted_to_job_id ? `/quotes/${lead.converted_to_job_id}` : null
@@ -1365,7 +1066,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
 
   const routeAfterClient = useCallback((clientId: number, action: SaveClientAction) => {
     if (action === "client") {
-      toast({ title: "Client saved" })
+      toast({ title: tLeads('unified.toast.clientSaved') })
       router.push(`/${locale}/clients/${clientId}`)
       return
     }
@@ -1377,7 +1078,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       return
     }
     setProjectDialogOpen(true)
-  }, [locale, router, toast])
+  }, [locale, router, toast, tLeads])
 
   const handleSaveClientAction = useCallback(async (action: "client" | "quote" | "project") => {
     try {
@@ -1394,14 +1095,14 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       setSaveClientOpen(true)
     } catch (error: any) {
       toast({
-        title: "Unable to save client",
-        description: error?.message || "Please try again.",
+        title: tLeads('unified.toast.saveClientFailed'),
+        description: error?.message || tLeads('unified.toast.tryAgain'),
         variant: "destructive",
       })
     } finally {
       setSaveAction(null)
     }
-  }, [routeAfterClient, toast, tryRecoverExistingClient])
+  }, [routeAfterClient, toast, tryRecoverExistingClient, tLeads])
 
   const launchClientPortal = useCallback(async (clientId: number) => {
     let token = clientPortalToken
@@ -1437,14 +1138,14 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       setSaveClientOpen(true)
     } catch (error: any) {
       toast({
-        title: "Unable to open client portal",
-        description: error?.message || "Please try again.",
+        title: tLeads('unified.toast.portalFailed'),
+        description: error?.message || tLeads('unified.toast.tryAgain'),
         variant: "destructive",
       })
     } finally {
       setOpeningClientPortal(false)
     }
-  }, [launchClientPortal, toast, tryRecoverExistingClient])
+  }, [launchClientPortal, toast, tryRecoverExistingClient, tLeads])
 
   const saveClientMenu = (
     <DropdownMenu>
@@ -1452,7 +1153,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         <Button size="sm" variant="default" className="h-9 w-full rounded-lg px-3 text-sm justify-between" disabled={saveAction !== null}>
           <span className="inline-flex items-center">
             {saveAction ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-            Save Lead
+            {tLeads('unified.actions.saveLead')}
           </span>
           <ChevronDown className="h-3.5 w-3.5 ml-2 shrink-0" />
         </Button>
@@ -1460,18 +1161,18 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
       <DropdownMenuContent align="end" className="w-52 p-1.5">
         <DropdownMenuItem className="items-start py-3 px-3 rounded-md" onSelect={() => void handleSaveClientAction("project")}>
           <div className="flex flex-col gap-1">
-            <span className="font-semibold text-sm">Create Project</span>
+            <span className="font-semibold text-sm">{tLeads('unified.actions.createProject')}</span>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-              Recommended
+              {tLeads('unified.actions.recommended')}
             </span>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("quote")}>
-          Create Quote
+          {tLeads('createQuote')}
         </DropdownMenuItem>
         <DropdownMenuItem className="py-3 px-3 rounded-md text-sm font-medium" onSelect={() => void handleSaveClientAction("client")}>
-          Create Client
+          {tLeads('unified.actions.createClient')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -1510,7 +1211,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         <Button size="sm" variant="default" className="h-9 w-full rounded-lg px-3 text-sm justify-between">
           <span className="inline-flex items-center">
             <Eye className="h-3.5 w-3.5 mr-1" />
-            View
+            {tLeads('unified.actions.view')}
           </span>
           <ChevronDown className="h-3.5 w-3.5 ml-2 shrink-0" />
         </Button>
@@ -1521,7 +1222,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
           onSelect={() => handleConvertedAction("view-client")}
         >
           <UserIcon className="h-3.5 w-3.5 mr-1.5" />
-          View Client
+          {tLeads('unified.actions.viewClient')}
         </DropdownMenuItem>
         {convertedProjectId ? (
           <DropdownMenuItem
@@ -1529,7 +1230,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             onSelect={() => handleConvertedAction("view-project")}
           >
             <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
-            View Project
+            {tLeads('unified.actions.viewProject')}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
@@ -1537,7 +1238,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             onSelect={() => handleConvertedAction("create-project")}
           >
             <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
-            Create Project
+            {tLeads('unified.actions.createProject')}
           </DropdownMenuItem>
         )}
         {convertedJobId ? (
@@ -1546,7 +1247,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             onSelect={() => handleConvertedAction("view-quote")}
           >
             <FileText className="h-3.5 w-3.5 mr-1.5" />
-            View Quote
+            {tLeads('unified.actions.viewEstimate')}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
@@ -1554,7 +1255,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             onSelect={() => handleConvertedAction("create-quote")}
           >
             <FileText className="h-3.5 w-3.5 mr-1.5" />
-            Create Quote
+            {tLeads('createQuote')}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
@@ -1585,18 +1286,18 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             </h2>
             <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shrink-0 ${getStatusColor(lead.status)} border-current/20`}>
               <span className="h-1 w-1 rounded-full bg-current" />
-              {lead.status}
+              {leadStatusLabel(lead.status, tLeads)}
             </span>
             {isFrontlineVoice && (
               <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
                 <Sparkles className="h-2.5 w-2.5" />
-                Frontline Voice
+                {tLeads('unified.source.frontlineVoice')}
               </span>
             )}
             {hasQuoteRequest && (
               <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shrink-0 border-border bg-background text-muted-foreground">
                 <FileText className="h-2.5 w-2.5" />
-                Request
+                {tLeads('unified.source.request')}
               </span>
             )}
             {!isFrontlineVoice && !hasQuoteRequest && (
@@ -1652,7 +1353,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               disabled={openingClientPortal}
             >
               {openingClientPortal ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
-              Client portal
+              {tLeads('unified.actions.clientPortal')}
             </Button>
           )}
           {/* Mobile: hamburger for sheet */}
@@ -1674,7 +1375,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {/* Phone mockup — SMS thread only */}
               <div className={`flex flex-col items-center justify-center ${isMobile ? 'flex-1 min-h-0 px-0 pt-1 pb-0 overflow-hidden' : 'px-5 py-5 lg:px-6 lg:py-7'}`}>
                 <div className="hidden w-full max-w-[300px] pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
-                  Live conversation
+                  {tLeads('unified.liveConversation')}
                 </div>
                 <div className={`relative flex flex-col ${isMobile ? 'w-full max-w-[18.75rem] h-full' : 'w-full max-w-[300px] aspect-[9/20] max-h-[620px]'}`}>
                   <div className="relative flex flex-col h-full rounded-[2.75rem] border border-slate-300/80 bg-slate-950/95 p-3 shadow-[0_30px_60px_-25px_rgba(15,23,42,0.35)] dark:border-slate-700 overflow-hidden">
@@ -1695,7 +1396,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   </div>
                 </div>
                 <div className="mt-3 hidden w-full max-w-[320px] rounded-xl border border-dashed border-border bg-background/70 p-3 text-center text-[11px] text-muted-foreground lg:block">
-                  Mirrors the SMS thread sent to this customer.
+                  {tLeads('unified.smsMirror')}
                 </div>
               </div>
             </div>
@@ -1707,7 +1408,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               {(lead as any).address_data?.id && (
                 <PropertyInsightsCard
                   addressId={(lead as any).address_data.id}
-                  title={tLeads('propertyInsights') || 'Property insights'}
+                  title={tLeads('propertyInsights')}
                 />
               )}
 
@@ -1719,8 +1420,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                 const displaySummary = isLong && !summaryCardExpanded
                   ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                   : rawSummary
-                const footerFacts = buildFooterFacts(lead, lead.summary_text)
-                const summaryTitle = buildSummaryTitle(lead, lead.summary_text)
+                const footerFacts = buildFooterFacts(lead, lead.summary_text, tLeads)
+                const summaryTitle = buildSummaryTitle(lead, lead.summary_text, tLeads)
                 return (
                   <div id="lead-detail-ai-summary" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
@@ -1736,7 +1437,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         </div>
                       </div>
                       <span className="hidden text-[11px] text-muted-foreground md:inline">
-                        Generated from call
+                        {tLeads('unified.generatedFromCall')}
                       </span>
                       {locale === 'es' && (
                         <button
@@ -1768,7 +1469,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                         onClick={() => setSummaryCardExpanded(v => !v)}
                         className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
                       >
-                        {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
+                        {summaryCardExpanded ? tLeads('unified.showLess') : tLeads('unified.showMore')}
                       </button>
                     )}
                     {footerFacts.length > 0 && (
@@ -1799,7 +1500,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       </span>
                       <div className="min-w-0">
                         <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                          Quote Request
+                          {tLeads('unified.estimateRequest')}
                         </p>
                         {projectTypeLabel && (
                           <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
@@ -1862,7 +1563,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       </span>
                       <div className="min-w-0">
                         <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                          Previous Quote Request {qr.created_at ? `· ${parseApiUtcDate(qr.created_at)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? ''}` : ''}
+                          {qr.created_at ? tLeads('unified.previousEstimateRequestDated', { date: parseApiUtcDate(qr.created_at)?.toLocaleDateString(intlLocale(locale), { month: 'short', day: 'numeric', year: 'numeric' }) ?? '' }) : tLeads('unified.previousEstimateRequest')}
                         </p>
                         {getLeadProjectLabel(qr.project_type) && (
                           <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
@@ -1944,10 +1645,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                             : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
                           }`}>
-                          {item.type === 'dimensions' ? 'L×W' : item.type === 'square_footage' ? 'Area' : 'Linear'}
+                          {item.type === 'dimensions' ? tLeads('unified.measure.dimensions') : item.type === 'square_footage' ? tLeads('unified.measure.area') : tLeads('unified.measure.linear')}
                         </span>
 
-                        <p className="text-xs md:text-sm font-medium mb-1 pr-12">{item.name || 'Measurement'}</p>
+                        <p className="text-xs md:text-sm font-medium mb-1 pr-12">{item.name || tLeads('unified.measure.fallback')}</p>
 
                         <div className="flex items-baseline gap-1">
                           {item.type === 'dimensions' ? (
@@ -1985,7 +1686,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     {tLeads('estimatedValue')}
                   </h3>
                   <p className="text-lg font-bold text-primary">
-                    ${lead.estimated_value.toLocaleString()}
+                    ${lead.estimated_value.toLocaleString(intlLocale(locale))}
                   </p>
                 </div>
               )}
@@ -2013,7 +1714,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           {lead.phone && (
                             <div className="flex items-center gap-2">
                               <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                              <dt className="sr-only">Phone</dt>
+                              <dt className="sr-only">{tLeads('unified.contact.phone')}</dt>
                               <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
                               <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
                                 <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
@@ -2023,7 +1724,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           {lead.email && (
                             <div className="flex items-center gap-2">
                               <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                              <dt className="sr-only">Email</dt>
+                              <dt className="sr-only">{tLeads('unified.contact.email')}</dt>
                               <dd className="min-w-0 truncate">
                                 <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
                                   {(openEmail) => (
@@ -2036,7 +1737,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           {lead.address ? (
                             <div className="flex items-start gap-2">
                               <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
-                              <dt className="sr-only">Address</dt>
+                              <dt className="sr-only">{tLeads('unified.contact.address')}</dt>
                               <dd className="min-w-0 break-words text-foreground">
                                 <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
                               </dd>
@@ -2044,12 +1745,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                           ) : (
                             <div className="flex items-center gap-2">
                               <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                              <dd className="text-muted-foreground italic">No address provided</dd>
+                              <dd className="text-muted-foreground italic">{tLeads('unified.contact.noAddress')}</dd>
                             </div>
                           )}
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                            <dt className="sr-only">Submitted</dt>
+                            <dt className="sr-only">{tLeads('unified.contact.submitted')}</dt>
                             <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
                           </div>
                         </dl>
@@ -2062,8 +1763,8 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                       const displaySummary = isLong && !summaryCardExpanded
                         ? rawSummary.slice(0, SUMMARY_CAP).trimEnd() + '…'
                         : rawSummary
-                      const footerFacts = buildFooterFacts(lead, lead.summary_text)
-                      const summaryTitle = buildSummaryTitle(lead, lead.summary_text)
+                      const footerFacts = buildFooterFacts(lead, lead.summary_text, tLeads)
+                      const summaryTitle = buildSummaryTitle(lead, lead.summary_text, tLeads)
                       return (
                       <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                         <div className="flex items-center justify-between gap-2">
@@ -2097,7 +1798,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                             onClick={() => setSummaryCardExpanded(v => !v)}
                             className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
                           >
-                            {summaryCardExpanded ? 'Show less ↑' : 'Show more ↓'}
+                            {summaryCardExpanded ? tLeads('unified.showLess') : tLeads('unified.showMore')}
                           </button>
                         )}
                         {footerFacts.length > 0 && (
@@ -2133,7 +1834,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   {lead.phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                      <dt className="sr-only">Phone</dt>
+                      <dt className="sr-only">{tLeads('unified.contact.phone')}</dt>
                       <dd className="flex-1 min-w-0 truncate tabular-nums text-foreground">{formatPhoneForDisplay(lead.phone)}</dd>
                       <Button size="sm" variant="ghost" asChild className="h-7 px-2 text-xs shrink-0">
                         <a href={`tel:${lead.phone}`} aria-label={tCommon('call')}>{tCommon('call')}</a>
@@ -2143,7 +1844,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   {lead.email && (
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                      <dt className="sr-only">Email</dt>
+                      <dt className="sr-only">{tLeads('unified.contact.email')}</dt>
                       <dd className="min-w-0 truncate">
                         <ContactSendEmailTrigger to={lead.email} recipientName={lead.name}>
                           {(openEmail) => (
@@ -2156,7 +1857,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   {lead.address ? (
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
-                      <dt className="sr-only">Address</dt>
+                      <dt className="sr-only">{tLeads('unified.contact.address')}</dt>
                       <dd className="min-w-0 break-words text-foreground">
                         <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`} target="_blank" rel="noreferrer" className="hover:underline">{lead.address}</a>
                       </dd>
@@ -2164,12 +1865,12 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                   ) : (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                      <dd className="text-muted-foreground italic">No address provided</dd>
+                      <dd className="text-muted-foreground italic">{tLeads('unified.contact.noAddress')}</dd>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-                    <dt className="sr-only">Submitted</dt>
+                    <dt className="sr-only">{tLeads('unified.contact.submitted')}</dt>
                     <dd className="text-muted-foreground text-xs">{formatTime(lead.created_at)}</dd>
                   </div>
                 </dl>
@@ -2180,7 +1881,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {(lead as any).address_data?.id && (
               <PropertyInsightsCard
                 addressId={(lead as any).address_data.id}
-                title={tLeads('propertyInsights') || 'Property insights'}
+                title={tLeads('propertyInsights')}
               />
             )}
 
@@ -2245,7 +1946,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     </span>
                     <div className="min-w-0">
                       <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                        Quote Request
+                        {tLeads('unified.estimateRequest')}
                       </p>
                       {projectTypeLabel && (
                         <p className="text-[15px] font-semibold tracking-tight text-foreground leading-tight truncate">
@@ -2307,7 +2008,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
                     </span>
                     <div className="min-w-0">
                       <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-600/80 dark:text-amber-400/80 leading-none mb-1">
-                        Previous Quote Request {qr.created_at ? `· ${parseApiUtcDate(qr.created_at)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? ''}` : ''}
+                        {qr.created_at ? tLeads('unified.previousEstimateRequestDated', { date: parseApiUtcDate(qr.created_at)?.toLocaleDateString(intlLocale(locale), { month: 'short', day: 'numeric', year: 'numeric' }) ?? '' }) : tLeads('unified.previousEstimateRequest')}
                       </p>
                       {getLeadProjectLabel(qr.project_type) && (
                         <p className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
@@ -2339,10 +2040,10 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {lead.estimated_value && (
               <div>
                 <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                  Estimated Value
+                  {tLeads('estimatedValue')}
                 </h3>
                 <div className="text-2xl font-bold text-primary">
-                  ${lead.estimated_value.toLocaleString()}
+                  ${lead.estimated_value.toLocaleString(intlLocale(locale))}
                 </div>
               </div>
             )}
@@ -2351,7 +2052,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
             {lead.attachments && lead.attachments.length > 0 && (
               <div>
                 <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide text-muted-foreground">
-                  Attachments
+                  {tLeads('unified.attachments')}
                 </h3>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   📎 {lead.attachments.length} file{lead.attachments.length > 1 ? 's' : ''} attached
@@ -2474,7 +2175,7 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
               ) : (
                 <Link2 className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
               )}
-              Client portal
+              {tLeads('unified.actions.clientPortal')}
             </Button>
           )}
         </div>
@@ -2490,1047 +2191,5 @@ function LeadDetailsPanel({ lead, onClose, onRefresh }: LeadDetailsPanelProps) {
         )}
       </div>
     </Card>
-  )
-}
-
-// Conversation Messages Component for Call Leads
-interface ConversationMessagesProps {
-  phoneNumber: string
-}
-
-function extractUrls(text: string): { cleanText: string; urls: Array<{ href: string; label: string }> } {
-  const urlRegex = /https?:\/\/[^\s)>\]"']+/g
-  const urls: Array<{ href: string; label: string }> = []
-  const cleanText = text.replace(urlRegex, (url) => {
-    let label = 'Link'
-    if (/\/quote-request\//i.test(url) || /\/request\//i.test(url)) label = 'Quote Request'
-    else if (/\/book\//i.test(url) || /\/booking\//i.test(url)) label = 'Book Appointment'
-    urls.push({ href: url, label })
-    return ''
-  }).replace(/\s{2,}/g, ' ').trim()
-  return { cleanText, urls }
-}
-
-function ConversationMessages({ phoneNumber }: ConversationMessagesProps) {
-  const { getContractorAISpId } = useAuth()
-  const locale = useLocale()
-  const tTranslation = useTranslations('translation')
-  const tLeads = useTranslations('leads')
-  const [messages, setMessages] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  // Translation state - translate all at once
-  const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({})
-  const [isTranslatingAll, setIsTranslatingAll] = useState(false)
-  const [allTranslated, setAllTranslated] = useState(false)
-
-  // Generate a cache key for the conversation
-  const getConversationCacheKey = useCallback(() => {
-    return `conv_translations_${phoneNumber}`
-  }, [phoneNumber])
-
-  // Load cached translations on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && phoneNumber) {
-      try {
-        const cached = localStorage.getItem(getConversationCacheKey())
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          setTranslatedMessages(parsed.translations || {})
-          setAllTranslated(Object.keys(parsed.translations || {}).length > 0)
-        }
-      } catch (e) {
-        console.error('Error loading cached conversation translations:', e)
-      }
-    }
-  }, [phoneNumber, getConversationCacheKey])
-
-  // Translate all messages at once
-  const handleTranslateAll = async () => {
-    if (allTranslated) {
-      // Reset to original
-      setTranslatedMessages({})
-      setAllTranslated(false)
-      // Clear cache
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(getConversationCacheKey())
-      }
-      return
-    }
-
-    setIsTranslatingAll(true)
-    try {
-      // Get all message texts that need translation
-      const textsToTranslate = messages
-        .filter(msg => msg.message_text && msg.message_text.trim())
-        .map(msg => msg.message_text)
-
-      if (textsToTranslate.length === 0) return
-
-      // Translate all at once using batch API
-      const response = await api.translateBatch(textsToTranslate, 'es', 'en')
-
-      // Map translations back to message IDs
-      const newTranslations: Record<string, string> = {}
-      let translationIndex = 0
-      messages.forEach(msg => {
-        if (msg.message_text && msg.message_text.trim()) {
-          newTranslations[msg.id] = response.translated_texts[translationIndex]
-          translationIndex++
-        }
-      })
-
-      setTranslatedMessages(newTranslations)
-      setAllTranslated(true)
-
-      // Save to localStorage cache
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(getConversationCacheKey(), JSON.stringify({
-          translations: newTranslations,
-          timestamp: Date.now()
-        }))
-      }
-    } catch (error) {
-      console.error('Translation error:', error)
-    } finally {
-      setIsTranslatingAll(false)
-    }
-  }
-
-  useEffect(() => {
-    if (phoneNumber) {
-      console.log('💬 ConversationMessages: Phone number received:', phoneNumber)
-      loadMessages()
-    } else {
-      console.log('💬 ConversationMessages: No phone number provided')
-      setLoading(false)
-      setMessages([])
-    }
-  }, [phoneNumber])
-
-  const loadMessages = async () => {
-    try {
-      setLoading(true)
-      setError("")
-
-      if (!phoneNumber) {
-        setMessages([])
-        setLoading(false)
-        return
-      }
-
-      const spId = getContractorAISpId()
-      if (!spId) {
-        setError('Service provider ID not found')
-        return
-      }
-
-      console.log('🔍 Loading conversations for phone:', phoneNumber, 'SP:', spId)
-
-      // Get all conversations for this service provider
-      const conversationsResponse = await contractorAI.getConversations({
-        sp_id: spId.toString(),
-        status: 'all' // Get all conversations, not just active
-      })
-
-      console.log('📞 Conversations response:', conversationsResponse)
-
-      // Normalize phone numbers to E.164 format for comparison
-      const normalizedTargetPhone = normalizePhoneToE164(phoneNumber)
-
-      // Find conversation by matching customer phone number
-      const conversation = (conversationsResponse as any).conversations?.find((conv: any) => {
-        const customerPhone = conv.customer?.phone_number || ''
-        const normalizedCustomerPhone = normalizePhoneToE164(customerPhone)
-        const matches = normalizedCustomerPhone === normalizedTargetPhone
-
-        console.log('🔍 Comparing:', {
-          target: phoneNumber,
-          normalizedTarget: normalizedTargetPhone,
-          customer: customerPhone,
-          normalizedCustomer: normalizedCustomerPhone,
-          matches
-        })
-
-        return matches
-      })
-
-      console.log('✅ Found conversation:', conversation)
-
-      if (conversation) {
-        // Load messages for this conversation
-        console.log('📨 Loading messages for conversation:', conversation.id)
-        const messagesResponse = await contractorAI.getConversationMessages(conversation.id.toString(), {
-          per_page: 50 // Get more messages
-        })
-
-        console.log('📨 Messages response:', messagesResponse)
-
-        const apiMessages = (messagesResponse as any).messages?.map((msg: any) => ({
-          id: msg.id.toString(),
-          sender_type: msg.sender_type,
-          message_text: msg.message_text,
-          translated_text: msg.translated_text,
-          timestamp: msg.timestamp,
-          status: msg.status
-        })) || []
-
-        // Sort chronologically (oldest first)
-        apiMessages.sort((a: any, b: any) => (parseApiUtcDate(a.timestamp)?.getTime() ?? 0) - (parseApiUtcDate(b.timestamp)?.getTime() ?? 0))
-
-        console.log('✅ Loaded', apiMessages.length, 'messages')
-        setMessages(apiMessages)
-      } else {
-        console.log('⚠️ No conversation found for phone:', phoneNumber)
-        setMessages([])
-      }
-    } catch (err: any) {
-      console.error('❌ Failed to load messages:', err)
-      setError(err.message || 'Failed to load messages')
-      setMessages([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const formatTime = (timestamp: string) => {
-    const date = parseApiUtcDate(timestamp)
-    if (!date) return ""
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  if (loading) {
-    return (
-      <div className="px-2 py-3 md:p-4 space-y-3">
-        {/* Loading indicator with description */}
-        <div className="flex items-center justify-center gap-2 py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-          <p className="text-sm text-muted-foreground">Loading conversation messages...</p>
-        </div>
-        {/* Skeleton messages */}
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-            <div className="max-w-xs rounded-lg px-3 py-2 bg-muted animate-pulse">
-              <div className="h-4 bg-muted-foreground/20 rounded w-32 mb-2"></div>
-              <div className="h-3 bg-muted-foreground/20 rounded w-24"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="px-2 py-3 md:p-4 text-center text-destructive text-sm">
-        {error}
-      </div>
-    )
-  }
-
-  if (messages.length === 0) {
-    return (
-      <div className="px-2 py-3 md:p-4 text-center text-muted-foreground">
-        <Send className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No conversation history</p>
-      </div>
-    )
-  }
-
-  // Get sender label based on locale and translation state
-  const getSenderLabel = (senderType: string): string => {
-    if (senderType === 'service_provider') {
-      return locale === 'es' ? 'Contratista' : 'Contractor'
-    }
-    return locale === 'es' ? 'Cliente' : 'Customer'
-  }
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Translate All Header - only show when locale is 'es' */}
-      {locale === 'es' && messages.length > 0 && (
-        <div className="px-2 md:px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {allTranslated ? `✓ ${tTranslation('translated')}` : `${messages.length} mensajes`}
-          </span>
-          <button
-            onClick={handleTranslateAll}
-            disabled={isTranslatingAll}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md ${allTranslated
-              ? 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-400'
-              : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/30'
-              }`}
-          >
-            {isTranslatingAll ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{tTranslation('translating')}</span>
-              </>
-            ) : allTranslated ? (
-              <>
-                <RotateCcw className="h-4 w-4" />
-                <span>{tTranslation('showOriginal')}</span>
-              </>
-            ) : (
-              <>
-                <Languages className="h-4 w-4" />
-                <span>{tTranslation('translateToSpanish')}</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Messages List - minimal horizontal padding on mobile so bubbles extend to edges */}
-      <div className="flex-1 space-y-3 px-4 py-4 overflow-y-auto min-h-0">
-        {messages.map((msg) => {
-          const isTranslated = !!translatedMessages[msg.id]
-          const displayText = translatedMessages[msg.id] || msg.message_text
-          const isServiceProvider = msg.sender_type === 'service_provider'
-
-          return (
-            <div
-              key={msg.id}
-              className={`flex ${isServiceProvider ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm ${isServiceProvider
-                  ? 'rounded-br-md bg-[#0879c9] text-white'
-                  : 'rounded-bl-md bg-muted text-foreground'
-                  }`}
-              >
-                {/* Sender Label */}
-                <div className={`text-[10px] mb-1 font-medium ${isServiceProvider
-                  ? 'text-white/70'
-                  : 'text-muted-foreground'
-                  }`}>
-                  {getSenderLabel(msg.sender_type)}
-                </div>
-
-                {/* Message Text with URL chip extraction */}
-                {(() => {
-                  const { cleanText, urls } = extractUrls(displayText)
-                  return (
-                    <>
-                      {cleanText && <p className="text-[14px] leading-[1.4] whitespace-pre-wrap">{cleanText}</p>}
-                      {urls.map((u, i) => (
-                        <a
-                          key={i}
-                          href={u.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`mt-1.5 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium no-underline ${
-                            isServiceProvider
-                              ? 'bg-white/20 text-white hover:bg-white/30'
-                              : 'bg-primary/10 text-primary hover:bg-primary/20'
-                          }`}
-                        >
-                          <Link2 className="h-3 w-3 shrink-0" />
-                          {u.label} →
-                        </a>
-                      ))}
-                    </>
-                  )
-                })()}
-
-                {/* Timestamp and Status */}
-                <div className="flex items-center justify-between mt-1.5 gap-2">
-                  <p className={`text-[10px] ${isServiceProvider
-                    ? 'text-white/60'
-                    : 'text-muted-foreground'
-                    }`}>
-                    {formatTime(msg.timestamp)}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    {isTranslated && (
-                      <span className={`text-[10px] italic ${isServiceProvider
-                        ? 'text-white/50'
-                        : 'text-green-600 dark:text-green-400'
-                        }`}>
-                        ✓ {locale === 'es' ? 'traducido' : 'translated'}
-                      </span>
-                    )}
-                    {msg.status && isServiceProvider && (
-                      <span className={`text-[10px] ${msg.status === 'delivered' ? 'text-white/70' :
-                        msg.status === 'failed' ? 'text-red-300' :
-                          'text-white/50'
-                        }`}>
-                        {msg.status === 'delivered' ? '✓✓' : msg.status === 'sent' ? '✓' : '✗'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// Call History Section Component
-interface CallHistorySectionProps {
-  phoneNumber: string
-  currentLeadId: string
-}
-
-interface CallHistoryItem {
-  id: string
-  created_at: string
-  transcript_text?: string
-  formatted_transcript_text?: string
-  summary_text?: string
-  phone_number?: string // Added for verification that transcript belongs to correct phone
-  is_frontline_ai?: boolean
-  source?: string
-}
-
-function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySectionProps) {
-  const { getContractorAISpId } = useAuth()
-  const locale = useLocale()
-  const tTranslation = useTranslations('translation')
-  const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([])
-  const [selectedCallId, setSelectedCallId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [lastPhoneNumber, setLastPhoneNumber] = useState<string>('')
-  const [translatedTranscript, setTranslatedTranscript] = useState<string | null>(null)
-  const [isTranslatingTranscript, setIsTranslatingTranscript] = useState(false)
-
-  // Generate cache key for transcript
-  const getTranscriptCacheKey = useCallback((callId: string) => {
-    return `transcript_translation_${phoneNumber}_${callId}`
-  }, [phoneNumber])
-
-  // Load cached translation when call selection changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && selectedCallId) {
-      try {
-        const cached = localStorage.getItem(getTranscriptCacheKey(selectedCallId))
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          setTranslatedTranscript(parsed.translation)
-        } else {
-          setTranslatedTranscript(null)
-        }
-      } catch (e) {
-        console.error('Error loading cached transcript translation:', e)
-        setTranslatedTranscript(null)
-      }
-    } else {
-      setTranslatedTranscript(null)
-    }
-  }, [selectedCallId, getTranscriptCacheKey])
-
-  const handleTranslateTranscript = async (text: string) => {
-    if (translatedTranscript) {
-      // Reset to original and clear cache
-      setTranslatedTranscript(null)
-      if (typeof window !== 'undefined' && selectedCallId) {
-        localStorage.removeItem(getTranscriptCacheKey(selectedCallId))
-      }
-      return
-    }
-
-    setIsTranslatingTranscript(true)
-    try {
-      // Use cached translation helper
-      const translated = await translateWithCache(text, 'es', 'en')
-      // Format with Spanish speaker names
-      const formatted = formatTranscriptTranslation(translated)
-      setTranslatedTranscript(formatted)
-
-      // Cache the result
-      if (typeof window !== 'undefined' && selectedCallId) {
-        localStorage.setItem(getTranscriptCacheKey(selectedCallId), JSON.stringify({
-          translation: formatted,
-          timestamp: Date.now()
-        }))
-      }
-    } catch (error) {
-      console.error('Translation error:', error)
-    } finally {
-      setIsTranslatingTranscript(false)
-    }
-  }
-
-  useEffect(() => {
-    console.log('📞 CallHistorySection: Phone number received:', phoneNumber, 'Lead ID:', currentLeadId)
-  }, [phoneNumber, currentLeadId])
-
-  const loadCallHistory = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      const spId = getContractorAISpId()
-      if (!spId || !phoneNumber) {
-        console.log('🔍 Missing spId or phoneNumber:', { spId, phoneNumber })
-        setCallHistory([])
-        setLoading(false)
-        return
-      }
-
-      // Normalize phone number to E.164 format before API call
-      const normalizedPhone = normalizePhoneToE164(phoneNumber)
-      console.log('🔍 Loading call history ONLY for phone:', phoneNumber, '-> Normalized:', normalizedPhone, 'SP:', spId)
-
-      // Fetch leads filtered by this specific phone number ONLY (using E.164 format)
-      const response = await contractorAI.getLeads({
-        sp_id: spId.toString(),
-        phone_number: normalizedPhone, // Use normalized E.164 format
-        per_page: 1000
-      })
-
-      console.log('📞 Call history API response for phone', normalizedPhone, ':', response)
-
-      // Normalize requested phone number to E.164 format
-      const normalizedRequestedPhone = normalizePhoneToE164(phoneNumber)
-
-      // Additional safety check: Ensure all returned leads match the requested phone number
-      const historyItems: CallHistoryItem[] = ((response as any).leads || [])
-        .filter((lead: any) => {
-          // Normalize phone numbers to E.164 format for comparison
-          const leadPhoneNormalized = normalizePhoneToE164(lead.phone_number || '')
-          const matches = leadPhoneNormalized === normalizedRequestedPhone
-
-          if (!matches) {
-            console.warn('⚠️ FILTERING OUT lead with mismatched phone:', {
-              leadId: lead.id,
-              leadPhone: lead.phone_number,
-              leadPhoneNormalized,
-              requestedPhone: phoneNumber,
-              requestedPhoneNormalized: normalizedRequestedPhone,
-              matches
-            })
-          }
-          return matches
-        })
-        .map((lead: any) => {
-          console.log('📋 Processing lead for call history:', {
-            id: lead.id,
-            phone: lead.phone_number,
-            requestedPhone: phoneNumber,
-            hasTranscript: !!(lead.transcript_text || lead.formatted_transcript_text),
-            transcriptLength: (lead.transcript_text || '').length,
-            formattedTranscriptLength: (lead.formatted_transcript_text || '').length
-          })
-
-          return {
-            id: lead.id.toString(),
-            created_at: lead.last_contact_date || lead.created_at,
-            transcript_text: lead.transcript_text,
-            formatted_transcript_text: lead.formatted_transcript_text,
-            summary_text: lead.summary_text,
-            phone_number: lead.phone_number, // Keep phone number for verification
-            is_frontline_ai: isFrontlineVoiceLead(lead),
-            source: lead.source,
-          }
-        })
-        .filter((item: CallHistoryItem) => {
-          const hasTranscript = !!(item.transcript_text || item.formatted_transcript_text)
-          if (!hasTranscript) {
-            console.log('⏭️ Skipping item without transcript:', item.id)
-          } else {
-            console.log('✅ Including item with transcript:', {
-              id: item.id,
-              phone: (item as any).phone_number,
-              transcriptLength: (item.transcript_text || '').length,
-              formattedLength: (item.formatted_transcript_text || '').length
-            })
-          }
-          return hasTranscript
-        })
-        .sort((a: CallHistoryItem, b: CallHistoryItem) =>
-          (parseApiUtcDate(b.created_at)?.getTime() ?? 0) - (parseApiUtcDate(a.created_at)?.getTime() ?? 0)
-        )
-
-      console.log('✅ Final call history items for phone', phoneNumber, ':', historyItems.map(item => ({
-        id: item.id,
-        created_at: item.created_at,
-        phone: (item as any).phone_number,
-        hasTranscript: !!(item.transcript_text || item.formatted_transcript_text)
-      })))
-
-      // Ensure we only have transcripts for the requested phone number
-      if (historyItems.length > 0) {
-        console.log('🎯 Successfully loaded', historyItems.length, 'transcript(s) for phone:', phoneNumber)
-      } else {
-        console.log('⚠️ No transcripts found for phone:', phoneNumber)
-      }
-
-      setCallHistory(historyItems)
-
-      // Auto-select the current lead if it exists in history
-      const currentNumericId = currentLeadId.replace('call-', '')
-      if (historyItems.some(item => item.id === currentNumericId)) {
-        setSelectedCallId(currentNumericId)
-        console.log('🎯 Auto-selected current lead:', currentNumericId)
-      } else if (historyItems.length > 0) {
-        setSelectedCallId(historyItems[0].id)
-        console.log('🎯 Auto-selected first item:', historyItems[0].id)
-      }
-    } catch (error) {
-      console.error('❌ Failed to load call history for phone', phoneNumber, ':', error)
-      setCallHistory([])
-    } finally {
-      setLoading(false)
-    }
-  }, [phoneNumber, currentLeadId, getContractorAISpId])
-
-  useEffect(() => {
-    // Detect phone number change and clear state to prevent transcript mixing
-    if (phoneNumber !== lastPhoneNumber) {
-      console.log('📞 PHONE NUMBER CHANGED - Clearing transcript data to prevent mixing')
-      console.log('  Previous phone:', lastPhoneNumber)
-      console.log('  New phone:', phoneNumber)
-
-      // Clear ALL transcript-related state to ensure clean slate
-      setCallHistory([])
-      setSelectedCallId(null)
-      setIsExpanded(true)
-      setLastPhoneNumber(phoneNumber)
-
-      console.log('✅ Transcript state cleared for phone number change')
-    }
-
-    if (phoneNumber) {
-      console.log('🔄 Loading call history for phone:', phoneNumber)
-      loadCallHistory()
-    } else {
-      setLoading(false)
-    }
-  }, [phoneNumber, loadCallHistory, lastPhoneNumber])
-
-  const formatDateTime = (dateString: string) => {
-    const date = parseApiUtcDate(dateString)
-    if (!date) return { date: '', time: '', full: '' }
-    return {
-      date: date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      full: date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    }
-  }
-
-  const renderFormattedTranscript = (text: string, isTranslated: boolean = false) => {
-    const lines = text.split('\n').filter(line => line.trim())
-
-    // Get Spanish speaker labels
-    const getDisplaySpeaker = (speaker: string): string => {
-      const speakerLower = speaker.trim().toLowerCase()
-      if (speakerLower.includes('contractor') || speakerLower.includes('contratista')) {
-        return isTranslated || locale === 'es' ? 'Contratista' : 'Contractor'
-      }
-      if (speakerLower.includes('frontline') || speakerLower.includes('assistant')) {
-        return 'Frontline'
-      }
-      if (speakerLower.includes('customer') || speakerLower.includes('client') || speakerLower.includes('cliente')) {
-        return isTranslated || locale === 'es' ? 'Cliente' : 'Customer'
-      }
-      return speaker.trim()
-    }
-
-    return lines.map((line, index) => {
-      const [speaker, ...messageParts] = line.split(':')
-      const message = messageParts.join(':').trim()
-
-      if (!message || !speaker) {
-        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
-      }
-
-      const speakerLower = speaker.trim().toLowerCase()
-      const isContractor = speakerLower.includes('contractor') || speakerLower.includes('contratista') || speakerLower.includes('frontline') || speakerLower.includes('assistant')
-      const displaySpeaker = getDisplaySpeaker(speaker)
-
-      return (
-        <div
-          key={index}
-          className={`grid gap-2 rounded-xl border px-3 py-2.5 text-sm leading-relaxed md:grid-cols-[7rem_minmax(0,1fr)] ${
-            isContractor
-              ? 'border-blue-200/70 bg-blue-50/70 dark:border-blue-900/50 dark:bg-blue-950/20'
-              : 'border-border bg-background'
-          }`}
-        >
-          <div className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider ${
-            isContractor ? 'text-blue-700 dark:text-blue-300' : 'text-muted-foreground'
-          }`}>
-            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] ${
-              isContractor
-                ? 'bg-[#0879c9] text-white'
-                : 'bg-muted text-muted-foreground'
-            }`}>
-              {isContractor ? 'F' : 'C'}
-            </span>
-            {displaySpeaker}
-          </div>
-          <p className="min-w-0 text-foreground">{message}</p>
-        </div>
-      )
-    })
-  }
-
-  const selectedCall = callHistory.find(item => item.id === selectedCallId)
-  const hasTranscript = selectedCall && (selectedCall.transcript_text || selectedCall.formatted_transcript_text)
-
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="p-4 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-          <span className="ml-2 text-sm text-muted-foreground">Loading call history...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (callHistory.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="p-4 text-center text-muted-foreground">
-          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No call transcripts available</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full border-b border-border px-5 py-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors"
-      >
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Call History & Transcripts</span>
-          <Badge variant="secondary" className="rounded-full text-[10px]">
-            {callHistory.length} {callHistory.length === 1 ? 'call' : 'calls'}
-          </Badge>
-          {callHistory.some(call => call.is_frontline_ai) && (
-            <Badge variant="outline" className="flex items-center gap-1 rounded-full border-sky-200 bg-sky-50 text-[10px] text-sky-700">
-              <Sparkles className="h-3 w-3" />
-              Frontline Voice
-            </Badge>
-          )}
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-
-      {isExpanded && (
-        <div className="space-y-4 px-5 py-5">
-          {/* Call History Dropdown */}
-          <div>
-            <Select
-              value={selectedCallId || undefined}
-              onValueChange={(value) => setSelectedCallId(value)}
-            >
-              <SelectTrigger className="w-full rounded-lg bg-background">
-                <SelectValue>
-                  {selectedCallId ? (() => {
-                    const selected = callHistory.find(call => call.id === selectedCallId)
-                    return selected ? formatDateTime(selected.created_at).full : 'Select a call'
-                  })() : 'Select a call'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {callHistory.map((call) => {
-                  const dateTime = formatDateTime(call.created_at)
-                  return (
-                    <SelectItem key={call.id} value={call.id}>
-                      {dateTime.full}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Selected Call Transcript */}
-          {selectedCall && hasTranscript && (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Transcript
-                </h4>
-                {locale === 'es' && (
-                  <button
-                    onClick={() => handleTranslateTranscript(
-                      selectedCall.formatted_transcript_text || selectedCall.transcript_text || ''
-                    )}
-                    disabled={isTranslatingTranscript}
-                    className={`p-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${translatedTranscript
-                      ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/40'
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200 dark:shadow-blue-900/30'
-                      }`}
-                    title={translatedTranscript ? tTranslation('showOriginal') : tTranslation('translateToSpanish')}
-                  >
-                    {isTranslatingTranscript ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-white" />
-                    ) : translatedTranscript ? (
-                      <RotateCcw className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <Languages className="h-4 w-4 text-white" />
-                    )}
-                  </button>
-                )}
-              </div>
-
-              <div className="bg-muted/20 p-3 rounded-xl max-h-96 overflow-y-auto">
-                {translatedTranscript ? (
-                  <>
-                    <div className="space-y-2">
-                      {renderFormattedTranscript(translatedTranscript, true)}
-                    </div>
-                    <p className="text-[10px] mt-3 pt-2 border-t border-muted text-green-600 dark:text-green-400 italic text-center">
-                      ✓ {tTranslation('translated')}
-                    </p>
-                  </>
-                ) : selectedCall.formatted_transcript_text ? (
-                  <div className="space-y-2">
-                    {renderFormattedTranscript(selectedCall.formatted_transcript_text, false)}
-                  </div>
-                ) : selectedCall.transcript_text ? (
-                  <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
-                    {selectedCall.transcript_text}
-                  </pre>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No transcript available</p>
-                )}
-              </div>
-
-              {/* <div className="mt-2 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  {showRawTranscript ? (
-                    <span>📝 Raw transcript from phone conversation with {phoneNumber}</span>
-                  ) : selectedCall.formatted_transcript_text ? (
-                    <span>✨ AI-formatted conversation thread with {phoneNumber}</span>
-                  ) : (
-                    <span>📝 Raw transcript from phone conversation with {phoneNumber}</span>
-                  )}
-                </div>
-                <div className="mt-1 text-[10px] opacity-75">
-                  Call ID: {selectedCall.id} | Lead Phone: {selectedCall.phone_number || 'N/A'}
-                </div>
-              </div> */}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Transcript Section Component (for sidebar)
-interface TranscriptSectionProps {
-  transcript: string
-  isFormatted?: boolean
-}
-
-function TranscriptSection({ transcript, isFormatted = false }: TranscriptSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  // Function to render formatted transcript as conversation
-  const renderFormattedTranscript = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim())
-
-    return lines.map((line, index) => {
-      const [speaker, ...messageParts] = line.split(':')
-      const message = messageParts.join(':').trim()
-
-      if (!message || !speaker) {
-        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
-      }
-
-      const isContractor = speaker.trim().toLowerCase().includes('contractor')
-
-      return (
-        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground'
-            }`}>
-            <div className="text-xs opacity-70 mb-1 font-medium">
-              {speaker.trim()}
-            </div>
-            <div className="text-sm">
-              {message}
-            </div>
-          </div>
-        </div>
-      )
-    })
-  }
-
-  return (
-    <div className="border-t bg-background">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">
-            {isFormatted ? 'Call Conversation' : 'Full Transcript'}
-          </span>
-          {isFormatted && (
-            <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
-              Formatted
-            </span>
-          )}
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-
-      {isExpanded && (
-        <div className="px-4 pb-4">
-          <div className="bg-muted/30 p-3 rounded-lg max-h-60 overflow-y-auto">
-            {isFormatted ? (
-              <div className="space-y-2">
-                {renderFormattedTranscript(transcript)}
-              </div>
-            ) : (
-              <pre className="text-xs whitespace-pre-wrap font-sans text-foreground">
-                {transcript}
-              </pre>
-            )}
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            {isFormatted ? (
-              <span>✨ AI-formatted conversation thread</span>
-            ) : (
-              <span>📝 Raw transcript from phone conversation</span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Transcript Toggle Section Component (for main area)
-interface TranscriptToggleSectionProps {
-  transcript?: string
-  formattedTranscript?: string
-  leadId: string
-  hasSummary: boolean
-  messageCount: number
-  onRefresh: () => void
-}
-
-function TranscriptToggleSection({
-  transcript,
-  formattedTranscript,
-  leadId,
-  hasSummary,
-  messageCount,
-  onRefresh
-}: TranscriptToggleSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  // Use formatted transcript if available, fall back to raw transcript
-  const displayTranscript = formattedTranscript || transcript
-  const isFormatted = !!formattedTranscript
-
-  // Function to render formatted transcript as conversation
-  const renderFormattedTranscript = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim())
-
-    return lines.map((line, index) => {
-      const [speaker, ...messageParts] = line.split(':')
-      const message = messageParts.join(':').trim()
-
-      if (!message || !speaker) {
-        return <div key={index} className="text-xs text-muted-foreground py-1">{line}</div>
-      }
-
-      const isContractor = speaker.trim().toLowerCase().includes('contractor')
-
-      return (
-        <div key={index} className={`flex mb-3 ${isContractor ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isContractor
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground'
-            }`}>
-            <div className="text-xs opacity-70 mb-1 font-medium">
-              {speaker.trim()}
-            </div>
-            <div className="text-sm">
-              {message}
-            </div>
-          </div>
-        </div>
-      )
-    })
-  }
-
-  // If no transcript, show minimal collapsed state only
-  if (!displayTranscript) {
-    return (
-      <div className="py-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MessageSquare className="h-4 w-4" />
-          <span>Transcript</span>
-          <Badge variant="secondary" className="text-xs">
-            Not available
-          </Badge>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full py-3 flex items-center justify-between hover:opacity-70 transition-opacity"
-      >
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-            {isFormatted ? 'Call Conversation' : 'Transcript'}
-          </h3>
-          <Badge variant="secondary" className="text-xs">
-            {displayTranscript.length} chars
-          </Badge>
-          {isFormatted && (
-            <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
-              Formatted
-            </span>
-          )}
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-
-      {isExpanded && (
-        <div className="mt-2">
-          <div className="bg-muted/20 p-4 rounded-lg max-h-80 overflow-y-auto">
-            {isFormatted ? (
-              <div className="space-y-2">
-                {renderFormattedTranscript(displayTranscript)}
-              </div>
-            ) : (
-              <pre className="text-sm whitespace-pre-wrap font-sans text-foreground leading-relaxed">
-                {displayTranscript}
-              </pre>
-            )}
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <MessageSquare className="h-3 w-3" />
-            <span>{isFormatted ? '✨ AI-formatted conversation thread' : '📝 Auto-generated from phone conversation'}</span>
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
