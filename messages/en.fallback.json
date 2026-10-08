@@ -42,7 +42,15 @@
     "campaignDetails": "Campaign Details",
     "crewDetails": "Crew Details",
     "tradeScope": "Trade Scope",
-    "projectDetails": "Project Details"
+    "projectDetails": "Project Details",
+    "pageBilling": "Billing",
+    "pageAdmin": "Admin",
+    "pagePrivacy": "Privacy",
+    "requestSettings": "Request Settings",
+    "quoteRequest": "Estimate Request",
+    "pageAvailability": "Availability",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "projects": {
     "emptyState": "No projects yet. Start by creating a project from an accepted estimate or add one manually.",
