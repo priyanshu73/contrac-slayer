@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Check } from "lucide-react"
 
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
@@ -32,40 +32,40 @@ const CHIP: Record<ActionSeverity, string> = {
   info: "bg-sky-50 text-sky-700",
 }
 
-function chipLabel(item: ActionQueueItem): string {
+function chipLabel(item: ActionQueueItem, t: (key: string, values?: Record<string, number>) => string): string {
   const age = item.age_days
   switch (item.type) {
     case "INVOICE_OVERDUE":
-      return age ? `OVERDUE ${age}D` : "OVERDUE"
+      return age ? t("chipOverdueDays", { days: age }) : t("chipOverdue")
     case "DRAW_READY":
-      return "DRAW READY"
+      return t("chipDrawReady")
     case "QUOTE_VIEWED":
-      return "VIEWED"
+      return t("chipViewed")
     case "QUOTE_CHANGES_REQUESTED":
-      return "CHANGES"
+      return t("chipChanges")
     case "QUOTE_UNVIEWED":
-      return age ? `NO VIEWS ${age}D` : "NO VIEWS"
+      return age ? t("chipNoViewsDays", { days: age }) : t("chipNoViews")
     case "QUOTE_ACCEPTED_NO_PROJECT":
-      return age && age >= 7 ? `NO PROJECT ${Math.floor(age / 7)}W` : "NO PROJECT"
+      return age && age >= 7 ? t("chipNoProjectWeeks", { weeks: Math.floor(age / 7) }) : t("chipNoProject")
     case "QUOTE_EXPIRING":
-      return "EXPIRING"
+      return t("chipExpiring")
     case "TRADE_PENDING":
-      return "TRADE"
+      return t("chipTrade")
     case "TASK_DUE":
-      return "TASK"
+      return t("chipTask")
     case "LEAD_UNCONTACTED":
-      return "LEAD"
+      return t("chipLead")
     default:
       return item.type
   }
 }
 
 const PRIMARY_ACTION_LABEL: Record<string, string> = {
-  send_reminder: "Send reminder",
-  bill_draw: "Bill draw",
-  start_project: "Start project",
-  mark_done: "Mark done",
-  open_lead: "Open lead",
+  send_reminder: "actionSendReminder",
+  bill_draw: "actionBillDraw",
+  start_project: "actionStartProject",
+  mark_done: "actionMarkDone",
+  open_lead: "actionOpenLead",
 }
 
 export function NeedsYouCard({
@@ -79,6 +79,7 @@ export function NeedsYouCard({
 }) {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("dashboardHome")
   const { toast } = useToast()
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [snoozingAll, setSnoozingAll] = useState(false)
@@ -102,10 +103,10 @@ export function NeedsYouCard({
         try {
           const res = await api.sendReminder("INVOICE", item.entity.id)
           toast({ title: res.message })
-          markDone(item.key, "Reminder sent")
+          markDone(item.key, t("reminderSent"))
         } catch (e) {
           toast({
-            title: "Couldn't send reminder",
+            title: t("reminderFailed"),
             description: e instanceof Error ? e.message : undefined,
             variant: "destructive",
           })
@@ -124,11 +125,11 @@ export function NeedsYouCard({
         setBusyKey(item.key)
         try {
           await api.updateProjectTask(projectId, item.entity.id, { status: "COMPLETED" })
-          toast({ title: "Task completed" })
-          markDone(item.key, "Task completed")
+          toast({ title: t("taskCompleted") })
+          markDone(item.key, t("taskCompleted"))
         } catch (e) {
           toast({
-            title: "Couldn't complete task",
+            title: t("taskFailed"),
             description: e instanceof Error ? e.message : undefined,
             variant: "destructive",
           })
@@ -148,11 +149,11 @@ export function NeedsYouCard({
     try {
       const until = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
       const res = await api.snoozeActionItems(items.map((i) => i.key), until)
-      toast({ title: `Snoozed ${res.snoozed} item${res.snoozed === 1 ? "" : "s"} for a week` })
+      toast({ title: t("snoozedForWeek", { count: res.snoozed }) })
       onRefresh()
     } catch (e) {
       toast({
-        title: "Couldn't snooze",
+        title: t("snoozeFailed"),
         description: e instanceof Error ? e.message : undefined,
         variant: "destructive",
       })
@@ -165,19 +166,19 @@ export function NeedsYouCard({
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between px-5 pt-4">
         <h2 className="text-[15px] font-semibold text-slate-900">
-          Needs you{" "}
+          {t("needsYou")}{" "}
           {queue ? <span className="font-normal text-slate-400">{items.length}</span> : null}
         </h2>
         <div className="flex items-center gap-3 text-[12.5px]">
           {queue && queue.counts.snoozed > 0 && (
-            <span className="text-slate-400">{queue.counts.snoozed} snoozed</span>
+            <span className="text-slate-400">{t("snoozedCount", { count: queue.counts.snoozed })}</span>
           )}
           <button
             onClick={snoozeAll}
             disabled={snoozingAll || !items.length}
             className="font-medium text-sky-700 hover:underline disabled:opacity-40"
           >
-            Snooze all
+            {t("snoozeAll")}
           </button>
         </div>
       </div>
@@ -189,9 +190,9 @@ export function NeedsYouCard({
             ))
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-200 py-10 text-center">
-              <p className="text-sm font-medium text-slate-900">You&apos;re all caught up</p>
+              <p className="text-sm font-medium text-slate-900">{t("allCaughtUp")}</p>
               <p className="mt-0.5 text-xs text-slate-500">
-                Nothing needs action right now.
+                {t("nothingNeedsAction")}
               </p>
             </div>
           ) : (
@@ -226,7 +227,7 @@ export function NeedsYouCard({
                       <span
                         className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-[0.08em] ${CHIP[item.severity]}`}
                       >
-                        {chipLabel(item)}
+                        {chipLabel(item, t)}
                       </span>
                       <p className="min-w-0 truncate text-[14px] font-semibold text-slate-900">
                         {item.title}
@@ -252,7 +253,7 @@ export function NeedsYouCard({
                           : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
                       }`}
                     >
-                      {busyKey === item.key ? "…" : PRIMARY_ACTION_LABEL[item.primary_action]}
+                      {busyKey === item.key ? "…" : t(PRIMARY_ACTION_LABEL[item.primary_action])}
                     </button>
                   )}
                 </div>
