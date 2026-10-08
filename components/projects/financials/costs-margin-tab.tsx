@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Project, ProjectFinancialSummary } from '@/lib/types'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
@@ -36,6 +37,7 @@ const num = (v: any) => { const n = toNum(v); return Number.isInteger(n) ? Strin
  */
 export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMediaChanged }: CostsMarginTabProps) {
   const { toast } = useToast()
+  const tc = useTranslations('projectsPage.financials.costs')
   const [savingPnl, setSavingPnl] = useState(false)
   const [pnlOpen, setPnlOpen] = useState(false)
 
@@ -53,7 +55,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
   // cost at which GP hits zero: (Revenue − every cost except labor) ÷ crew days.
   // Pay your crew more per day than this and the job loses money.
   const unitLabel = (summary?.pnl_unit_label || '').trim()
-  const unitWord = unitLabel || 'unit'
+  const unitWord = unitLabel || tc('defaultUnit')
   const unitCount = toNumOrNull(summary?.pnl_unit_count)
   const crewDays = toNumOrNull(summary?.pnl_crew_days)
   const breakevenDayRate = crewDays != null && crewDays > 0
@@ -69,7 +71,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
       await api.updateProject(project.id, updates)
       onRefreshTotal()
     } catch (err: any) {
-      toast({ title: 'Could not save', description: err.message, variant: 'destructive' })
+      toast({ title: tc('saveFailed'), description: err.message, variant: 'destructive' })
     } finally {
       setSavingPnl(false)
     }
@@ -98,9 +100,9 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
   const pnlSummaryText = (unitCount != null || crewDays != null)
     ? [
         unitCount != null ? `${num(unitCount)} ${plural(unitCount, unitWord.toLowerCase())}` : null,
-        crewDays != null ? `${num(crewDays)} crew ${plural(crewDays, 'day')}` : null,
+        crewDays != null ? tc('crewDaysCount', { count: crewDays, value: num(crewDays) }) : null,
       ].filter(Boolean).join(' · ')
-    : 'Set units & crew days'
+    : tc('setUnitsCrewDays')
 
   return (
     <div>
@@ -109,7 +111,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
         <Card className="border shadow-sm">
           <CardContent className="p-5 space-y-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Job Margin</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{tc('jobMargin')}</h2>
               {/* Compact editable P&L inputs */}
               <Popover open={pnlOpen} onOpenChange={setPnlOpen}>
                 <PopoverTrigger asChild>
@@ -118,19 +120,19 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-64 p-3 space-y-3">
-                  <p className="text-xs font-semibold text-foreground">Per-unit metric inputs</p>
+                  <p className="text-xs font-semibold text-foreground">{tc('perUnitInputs')}</p>
                   <div className="space-y-1">
-                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Unit label</Label>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">{tc('unitLabel')}</Label>
                     <Input
                       className="h-8 text-sm"
-                      placeholder="e.g. Pond"
+                      placeholder={tc('unitPlaceholder')}
                       defaultValue={unitLabel}
                       onBlur={e => { const v = e.target.value.trim(); if (v !== unitLabel) savePnl({ pnl_unit_label: v || null }) }}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground"># Units</Label>
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">{tc('numUnits')}</Label>
                       <Input
                         type="text" inputMode="decimal" className="h-8 text-sm text-right" placeholder="0"
                         defaultValue={unitCount != null ? String(unitCount) : ''}
@@ -138,7 +140,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground"># Crew days</Label>
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">{tc('numCrewDays')}</Label>
                       <Input
                         type="text" inputMode="decimal" className="h-8 text-sm text-right" placeholder="0"
                         defaultValue={crewDays != null ? String(crewDays) : ''}
@@ -146,7 +148,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
                       />
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{savingPnl ? 'Saving…' : 'Drives GP per unit / crew day below.'}</p>
+                  <p className="text-[10px] text-muted-foreground">{savingPnl ? tc('saving') : tc('drivesHint')}</p>
                 </PopoverContent>
               </Popover>
             </div>
@@ -154,37 +156,37 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
             {/* Hero: Gross Profit + Margin */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border bg-card p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Gross Profit</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{tc('grossProfit')}</p>
                 <p className={`text-3xl font-bold tabular-nums leading-tight ${profitClass}`}>{formatCurrency(grossProfit)}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
-                  Revenue {formatCurrency(revenue)} − Cost {formatCurrency(totalCost)}
+                  {tc('revenueMinusCost', { revenue: formatCurrency(revenue), cost: formatCurrency(totalCost) })}
                 </p>
               </div>
               <div className="rounded-xl border bg-card p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Gross Margin</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{tc('grossMargin')}</p>
                 <p className={`text-3xl font-bold tabular-nums leading-tight ${profitClass}`}>{pct(margin)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Gross Profit ÷ Revenue</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{tc('gpOverRevenue')}</p>
               </div>
             </div>
 
             {/* Per-unit tiles — the sheet's GP per Pond / GP per Crew Day / Breakeven rows */}
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {tile(
-                `Gross Profit per ${unitWord}`,
+                tc('gpPerUnit', { unit: unitWord }),
                 gpPerUnit != null ? formatCurrency(gpPerUnit) : '—',
-                unitCount != null ? `GP ÷ ${num(unitCount)} ${plural(unitCount, unitWord.toLowerCase())}` : 'Set # units',
+                unitCount != null ? tc('gpDividedUnits', { value: num(unitCount), unit: plural(unitCount, unitWord.toLowerCase()) }) : tc('setUnits'),
               )}
               {tile(
-                'Gross Profit per Crew Day',
+                tc('gpPerCrewDay'),
                 gpPerCrewDay != null ? formatCurrency(gpPerCrewDay) : '—',
-                crewDays != null ? `GP ÷ ${num(crewDays)} crew ${plural(crewDays, 'day')}` : 'Set # crew days',
+                crewDays != null ? tc('gpDividedCrewDays', { count: crewDays, value: num(crewDays) }) : tc('setCrewDays'),
               )}
               {tile(
-                'Breakeven Day Rate',
+                tc('breakevenDayRate'),
                 breakevenDayRate != null ? formatCurrency(breakevenDayRate) : '—',
                 breakevenDayRate != null
-                  ? 'Loaded crew-day cost above this = job loses money.'
-                  : 'Set # crew days',
+                  ? tc('breakevenHint')
+                  : tc('setCrewDays'),
                 'text-destructive',
               )}
             </div>
