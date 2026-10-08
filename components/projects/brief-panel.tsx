@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react"
 import { ChevronDown, ChevronRight, Check, Circle, Plus, Loader2 } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import {
@@ -87,6 +88,7 @@ export function BriefPanel({
   initiallyExpanded = false,
   onBriefUpdated,
 }: BriefPanelProps) {
+  const t = useTranslations("projectsPage.brief")
   const [sections, setSections] = useState<Section[]>(() => hydrateFromBrief(initialBrief))
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["client-context"]))
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
@@ -189,12 +191,12 @@ export function BriefPanel({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-base font-semibold text-slate-900">Project Brief</span>
+              <span className="text-base font-semibold text-slate-900">{t("title")}</span>
               {saveState === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
-              {saveState === "saved" && <span className="text-[11px] font-medium text-emerald-500">Saved</span>}
+              {saveState === "saved" && <span className="text-[11px] font-medium text-emerald-500">{t("saved")}</span>}
             </div>
             <p className="text-sm text-slate-500">
-              {answeredQ} of {totalQ} answered
+              {t("answeredOf", { answered: answeredQ, total: totalQ })}
             </p>
           </div>
 
@@ -209,7 +211,7 @@ export function BriefPanel({
               <span className="text-sm font-medium text-slate-500 tabular-nums">{progress}%</span>
             </div>
             <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700 transition">
-              {isExpanded ? "Hide long brief" : "Open long brief"}
+              {isExpanded ? t("hideLong") : t("openLong")}
             </span>
           </div>
         </div>
@@ -243,7 +245,7 @@ export function BriefPanel({
                     >
                       {complete && <Check className="h-3 w-3 text-white" />}
                     </span>
-                    <span className="text-sm font-semibold text-slate-900">{section.label}</span>
+                    <span className="text-sm font-semibold text-slate-900">{t.has(`sections.${section.id}`) ? t(`sections.${section.id}`) : section.label}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500 tabular-nums">{answered}/{total}</span>
@@ -291,6 +293,7 @@ interface QuestionRowProps {
 }
 
 function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (phases: PhaseItem[]) => void }) {
+  const t = useTranslations("projectsPage.brief")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   function toggleCollapsed(id: string) {
@@ -328,7 +331,7 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                   <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-400" />
                 )}
                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Phase {index + 1}
+                  {t("phaseN", { number: index + 1 })}
                 </span>
                 {phase.name && <span className="truncate text-sm text-slate-700">{phase.name}</span>}
               </div>
@@ -340,7 +343,7 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                 }}
                 className="text-xs font-medium text-slate-400 transition hover:text-rose-500"
               >
-                Remove
+                {t("remove")}
               </button>
             </div>
 
@@ -350,7 +353,7 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                   type="text"
                   value={phase.name}
                   onChange={(e) => updatePhase(phase.id, "name", e.target.value)}
-                  placeholder="Phase name"
+                  placeholder={t("phaseName")}
                   className={inputCls}
                 />
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -358,21 +361,21 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                     type="text"
                     value={phase.duration}
                     onChange={(e) => updatePhase(phase.id, "duration", e.target.value)}
-                    placeholder="Duration"
+                    placeholder={t("duration")}
                     className={inputCls}
                   />
                   <input
                     type="text"
                     value={phase.crew}
                     onChange={(e) => updatePhase(phase.id, "crew", e.target.value)}
-                    placeholder="Crew"
+                    placeholder={t("crew")}
                     className={inputCls}
                   />
                 </div>
                 <textarea
                   value={phase.description}
                   onChange={(e) => updatePhase(phase.id, "description", e.target.value)}
-                  placeholder="What happens in this phase?"
+                  placeholder={t("phaseDescription")}
                   rows={3}
                   className={`${inputCls} resize-none`}
                 />
@@ -380,7 +383,7 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                   type="text"
                   value={phase.dependencies}
                   onChange={(e) => updatePhase(phase.id, "dependencies", e.target.value)}
-                  placeholder="Dependencies"
+                  placeholder={t("dependencies")}
                   className={inputCls}
                 />
                 <label
@@ -396,7 +399,7 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
                   )}>
                     {phase.weatherSensitive && <Check className="h-2.5 w-2.5 text-white" />}
                   </span>
-                  Weather sensitive
+                  {t("weatherSensitive")}
                 </label>
               </div>
             )}
@@ -408,6 +411,9 @@ function PhaseBuilder({ phases, onChange }: { phases: PhaseItem[]; onChange: (ph
 }
 
 function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onPhasesChange, onEnter }: QuestionRowProps) {
+  const t = useTranslations("projectsPage.brief")
+  const qLabel = t.has(`questions.${question.id}.label`) ? t(`questions.${question.id}.label`) : question.label
+  const qPlaceholder = question.placeholder && t.has(`questions.${question.id}.placeholder`) ? t(`questions.${question.id}.placeholder`) : question.placeholder
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -433,11 +439,11 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
           )}
         </span>
         <span className={cn("flex-1 text-sm leading-6", answered ? "text-slate-900" : "text-slate-500")}>
-          {question.label}
+          {qLabel}
         </span>
         {!answered && !isActive && question.type !== "phases" && (
           <span className="mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 opacity-90 transition group-hover:border-slate-300 group-hover:bg-slate-50">
-            Click to answer
+            {t("clickToAnswer")}
             <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
           </span>
         )}
@@ -492,7 +498,7 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
               }}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200/70"
             >
-              <option value="" disabled>Select an option...</option>
+              <option value="" disabled>{t("selectOption")}</option>
               {question.options.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
@@ -536,7 +542,7 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
                   onEnter()
                 }
               }}
-              placeholder={question.placeholder ?? "Type your answer..."}
+              placeholder={qPlaceholder ?? t("typeAnswer")}
               rows={4}
               className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200/70"
             />
@@ -549,7 +555,7 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
               value={question.value as string}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={question.placeholder ?? "Type your answer..."}
+              placeholder={qPlaceholder ?? t("typeAnswer")}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200/70"
             />
           )}
@@ -563,7 +569,7 @@ function QuestionRow({ question, isActive, onFocus, onChange, onToggleCheck, onP
                 value={question.value as string}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={question.placeholder ?? "0"}
+                placeholder={qPlaceholder ?? "0"}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200/70"
               />
               {question.unit && question.unit !== "$" && (
