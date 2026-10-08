@@ -46,7 +46,7 @@ interface PersonalizedQuoteViewProps {
   /** When true, Send to client button is disabled (e.g. Gmail not connected) */
   sendToClientDisabled?: boolean
   onSendViaSms?: () => void
-  /** When true, Send via SMS option is disabled (e.g. no Contractor AI, no client phone, or no public link) */
+  /** When true, Send via SMS option is disabled (e.g. no ContractorOps number, no client phone, or no public link) */
   sendViaSmsDisabled?: boolean
   /** When set, show success message beside dropdown: "SMS sent successfully to {name}" (green tick, slide-in) */
   smsSentSuccessTo?: string | null
@@ -473,7 +473,7 @@ export function PersonalizedQuoteView({
       setSigningInProgress(true)
       const publicLink = currentJob.quote_public_link || job.quote_public_link
       if (!publicLink) {
-        alert("This quote link is invalid. Please reopen the link from your email.")
+        alert("This estimate link is invalid. Please reopen the link from your email.")
         setSigningInProgress(false)
         return
       }
@@ -546,10 +546,10 @@ export function PersonalizedQuoteView({
       setCurrentJob(updated)
       setShowDeclineQuote(false)
       setDeclineReason("")
-      toast({ title: "Quote declined", description: "Your response has been saved." })
+      toast({ title: "Estimate declined", description: "Your response has been saved." })
     } catch (error: any) {
       toast({
-        title: "Couldn't decline quote",
+        title: "Couldn't decline estimate",
         description: error?.message || "Please try again.",
         variant: "destructive",
       })
@@ -736,7 +736,7 @@ export function PersonalizedQuoteView({
       await markQuoteSentIfDraft()
     } catch (error: any) {
       toast({
-        title: "Failed to generate quote link",
+        title: "Failed to generate estimate link",
         description: error.message || "Please try again.",
         variant: "destructive",
       })
@@ -802,7 +802,7 @@ export function PersonalizedQuoteView({
       await api.updateJob(currentJob.id, { status: newStatus })
       const option = QUOTE_STATUS_OPTIONS.find((o) => o.value === newStatus)
       setCurrentJob((prev) => ({ ...prev, status: newStatus as JobStatus }))
-      toast({ title: "Status updated", description: `Quote status set to ${option?.label ?? newStatus}.` })
+      toast({ title: "Status updated", description: `Estimate status set to ${option?.label ?? newStatus}.` })
       onStatusUpdate?.()
     } catch (err: any) {
       toast({ title: "Error", description: err?.message ?? "Failed to update status.", variant: "destructive" })
@@ -828,7 +828,7 @@ export function PersonalizedQuoteView({
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(true)
-      toast({ title: "Link Copied!", description: "Quote link copied to clipboard." })
+      toast({ title: "Link Copied!", description: "Estimate link copied to clipboard." })
       setTimeout(() => setCopiedLink(false), 2000)
       await markQuoteSentIfDraft()
     } catch {
@@ -845,7 +845,7 @@ export function PersonalizedQuoteView({
   }
 
   const activityItems = [
-    { label: "Quote created", value: formatDate(currentJob.created_at) },
+    { label: "Estimate created", value: formatDate(currentJob.created_at) },
     currentJob.customer_viewed_at
       ? { label: "First viewed by customer", value: formatDate(currentJob.customer_viewed_at) }
       : null,
@@ -893,7 +893,7 @@ export function PersonalizedQuoteView({
           onClick={() => setShowDeclineQuote(true)}
         >
           <CircleX className="mr-2 h-4 w-4" />
-          Decline quote
+          Decline estimate
         </Button>
       </div>
     )
@@ -977,7 +977,7 @@ export function PersonalizedQuoteView({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                               </svg>
                             )}
-                            {copiedLink ? "Copied!" : (currentJob.quote_public_link || portalUrl) ? "Copy quote link" : "Generate & copy quote link"}
+                            {copiedLink ? "Copied!" : (currentJob.quote_public_link || portalUrl) ? "Copy estimate link" : "Generate & copy estimate link"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1155,29 +1155,29 @@ export function PersonalizedQuoteView({
             <TooltipTrigger asChild>
               <Button className={inlineIconButtonClass} variant="outline" onClick={onEdit}>
                 <PencilLine className="h-4 w-4 shrink-0" />
-                <span className="sr-only">Edit quote</span>
+                <span className="sr-only">Edit estimate</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Edit quote</TooltipContent>
+            <TooltipContent>Edit estimate</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button className={inlineIconButtonClass} variant="outline" onClick={() => window.print()}>
                 <Printer className="h-4 w-4 shrink-0" />
-                <span className="sr-only">Print quote</span>
+                <span className="sr-only">Print estimate</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Print quote</TooltipContent>
+            <TooltipContent>Print estimate</TooltipContent>
           </Tooltip>
           {isContractor && onDelete && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button className={dangerIconButtonClass} variant="outline" onClick={onDelete}>
                   <Trash2 className="h-4 w-4 shrink-0" />
-                  <span className="sr-only">Delete quote</span>
+                  <span className="sr-only">Delete estimate</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Delete quote</TooltipContent>
+              <TooltipContent>Delete estimate</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -1221,7 +1221,7 @@ export function PersonalizedQuoteView({
                 <div className="flex items-start gap-2.5">
                   <CircleX className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
                   <div>
-                    <p className="text-sm font-semibold">Quote declined</p>
+                    <p className="text-sm font-semibold">Estimate declined</p>
                     {currentJob.rejection_reason && (
                       <p className="mt-1 whitespace-pre-wrap text-sm text-red-900">
                         {currentJob.rejection_reason}
@@ -1246,7 +1246,7 @@ export function PersonalizedQuoteView({
                   <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
-                  Change order to Quote #{currentJob.created_from_job_id}
+                  Change order to Estimate #{currentJob.created_from_job_id}
                 </Link>
               </div>
             )}
@@ -1280,7 +1280,7 @@ export function PersonalizedQuoteView({
                       )}
                       <div>
                         <h1 className="text-lg sm:text-2xl md:text-3xl print:text-xl font-bold text-gray-900">
-                          {contractorProfile?.company_name || "Quote"}
+                          {contractorProfile?.company_name || "Estimate"}
                         </h1>
                         <p className="text-xs sm:text-sm print:text-xs text-gray-600 mt-0.5 sm:mt-1">
                           {cleanAddressString(contractorProfile?.address) || ""}
@@ -1298,7 +1298,7 @@ export function PersonalizedQuoteView({
                       </div>
                     </div>
                     <div className="text-right">
-                      <h2 className="text-sm sm:text-base md:text-xl print:text-sm font-bold text-gray-900 mb-1 sm:mb-2">QUOTE</h2>
+                      <h2 className="text-sm sm:text-base md:text-xl print:text-sm font-bold text-gray-900 mb-1 sm:mb-2">ESTIMATE</h2>
                       {!isPublicView && (
                         <div className="inline-block print:hidden">
                           <Badge className={`${getStatusColor(currentJob.status)} text-xs print:text-xs`}>
@@ -1351,11 +1351,11 @@ export function PersonalizedQuoteView({
                   </div>
                   <div>
                     <h3 className="text-xs sm:text-sm print:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2 print:mb-1">
-                      Quote Details
+                      Estimate Details
                     </h3>
                     <div className="space-y-0.5 print:space-y-0">
                       <p className="text-xs sm:text-sm print:text-xs text-gray-600">
-                        <span className="font-medium">Quote #:</span> {currentJob.id}
+                        <span className="font-medium">Estimate #:</span> {currentJob.id}
                       </p>
                       <p className="text-xs sm:text-sm print:text-xs text-gray-600">
                         <span className="font-medium">Date:</span> {formatDate(currentJob.created_at)}
@@ -1862,7 +1862,7 @@ export function PersonalizedQuoteView({
                             href={`/quotes/${currentJob.created_from_job_id}`}
                             className="text-xs text-sky-600 hover:text-sky-800 hover:underline block"
                           >
-                            ↑ Parent quote #{currentJob.created_from_job_id}
+                            ↑ Parent estimate #{currentJob.created_from_job_id}
                           </Link>
                         )}
                         {revisedContractAmount && revisedContractAmount.approved_change_orders_total > 0 && (
@@ -1936,7 +1936,7 @@ export function PersonalizedQuoteView({
             <DialogTitle>Request changes</DialogTitle>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Tell the contractor what you would like changed before you approve this quote.
+                Tell the contractor what you would like changed before you approve this estimate.
               </p>
               <Textarea
                 value={changeRequestNotes}
@@ -1959,10 +1959,10 @@ export function PersonalizedQuoteView({
 
         <Dialog open={showDeclineQuote} onOpenChange={setShowDeclineQuote}>
           <DialogContent className="sm:max-w-md">
-            <DialogTitle>Decline this quote?</DialogTitle>
+            <DialogTitle>Decline this estimate?</DialogTitle>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                This will tell the contractor that you are not moving forward with this quote.
+                This will tell the contractor that you are not moving forward with this estimate.
               </p>
               <Textarea
                 value={declineReason}
@@ -1973,10 +1973,10 @@ export function PersonalizedQuoteView({
               />
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowDeclineQuote(false)} disabled={customerDecisionSubmitting}>
-                  Keep quote
+                  Keep estimate
                 </Button>
                 <Button variant="destructive" onClick={handleDeclineQuote} disabled={customerDecisionSubmitting}>
-                  {customerDecisionSubmitting ? "Declining…" : "Decline quote"}
+                  {customerDecisionSubmitting ? "Declining…" : "Decline estimate"}
                 </Button>
               </div>
             </div>
@@ -1989,7 +1989,7 @@ export function PersonalizedQuoteView({
             <DialogTitle className="text-lg font-semibold">Create Invoice</DialogTitle>
             <div className="space-y-4 py-2">
               <p className="text-sm text-gray-600">
-                Create an invoice for <strong>{currentJob.client?.name || "this client"}</strong> based on the accepted quote.
+                Create an invoice for <strong>{currentJob.client?.name || "this client"}</strong> based on the accepted estimate.
               </p>
 
               {/* Billing — same controls/logic as the quote editor. Default is a
