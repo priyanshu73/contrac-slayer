@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { api } from "@/lib/api"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { LinkQuoteDialog } from "./link-quote-dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -40,12 +40,6 @@ interface DocItem {
   raw: any
 }
 
-const KIND_LABEL: Record<DocKind, string> = {
-  quote: "Quote",
-  proposal: "Proposal",
-  invoice: "Invoice",
-}
-
 function statusBadge(kind: DocKind, status: string | undefined): string {
   const s = String(status ?? "").toUpperCase().split(".").pop() as string
   const map: Record<string, string> = {
@@ -68,15 +62,16 @@ function statusBadge(kind: DocKind, status: string | undefined): string {
   return map[s] ?? "bg-indigo-50 text-indigo-700 border-indigo-200"
 }
 
-const FILTERS: { key: "all" | DocKind; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "quote", label: "Quotes" },
-  { key: "proposal", label: "Proposals" },
-  { key: "invoice", label: "Invoices" },
+const FILTERS: { key: "all" | DocKind }[] = [
+  { key: "all" },
+  { key: "quote" },
+  { key: "proposal" },
+  { key: "invoice" },
 ]
 
 export function ProjectRecords({ project }: ProjectRecordsProps) {
   const locale = useLocale()
+  const t = useTranslations("projectsPage.records")
   const router = useRouter()
   const { toast } = useToast()
 
@@ -113,7 +108,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
   // ── Normalize all three into a single sortable list ──────────────────
   const items: DocItem[] = useMemo(() => {
     const quoteItems: DocItem[] = quotes.map((q) => {
-      const label = q.job_number ? `Quote #${q.job_number}` : `Quote #${q.id}`
+      const label = q.job_number ? t("estimateNumber", { number: q.job_number }) : t("estimateNumber", { number: q.id })
       return {
         kind: "quote",
         id: q.id,
@@ -133,7 +128,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     const proposalItems: DocItem[] = proposals.map((p) => ({
       kind: "proposal",
       id: p.id,
-      title: p.title || `Proposal #${p.id}`,
+      title: p.title || t("proposalNumber", { number: p.id }),
       status: p.status,
       amount: null,
       dateIso: p.updated_at || p.created_at,
@@ -141,7 +136,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     }))
 
     const invoiceItems: DocItem[] = invoices.map((inv) => {
-      const label = `Invoice ${inv.invoice_number}`
+      const label = t("invoiceNumber", { number: inv.invoice_number })
       return {
         kind: "invoice",
         id: inv.id,
@@ -162,7 +157,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
       return tb - ta
     })
     return all
-  }, [quotes, proposals, invoices])
+  }, [quotes, proposals, invoices, t])
 
   const counts = useMemo(() => ({
     all: items.length,
@@ -193,7 +188,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
       const created = await api.createProposal(project.id, {}) as Proposal
       router.push(`/${locale}/projects/${project.id}/proposals/${created.id}`)
     } catch (err: any) {
-      toast({ title: "Failed to create proposal", description: err.message, variant: "destructive" })
+      toast({ title: t("createProposalFailed"), description: err.message, variant: "destructive" })
     }
   }
 
@@ -202,10 +197,10 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     setBusyId(`quote-${quoteId}`)
     try {
       await api.unlinkProjectQuote(project.id, quoteId)
-      toast({ title: "Quote unlinked." })
+      toast({ title: t("estimateUnlinked") })
       fetchAll()
     } catch (err: any) {
-      toast({ title: "Failed to unlink quote", description: err.message, variant: "destructive" })
+      toast({ title: t("unlinkFailed"), description: err.message, variant: "destructive" })
     } finally { setBusyId(null) }
   }
 
@@ -213,10 +208,10 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     setBusyId(`quote-${quoteId}`)
     try {
       await api.deleteJob(quoteId)
-      toast({ title: `Quote #${quoteId} deleted.` })
+      toast({ title: t("estimateDeleted", { number: quoteId }) })
       fetchAll()
     } catch (err: any) {
-      toast({ title: "Failed to delete quote", description: err.message, variant: "destructive" })
+      toast({ title: t("deleteEstimateFailed"), description: err.message, variant: "destructive" })
     } finally { setBusyId(null) }
   }
 
@@ -224,10 +219,10 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     setBusyId(`proposal-${proposalId}`)
     try {
       await api.deleteProposal(project.id, proposalId)
-      toast({ title: `Proposal #${proposalId} deleted.` })
+      toast({ title: t("proposalDeleted", { number: proposalId }) })
       fetchAll()
     } catch (err: any) {
-      toast({ title: "Failed to delete proposal", description: err.message, variant: "destructive" })
+      toast({ title: t("deleteProposalFailed"), description: err.message, variant: "destructive" })
     } finally { setBusyId(null) }
   }
 
@@ -237,31 +232,31 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       {/* Header: title + actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-3 sm:px-5">
-        <span className="text-base font-bold text-slate-900">Documents</span>
+        <span className="text-base font-bold text-slate-900">{t("documents")}</span>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsLinkDialogOpen(true)}
             className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white pl-3 pr-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm hover:border-slate-300 hover:text-slate-900 hover:shadow-md active:scale-[0.97] transition-all"
           >
             <Link2 className="w-4 h-4" />
-            Link existing
+            {t("linkExisting")}
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1.5 rounded-full bg-indigo-600 pl-3 pr-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 ring-1 ring-indigo-600/20 hover:bg-indigo-500 hover:shadow-md active:scale-[0.97] transition-all">
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                New
+                {t("new")}
                 <ChevronDown className="w-3.5 h-3.5 opacity-80" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={newQuote}>
                 <FileText className="w-3.5 h-3.5 mr-2" />
-                New quote
+                {t("newEstimate")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={newProposal}>
                 <FileText className="w-3.5 h-3.5 mr-2" />
-                New proposal
+                {t("newProposal")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -270,7 +265,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
 
       {/* Filter chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto px-5 pb-3 max-sm:overscroll-x-contain max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
-        {FILTERS.map(({ key, label }) => {
+        {FILTERS.map(({ key }) => {
           const active = filter === key
           const count = counts[key]
           return (
@@ -284,7 +279,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
                   : "bg-slate-50 text-slate-600 hover:bg-slate-100"
               )}
             >
-              {label}
+              {t(`filters.${key}`)}
               <span className={cn(
                 "rounded-md px-1.5 text-[10px] leading-none py-0.5 font-bold",
                 active ? "bg-white/20 text-white" : "bg-white text-slate-500 border border-slate-200"
@@ -307,9 +302,9 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
             <FileText className="h-6 w-6 text-slate-400" />
           </div>
           <p className="text-sm font-medium text-slate-700 mt-1">
-            {filter === "all" ? "Nothing here yet" : `No ${filter}s yet`}
+            {filter === "all" ? t("nothingYet") : t(`empty.${filter}`)}
           </p>
-          <p className="text-xs text-slate-400">Create a quote, proposal, or invoice to get started</p>
+          <p className="text-xs text-slate-400">{t("createHint")}</p>
         </div>
       ) : (
         <ul className="divide-y divide-slate-100 px-3 pb-3">
@@ -346,7 +341,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                        {KIND_LABEL[d.kind]}
+                        {t(`kind.${d.kind}`)}
                       </span>
                       {d.status && (
                         <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border", statusBadge(d.kind, d.status))}>
@@ -359,7 +354,7 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
                       {d.hasQbo && (
                         <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border border-cyan-200 bg-cyan-50 text-cyan-700">
                           <Cloud className="h-2.5 w-2.5" />
-                          QuickBooks
+                          {t("quickbooks")}
                         </span>
                       )}
                     </div>
@@ -393,32 +388,32 @@ export function ProjectRecords({ project }: ProjectRecordsProps) {
                               <>
                                 <DropdownMenuItem onClick={() => router.push(`/${locale}/quotes/${d.id}/edit`)}>
                                   <Pencil className="w-3.5 h-3.5 mr-2" />
-                                  Edit
+                                  {t("edit")}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => unlinkQuote(d.id)} className="text-amber-600 focus:text-amber-700">
                                   <Unlink className="w-3.5 h-3.5 mr-2" />
-                                  Unlink
+                                  {t("unlink")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => deleteQuote(d.id)} className="text-rose-600 focus:text-rose-700">
                                   <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                  Delete
+                                  {t("delete")}
                                 </DropdownMenuItem>
                               </>
                             ) : (
                               <>
                                 <DropdownMenuItem onClick={() => router.push(`/${locale}/projects/${project.id}/proposals/${d.id}`)}>
                                   <Pencil className="w-3.5 h-3.5 mr-2" />
-                                  Edit
+                                  {t("edit")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => router.push(`/${locale}/projects/${project.id}/proposals/${d.id}/preview`)}>
                                   <Eye className="w-3.5 h-3.5 mr-2" />
-                                  Preview
+                                  {t("preview")}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => deleteProposal(d.id)} className="text-rose-600 focus:text-rose-700">
                                   <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                  Delete
+                                  {t("delete")}
                                 </DropdownMenuItem>
                               </>
                             )}
