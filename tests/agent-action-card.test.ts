@@ -21,7 +21,7 @@ global.cancelAnimationFrame = (id: number) => clearTimeout(id);
 // Set required environment variable for api.ts initialization
 process.env.NEXT_PUBLIC_CONTRACTOR_AI_API_URL = "http://localhost:8000";
 
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, fireEvent, cleanup } from "@testing-library/react";
 
 // Import REAL components and types directly from the codebase
 import { AgentActionCard } from "../components/agent-action-card";
@@ -29,6 +29,25 @@ import { AgentChatPanel } from "../components/agent-chat-panel";
 import type { Message, ActionCardOption } from "../components/agent-chat-panel";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { NextIntlClientProvider } from "next-intl";
+
+const cardMessages = {
+  dashboard: {
+    assistant: {
+      action: {
+        approved: "Action approved",
+        cancelled: "Action cancelled",
+        executing: "Executing…",
+        projectName: "Project name",
+      },
+    },
+  },
+};
+
+function render(ui: React.ReactElement) {
+  return rtlRender(
+    React.createElement(NextIntlClientProvider, { locale: "en", messages: cardMessages, children: ui }),
+  );
+}
 
 describe("Agent Action Card Component Tests (Real React Components)", () => {
   after(() => {
@@ -141,7 +160,7 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
 
     const approveBtn = getByTestId("action-card-button-approve-action");
     assert.equal(approveBtn.hasAttribute("disabled"), true);
-    assert.equal(approveBtn.textContent?.trim(), "Executing...");
+    assert.equal(approveBtn.textContent?.trim(), "Executing…");
 
     const rejectBtn = getByTestId("action-card-button-reject-action");
     assert.equal(rejectBtn.hasAttribute("disabled"), true);
@@ -175,7 +194,7 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
 
     const badge = getByTestId("action-card-approved");
     assert.ok(badge);
-    assert.match(badge.textContent || "", /✓ Action Approved/);
+    assert.match(badge.textContent || "", /✓ Action approved/);
 
     const replayed = getByTestId("action-card-replayed");
     assert.ok(replayed);
@@ -207,7 +226,7 @@ describe("Agent Action Card Component Tests (Real React Components)", () => {
 
     const badge = getByTestId("action-card-cancelled");
     assert.ok(badge);
-    assert.match(badge.textContent || "", /✕ Action Cancelled/);
+    assert.match(badge.textContent || "", /✕ Action cancelled/);
     assert.equal(queryByTestId("action-card-button-approve-action"), null);
 
     cleanup();
