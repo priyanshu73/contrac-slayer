@@ -118,7 +118,9 @@ function formatStepBadge(step: SequenceStep): string {
   return `${val}${suffix}`
 }
 
-function initialSteps(s: FollowupSettingsType): QuoteStep[] {
+type TplFn = (key: string) => string
+
+function initialSteps(s: FollowupSettingsType, tp: TplFn): QuoteStep[] {
   const raw = (Array.isArray(s.quote_sequence_json) && s.quote_sequence_json.length)
     ? s.quote_sequence_json
     : (Array.isArray(s.quote_steps) && s.quote_steps.length)
@@ -126,13 +128,13 @@ function initialSteps(s: FollowupSettingsType): QuoteStep[] {
       : [
           {
             day: s.followup_days_after_quote || 3,
-            template: s.quote_followup_template || "Hi {first_name}, following up on your quote: {quote_link}",
+            template: s.quote_followup_template || tp("tplQuote"),
           },
         ]
   return raw.map((step) => normalizeStep(step, "days"))
 }
 
-function initialIntakeSteps(s: FollowupSettingsType): IntakeStep[] {
+function initialIntakeSteps(s: FollowupSettingsType, tp: TplFn): IntakeStep[] {
   const raw = (Array.isArray(s.intake_sequence_json) && s.intake_sequence_json.length)
     ? s.intake_sequence_json
     : (Array.isArray(s.intake_steps) && s.intake_steps.length)
@@ -141,18 +143,18 @@ function initialIntakeSteps(s: FollowupSettingsType): IntakeStep[] {
           {
             delay_minutes: 30,
             template:
-              "Hi {first_name}, just following up to make sure you got the link to share your project details: {link}",
+              tp("tplIntake1"),
           },
           {
             delay_minutes: 120,
             template:
-              "Hi {first_name}, we'd love to help with your project! Whenever you're ready, fill out the details here: {link}",
+              tp("tplIntake2"),
           },
         ]
   return raw.map((step) => normalizeStep(step, "minutes"))
 }
 
-function initialBookingSteps(s: FollowupSettingsType): BookingStep[] {
+function initialBookingSteps(s: FollowupSettingsType, tp: TplFn): BookingStep[] {
   const raw = (Array.isArray(s.booking_sequence_json) && s.booking_sequence_json.length)
     ? s.booking_sequence_json
     : (Array.isArray(s.booking_steps) && s.booking_steps.length)
@@ -161,12 +163,12 @@ function initialBookingSteps(s: FollowupSettingsType): BookingStep[] {
           {
             delay_hours: 1,
             template:
-              "Hi {first_name}, here is the link to pick a convenient time for your appointment: {booking_link}",
+              tp("tplBooking1"),
           },
           {
             delay_hours: 24,
             template:
-              "Hi {first_name}, just checking in to see if you still wanted to schedule: {booking_link}",
+              tp("tplBooking2"),
           },
         ]
   return raw.map((step) => normalizeStep(step, "hours"))
@@ -177,6 +179,7 @@ export function FollowupSettings({
 }: FollowupSettingsProps) {
   const t = useTranslations("scheduling.settings")
   const locale = useLocale()
+  const tpl: TplFn = (k) => t(`automations.${k}`)
   const { toast } = useToast()
 
   const [settings, setSettings] = useState<FollowupSettingsType | null>(null)
@@ -216,11 +219,11 @@ export function FollowupSettings({
       setContractorTz(
         data.contractor_timezone ?? data.settings.timezone ?? null,
       )
-      const initialQuote = initialSteps(data.settings)
+      const initialQuote = initialSteps(data.settings, tpl)
       setSteps(initialQuote)
       setQuoteEnabled(initialQuote.length > 0)
-      setIntakeSteps(initialIntakeSteps(data.settings))
-      setBookingSteps(initialBookingSteps(data.settings))
+      setIntakeSteps(initialIntakeSteps(data.settings, tpl))
+      setBookingSteps(initialBookingSteps(data.settings, tpl))
 
       if (data.settings.followup_days_before_appointment) {
         setReminder1Value(data.settings.followup_days_before_appointment)
@@ -277,7 +280,7 @@ export function FollowupSettings({
         if (stepToMinutes(steps[i]) <= stepToMinutes(steps[i - 1])) {
           toast({
             title: t("error"),
-            description: "Quote follow-up steps must have strictly increasing delays.",
+            description: t("automations.errQuote"),
             variant: "destructive",
           })
           return
@@ -290,7 +293,7 @@ export function FollowupSettings({
         if (stepToMinutes(intakeSteps[i]) <= stepToMinutes(intakeSteps[i - 1])) {
           toast({
             title: t("error"),
-            description: "Intake follow-up steps must have strictly increasing delays.",
+            description: t("automations.errIntake"),
             variant: "destructive",
           })
           return
@@ -303,7 +306,7 @@ export function FollowupSettings({
         if (stepToMinutes(bookingSteps[i]) <= stepToMinutes(bookingSteps[i - 1])) {
           toast({
             title: t("error"),
-            description: "Booking follow-up steps must have strictly increasing delays.",
+            description: t("automations.errBooking"),
             variant: "destructive",
           })
           return
@@ -353,9 +356,9 @@ export function FollowupSettings({
       }
       const data = await api.updateFollowupSettings(payload)
       setSettings(data.settings)
-      setSteps(initialSteps(data.settings))
-      setIntakeSteps(initialIntakeSteps(data.settings))
-      setBookingSteps(initialBookingSteps(data.settings))
+      setSteps(initialSteps(data.settings, tpl))
+      setIntakeSteps(initialIntakeSteps(data.settings, tpl))
+      setBookingSteps(initialBookingSteps(data.settings, tpl))
       setContractorTz(
         data.contractor_timezone ?? data.settings.timezone ?? null,
       )
@@ -379,20 +382,20 @@ export function FollowupSettings({
       Array.isArray(defaults.quote_sequence_json) &&
       defaults.quote_sequence_json.length
         ? defaults.quote_sequence_json.map((s) => normalizeStep(s, "days"))
-        : initialSteps(next)
+        : initialSteps(next, tpl)
     setSteps(resetQuote)
     setQuoteEnabled(resetQuote.length > 0)
     setIntakeSteps(
       Array.isArray(defaults.intake_sequence_json) &&
         defaults.intake_sequence_json.length
         ? defaults.intake_sequence_json.map((s) => normalizeStep(s, "minutes"))
-        : initialIntakeSteps(next),
+        : initialIntakeSteps(next, tpl),
     )
     setBookingSteps(
       Array.isArray(defaults.booking_sequence_json) &&
         defaults.booking_sequence_json.length
         ? defaults.booking_sequence_json.map((s) => normalizeStep(s, "hours"))
-        : initialBookingSteps(next),
+        : initialBookingSteps(next, tpl),
     )
     setReminder1Value(defaults.followup_days_before_appointment || 1)
     setReminder1Unit("days")
@@ -404,7 +407,7 @@ export function FollowupSettings({
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
         <Loader2Icon className="h-7 w-7 animate-spin text-primary" />
-        <span className="text-sm font-medium">Loading automations…</span>
+        <span className="text-sm font-medium">{t("automations.loading")}</span>
       </div>
     )
   }
@@ -439,7 +442,7 @@ export function FollowupSettings({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-semibold tracking-tight">Automations</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t("automations.title")}</h1>
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
@@ -451,25 +454,25 @@ export function FollowupSettings({
               {isMasterEnabled && (
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               )}
-              {isMasterEnabled ? "Running" : "Paused"}
+              {isMasterEnabled ? t("automations.running") : t("automations.paused")}
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure automatic follow-up timing and delivery schedules.
+            {t("automations.subtitle")}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2.5 bg-muted/40 px-3 py-1.5 rounded-lg border border-border">
             <span className="text-xs font-medium text-muted-foreground">
-              {isMasterEnabled ? "Automations On" : "Automations Off"}
+              {isMasterEnabled ? t("automations.masterOn") : t("automations.masterOff")}
             </span>
             <Switch
               checked={isMasterEnabled}
               onCheckedChange={(checked) =>
                 update("automatic_followup_enabled", checked)
               }
-              aria-label="Toggle All Automations"
+              aria-label={t("automations.toggleAll")}
             />
           </div>
 
@@ -481,7 +484,7 @@ export function FollowupSettings({
             className="text-xs h-9 gap-1.5"
           >
             <RotateCcwIcon className="h-3.5 w-3.5" />
-            Reset
+            {t("automations.reset")}
           </Button>
 
           <Button
@@ -495,7 +498,7 @@ export function FollowupSettings({
             ) : (
               <SaveIcon className="h-3.5 w-3.5" />
             )}
-            Save Changes
+            {t("automations.save")}
           </Button>
         </div>
       </div>
@@ -505,7 +508,7 @@ export function FollowupSettings({
         <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200">
           <InfoIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <AlertDescription className="text-xs">
-            Automations are currently paused. Enable the master switch in the top right to start sending automatic messages.
+            {t("automations.pausedBanner")}
           </AlertDescription>
         </Alert>
       )}
@@ -514,9 +517,9 @@ export function FollowupSettings({
       <div className="space-y-3">
         <div className="flex items-center justify-between px-0.5">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Core Sequences
+            {t("automations.coreSequences")}
           </h2>
-          <span className="text-xs text-muted-foreground">Step & Timing Cadence</span>
+          <span className="text-xs text-muted-foreground">{t("automations.cadenceLabel")}</span>
         </div>
 
         {/* Unified sleek container with dividing lines */}
@@ -534,13 +537,13 @@ export function FollowupSettings({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-medium truncate">Intake Form Follow-up</h3>
+                    <h3 className="text-sm font-medium truncate">{t("automations.intakeTitle")}</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
                       {intakeSteps.length} steps · {intakeSteps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Sent after call when link is shared. Auto-stops when caller fills the form.
+                    {t("automations.intakeDesc")}
                   </p>
                 </div>
               </div>
@@ -555,7 +558,7 @@ export function FollowupSettings({
                   onCheckedChange={(checked) =>
                     update("intake_followup_enabled", checked)
                   }
-                  aria-label="Toggle Intake Follow-up"
+                  aria-label={t("automations.toggle", { name: t("automations.intakeTitle") })}
                 />
                 <Button
                   variant="ghost"
@@ -577,8 +580,8 @@ export function FollowupSettings({
             {expanded.intake && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Send Delays</span>
-                  <span>Auto-stops on form submission or STOP reply</span>
+                  <span className="font-medium text-foreground">{t("automations.delays")}</span>
+                  <span>{t("automations.intakeStops")}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -591,7 +594,7 @@ export function FollowupSettings({
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
-                        <span className="text-xs text-muted-foreground">Send after</span>
+                        <span className="text-xs text-muted-foreground">{t("automations.sendAfter")}</span>
                         <Input
                           type="number"
                           min={1}
@@ -635,9 +638,9 @@ export function FollowupSettings({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
-                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
-                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                            <SelectItem value="minutes" className="text-xs">{t("automations.unitMinutes")}</SelectItem>
+                            <SelectItem value="hours" className="text-xs">{t("automations.unitHours")}</SelectItem>
+                            <SelectItem value="days" className="text-xs">{t("automations.unitDays")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -677,13 +680,13 @@ export function FollowupSettings({
                           delay_unit: nextUnit,
                           delay_minutes: nextUnit === "hours" ? nextDelay * 60 : nextUnit === "days" ? nextDelay * 1440 : nextDelay,
                           template:
-                            "Hi {first_name}, just checking in to see if you still needed help with your project: {link}",
+                            t("automations.tplIntakeAdd"),
                         },
                       ])
                     }}
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
-                    Add Step
+                    {t("automations.addStep")}
                   </Button>
                 )}
               </div>
@@ -702,13 +705,13 @@ export function FollowupSettings({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-medium truncate">Sent Quote Follow-up</h3>
+                    <h3 className="text-sm font-medium truncate">{t("automations.quoteTitle")}</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
                       {steps.length} steps · {steps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Sent after estimate is delivered. Auto-stops when quote is accepted or rejected.
+                    {t("automations.quoteDesc")}
                   </p>
                 </div>
               </div>
@@ -721,7 +724,7 @@ export function FollowupSettings({
                   checked={quoteEnabled && isMasterEnabled}
                   disabled={!isMasterEnabled}
                   onCheckedChange={(checked) => setQuoteEnabled(checked)}
-                  aria-label="Toggle Quote Follow-up"
+                  aria-label={t("automations.toggle", { name: t("automations.quoteTitle") })}
                 />
                 <Button
                   variant="ghost"
@@ -743,8 +746,8 @@ export function FollowupSettings({
             {expanded.quote && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Send Delays</span>
-                  <span>Auto-stops on customer response or approval</span>
+                  <span className="font-medium text-foreground">{t("automations.delays")}</span>
+                  <span>{t("automations.quoteStops")}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -757,7 +760,7 @@ export function FollowupSettings({
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
-                        <span className="text-xs text-muted-foreground">Send after</span>
+                        <span className="text-xs text-muted-foreground">{t("automations.sendAfter")}</span>
                         <Input
                           type="number"
                           min={1}
@@ -801,9 +804,9 @@ export function FollowupSettings({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
-                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
-                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                            <SelectItem value="minutes" className="text-xs">{t("automations.unitMinutes")}</SelectItem>
+                            <SelectItem value="hours" className="text-xs">{t("automations.unitHours")}</SelectItem>
+                            <SelectItem value="days" className="text-xs">{t("automations.unitDays")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -841,13 +844,13 @@ export function FollowupSettings({
                           delay_unit: nextUnit,
                           day: nextUnit === "days" ? nextDelay : Math.max(1, Math.round(nextDelay / 24)),
                           template:
-                            "Hi {first_name}, just following up on your quote. Let us know if you have any questions: {quote_link}",
+                            t("automations.tplQuoteAdd"),
                         },
                       ])
                     }}
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
-                    Add Step
+                    {t("automations.addStep")}
                   </Button>
                 )}
               </div>
@@ -866,13 +869,13 @@ export function FollowupSettings({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-medium truncate">Sent Booking Link Follow-up</h3>
+                    <h3 className="text-sm font-medium truncate">{t("automations.bookingTitle")}</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
                       {bookingSteps.length} steps · {bookingSteps.map(formatStepBadge).join(", ")}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Sent after scheduling link is sent. Auto-stops when appointment is booked.
+                    {t("automations.bookingDesc")}
                   </p>
                 </div>
               </div>
@@ -887,7 +890,7 @@ export function FollowupSettings({
                   onCheckedChange={(checked) =>
                     update("booking_followup_enabled", checked)
                   }
-                  aria-label="Toggle Booking Link Follow-up"
+                  aria-label={t("automations.toggle", { name: t("automations.bookingTitle") })}
                 />
                 <Button
                   variant="ghost"
@@ -909,8 +912,8 @@ export function FollowupSettings({
             {expanded.booking && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Send Delays</span>
-                  <span>Auto-stops when appointment is scheduled</span>
+                  <span className="font-medium text-foreground">{t("automations.delays")}</span>
+                  <span>{t("automations.bookingStops")}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -923,7 +926,7 @@ export function FollowupSettings({
                         <span className="text-xs font-semibold w-14">
                           Step {idx + 1}
                         </span>
-                        <span className="text-xs text-muted-foreground">Send after</span>
+                        <span className="text-xs text-muted-foreground">{t("automations.sendAfter")}</span>
                         <Input
                           type="number"
                           min={1}
@@ -967,9 +970,9 @@ export function FollowupSettings({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="minutes" className="text-xs">minutes</SelectItem>
-                            <SelectItem value="hours" className="text-xs">hours</SelectItem>
-                            <SelectItem value="days" className="text-xs">days</SelectItem>
+                            <SelectItem value="minutes" className="text-xs">{t("automations.unitMinutes")}</SelectItem>
+                            <SelectItem value="hours" className="text-xs">{t("automations.unitHours")}</SelectItem>
+                            <SelectItem value="days" className="text-xs">{t("automations.unitDays")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1009,13 +1012,13 @@ export function FollowupSettings({
                           delay_unit: nextUnit,
                           delay_hours: nextUnit === "days" ? nextDelay * 24 : nextDelay,
                           template:
-                            "Hi {first_name}, just wanted to remind you about scheduling before slots fill up: {booking_link}",
+                            t("automations.tplBookingAdd"),
                         },
                       ])
                     }}
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
-                    Add Step
+                    {t("automations.addStep")}
                   </Button>
                 )}
               </div>
@@ -1034,13 +1037,13 @@ export function FollowupSettings({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-medium truncate">Appointment Reminders</h3>
+                    <h3 className="text-sm font-medium truncate">{t("automations.remindersTitle")}</h3>
                     <Badge variant="secondary" className="text-[11px] font-normal py-0 h-5">
-                      2 reminders · {reminder1Value}{reminder1Unit === "days" ? "d" : "h"}, {reminder2Value}{reminder2Unit === "days" ? "d" : "h"} before
+                      {t("automations.remindersSummary", { first: t(reminder1Unit === "days" ? "automations.shortDays" : "automations.shortHours", { n: reminder1Value }), second: t(reminder2Unit === "days" ? "automations.shortDays" : "automations.shortHours", { n: reminder2Value }) })}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    Sent to customer before confirmed site visits or consultation appointments.
+                    {t("automations.remindersDesc")}
                   </p>
                 </div>
               </div>
@@ -1053,7 +1056,7 @@ export function FollowupSettings({
                   checked={remindersEnabled && isMasterEnabled}
                   disabled={!isMasterEnabled}
                   onCheckedChange={(checked) => setRemindersEnabled(checked)}
-                  aria-label="Toggle Appointment Reminders"
+                  aria-label={t("automations.toggle", { name: t("automations.remindersTitle") })}
                 />
                 <Button
                   variant="ghost"
@@ -1075,15 +1078,15 @@ export function FollowupSettings({
             {expanded.reminders && (
               <div className="p-4 bg-muted/25 border-t border-border space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Reminder Delays</span>
-                  <span>Sent prior to appointment start time</span>
+                  <span className="font-medium text-foreground">{t("automations.reminderDelays")}</span>
+                  <span>{t("automations.reminderDelaysDesc")}</span>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
                     <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                      <span className="text-xs font-semibold w-24">Reminder 1</span>
-                      <span className="text-xs text-muted-foreground">Send</span>
+                      <span className="text-xs font-semibold w-24">{t("automations.reminderN", { n: 1 })}</span>
+                      <span className="text-xs text-muted-foreground">{t("automations.send")}</span>
                       <Input
                         type="number"
                         min={1}
@@ -1102,18 +1105,18 @@ export function FollowupSettings({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="hours" className="text-xs">hours</SelectItem>
-                          <SelectItem value="days" className="text-xs">days</SelectItem>
+                          <SelectItem value="hours" className="text-xs">{t("automations.unitHours")}</SelectItem>
+                          <SelectItem value="days" className="text-xs">{t("automations.unitDays")}</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-xs text-muted-foreground">before appointment</span>
+                      <span className="text-xs text-muted-foreground">{t("automations.beforeAppointment")}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
                     <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                      <span className="text-xs font-semibold w-24">Reminder 2</span>
-                      <span className="text-xs text-muted-foreground">Send</span>
+                      <span className="text-xs font-semibold w-24">{t("automations.reminderN", { n: 2 })}</span>
+                      <span className="text-xs text-muted-foreground">{t("automations.send")}</span>
                       <Input
                         type="number"
                         min={1}
@@ -1132,11 +1135,11 @@ export function FollowupSettings({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="hours" className="text-xs">hours</SelectItem>
-                          <SelectItem value="days" className="text-xs">days</SelectItem>
+                          <SelectItem value="hours" className="text-xs">{t("automations.unitHours")}</SelectItem>
+                          <SelectItem value="days" className="text-xs">{t("automations.unitDays")}</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-xs text-muted-foreground">before appointment</span>
+                      <span className="text-xs text-muted-foreground">{t("automations.beforeAppointment")}</span>
                     </div>
                   </div>
                 </div>
@@ -1154,7 +1157,7 @@ export function FollowupSettings({
         <div className="border border-border rounded-xl p-5 bg-card space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Delivery Hours
+              {t("automations.deliveryHours")}
             </h3>
             <span className="text-xs text-muted-foreground">{tzLabel}</span>
           </div>
@@ -1163,7 +1166,7 @@ export function FollowupSettings({
             {/* Sending Days */}
             <div>
               <Label className="text-xs text-muted-foreground block mb-2 font-normal">
-                Active Sending Days
+                {t("automations.activeDays")}
               </Label>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {Array.from({ length: 7 }, (_, i) => {
@@ -1196,7 +1199,7 @@ export function FollowupSettings({
             {/* Quiet Hours */}
             <div className="space-y-2 pt-1 border-t border-border">
               <Label className="text-xs text-muted-foreground block font-normal">
-                Quiet Hours (Messages held until window opens)
+                {t("automations.quietHours")}
               </Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -1206,7 +1209,7 @@ export function FollowupSettings({
                   onChange={(e) => update("quiet_hours_start", e.target.value)}
                   className="w-28 h-8 text-xs font-medium"
                 />
-                <span className="text-xs text-muted-foreground">to</span>
+                <span className="text-xs text-muted-foreground">{t("automations.to")}</span>
                 <Input
                   type="time"
                   value={settings.quiet_hours_end}
@@ -1221,7 +1224,7 @@ export function FollowupSettings({
             <div className="space-y-1.5 pt-1 border-t border-border">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground font-normal">
-                  Standard Daily Send Hour
+                  {t("automations.standardSendHour")}
                 </Label>
                 <Select
                   value={String(settings.default_send_hour)}
@@ -1248,7 +1251,7 @@ export function FollowupSettings({
         <div className="border border-border rounded-xl p-5 bg-card space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Alerts & Actions
+              {t("automations.alertsActions")}
             </h3>
           </div>
 
@@ -1256,64 +1259,64 @@ export function FollowupSettings({
             {/* Action Queue Alert Card */}
             <div className="flex items-center justify-between pt-1 gap-3">
               <div>
-                <span className="font-medium block">Action Queue Alert Card</span>
+                <span className="font-medium block">{t("automations.actionQueueAlert")}</span>
                 <span className="text-muted-foreground text-[11px]">
-                  Prompt you to call if intake sequence finishes without form submission
+                  {t("automations.actionQueueAlertDesc")}
                 </span>
               </div>
               <Switch
                 checked={actionQueueAlert && isMasterEnabled}
                 disabled={!isMasterEnabled}
                 onCheckedChange={(checked) => setActionQueueAlert(checked)}
-                aria-label="Toggle Action Queue Alert"
+                aria-label={t("automations.toggle", { name: t("automations.actionQueueAlert") })}
               />
             </div>
 
             {/* Stop & Notify on Reply */}
             <div className="flex items-center justify-between pt-3 gap-3">
               <div>
-                <span className="font-medium block">Notify on Customer Reply</span>
+                <span className="font-medium block">{t("automations.notifyReplyTitle")}</span>
                 <span className="text-muted-foreground text-[11px]">
-                  Immediate notification when a recipient replies to any follow-up
+                  {t("automations.notifyReplyHint")}
                 </span>
               </div>
               <Switch
                 checked={settings.notify_owner_on_reply && isMasterEnabled}
                 disabled={!isMasterEnabled}
                 onCheckedChange={(checked) => update("notify_owner_on_reply", checked)}
-                aria-label="Toggle Notify on Reply"
+                aria-label={t("automations.toggle", { name: t("automations.notifyReplyTitle") })}
               />
             </div>
 
             {/* Alert on Failure */}
             <div className="flex items-center justify-between pt-3 gap-3">
               <div>
-                <span className="font-medium block">Alert on Delivery Failure</span>
+                <span className="font-medium block">{t("automations.notifyFailureTitle")}</span>
                 <span className="text-muted-foreground text-[11px]">
-                  Receive an alert if an SMS fails carrier delivery
+                  {t("automations.notifyFailureHint")}
                 </span>
               </div>
               <Switch
                 checked={settings.notify_owner_on_failure && isMasterEnabled}
                 disabled={!isMasterEnabled}
                 onCheckedChange={(checked) => update("notify_owner_on_failure", checked)}
-                aria-label="Toggle Alert on Failure"
+                aria-label={t("automations.toggle", { name: t("automations.notifyFailureTitle") })}
               />
             </div>
 
             {/* Daily Digest */}
             <div className="flex items-center justify-between pt-3 gap-3">
               <div>
-                <span className="font-medium block">Daily Morning Digest</span>
+                <span className="font-medium block">{t("automations.digestTitle")}</span>
                 <span className="text-muted-foreground text-[11px]">
-                  Summary at {hourLabel(settings.digest_hour || 8, locale)} of pending responses and sent follow-ups
+                  {t("automations.digestHint", { hour: hourLabel(settings.digest_hour || 8, locale) })}
                 </span>
               </div>
               <Switch
                 checked={settings.daily_digest_enabled && isMasterEnabled}
                 disabled={!isMasterEnabled}
                 onCheckedChange={(checked) => update("daily_digest_enabled", checked)}
-                aria-label="Toggle Daily Digest"
+                aria-label={t("automations.toggle", { name: t("automations.digestTitle") })}
               />
             </div>
           </div>
@@ -1322,4 +1325,4 @@ export function FollowupSettings({
       </div>
     </div>
   )
-}
+                        }
