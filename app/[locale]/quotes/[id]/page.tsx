@@ -1316,4 +1316,4 @@ export default function QuoteDetailPage() {
 
     </AuthGuard>
   )
-                  }
+}
