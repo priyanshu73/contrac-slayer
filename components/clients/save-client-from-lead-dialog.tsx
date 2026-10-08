@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import { Loader2, UserPlus } from "lucide-react"
 
 export type SaveClientAction = "client" | "quote" | "project"
@@ -44,6 +45,7 @@ export function SaveClientFromLeadDialog({
     onClientSaved,
 }: Props) {
     const { toast } = useToast()
+    const t = useTranslations("clients.saveFromLead")
 
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
@@ -66,15 +68,15 @@ export function SaveClientFromLeadDialog({
     const validate = () => {
         const next: typeof errors = {}
         if (!name.trim() || name.trim().length < 2) {
-            next.name = "Name is required (min 2 characters)"
+            next.name = t("nameRequired")
         }
         if (!email.trim()) {
-            next.email = "Email is required"
+            next.email = t("emailRequired")
         } else if (!EMAIL_RE.test(email.trim())) {
-            next.email = "Enter a valid email address"
+            next.email = t("emailInvalid")
         }
         if (!phone.trim()) {
-            next.phone = "Phone is required"
+            next.phone = t("phoneRequired")
         }
         setErrors(next)
         return Object.keys(next).length === 0
@@ -93,7 +95,7 @@ export function SaveClientFromLeadDialog({
             })) as { id?: number } | undefined
 
             const clientId = created?.id
-            if (!clientId) throw new Error("Client was not created")
+            if (!clientId) throw new Error(t("notCreated"))
 
             if (lead.leadId != null) {
                 try {
@@ -110,8 +112,8 @@ export function SaveClientFromLeadDialog({
             onOpenChange(false)
         } catch (err: any) {
             toast({
-                title: "Unable to save client",
-                description: err?.message || "Please try again.",
+                title: t("saveFailed"),
+                description: err?.message || t("tryAgain"),
                 variant: "destructive",
             })
         } finally {
@@ -127,27 +129,27 @@ export function SaveClientFromLeadDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                         <UserPlus className="h-4 w-4 text-slate-500" />
-                        Save Client
+                        {t("title")}
                     </DialogTitle>
                     <DialogDescription className="text-sm text-slate-500">
-                        We&apos;ll create a client record using this info. You can edit details later from the client profile.
+                        {t("description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3 py-2">
                     <div className="space-y-1.5">
-                        <Label htmlFor="save-client-name">Name<span className="text-red-500"> *</span></Label>
+                        <Label htmlFor="save-client-name">{t("name")}<span className="text-red-500"> *</span></Label>
                         <Input
                             id="save-client-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Client name"
+                            placeholder={t("namePlaceholder")}
                             aria-invalid={!!errors.name}
                         />
                         {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="save-client-email">Email<span className="text-red-500"> *</span></Label>
+                        <Label htmlFor="save-client-email">{t("email")}<span className="text-red-500"> *</span></Label>
                         <Input
                             id="save-client-email"
                             type="email"
@@ -159,7 +161,7 @@ export function SaveClientFromLeadDialog({
                         {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="save-client-phone">Phone<span className="text-red-500"> *</span></Label>
+                        <Label htmlFor="save-client-phone">{t("phone")}<span className="text-red-500"> *</span></Label>
                         <Input
                             id="save-client-phone"
                             type="tel"
@@ -171,12 +173,12 @@ export function SaveClientFromLeadDialog({
                         {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="save-client-address">Address</Label>
+                        <Label htmlFor="save-client-address">{t("address")}</Label>
                         <Input
                             id="save-client-address"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
-                            placeholder="Street, city, state, ZIP"
+                            placeholder={t("addressPlaceholder")}
                         />
                     </div>
                 </div>
@@ -191,7 +193,7 @@ export function SaveClientFromLeadDialog({
                         autoFocus={defaultAction === "client"}
                     >
                         {submittingAction === "client" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create Client
+                        {t("createClient")}
                     </Button>
                     <Button
                         type="button"
@@ -202,7 +204,7 @@ export function SaveClientFromLeadDialog({
                         autoFocus={defaultAction === "quote"}
                     >
                         {submittingAction === "quote" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create Quote
+                        {t("createEstimate")}
                     </Button>
                     <Button
                         type="button"
@@ -213,11 +215,11 @@ export function SaveClientFromLeadDialog({
                     >
                         <span className="inline-flex items-center">
                             {submittingAction === "project" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Project
+                            {t("createProject")}
                         </span>
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            Recommended
+                            {t("recommended")}
                         </span>
                     </Button>
                 </DialogFooter>

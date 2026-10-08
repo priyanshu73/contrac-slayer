@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useDebounce } from "@/hooks/useDebounce"
+import { useTranslations } from "next-intl"
 
 export interface AutocompleteSuggestion {
   title?: string | null
@@ -48,6 +49,7 @@ export function LineItemSearchPopover({
   disabled = false,
   className,
 }: LineItemSearchPopoverProps) {
+  const t = useTranslations("quotes.autocomplete")
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
   const debouncedQuery = useDebounce(query.trim(), 300)
@@ -104,7 +106,7 @@ export function LineItemSearchPopover({
             "h-9 w-9 shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors",
             className
           )}
-          title="Search past items & cost book"
+          title={t("searchTitle")}
         >
           <Search className="h-4 w-4" />
         </Button>
@@ -120,7 +122,7 @@ export function LineItemSearchPopover({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search past items & cost book..."
+              placeholder={t("searchPlaceholder")}
               className="h-9 text-sm"
               autoFocus
             />
@@ -137,7 +139,7 @@ export function LineItemSearchPopover({
                       : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
                   )}
                 >
-                  {s === "all" ? "All" : s === "master" ? "Cost Book" : "Past Quotes"}
+                  {s === "all" ? t("filterAll") : s === "master" ? t("filterMaster") : t("filterHistorical")}
                 </button>
               ))}
             </div>
@@ -149,13 +151,13 @@ export function LineItemSearchPopover({
                 <Loader2 className="h-4 w-4 animate-spin" /> Searching...
               </div>
             ) : suggestions.length === 0 && debouncedQuery.length >= 2 ? (
-              <CommandEmpty>No items found.</CommandEmpty>
+              <CommandEmpty>{t("empty")}</CommandEmpty>
             ) : suggestions.length === 0 ? (
               <div className="py-6 text-center text-sm text-slate-500">
-                Type to search past items & cost book.
+                {t("typeToSearch")}
               </div>
             ) : (
-              <CommandGroup heading="Suggestions">
+              <CommandGroup heading={t("suggestions")}>
                 {suggestions.map((suggestion, index) => (
                   <CommandItem
                     key={`${index}-${suggestion.description}`}
@@ -179,7 +181,7 @@ export function LineItemSearchPopover({
                       )}
                       <span className="truncate font-medium">{suggestion.description}</span>
                       <span className="text-[10px] text-slate-400 capitalize flex items-center gap-1">
-                        {suggestion.source === "master" ? "Cost Book" : "Past Quote"}
+                        {suggestion.source === "master" ? t("sourceMaster") : t("sourceHistorical")}
                       </span>
                     </div>
                     <div className="flex flex-col items-end text-sm">
@@ -213,9 +215,11 @@ export function LineItemTitleAutocomplete({
   value,
   onChange,
   onSelect,
-  placeholder = "Item name",
+  placeholder,
   className,
 }: LineItemTitleAutocompleteProps) {
+  const t = useTranslations("quotes.autocomplete")
+  const placeholderText = placeholder ?? t("itemName")
   const [open, setOpen] = React.useState(false)
   const debouncedQuery = useDebounce(value.trim(), 350)
   const [suggestions, setSuggestions] = React.useState<AutocompleteSuggestion[]>([])
@@ -293,7 +297,7 @@ export function LineItemTitleAutocomplete({
               setOpen(true)
             }
           }}
-          placeholder={placeholder}
+          placeholder={placeholderText}
           className={cn(
             "min-h-[36px] py-2 pr-7 text-sm border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors resize-none overflow-hidden",
             className
@@ -338,7 +342,7 @@ export function LineItemTitleAutocomplete({
                     {suggestion.description}
                   </span>
                   <span className="text-[10px] text-slate-400 capitalize">
-                    {suggestion.source === "master" ? "Cost Book" : "Past Quote"}
+                    {suggestion.source === "master" ? t("sourceMaster") : t("sourceHistorical")}
                   </span>
                 </div>
                 <div className="flex flex-col items-end text-sm flex-shrink-0">

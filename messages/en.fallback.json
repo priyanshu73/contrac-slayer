@@ -792,6 +792,19 @@
       "attachedTo": "Attached to estimate #{id}",
       "beforeN": "Before {n}",
       "afterN": "After {n}"
+    },
+    "autocomplete": {
+      "searchTitle": "Search past items & cost book",
+      "searchPlaceholder": "Search past items & cost book…",
+      "filterAll": "All",
+      "filterMaster": "Cost book",
+      "filterHistorical": "Past estimates",
+      "empty": "No items found.",
+      "typeToSearch": "Type to search past items & cost book.",
+      "suggestions": "Suggestions",
+      "sourceMaster": "Cost book",
+      "sourceHistorical": "Past estimate",
+      "itemName": "Item name"
     }
   },
   "leads": {
@@ -851,6 +864,27 @@
         "COMPLETED": "Completed",
         "CANCELLED": "Cancelled"
       }
+    },
+    "saveFromLead": {
+      "nameRequired": "Name is required (min 2 characters)",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "phoneRequired": "Phone is required",
+      "notCreated": "Client was not created",
+      "saveFailed": "Unable to save client",
+      "tryAgain": "Please try again.",
+      "title": "Save client",
+      "description": "We'll create a client record using this info. You can edit details later from the client profile.",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "namePlaceholder": "Client name",
+      "addressPlaceholder": "Street, city, state, ZIP",
+      "createClient": "Create client",
+      "createEstimate": "Create estimate",
+      "createProject": "Create project",
+      "recommended": "Recommended"
     }
   },
   "profileSetup": {

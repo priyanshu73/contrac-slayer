@@ -787,6 +787,19 @@
       "attachedTo": "Adjunto al presupuesto n.º {id}",
       "beforeN": "Antes {n}",
       "afterN": "Después {n}"
+    },
+    "autocomplete": {
+      "searchTitle": "Buscar partidas anteriores y libro de costos",
+      "searchPlaceholder": "Buscar partidas anteriores y libro de costos…",
+      "filterAll": "Todas",
+      "filterMaster": "Libro de costos",
+      "filterHistorical": "Presupuestos anteriores",
+      "empty": "No se encontraron partidas.",
+      "typeToSearch": "Escribe para buscar partidas anteriores y el libro de costos.",
+      "suggestions": "Sugerencias",
+      "sourceMaster": "Libro de costos",
+      "sourceHistorical": "Presupuesto anterior",
+      "itemName": "Nombre de la partida"
     }
   },
   "leads": {
@@ -846,6 +859,27 @@
         "COMPLETED": "Completado",
         "CANCELLED": "Cancelado"
       }
+    },
+    "saveFromLead": {
+      "nameRequired": "El nombre es obligatorio (mínimo 2 caracteres)",
+      "emailRequired": "El correo electrónico es obligatorio",
+      "emailInvalid": "Ingresa un correo electrónico válido",
+      "phoneRequired": "El teléfono es obligatorio",
+      "notCreated": "No se creó el cliente",
+      "saveFailed": "No se pudo guardar el cliente",
+      "tryAgain": "Inténtalo de nuevo.",
+      "title": "Guardar cliente",
+      "description": "Crearemos un registro de cliente con esta información. Puedes editar los detalles después desde el perfil del cliente.",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "address": "Dirección",
+      "namePlaceholder": "Nombre del cliente",
+      "addressPlaceholder": "Calle, ciudad, estado, código postal",
+      "createClient": "Crear cliente",
+      "createEstimate": "Crear presupuesto",
+      "createProject": "Crear proyecto",
+      "recommended": "Recomendado"
     }
   },
   "profileSetup": {
