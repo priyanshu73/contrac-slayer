@@ -28,7 +28,7 @@ import {
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useAuth } from "@/contexts/AuthContext"
 import { ContactSendEmailTrigger } from "@/components/contact-send-email-dialog"
 import { CrewAvailabilityPopover, CrewSmsTrigger } from "@/components/crew-contact-dialog"
@@ -43,22 +43,23 @@ interface SubcontractorsListProps {
     onSubcontractorUpdated?: () => void
 }
 
-function getAvailabilityBadge(status: string) {
+function getAvailabilityBadge(status: string, t: (key: string) => string) {
     switch (status) {
         case "AVAILABLE": 
-            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800"><Clock className="w-3 h-3 mr-1" /> Available</span>
+            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800"><Clock className="w-3 h-3 mr-1" /> {t("availAvailable")}</span>
         case "UNAVAILABLE": 
-            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800"><Clock className="w-3 h-3 mr-1" /> Unavailable</span>
+            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800"><Clock className="w-3 h-3 mr-1" /> {t("availUnavailable")}</span>
         case "PENDING": 
         default: 
-            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800"><Clock className="w-3 h-3 mr-1" /> Pending</span>
+            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800"><Clock className="w-3 h-3 mr-1" /> {t("availPending")}</span>
     }
 }
 
-function getStreetAddress(address?: string | null) {
-    if (!address) return "No address on file"
+function getStreetAddress(address?: string | null, t?: (key: string) => string) {
+    const none = t ? t("noAddress") : "No address on file"
+    if (!address) return none
     const [street] = address.split(",")
-    return street?.trim() || "No address on file"
+    return street?.trim() || none
 }
 
 export function SubcontractorsList({
@@ -70,6 +71,7 @@ export function SubcontractorsList({
 }: SubcontractorsListProps) {
     const router = useRouter()
     const locale = useLocale()
+    const t = useTranslations("crewPage")
     const { toast } = useToast()
     const { user } = useAuth()
     const spId = user?.contractor_ai_sp_id ?? null
@@ -86,9 +88,9 @@ export function SubcontractorsList({
         const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
         const fullUrl = `${frontendUrl}/${locale}/crew/portal/${uuid}`
         navigator.clipboard.writeText(fullUrl).then(() => {
-            toast({ title: "Link Copied", description: "Crew portal link copied to clipboard." })
+            toast({ title: t("linkCopied"), description: t("portalLinkCopied") })
         }).catch(() => {
-            toast({ title: "Failed to copy", variant: "destructive" })
+            toast({ title: t("copyFailed"), variant: "destructive" })
         })
     }
 
@@ -96,10 +98,10 @@ export function SubcontractorsList({
         if (!archiveTarget) return
         try {
             await api.deleteSubcontractor(archiveTarget)
-            toast({ title: "Crew member archived" })
+            toast({ title: t("archived") })
             onSubcontractorDeleted?.()
         } catch (err: any) {
-            toast({ title: "Failed to archive", description: err.message, variant: "destructive" })
+            toast({ title: t("archiveFailed"), description: err.message, variant: "destructive" })
         } finally {
             setArchiveTarget(null)
         }
@@ -127,10 +129,10 @@ export function SubcontractorsList({
                 api.updateSubcontractor(id, { dispatch_priority: newPriorityForCurrent }),
                 api.updateSubcontractor(targetSub.id, { dispatch_priority: newPriorityForTarget })
             ])
-            toast({ title: "Dispatch priority updated" })
+            toast({ title: t("priorityUpdated") })
             onSubcontractorUpdated?.()
         } catch (err: any) {
-            toast({ title: "Failed to update priority", description: err.message, variant: "destructive" })
+            toast({ title: t("priorityFailed"), description: err.message, variant: "destructive" })
         } finally {
             setUpdatingId(null)
         }
@@ -154,8 +156,8 @@ export function SubcontractorsList({
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Wrench className="h-12 w-12 text-slate-300 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700 mb-1">No crew yet</h3>
-                <p className="text-sm text-slate-500">Add your first crew member to get started.</p>
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">{t("noCrewYet")}</h3>
+                <p className="text-sm text-slate-500">{t("addFirstCrew")}</p>
             </div>
         )
     }
@@ -181,11 +183,11 @@ export function SubcontractorsList({
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={(e) => handleCopyPortalLink(e, sub.uuid)}>
                                             <Link2 className="h-4 w-4 mr-2" />
-                                            Copy Crew Portal Link
+                                            {t("copyPortalLink")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                             <Archive className="h-4 w-4 mr-2" />
-                                            Archive
+                                            {t("archive")}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -232,7 +234,7 @@ export function SubcontractorsList({
                                 {sub.phone_number && (
                                     <CrewSmsTrigger crew={sub} spId={spId}>
                                         {(openSms) => (
-                                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={openSms} disabled={!spId} aria-label={`Text ${sub.name}`} title="Send SMS">
+                                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={openSms} disabled={!spId} aria-label={t("textAria", { name: sub.name })} title={t("sendSms")}>
                                                 <MessageSquare className="h-3.5 w-3.5" />
                                             </Button>
                                         )}
@@ -251,12 +253,12 @@ export function SubcontractorsList({
                 <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Archive crew member?</AlertDialogTitle>
-                            <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
+                            <AlertDialogTitle>{t("archiveTitle")}</AlertDialogTitle>
+                            <AlertDialogDescription>{t("archiveDesc")}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleArchive}>Archive</AlertDialogAction>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleArchive}>{t("archive")}</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -308,10 +310,10 @@ export function SubcontractorsList({
                     
                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:rounded-xl">
                         <div className="hidden sm:grid grid-cols-[80px_1.5fr_1.5fr_1.5fr_48px] gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            <span className="text-center">Dispatch</span>
-                            <span>Crew Member</span>
-                            <span>Location & Availability</span>
-                            <span>Contact Info</span>
+                            <span className="text-center">{t("dispatch")}</span>
+                            <span>{t("crewMember")}</span>
+                            <span>{t("locationAvailability")}</span>
+                            <span>{t("contactInfo")}</span>
                             <span />
                         </div>
                         
@@ -338,7 +340,7 @@ export function SubcontractorsList({
                                             disabled={updatingId === sub.id || isFirst}
                                             onClick={(e) => updatePriority(e, sub.id, currentGroupList, -1)}
                                             className="p-1 text-slate-400 hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-400 rounded transition-colors"
-                                            title="Increase Priority (Move Up)"
+                                            title={t("increasePriority")}
                                         >
                                             <ChevronUp className="w-5 h-5" />
                                         </button>
@@ -354,7 +356,7 @@ export function SubcontractorsList({
                                             disabled={updatingId === sub.id || isLast}
                                             onClick={(e) => updatePriority(e, sub.id, currentGroupList, 1)}
                                             className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-slate-400 rounded transition-colors"
-                                            title="Decrease Priority (Move Down)"
+                                            title={t("decreasePriority")}
                                         >
                                             <ChevronDown className="w-5 h-5" />
                                         </button>
@@ -380,10 +382,10 @@ export function SubcontractorsList({
                                     <div className="space-y-1.5 hidden sm:block">
                                         <div className="flex items-center gap-1.5 text-xs text-slate-600 truncate">
                                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span className="truncate">{getStreetAddress(sub.address)}</span>
+                                            <span className="truncate">{getStreetAddress(sub.address, t)}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {getAvailabilityBadge(sub.daily_availability_status)}
+                                            {getAvailabilityBadge(sub.daily_availability_status, t)}
                                             {sub.service_radius_miles && (
                                                 <span className="text-xs text-slate-500">
                                                     ({sub.service_radius_miles} mi radius)
@@ -405,7 +407,7 @@ export function SubcontractorsList({
                                     {/* Mobile Location & Availability */}
                                     <div className="sm:hidden space-y-2 rounded-lg bg-slate-50 px-3 py-2">
                                         <div className="flex items-center justify-between gap-2">
-                                            {getAvailabilityBadge(sub.daily_availability_status)}
+                                            {getAvailabilityBadge(sub.daily_availability_status, t)}
                                             <CrewAvailabilityPopover crew={sub} locale={locale} spId={spId}>
                                                 <button
                                                     type="button"
@@ -420,7 +422,7 @@ export function SubcontractorsList({
                                         {sub.address && (
                                             <p className="text-xs text-slate-500 truncate flex items-center mt-1">
                                                 <MapPin className="w-3 h-3 mr-1 shrink-0" />
-                                                {getStreetAddress(sub.address)}
+                                                {getStreetAddress(sub.address, t)}
                                             </p>
                                         )}
                                     </div>
@@ -452,8 +454,8 @@ export function SubcontractorsList({
                                                             className="ml-1 text-blue-600 disabled:text-slate-300"
                                                             onClick={(event) => { event.stopPropagation(); openSms() }}
                                                             disabled={!spId}
-                                                            aria-label={`Text ${sub.name}`}
-                                                            title="Send SMS"
+                                                            aria-label={t("textAria", { name: sub.name })}
+                                                            title={t("sendSms")}
                                                         >
                                                             <MessageSquare className="h-3.5 w-3.5" />
                                                         </button>
@@ -462,7 +464,7 @@ export function SubcontractorsList({
                                             </div>
                                         )}
                                         {!sub.email && !sub.phone_number && (
-                                            <span className="text-slate-400 italic">No contact info</span>
+                                            <span className="text-slate-400 italic">{t("noContactInfo")}</span>
                                         )}
                                     </div>
 
@@ -477,11 +479,11 @@ export function SubcontractorsList({
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={(e) => handleCopyPortalLink(e, sub.uuid)}>
                                                     <Link2 className="h-4 w-4 mr-2" />
-                                                    Copy Crew Portal Link
+                                                    {t("copyPortalLink")}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setArchiveTarget(sub.id)} className="text-red-600 focus:text-red-600">
                                                     <Archive className="h-4 w-4 mr-2" />
-                                                    Archive
+                                                    {t("archive")}
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -495,7 +497,7 @@ export function SubcontractorsList({
                                             onClick={(e) => handleCopyPortalLink(e, sub.uuid)}
                                         >
                                             <Link2 className="mr-1.5 h-4 w-4" />
-                                            Crew Portal
+                                            {t("crewPortal")}
                                         </Button>
                                         <Button
                                             type="button"
@@ -504,7 +506,7 @@ export function SubcontractorsList({
                                             onClick={() => setArchiveTarget(sub.id)}
                                         >
                                             <Archive className="mr-1.5 h-4 w-4" />
-                                            Archive
+                                            {t("archive")}
                                         </Button>
                                     </div>
                                 </div>
@@ -517,12 +519,12 @@ export function SubcontractorsList({
             <AlertDialog open={!!archiveTarget} onOpenChange={(open) => !open && setArchiveTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Archive crew member?</AlertDialogTitle>
-                        <AlertDialogDescription>This will archive the crew member. You can reactivate them later from their profile.</AlertDialogDescription>
+                        <AlertDialogTitle>{t("archiveTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>{t("archiveDesc")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleArchive}>Archive</AlertDialogAction>
+                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleArchive}>{t("archive")}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
