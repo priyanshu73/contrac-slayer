@@ -197,6 +197,8 @@
 /* workspace: one surface, panes divided by hairlines */
 .lp .wk{background:none!important;box-shadow:none!important;border:0!important;position:relative}
 .lp .s5 .wk>.top{padding:0 0 18px}
+.lp .s5 .wk>.top>div:first-child{min-width:0;padding-left:4px}
+.lp .s5 .wk>.top b{font-family:var(--lp-sans),sans-serif;line-height:1.4;letter-spacing:0;overflow-wrap:anywhere}
 .lp .mos{background:none!important;padding:0!important;gap:0!important;border-top:1px solid #e6e1d6;position:relative}
 .lp .pn{background:none!important;box-shadow:none!important;border-radius:0!important;padding:22px 26px!important;border-left:1px solid #e6e1d6}.lp .pn:first-child{border-left:0;padding-left:0!important}
 .lp .mos .pn:nth-child(4),.lp .mos .pn:nth-child(5){border-top:1px solid #e6e1d6}
@@ -403,11 +405,20 @@
 .lp a{text-decoration:none}
 .lp button.btn{border:0;cursor:pointer;font-family:inherit}
 
-/* sequential chat reveal */
-.lp .lp-msg{opacity:0;transform:translateY(10px)}
-.lp [data-seq].lp-on .lp-msg{animation:lp-pop .6s cubic-bezier(.16,1,.3,1) forwards;animation-delay:calc(var(--i) * 1.6s + .5s)}
-@keyframes lp-pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion: reduce){.lp .lp-msg{opacity:1;transform:none}}
+/* sequential chat with typing pauses; hidden messages reserve the transcript's space */
+.lp .lp-chat{position:relative}
+.lp .lp-msg{visibility:hidden;opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease}
+.lp .lp-msg-visible{visibility:visible;opacity:1;transform:none}
+.lp .lp-typing{position:absolute;display:flex;flex-direction:column;gap:4px;align-items:flex-start;pointer-events:none}
+.lp .lp-typing[hidden]{display:none}
+.lp .lp-typing-right{align-items:flex-end}
+.lp .lp-typing-dots{display:flex;gap:4px;padding:10px 13px;border-radius:12px;background:#f1f3f6}
+.lp .lp-typing-dots i{width:5px;height:5px;border-radius:50%;background:#7b8798;animation:lp-type .9s ease-in-out infinite}
+.lp .lp-typing-dots i:nth-child(2){animation-delay:.15s}.lp .lp-typing-dots i:nth-child(3){animation-delay:.3s}
+.lp .lp-typing-label{font-size:10.5px;color:#6b7683}
+.lp .s4 .lp-typing-dots{background:#233347}.lp .s4 .lp-typing-label{color:#a6bbd8}
+@keyframes lp-type{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-3px);opacity:1}}
+@media (prefers-reduced-motion: reduce){.lp .lp-msg{visibility:visible;opacity:1;transform:none;transition:none}.lp .lp-typing{display:none}}
 
 /* hero spacing (reset above zeroes tailwind margins) */
 .lp.lp-hero-wrap{margin-left:auto;margin-right:auto;padding:104px 24px 96px}
@@ -472,10 +483,8 @@
   .lp .s8 .mapbg{opacity:.5}
   .lp .s8 .fp .r{min-width:0}
   .lp .s8 .fp .r>div{min-width:0}
-  .lp .s5 .wk .top > div:first-child{padding-left:2px;overflow:visible}
-  .lp .s5 .wk .top b{display:inline-block;padding-left:2px}
+  .lp .s5 .wk>.top b{font-size:16px}
 }
-.lp .wk .top{padding-left:24px}
 @media (max-width: 1100px){
   .lp .s8 .w{display:flex!important;flex-direction:column;gap:28px}
   .lp .s8 .l8,.lp .s8 .fp{width:100%!important;max-width:100%}

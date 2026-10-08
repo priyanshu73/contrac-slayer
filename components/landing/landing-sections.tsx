@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { animateLandingChat } from "@/lib/landing-chat"
 import { LandingSonicDemoCard } from "@/components/landing-sonic-demo-card"
 import "./landing.css"
 import {
@@ -14,36 +16,14 @@ import {
   FIN_HTML,
 } from "./landing-markup"
 
-/** Reveals chat bubbles one after the other when a [data-seq] panel scrolls into view. */
+/** Plays each example with typing pauses once its conversation is visible. */
 function useSequentialChat(ref: React.RefObject<HTMLDivElement | null>) {
+  const t = useTranslations("landing")
   useEffect(() => {
     const root = ref.current
     if (!root) return
-    const panels = root.querySelectorAll<HTMLElement>("[data-seq]")
-    if (!panels.length) return
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    panels.forEach((panel) => {
-      panel.querySelectorAll<HTMLElement>(".cb, .tr > div").forEach((el, i) => {
-        el.classList.add("lp-msg")
-        el.style.setProperty("--i", String(i))
-      })
-      if (reduce) panel.classList.add("lp-on")
-    })
-    if (reduce) return
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("lp-on")
-            io.unobserve(e.target)
-          }
-        })
-      },
-      { threshold: 0.35 },
-    )
-    panels.forEach((p) => io.observe(p))
-    return () => io.disconnect()
-  }, [ref])
+    return animateLandingChat(root, { ai: t("chatTypingAi"), customer: t("chatTypingCustomer") })
+  }, [ref, t])
 }
 
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US")
