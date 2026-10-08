@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom"
 import { animateLandingChat } from "../lib/landing-chat"
 import { WORK_HTML, RECEP_HTML } from "../components/landing/landing-markup"
 
-function preview(reduce = false) {
+function preview(reduce = false, customerLabel = "Customer is typing...") {
   const dom = new JSDOM(`<main>${WORK_HTML}${RECEP_HTML}</main>`)
   const root = dom.window.document.querySelector<HTMLElement>("main")!
   let now = 0
@@ -40,7 +40,7 @@ function preview(reduce = false) {
     }
     now = end
   }
-  const cleanup = animateLandingChat(root, { ai: "Bob is typing...", customer: "Customer is typing..." })
+  const cleanup = animateLandingChat(root, { ai: "Bob is typing...", customer: customerLabel })
   const workspace = root.querySelector<HTMLElement>(".pn[data-seq]")!
   const receptionist = root.querySelector<HTMLElement>(".tr[data-seq]")!
   const enter = (panel: HTMLElement, ratio = 1) => intersection([
@@ -53,7 +53,7 @@ function preview(reduce = false) {
 }
 
 test("landing conversation alternates typing and replies, then replays after a readable pause", () => {
-  const p = preview()
+  const p = preview(false, "Karen is typing...")
   try {
     assert.deepEqual(p.visible(p.workspace), ["Can we pour the east slab a day early?"])
     p.enter(p.workspace, 0.1)
@@ -70,13 +70,18 @@ test("landing conversation alternates typing and replies, then replays after a r
     assert.match(p.visible(p.workspace)[1]!, /Sam and Ben/)
     assert.equal(p.typing(p.workspace).hidden, true)
     p.advance(650)
-    assert.match(p.typing(p.workspace).textContent!, /Customer is typing/)
+    assert.match(p.typing(p.workspace).textContent!, /Bob is typing/)
     p.advance(2550)
-    assert.equal(p.visible(p.workspace)[2], "Perfect, thanks.")
-    p.advance(6400)
-    assert.equal(p.visible(p.workspace).length, 5)
+    assert.equal(p.visible(p.workspace)[2], "Reminder: rebar inspection is Wed 8am.")
+    p.advance(650)
+    assert.match(p.typing(p.workspace).textContent!, /Karen is typing/)
+    assert.ok(!p.typing(p.workspace).classList.contains("lp-typing-right"))
+    p.advance(2550)
+    assert.equal(p.visible(p.workspace)[3], "Got it, see you on site.")
+    assert.equal(p.visible(p.workspace).length, 4)
+    assert.equal(p.workspace.querySelectorAll(".cb.r").length, 0)
     p.advance(5499)
-    assert.equal(p.visible(p.workspace).length, 5)
+    assert.equal(p.visible(p.workspace).length, 4)
     p.advance(1)
     assert.equal(p.visible(p.workspace).length, 1)
   } finally { p.cleanup(); p.close() }
@@ -101,7 +106,7 @@ test("scrolling away cancels queued replies; re-entry and cleanup restore the tr
     assert.ok(p.disconnected())
     assert.equal(p.root.querySelectorAll(".lp-typing, .lp-msg").length, 0)
     assert.ok([...p.root.querySelectorAll(".cb, .tr > div")].every((message) => !message.hasAttribute("aria-hidden")))
-    assert.equal(p.workspace.querySelectorAll(".cb").length, 5)
+    assert.equal(p.workspace.querySelectorAll(".cb").length, 4)
   } finally { p.close() }
 })
 
@@ -110,7 +115,7 @@ test("both examples stay fully readable with reduced motion, including changes d
   try {
     p.enter(p.workspace)
     p.enter(p.receptionist)
-    assert.equal(p.visible(p.workspace).length, 5)
+    assert.equal(p.visible(p.workspace).length, 4)
     assert.equal(p.visible(p.receptionist).length, 4)
     assert.equal(p.timers.size, 0)
     p.motion(false)
@@ -119,7 +124,7 @@ test("both examples stay fully readable with reduced motion, including changes d
     assert.equal(p.typing(p.receptionist).hidden, false)
     p.motion(true)
     assert.equal(p.timers.size, 0)
-    assert.equal(p.visible(p.workspace).length, 5)
+    assert.equal(p.visible(p.workspace).length, 4)
     assert.equal(p.visible(p.receptionist).length, 4)
     assert.equal(p.typing(p.workspace).hidden, true)
   } finally { p.cleanup(); p.close() }
