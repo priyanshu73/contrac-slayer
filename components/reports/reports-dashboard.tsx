@@ -489,4 +489,4 @@ function BreakdownPanel({
       )}
     </Card>
   )
-    }
+}
