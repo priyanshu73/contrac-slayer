@@ -2,6 +2,8 @@ import {notFound} from 'next/navigation';
 import {getRequestConfig} from 'next-intl/server';
 import enFallback from '../messages/en.json';
 import esFallback from '../messages/es.json';
+import enExtra from '../messages/en.fallback.json';
+import esExtra from '../messages/es.fallback.json';
 import offeringsEn from '../messages/trade-schools/offerings-en.json';
 import offeringsEs from '../messages/trade-schools/offerings-es.json';
 
@@ -40,7 +42,7 @@ export default getRequestConfig(async ({locale}) => {
     locale = 'en';
   }
 
-  const fallback = { ...(locale === 'es' ? esFallback : enFallback), offerings: locale === 'es' ? offeringsEs : offeringsEn };
+  const fallback = { ...deepMerge(locale === 'es' ? esFallback : enFallback, locale === 'es' ? esExtra : enExtra), offerings: locale === 'es' ? offeringsEs : offeringsEn };
 
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
