@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useTranslations, useLocale } from "next-intl"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,27 +41,7 @@ import {
   AI_ESTIMATE_LOADING_MESSAGES,
 } from "@/lib/ai-estimate-loading"
 import { agUiState, applyJsonPatch } from "@/lib/ag-ui-state"
-
-interface LineItem {
-  title?: string
-  description: string
-  quantity: number
-  rate: number | string
-  imageUrl?: string
-  thumbnailUrl?: string
-  brand?: string
-  model?: string
-  externalUrl?: string
-  unitOfMeasure?: string
-  searchResults?: any[] // All search results for substitutes
-  packSize?: number // Number of pieces per pack
-  packPrice?: number // Total price for the pack
-  sourceParsedItem?: any // Reference to the parsed item this match came from
-  confidence?: "low" | "medium" | "high" // Confidence level from AI estimate
-  productSource?: string // Product source (e.g., "Home Depot")
-  category?: string // Category: materials | labor | equipment | disposal
-  applyTax?: boolean // Whether to apply tax to this line item (defaults to true)
-}
+import { sanitizeDecimalInput, getRateNumber, hasLineItemIdentity, hasLineItemInput, isValidChargeItem, quoteInputSurfaceClass, quoteTextareaSurfaceClass, UnitSelector, MaterialThumbnail, type LineItem } from "@/components/quote-creator-helpers"
 
 interface MaterialResult {
   name: string
@@ -114,338 +95,6 @@ const deriveLineItemTitle = (title?: string, description?: string): string => {
 }
 
 // Common units for construction and landscaping
-const COMMON_UNITS = [
-  // Area units
-  { value: "sq ft", label: "Square Feet (sq ft)" },
-  { value: "sq yd", label: "Square Yards (sq yd)" },
-  { value: "sq m", label: "Square Meters (sq m)" },
-
-  // Volume units
-  { value: "cu ft", label: "Cubic Feet (cu ft)" },
-  { value: "cu yd", label: "Cubic Yards (cu yd)" },
-  { value: "cu m", label: "Cubic Meters (cu m)" },
-
-  // Weight units
-  { value: "lb", label: "Pounds (lb)" },
-  { value: "kg", label: "Kilograms (kg)" },
-  { value: "ton", label: "Tons" },
-
-  // Length units
-  { value: "linear ft", label: "Linear Feet" },
-  { value: "linear yd", label: "Linear Yards" },
-  { value: "m", label: "Meters (m)" },
-
-  // Count units
-  { value: "each", label: "Each" },
-  { value: "piece", label: "Piece" },
-  { value: "set", label: "Set" },
-  { value: "box", label: "Box" },
-  { value: "pallet", label: "Pallet" },
-  { value: "bag", label: "Bag" },
-
-  // Time units
-  { value: "hour", label: "Hour" },
-  { value: "day", label: "Day" },
-  { value: "week", label: "Week" },
-]
-
-// Smart unit suggestions based on description
-function getSuggestedUnits(description: string): string[] {
-  const desc = description.toLowerCase()
-
-  if (desc.includes('paver') || desc.includes('tile') || desc.includes('flooring')) {
-    return ['sq ft', 'each', 'pallet']
-  }
-  if (desc.includes('concrete') || desc.includes('mix')) {
-    return ['bag', 'cu yd', 'lb']
-  }
-  if (desc.includes('mulch') || desc.includes('soil')) {
-    return ['cu ft', 'bag', 'cu yd']
-  }
-  if (desc.includes('lumber') || desc.includes('board')) {
-    return ['linear ft', 'board ft', 'each']
-  }
-  if (desc.includes('labor') || desc.includes('installation')) {
-    return ['hour', 'sq ft', 'each']
-  }
-
-  return ['each', 'sq ft', 'cu ft', 'lb', 'hour']
-}
-
-function sanitizeDecimalInput(value: string): string {
-  // Allow only digits and a single dot. Keep intermediate states like "" or "." while typing.
-  const cleaned = value.replace(/[^\d.]/g, "")
-  const parts = cleaned.split(".")
-  if (parts.length <= 1) return cleaned
-  const decimal = parts.slice(1).join("").slice(0, 2) // max 2 decimals
-  return `${parts[0]}.${decimal}`
-}
-
-function getRateNumber(rate: LineItem["rate"]): number {
-  if (typeof rate === "number") return rate
-  const n = Number.parseFloat(rate)
-  return Number.isFinite(n) ? n : 0
-}
-
-function hasLineItemIdentity(item: LineItem): boolean {
-  return Boolean(item.description.trim() || item.title?.trim())
-}
-
-function hasLineItemInput(item: LineItem): boolean {
-  const rateHasInput = typeof item.rate === "number" ? item.rate !== 0 : item.rate.trim() !== ""
-  return hasLineItemIdentity(item) || item.quantity !== 0 || rateHasInput
-}
-
-function isValidChargeItem(item: LineItem): boolean {
-  const quantity = Number(item.quantity)
-  const rate = getRateNumber(item.rate)
-  return hasLineItemIdentity(item) && Number.isFinite(quantity) && quantity > 0 && rate > 0
-}
-
-const quoteInputSurfaceClass =
-  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 disabled:bg-slate-100/70"
-
-const quoteTextareaSurfaceClass =
-  "border-slate-300/80 bg-slate-50/80 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
-
-// Unit Selector Component
-function UnitSelector({ value, onChange, description }: { value: string; onChange: (value: string) => void; description: string }) {
-  const [isCustom, setIsCustom] = useState(false)
-  const [customValue, setCustomValue] = useState("")
-
-  const suggestedUnits = getSuggestedUnits(description)
-  const commonUnitValues = COMMON_UNITS.map(unit => unit.value)
-
-  useEffect(() => {
-    if (value && !commonUnitValues.includes(value)) {
-      setIsCustom(true)
-      setCustomValue(value)
-    }
-  }, [value, commonUnitValues])
-
-  const handleSelect = (selectedValue: string) => {
-    if (selectedValue === "custom") {
-      setIsCustom(true)
-      setCustomValue("")
-    } else {
-      setIsCustom(false)
-      onChange(selectedValue)
-    }
-  }
-
-  const handleCustomChange = (newValue: string) => {
-    setCustomValue(newValue)
-    onChange(newValue)
-  }
-
-  const handleCustomClose = () => {
-    setIsCustom(false)
-    setCustomValue("")
-    onChange("")
-  }
-
-  // Filter out suggested units from common units to avoid duplicates
-  const remainingUnits = COMMON_UNITS.filter(unit => !suggestedUnits.includes(unit.value))
-
-  return (
-    <div className="space-y-1 w-full min-w-0">
-      {!isCustom ? (
-        <Select value={value || ""} onValueChange={handleSelect}>
-          <SelectTrigger className="w-full min-w-0 border-0 shadow-none bg-transparent hover:bg-transparent focus:ring-0 focus:ring-offset-0 px-0 h-9 text-xs leading-tight">
-            <SelectValue placeholder="Select unit..." />
-          </SelectTrigger>
-          <SelectContent className="text-xs">
-            {/* Suggested units based on description */}
-            {suggestedUnits.length > 0 && (
-              <>
-                {suggestedUnits.map(unit => {
-                  const unitInfo = COMMON_UNITS.find(u => u.value === unit)
-                  return (
-                    <SelectItem key={unit} value={unit} className="text-xs">
-                      {unitInfo?.label || unit}
-                    </SelectItem>
-                  )
-                })}
-                {remainingUnits.length > 0 && <div className="border-t my-1"></div>}
-              </>
-            )}
-
-            {/* Remaining common units (excluding suggested ones) */}
-            {remainingUnits.map(unit => (
-              <SelectItem key={unit.value} value={unit.value} className="text-xs">
-                {unit.label}
-              </SelectItem>
-            ))}
-
-            {/* Custom option */}
-            <div className="border-t my-1"></div>
-            <SelectItem value="custom" className="text-xs">
-              + Add custom unit
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      ) : (
-        <div className="flex gap-1 w-full">
-          <Input
-            value={customValue}
-            onChange={(e) => handleCustomChange(e.target.value)}
-            placeholder="Custom unit..."
-            className={cn(quoteInputSurfaceClass, "flex-1 min-w-0")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCustomClose}
-            className="px-2 flex-shrink-0"
-          >
-            ×
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Get colorful abstract icon based on item description/category
-function getItemIcon(description: string, category?: string, index: number = 0) {
-  const desc = description.toLowerCase()
-  const cat = category?.toLowerCase() || ""
-
-  // Icon set with 5 different colorful abstract designs
-  const icons = [
-    // Icon 1: Blue gradient with tools
-    <svg key="icon1" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#3B82F6" stopOpacity="1" />
-          <stop offset="100%" stopColor="#8B5CF6" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="12" fill="url(#grad1)" />
-      <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="white" fillOpacity="0.3" />
-      <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
-      <path d="M35 50 L45 50 M55 50 L65 50 M50 40 L50 60" stroke="white" strokeWidth="2" strokeOpacity="0.6" />
-    </svg>,
-
-    // Icon 2: Orange/Red gradient with construction
-    <svg key="icon2" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#F59E0B" stopOpacity="1" />
-          <stop offset="100%" stopColor="#EF4444" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="12" fill="url(#grad2)" />
-      <rect x="25" y="30" width="50" height="40" rx="4" fill="white" fillOpacity="0.25" />
-      <rect x="30" y="35" width="15" height="15" rx="2" fill="white" fillOpacity="0.4" />
-      <rect x="55" y="35" width="15" height="15" rx="2" fill="white" fillOpacity="0.4" />
-      <path d="M40 55 L60 55" stroke="white" strokeWidth="3" strokeOpacity="0.5" />
-    </svg>,
-
-    // Icon 3: Green gradient with geometric shapes
-    <svg key="icon3" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#10B981" stopOpacity="1" />
-          <stop offset="100%" stopColor="#059669" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="12" fill="url(#grad3)" />
-      <circle cx="35" cy="35" r="12" fill="white" fillOpacity="0.3" />
-      <circle cx="65" cy="35" r="12" fill="white" fillOpacity="0.3" />
-      <path d="M35 47 L65 47 L50 65 Z" fill="white" fillOpacity="0.4" />
-    </svg>,
-
-    // Icon 4: Purple/Pink gradient with abstract design
-    <svg key="icon4" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#A855F7" stopOpacity="1" />
-          <stop offset="100%" stopColor="#EC4899" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="12" fill="url(#grad4)" />
-      <path d="M30 50 Q50 30, 70 50 T30 50" fill="white" fillOpacity="0.2" />
-      <circle cx="40" cy="45" r="6" fill="white" fillOpacity="0.5" />
-      <circle cx="60" cy="55" r="6" fill="white" fillOpacity="0.5" />
-      <path d="M50 30 L50 70 M30 50 L70 50" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
-    </svg>,
-
-    // Icon 5: Teal/Cyan gradient with modern design
-    <svg key="icon5" className="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#06B6D4" stopOpacity="1" />
-          <stop offset="100%" stopColor="#0891B2" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="12" fill="url(#grad5)" />
-      <rect x="30" y="30" width="40" height="40" rx="8" fill="white" fillOpacity="0.2" transform="rotate(45 50 50)" />
-      <circle cx="50" cy="50" r="15" fill="none" stroke="white" strokeWidth="3" strokeOpacity="0.4" />
-      <circle cx="50" cy="50" r="8" fill="white" fillOpacity="0.5" />
-    </svg>
-  ]
-
-  // Select icon based on category or description keywords
-  if (cat.includes("material") || desc.includes("paver") || desc.includes("stone") || desc.includes("brick")) {
-    return icons[0] // Blue gradient
-  } else if (cat.includes("labor") || desc.includes("install") || desc.includes("work") || desc.includes("service")) {
-    return icons[1] // Orange/Red gradient
-  } else if (cat.includes("equipment") || desc.includes("tool") || desc.includes("machine")) {
-    return icons[2] // Green gradient
-  } else if (cat.includes("disposal") || desc.includes("waste") || desc.includes("remove")) {
-    return icons[3] // Purple/Pink gradient
-  } else {
-    // Use index-based rotation for variety
-    return icons[index % icons.length]
-  }
-}
-
-// Material Thumbnail Component with colorful fallback icons
-function MaterialThumbnail({ src, alt, className, category, index }: {
-  src?: string;
-  alt: string;
-  className?: string;
-  category?: string;
-  index?: number;
-}) {
-  const [imageError, setImageError] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-
-  // Reset error state when src changes
-  useEffect(() => {
-    setImageError(false)
-    setImageLoaded(false)
-  }, [src])
-
-  if (!src || imageError) {
-    return (
-      <div className={`flex items-center justify-center border border-border rounded-md overflow-hidden ${className}`}>
-        {getItemIcon(alt, category, index || 0)}
-      </div>
-    )
-  }
-
-  return (
-    <div className={`relative overflow-hidden border border-border rounded-md ${className}`}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        className="object-cover"
-        onError={() => setImageError(true)}
-        onLoad={() => setImageLoaded(true)}
-        onLoadingComplete={() => setImageLoaded(true)}
-      />
-      {!imageLoaded && (
-        <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
-          <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 interface QuoteCreatorProps {
   leadId?: string | null
   clientId?: string | null
@@ -459,6 +108,8 @@ interface QuoteCreatorProps {
 
 export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, quoteId, initialData, onProjectContextChange }: QuoteCreatorProps) {
   const { toast } = useToast()
+  const tq = useTranslations("quotes")
+  const locale = useLocale()
   const [serviceDescription, setServiceDescription] = useState("")
   // Keep call summaries separate from the quote description until the user has
   // reviewed the AI-refined scope in the captured-description panel.
@@ -699,8 +350,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         }
 
         toast({
-          title: "Form updated by Bob AI",
-          description: event.reason || "Updated quote live via Bob AI",
+          title: tq("creator.formUpdatedAi"),
+          description: event.reason || tq("creator.formUpdatedAiDesc"),
         })
       } catch (err) {
         console.error("Failed to apply state patch in QuoteCreator:", err)
@@ -782,8 +433,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       } catch (error) {
         console.error('Failed to fetch template detail:', error)
         toast({
-          title: 'Failed to load template',
-          description: 'Please try again or use custom project type',
+          title: tq("creator.templateLoadFailed"),
+          description: tq("creator.templateLoadFailedDesc"),
           variant: 'destructive',
         })
       } finally {
@@ -1165,8 +816,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     setMatchingClients([])
 
     toast({
-      title: "Client selected",
-      description: `Using existing client: ${client.name}`,
+      title: tq("creator.clientSelected"),
+      description: tq("creator.usingClient", { name: client.name }),
     })
   }
 
@@ -1238,7 +889,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       setSelectedClientId(null)
 
       // Auto-fill client information from call lead
-      setClientName(lead.name || `Customer ${lead.phone_number?.slice(-4) || ''}`)
+      setClientName(lead.name || tq("creator.customerFallback", { last4: lead.phone_number?.slice(-4) || "" }))
       setClientEmail(lead.email || "")
       setClientPhone(lead.phone_number || phone || "")
       setClientAddress(lead.location || "")
@@ -1404,8 +1055,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     handleCancelSearch(index)
 
     toast({
-      title: "Item added",
-      description: `${material.name || "Item"} has been added to your quote`,
+      title: tq("creator.itemAdded"),
+      description: tq("creator.itemAddedDesc", { name: material.name || tq("creator.itemFallback") }),
     })
   }
 
@@ -1528,8 +1179,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   const fetchAiEstimate = async () => {
     if (!serviceDescription.trim()) {
       toast({
-        title: "Description required",
-        description: "Please enter a project description to generate an estimate",
+        title: tq("creator.descRequired"),
+        description: tq("creator.descRequiredDesc"),
         variant: "destructive",
       })
       return
@@ -1540,8 +1191,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       detail: {
         kind: "estimate",
         phase: "running",
-        title: "Generating AI estimate",
-        detail: "Reviewing the project scope, measurements, and pricing context.",
+        title: tq("creator.genAi"),
+        detail: tq("creator.genAiDetail"),
       },
     }))
     try {
@@ -1564,7 +1215,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
       // Validate response structure to prevent crashes
       if (!response || typeof response !== 'object') {
-        throw new Error('Invalid response from server. Please try again.')
+        throw new Error(tq("creator.invalidResponseRetry"))
       }
 
       // Log for debugging
@@ -1606,15 +1257,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       setAiAccuracySubmitted(false)
 
       toast({
-        title: "Estimate generated",
-        description: `Generated ${newItems.length} line items with AI`,
+        title: tq("creator.estGenerated"),
+        description: tq("creator.estGeneratedDesc", { count: newItems.length }),
       })
       window.dispatchEvent(new CustomEvent("ai-generation-status", {
         detail: {
           kind: "estimate",
           phase: "succeeded",
-          title: "Estimate ready",
-          detail: `Generated ${newItems.length} line items with AI.`,
+          title: tq("creator.estReady"),
+          detail: tq("creator.estReadyDetail", { count: newItems.length }),
         },
       }))
 
@@ -1628,13 +1279,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         detail: {
           kind: "estimate",
           phase: "failed",
-          title: "Estimate generation failed",
-          detail: error?.message || "Failed to generate estimate. Please try again.",
+          title: tq("creator.estFailed"),
+          detail: error?.message || tq("creator.estFailedDesc"),
         },
       }))
       toast({
-        title: "Estimate generation failed",
-        description: error.message || "Failed to generate estimate. Please try again.",
+        title: tq("creator.estFailed"),
+        description: error.message || tq("creator.estFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -1675,9 +1326,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     try {
       const payload = buildJobUpdatePayload(notesOverride, itemsOverride)
       await api.updateJob(parseInt(quoteId), payload)
-      toast({ title: "Draft saved", description: "Your changes have been saved." })
+      toast({ title: tq("creator.draftSaved"), description: tq("creator.draftSavedDesc") })
     } catch {
-      toast({ title: "Draft could not be saved", description: "Use Save to retry.", variant: "destructive" })
+      toast({ title: tq("creator.draftFailed"), description: tq("creator.draftFailedDesc"), variant: "destructive" })
     }
   }
 
@@ -1788,19 +1439,19 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
   }
 
   const validateForm = (): string | null => {
-    if (!clientName.trim()) return "Client name is required"
-    if (!clientEmail.trim()) return "Client email is required"
+    if (!clientName.trim()) return tq("creator.errClientName")
+    if (!clientEmail.trim()) return tq("creator.errClientEmail")
     // Address is now optional - removed validation
 
     const startedItems = items.filter(hasLineItemInput)
     if (startedItems.length === 0) {
-      return "At least one line item is required"
+      return tq("creator.errNoItems")
     }
     if (startedItems.some((item) => !isValidChargeItem(item))) {
-      return "Every line item needs a title or description, a quantity greater than zero, and a unit price greater than zero"
+      return tq("creator.errItemInvalid")
     }
     if (!Number.isFinite(markupPercentage) || markupPercentage < 0 || markupPercentage > 100) {
-      return "Markup must be between 0% and 100%"
+      return tq("creator.errMarkup")
     }
 
     return null
@@ -1821,15 +1472,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
     if (scheduleLines.length > 0) {
       const editable = scheduleLines.filter((l) => !l.locked)
       if (editable.some((l) => !l.label.trim())) {
-        setCreateError("Every draw needs a label.")
+        setCreateError(tq("creator.errDrawLabel"))
         return
       }
       if (editable.some((l) => l.trigger_type === "ON_DATE" && !l.trigger_date)) {
-        setCreateError("Pick a date for every draw billed on a date.")
+        setCreateError(tq("creator.errDrawDate"))
         return
       }
       if (drawsOverContract(scheduleLines, total)) {
-        setCreateError("Payment draws exceed the contract total. Reduce them before saving.")
+        setCreateError(tq("creator.errDrawTotal"))
         return
       }
     }
@@ -1875,15 +1526,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         // Update existing quote
         response = await api.updateJob(parseInt(quoteId), jobData)
         toast({
-          title: "Quote updated",
-          description: "Quote has been successfully updated",
+          title: tq("creator.estUpdated"),
+          description: tq("creator.estUpdatedDesc"),
         })
       } else {
         // Create new quote
         response = await api.createJob(jobData)
         toast({
-          title: "Quote created",
-          description: "Quote has been successfully created",
+          title: tq("creator.estCreated"),
+          description: tq("creator.estCreatedDesc"),
         })
       }
 
@@ -1896,8 +1547,8 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           // Update initial tax rate to the new value so we don't update again unnecessarily
           setInitialTaxRate(taxRate)
           toast({
-            title: "Profile updated",
-            description: `Default tax rate updated to ${taxRate.toFixed(2)}%`,
+            title: tq("creator.profileUpdated"),
+            description: tq("creator.taxRateUpdated", { rate: taxRate.toFixed(2) }),
           })
         } catch (profileError) {
           // Log error but don't block quote creation
@@ -1942,14 +1593,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         // For updates, redirect to the same quote
         window.location.href = `/quotes/${quoteId}`
       } else {
-        throw new Error("Invalid response from server")
+        throw new Error(tq("creator.invalidResponse"))
       }
 
     } catch (error: any) {
       console.error(`Failed to ${quoteId ? 'update' : 'create'} quote:`, error)
       setCreateError(
         error.message ||
-        `Failed to ${quoteId ? 'update' : 'create'} quote. Please check your information and try again.`
+        (quoteId ? tq("creator.saveFailedUpdate") : tq("creator.saveFailedCreate"))
       )
     } finally {
       setIsCreatingQuote(false)
@@ -1992,15 +1643,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             <div className="mb-4 space-y-1">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold">Quote Details</h2>
+                  <h2 className="text-lg font-semibold">{tq("creator.detailsTitle")}</h2>
                   {leadId && (
                     <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full">
-                      Auto-filled from Lead
+                      {tq("creator.autoFilled")}
                     </span>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Link the quote to a project and confirm the client information.
+                  {tq("creator.detailsHint")}
                 </p>
               </div>
             </div>
@@ -2008,7 +1659,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             <div className="grid items-start gap-5">
               <div className="p-1">
                 <div className="mb-4 space-y-1.5">
-                  <Label htmlFor="quote-project">Project</Label>
+                  <Label htmlFor="quote-project">{tq("creator.projectLabel")}</Label>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Select
                       value={selectedProjectId ? String(selectedProjectId) : "__none__"}
@@ -2019,11 +1670,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">No project (standalone quote)</SelectItem>
+                        <SelectItem value="__none__">{tq("creator.noProject")}</SelectItem>
                         {allProjects.length > 0 && <div className="my-1 border-t" />}
                         {allProjects.map((p: any) => (
                           <SelectItem key={p.id} value={String(p.id)}>
-                            {p.title || `Project #${p.id}`}
+                            {p.title || tq("creator.projectNum", { id: p.id })}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2037,12 +1688,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       disabled={clientContextLocked}
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      New Project
+                      {tq("creator.newProject")}
                     </Button>
                   </div>
                   {clientContextLocked && (
                     <p className="text-xs text-muted-foreground">
-                      Project is locked because this quote is tied to an existing client.
+                      {tq("creator.projectLocked")}
                     </p>
                   )}
                 </div>
@@ -2053,7 +1704,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                     </svg>
                     <span>
-                      No client selected. Search for an existing client by name, email, or phone below, or enter new client details to create one with this quote.
+                      {tq("creator.noClient")}
                     </span>
                   </div>
                 )}
@@ -2061,20 +1712,20 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3">
-                      <Label htmlFor="client-name">Client Name *</Label>
+                      <Label htmlFor="client-name">{tq("creator.clientNameReq")}</Label>
                       {selectedClientId && (
                         <button
                           onClick={() => {
                             setSelectedClientId(null)
                             toast({
-                              title: "Client selection cleared",
-                              description: "You can now choose a different client or enter new client information",
+                              title: tq("creator.clientCleared"),
+                              description: tq("creator.clientClearedDesc"),
                             })
                           }}
                           className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full hover:bg-green-200 transition-colors flex items-center gap-1 shrink-0"
-                          title="Change client"
+                          title={tq("creator.changeClient")}
                         >
-                          <span>Using Existing Client</span>
+                          <span>{tq("creator.usingExisting")}</span>
                           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
@@ -2083,7 +1734,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     </div>
                     <Input
                       id="client-name"
-                      placeholder="John Smith"
+                      placeholder={tq("creator.phName")}
                       value={clientName}
                       onChange={(e) => handleClientFieldChange('name', e.target.value)}
                       className={quoteInputSurfaceClass}
@@ -2091,11 +1742,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="client-email">Email *</Label>
+                    <Label htmlFor="client-email">{tq("creator.emailReq")}</Label>
                     <Input
                       id="client-email"
                       type="email"
-                      placeholder="john@example.com"
+                      placeholder={tq("creator.phEmail")}
                       value={clientEmail}
                       onChange={(e) => handleClientFieldChange('email', e.target.value)}
                       className={quoteInputSurfaceClass}
@@ -2103,11 +1754,11 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="client-phone">Phone</Label>
+                    <Label htmlFor="client-phone">{tq("creator.phone")}</Label>
                     <Input
                       id="client-phone"
                       type="tel"
-                      placeholder="(555) 123-4567"
+                      placeholder={tq("creator.phPhone")}
                       value={clientPhone}
                       onChange={(e) => handleClientFieldChange('phone', e.target.value)}
                       className={quoteInputSurfaceClass}
@@ -2115,10 +1766,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="client-address">Address</Label>
+                    <Label htmlFor="client-address">{tq("creator.address")}</Label>
                     <Input
                       id="client-address"
-                      placeholder="123 Oak Street, Springfield, IL"
+                      placeholder={tq("creator.phAddress")}
                       value={clientAddress}
                       onChange={(e) => handleClientFieldChange('address', e.target.value)}
                       className={quoteInputSurfaceClass}
@@ -2172,7 +1823,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             {callSummarySource && (
               <div className="mt-5 space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">
-                  Incoming request for quote scope
+                  {tq("creator.incomingScope")}
                 </Label>
                 <AiCapturedDescription
                   source={callSummarySource}
@@ -2213,7 +1864,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 const quantityText = material.estimated_quantity.trim()
                 const quantity = Number(quantityText)
                 if (!/^\d+(?:\.\d{1,2})?$/.test(quantityText) || !Number.isFinite(quantity) || quantity <= 0) {
-                  toast({ title: "Invalid material quantity", description: `${material.name || "Material"} has an invalid quantity.`, variant: "destructive" })
+                  toast({ title: tq("creator.invalidQty"), description: tq("creator.invalidQtyDesc", { name: material.name || tq("creator.materialFallback") }), variant: "destructive" })
                   return
                 }
                 // Add material as new line item with image data and search results
@@ -2232,342 +1883,23 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   applyTax: true, // Default to applying tax on materials
                 }])
                 toast({
-                  title: "Item added",
-                  description: `${material.name || "Item"} has been added to your quote`,
+                  title: tq("creator.itemAdded"),
+                  description: tq("creator.itemAddedDesc", { name: material.name || tq("creator.itemFallback") }),
                 })
               }}
             />
           </div>
 
-          {/* Mobile AI Assistant - Collapsible - REMOVED: moved to AI chat panel */}
-          {false && <div className="lg:hidden">
-            <Collapsible open={isMobileAiOpen} onOpenChange={setIsMobileAiOpen}>
-              <div className="border rounded-lg overflow-hidden">
-                <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between p-3 bg-primary/5 hover:bg-primary/10 transition-colors">
-                    <div className="text-left">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-sm">AI Estimate Generator</h3>
-                        <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/30">
-                          Beta
-                        </span>
-                      </div>
-                      <div className="mt-1.5 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                        <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
-                        <span>Still in development — feel free to try it out.</span>
-                      </div>
-                    </div>
-                    <svg
-                      className={`h-5 w-5 transition-transform text-muted-foreground ${isMobileAiOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="p-3 border-t bg-background">
-                    <div className="space-y-2">
-                      {/* Template Selector (Mobile) - hidden while in development */}
-                      {!HIDE_AI_TEMPLATES && templates.length > 0 && (
-                        <div>
-                          <Label htmlFor="template-select-mobile" className="text-sm font-medium mb-1 block">
-                            Project Template
-                          </Label>
-                          <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={templateComboOpen}
-                                className="w-full justify-between bg-background"
-                                disabled={loadingTemplates}
-                              >
-                                {loadingTemplates ? (
-                                  "Loading..."
-                                ) : isCustomProject ? (
-                                  "✏️ Custom Project"
-                                ) : selectedTemplateId ? (
-                                  (() => {
-                                    const t = templates.find((item) => item.id === selectedTemplateId)
-                                    return t ? `${(t as TemplateListItem).project_type} (${(t as TemplateListItem).trade})` : "Select project..."
-                                  })()
-
-                                ) : (
-                                  "Select project..."
-                                )}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Search templates..." />
-                                <CommandList>
-                                  <CommandEmpty>No template found.</CommandEmpty>
-                                  <CommandGroup>
-                                    <CommandItem
-                                      value="custom"
-                                      onSelect={() => {
-                                        handleTemplateChange('custom')
-                                        setTemplateComboOpen(false)
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          isCustomProject ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      ✏️ Custom Project
-                                    </CommandItem>
-                                    {sortedTemplates.map((t) => (
-                                      <CommandItem
-                                        key={t.id}
-                                        value={`${t.project_type} ${t.trade}`}
-                                        onSelect={() => {
-                                          handleTemplateChange(String(t.id))
-                                          setTemplateComboOpen(false)
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      )}
-
-                      {/* Dynamic Variable Form (Mobile) */}
-                      {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
-                        <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
-                          {loadingTemplateDetail ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Loading...
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5">
-                              {selectedTemplate?.variables?.map((v) => (
-                                <div key={v.id}>
-                                  <Label htmlFor={`var-mobile-${v.variable_name}`} className="text-xs font-medium">
-                                    {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
-                                    {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
-                                  </Label>
-                                  {v.input_type === 'select' && v.options ? (
-                                    <Select
-                                      value={templateVariables[v.variable_name] || ''}
-                                      onValueChange={(val) => handleVariableChange(v.variable_name, val)}
-                                    >
-                                      <SelectTrigger id={`var-mobile-${v.variable_name}`} className="bg-background h-8 text-sm">
-                                        <SelectValue placeholder={`Select...`} />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {v.options.map((opt) => (
-                                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Input
-                                      id={`var-mobile-${v.variable_name}`}
-                                      type={v.input_type === 'number' ? 'number' : 'text'}
-                                      placeholder={v.placeholder || ''}
-                                      value={templateVariables[v.variable_name] || ''}
-                                      onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
-                                      className="bg-background h-8 text-sm"
-                                    />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Custom Project (Mobile) */}
-                      {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
-                        <>
-                          <div>
-                            <Label htmlFor="project-type-mobile" className="text-sm font-medium mb-1.5 block">
-                              Project Type (Optional)
-                            </Label>
-                            <Input
-                              id="project-type-mobile"
-                              placeholder="e.g., Patio Installation, Deck Construction"
-                              value={projectType}
-                              onChange={(e) => {
-                                setProjectType(e.target.value)
-                                setProjectTitle(e.target.value)
-                              }}
-                              className="bg-background"
-                            />
-                          </div>
-                          <Textarea
-                            placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
-                            value={serviceDescription}
-                            onChange={(e) => setServiceDescription(e.target.value)}
-                            className="min-h-[80px] bg-background"
-                          />
-                        </>
-                      )}
-
-                      {(() => {
-                        const desc = serviceDescription.trim()
-                        const wordCount = desc ? desc.split(/\s+/).length : 0
-                        const tooShort = desc.length < 30 || wordCount < 6
-                        return (
-                          <div className="flex flex-col gap-2 w-full">
-                            {projectBrief && (
-                              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={useBriefAsContext}
-                                  onChange={(e) => setUseBriefAsContext(e.target.checked)}
-                                  className="h-4 w-4 rounded border-gray-300 accent-primary"
-                                />
-                                Include project brief in context
-                              </label>
-                            )}
-                            <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                              {aiLoading ? (
-                                <span className="inline-flex items-center gap-2">
-                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                  {aiLoadingMessages[aiLoadingStage]}
-                                </span>
-                              ) : (
-                                <>
-                                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                  </svg>
-                                  Generate AI Estimate
-                                </>
-                              )}
-                            </Button>
-                            {aiLoading && (
-                              <div className="w-full space-y-2">
-                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all duration-500 ease-out"
-                                    style={{ width: `${aiLoadingProgress}%` }}
-                                  />
-                                </div>
-                                <p className="text-xs text-muted-foreground text-center">
-                                  {AI_ESTIMATE_LOADING_HINT}
-                                </p>
-                              </div>
-                            )}
-                            {!aiLoading && tooShort && (
-                              <p className="text-xs text-muted-foreground w-full">
-                                Please add at least 30 characters and 6 words for better results.
-                              </p>
-                            )}
-                          </div>
-                        )
-                      })()}
-
-                      {/* AI accuracy feedback - mobile */}
-                      {showAccuracyQuestion && (
-                        <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
-                          <p className="text-xs font-medium text-center">How accurate was this?</p>
-                          <div className="flex items-center justify-center gap-1.5">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <button
-                                key={n}
-                                type="button"
-                                onClick={() => handleAccuracyRating(n)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                aria-label={`Rate ${n} out of 5`}
-                              >
-                                {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {aiAccuracySubmitted && (
-                        <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
-                      )}
-
-                      {assumptions.length > 0 && (
-                        <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Assumptions
-                          </h3>
-                          <ul className="space-y-1 text-sm text-muted-foreground">
-                            {assumptions.map((assumption, idx) => (
-                              <li key={idx} className="flex items-start gap-2">
-                                <span className="text-primary mt-1">•</span>
-                                <span>{assumption}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Display Measurements if available */}
-                      {measurements.items && measurements.items.length > 0 && (
-                        <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                            <h4 className="text-sm font-medium">Measurements</h4>
-                          </div>
-                          <div className="space-y-2">
-                            {measurements.items.map((item, idx) => (
-                              <div key={idx} className="text-xs text-muted-foreground">
-                                {item.type === "dimensions" && item.length && item.width && (
-                                  <span>
-                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
-                                  </span>
-                                )}
-                                {item.type === "square_footage" && item.value && (
-                                  <span>
-                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
-                                  </span>
-                                )}
-                                {item.type === "linear_feet" && item.value && (
-                                  <span>
-                                    {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-
-          </div>}
 
           {/* Line Items */}
           <Card className="p-3 sm:p-4 rounded-lg border border-border">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Line Items</h2>
+              <h2 className="text-base font-semibold">{tq("creator.lineItems")}</h2>
               <Button onClick={addItem} className="h-10 px-4 text-sm font-medium">
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Item
+                {tq("creator.addItem")}
               </Button>
             </div>
 
@@ -2577,14 +1909,14 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
                       <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
-                      Generating your AI estimate
+                      {tq("creator.genYour")}
                     </div>
                     <p className="mt-1 text-sm text-sky-800/80">
                       {aiLoadingMessages[aiLoadingStage]}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">
-                    Pricing scope in progress
+                    {tq("creator.pricingProgress")}
                   </span>
                 </div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sky-100">
@@ -2601,12 +1933,12 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
             {/* Table Header - Desktop */}
             <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_110px_72px_88px_88px_64px] gap-2 px-2 py-1.5 mb-2 border-b border-border text-left items-center">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title & Description</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qty</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Rate</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Tax</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tq("creator.colTitleDesc")}</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tq("creator.colUnit")}</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">{tq("creator.colQty")}</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">{tq("creator.colRate")}</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">{tq("creator.colTotal")}</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">{tq("creator.colTax")}</div>
             </div>
 
             <div className="space-y-1.5">
@@ -2634,9 +1966,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
               {!aiLoading && items.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-7 text-center shadow-inner shadow-slate-200/50">
-                  <p className="text-sm font-semibold text-slate-700">No line items yet</p>
+                  <p className="text-sm font-semibold text-slate-700">{tq("creator.noItems")}</p>
                   <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                    Add your first item or generate an AI estimate to start building the quote.
+                    {tq("creator.noItemsHint")}
                   </p>
                 </div>
               )}
@@ -2649,7 +1981,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     size="icon"
                     onClick={() => removeItem(index)}
                     className="absolute right-0 top-0 z-10 h-7 w-7 -translate-y-1/4 translate-x-1/4 rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:border-red-200 hover:bg-red-500 hover:text-white"
-                    aria-label="Remove item"
+                    aria-label={tq("creator.removeItem")}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -2658,7 +1990,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   <div className="block sm:hidden space-y-3">
                     {/* Search button row */}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Line Item</span>
+                      <span className="text-xs font-medium text-muted-foreground">{tq("creator.lineItem")}</span>
                       <LineItemSearchPopover
                         onSelect={(result: LineItemSearchResult) => {
                           const updated = [...items]
@@ -2676,26 +2008,26 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     {/* Title */}
                     <div>
                       <Label htmlFor={`item-title-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                        Title
+                        {tq("creator.title")}
                       </Label>
                       <Input
                         id={`item-title-mobile-${index}`}
                         value={item.title || ""}
                         onChange={(e) => updateItem(index, "title", e.target.value)}
-                        placeholder="Item title (optional)"
+                        placeholder={tq("creator.itemTitlePh")}
                         className={cn(quoteInputSurfaceClass, "h-10 text-sm")}
                       />
                     </div>
                     {/* Description */}
                     <div>
                       <Label htmlFor={`item-desc-mobile-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                        Description
+                        {tq("creator.description")}
                       </Label>
                       <Textarea
                         id={`item-desc-mobile-${index}`}
                         value={item.description}
                         onChange={(e) => updateItem(index, "description", e.target.value)}
-                        placeholder="Enter item description (e.g., materials, labor, services, etc.)"
+                        placeholder={tq("creator.itemDescPh")}
                         className={cn(quoteTextareaSurfaceClass, "min-h-[44px] resize-none px-3 py-2 text-sm")}
                         rows={2}
                       />
@@ -2725,7 +2057,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                     <div className="grid grid-cols-2 gap-2 mt-3">
                       <div className="col-span-2">
                         <Label htmlFor={`item-unit-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                          Unit
+                          {tq("creator.colUnit")}
                         </Label>
                         <UnitSelector
                           value={item.unitOfMeasure || ""}
@@ -2735,7 +2067,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       </div>
                       <div>
                         <Label htmlFor={`item-qty-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                          Quantity
+                          {tq("creator.quantity")}
                         </Label>
                         <Input
                           id={`item-qty-${index}`}
@@ -2750,7 +2082,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       </div>
                       <div>
                         <Label htmlFor={`item-rate-${index}`} className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                          Rate
+                          {tq("creator.colRate")}
                         </Label>
                         <Input
                           id={`item-rate-${index}`}
@@ -2774,13 +2106,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                         />
                       </div>
                       <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
-                        <span className="text-xs text-muted-foreground">Total</span>
+                        <span className="text-xs text-muted-foreground">{tq("creator.colTotal")}</span>
                         <span className="text-sm font-semibold">
                           ${(((item.quantity || 0) * getRateNumber(item.rate)) * (1 + markupPercentage / 100)).toFixed(2)}
                         </span>
                       </div>
                       <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border">
-                        <span className="text-xs text-muted-foreground">Apply Tax</span>
+                        <span className="text-xs text-muted-foreground">{tq("creator.applyTax")}</span>
                         <Checkbox
                           checked={item.applyTax !== false}
                           onCheckedChange={(checked) => {
@@ -2819,7 +2151,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                                 showDescriptionEditor(index)
                               }
                             }}
-                            placeholder="Item name"
+                            placeholder={tq("creator.itemNamePh")}
                             className={quoteTextareaSurfaceClass}
                           />
                         </div>
@@ -2833,13 +2165,13 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                                   size="icon"
                                   onClick={() => showDescriptionEditor(index)}
                                   className="h-9 w-9 shrink-0 border border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-700"
-                                  aria-label="Add description"
+                                  aria-label={tq("creator.addDescAria")}
                                 >
                                   <span className="text-lg leading-none">+</span>
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Add description</p>
+                                <p>{tq("creator.addDesc")}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -2868,7 +2200,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                               e.target.style.height = 'auto'
                               e.target.style.height = e.target.scrollHeight + 'px'
                             }}
-                            placeholder="Enter item description"
+                            placeholder={tq("creator.itemDescPh2")}
                             className={cn(
                               quoteTextareaSurfaceClass,
                               "min-h-[36px] flex-1 min-w-0 resize-none overflow-hidden px-3 py-2 text-sm hover:border-slate-300"
@@ -2969,10 +2301,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <Label htmlFor="markup-percentage" className="text-sm font-medium">
-                    Markup Percentage
+                    {tq("creator.markupPct")}
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Applied to all line items. Default from your profile settings.
+                    {tq("creator.markupHint")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3000,10 +2332,10 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <Label htmlFor="tax-rate" className="text-sm font-medium">
-                    Tax Rate
+                    {tq("creator.taxRate")}
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sales tax rate applied to subtotal. Default from your profile settings.
+                    {tq("creator.taxHint")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3030,7 +2362,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
             <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/90 p-4 shadow-inner shadow-slate-200/60">
               <div className="space-y-2 sm:ml-auto sm:max-w-md">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal (before markup)</span>
+                  <span className="text-muted-foreground">{tq("creator.subBefore")}</span>
                   <span className="font-medium">${baseSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -3038,7 +2370,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   <span className="font-medium text-primary">+${markupAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-2 text-sm">
-                  <span className="font-medium text-muted-foreground">Subtotal (with markup)</span>
+                  <span className="font-medium text-muted-foreground">{tq("creator.subAfter")}</span>
                   <span className="font-medium">${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -3046,7 +2378,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   <span className="font-medium">${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
-                  <span>Total</span>
+                  <span>{tq("creator.colTotal")}</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
               </div>
@@ -3067,7 +2399,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           {/* Additional Details */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Additional Details</h2>
+              <h2 className="text-lg font-semibold">{tq("creator.additional")}</h2>
               <Button
                 type="button"
                 variant="outline"
@@ -3077,7 +2409,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 disabled={uploadingImage}
               >
                 {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                <span className="text-xs font-medium">Add Attachment</span>
+                <span className="text-xs font-medium">{tq("creator.addAttachment")}</span>
               </Button>
               <input
                 type="file"
@@ -3096,15 +2428,15 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   const isAfter = Boolean(img.name && /^ai-after-render/i.test(img.name))
                   return (
                     <div key={i} className="relative w-24 h-24 border rounded-md overflow-hidden bg-white shadow-sm group">
-                      <img src={img.url} alt="Attachment" className="object-cover w-full h-full" />
+                      <img src={img.url} alt={tq("creator.attachment")} className="object-cover w-full h-full" />
                       {isBefore && (
                         <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-white pointer-events-none">
-                          Before
+                          {tq("creator.before")}
                         </span>
                       )}
                       {isAfter && (
                         <span className="absolute bottom-1 left-1 rounded bg-emerald-700/85 px-1.5 py-0.5 text-[9px] font-semibold text-white pointer-events-none">
-                          After
+                          {tq("creator.after")}
                         </span>
                       )}
                       <button
@@ -3121,7 +2453,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                           setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))
                         }}
                         className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        title="Delete image"
+                        title={tq("creator.deleteImage")}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -3133,17 +2465,17 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">{tq("creator.notes")}</Label>
                 <Textarea
                   id="notes"
-                  placeholder="Add any additional notes or terms..."
+                  placeholder={tq("creator.notesPh")}
                   className={cn(quoteTextareaSurfaceClass, "min-h-[100px]")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
               <div className="space-y-2 sm:max-w-xs">
-                <Label htmlFor="due-date">Valid Until</Label>
+                <Label htmlFor="due-date">{tq("creator.validUntil")}</Label>
                 <Input
                   id="due-date"
                   type="date"
@@ -3158,9 +2490,9 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
           <div className="border-t border-border/70 pt-4">
             <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-background/70 p-4">
               <div className="space-y-1">
-                <h2 className="text-sm font-semibold">Measurements</h2>
+                <h2 className="text-sm font-semibold">{tq("creator.measurements")}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Optional. Add dimensions only if they help the estimate.
+                  {tq("creator.measHint")}
                 </p>
               </div>
               <MeasurementsInput
@@ -3178,7 +2510,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                 <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium">Error:</span>
+                <span className="font-medium">{tq("creator.errorLabel")}</span>
                 <span>{createError}</span>
               </div>
             </Card>
@@ -3197,7 +2529,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   <svg className="mr-2 h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  {quoteId ? "Updating Quote..." : "Creating Quote..."}
+                  {quoteId ? tq("creator.updating") : tq("creator.creating")}
                 </>
               ) : (
                 <>
@@ -3209,7 +2541,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  {quoteId ? "Update Quote" : "Save Quote"}
+                  {quoteId ? tq("creator.updateBtn") : tq("creator.saveBtn")}
                 </>
               )}
             </Button>
@@ -3225,402 +2557,16 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                       d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                   </svg>
-                  Preview Quote
+                  {tq("creator.previewBtn")}
                 </a>
               </Button>
             )}
             <Button size="lg" variant="outline" asChild className="text-sm sm:text-base">
-              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>Cancel</a>
+              <a href={quoteId ? `/quotes/${quoteId}` : "/quotes"}>{tq("creator.cancel")}</a>
             </Button>
           </div>
         </div>
 
-        {/* Right Column - AI Assistant - REMOVED: moved to AI chat panel */}
-        {false && <div className="hidden lg:block lg:w-[360px] xl:w-[380px] 2xl:w-[400px] space-y-6 pt-6 flex-shrink-0">
-          <div className="sticky top-6 space-y-6">
-            {/* AI Line Items Assistant */}
-            <Card className="border-primary/20 bg-primary/5 p-5 sm:p-6 rounded-xl">
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-semibold">AI Estimate Generator</h2>
-                    <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary border border-primary/30">
-                      Beta
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                    <span className="mt-0.5 shrink-0" aria-hidden>ℹ️</span>
-                    <span>Still in development — feel free to try it out.</span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {/* Template Selector - hidden while in development */}
-                  {!HIDE_AI_TEMPLATES && templates.length > 0 && (
-                    <div>
-                      <Label htmlFor="template-select-desktop" className="text-sm font-medium mb-1 block">
-                        Project Template
-                      </Label>
-                      <Popover open={templateComboOpen} onOpenChange={setTemplateComboOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={templateComboOpen}
-                            className="w-full justify-between bg-background"
-                            disabled={loadingTemplates}
-                          >
-                            {loadingTemplates ? (
-                              "Loading templates..."
-                            ) : isCustomProject ? (
-                              "✏️ Custom Project"
-                            ) : selectedTemplateId ? (
-                              (() => {
-                                const t = templates.find((item) => item.id === selectedTemplateId)
-                                return t ? `${(t as TemplateListItem).project_type} (${(t as TemplateListItem).trade})` : "Select a project type..."
-                              })()
-
-                            ) : (
-                              "Select a project type..."
-                            )}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Search templates..." />
-                            <CommandList>
-                              <CommandEmpty>No template found.</CommandEmpty>
-                              <CommandGroup>
-                                <CommandItem
-                                  value="custom"
-                                  onSelect={() => {
-                                    handleTemplateChange('custom')
-                                    setTemplateComboOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      isCustomProject ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  ✏️ Custom Project
-                                </CommandItem>
-                                {sortedTemplates.map((t) => (
-                                  <CommandItem
-                                    key={t.id}
-                                    value={`${t.project_type} ${t.trade}`}
-                                    onSelect={() => {
-                                      handleTemplateChange(String(t.id))
-                                      setTemplateComboOpen(false)
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedTemplateId === t.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {t.project_type} <span className="text-muted-foreground ml-1">({t.trade})</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
-
-                  {/* Dynamic Variable Form (when template selected) */}
-                  {!HIDE_AI_TEMPLATES && selectedTemplate && !isCustomProject && (
-                  <div className="space-y-1.5 p-2.5 bg-muted/30 rounded-lg border border-border/50">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project Details</h4>
-                    {loadingTemplateDetail ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Loading variables...
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {selectedTemplate?.variables?.map((v) => (
-
-                          <div key={v.id}>
-                            <Label htmlFor={`var-${v.variable_name}`} className="text-xs font-medium">
-                              {v.display_label}{v.is_required && <span className="text-destructive ml-0.5">*</span>}
-                              {v.unit && <span className="text-muted-foreground font-normal ml-1">({v.unit})</span>}
-                            </Label>
-                            {v.input_type === 'select' && v.options ? (
-                              <Select
-                                value={templateVariables[v.variable_name] || ''}
-                                onValueChange={(val) => handleVariableChange(v.variable_name, val)}
-                              >
-                                <SelectTrigger id={`var-${v.variable_name}`} className="bg-background h-8 text-sm">
-                                  <SelectValue placeholder={`Select ${v.display_label.toLowerCase()}...`} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {v.options.map((opt) => (
-                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                id={`var-${v.variable_name}`}
-                                type={v.input_type === 'number' ? 'number' : 'text'}
-                                placeholder={v.placeholder || ''}
-                                value={templateVariables[v.variable_name] || ''}
-                                onChange={(e) => handleVariableChange(v.variable_name, e.target.value)}
-                                className="bg-background h-8 text-sm"
-                              />
-                            )}
-                            {v.help_text && <p className="text-xs text-muted-foreground mt-0.5">{v.help_text}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Prompt Preview Toggle */}
-                    <div className="pt-1.5 border-t border-border/50 mt-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowPromptPreview(!showPromptPreview)}
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        {showPromptPreview ? '▼ Hide' : '▶ Show'} AI Prompt (review & edit)
-                      </button>
-                      {showPromptPreview && (
-                        <div className="mt-1.5">
-                          <Textarea
-                            value={serviceDescription}
-                            onChange={(e) => setServiceDescription(e.target.value)}
-                            className="min-h-[64px] max-h-[140px] overflow-y-auto resize-y bg-background text-xs font-mono py-2 px-3"
-                            placeholder="AI prompt will appear here..."
-                            aria-label="AI prompt sent to estimate generator — edit as needed before generating"
-                          />
-                          <p className="text-[11px] text-muted-foreground mt-0.5">This prompt is sent to the AI. Review and edit above, then generate.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                  {/* Custom Project Description (when custom or no templates) */}
-                  {(HIDE_AI_TEMPLATES || isCustomProject || !selectedTemplate) && (
-                  <>
-                    <div>
-                      <Label htmlFor="project-type-desktop" className="text-sm font-medium mb-1 block">
-                        Project Type (Optional)
-                      </Label>
-                      <Input
-                        id="project-type-desktop"
-                        placeholder="e.g., Patio Installation, Deck Construction"
-                        value={projectType}
-                        onChange={(e) => {
-                          setProjectType(e.target.value)
-                          setProjectTitle(e.target.value)
-                        }}
-                        className="bg-background"
-                      />
-                    </div>
-                    <Textarea
-                      placeholder="Describe the project (e.g., materials, labor, installation, etc.)"
-                      value={serviceDescription}
-                      onChange={(e) => setServiceDescription(e.target.value)}
-                      className="min-h-[80px] bg-background"
-                    />
-                  </>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="labor-rate-ai-desktop" className="text-sm font-medium mb-1 block">
-                      Labor Rate {getRateLabelSuffix(laborChargeType, laborUnitType) && <span className="text-muted-foreground font-normal">({getRateLabelSuffix(laborChargeType, laborUnitType)})</span>}
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                      <Input
-                        id="labor-rate-ai-desktop"
-                        type="text"
-                    inputMode="decimal"
-                        min="0"
-                        step="0.01"
-                        value={percentageDrafts.labor ?? (laborRateValue === 0 ? "" : laborRateValue.toString())}
-                        onChange={(e) => updatePercentageDraft("labor", e.target.value)}
-                        onBlur={(e) => commitPercentageDraft("labor", e.target.value)}
-                        placeholder="75"
-                        className="bg-background pl-7"
-                        disabled={loadingMarkup}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="labor-charge-type-desktop" className="text-sm font-medium mb-1 block">
-                      Labor Rate Type
-                    </Label>
-                    <Select
-                      value={
-                        // Map DB values to UI: PER_UNIT + SQ_FT = "PER_SF"
-                        laborChargeType === LaborChargeType.PER_UNIT && laborUnitType === UnitType.SQ_FT
-                          ? "PER_SF"
-                          : laborChargeType
-                      }
-                      onValueChange={(value) => {
-                        if (value === "PER_SF") {
-                          setLaborChargeType(LaborChargeType.PER_UNIT)
-                          setLaborUnitType(UnitType.SQ_FT)
-                        } else {
-                          setLaborChargeType(value as LaborChargeType)
-                          setLaborUnitType(undefined)
-                        }
-                      }}
-                      disabled={loadingMarkup}
-                    >
-                      <SelectTrigger id="labor-charge-type-desktop" className="bg-background">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={LaborChargeType.HOURLY}>Per Hour</SelectItem>
-                        <SelectItem value={LaborChargeType.PER_DAY}>Per Day</SelectItem>
-                        <SelectItem value="PER_SF">Per sf</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                  {(() => {
-                    const desc = serviceDescription.trim()
-                    const wordCount = desc ? desc.split(/\s+/).length : 0
-                    const tooShort = desc.length < 30 || wordCount < 6
-                    return (
-                      <div className="flex flex-col gap-2 w-full">
-                        {projectBrief && (
-                          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={useBriefAsContext}
-                              onChange={(e) => setUseBriefAsContext(e.target.checked)}
-                              className="h-4 w-4 rounded border-gray-300 accent-primary"
-                            />
-                            Include project brief in context
-                          </label>
-                        )}
-                        <Button onClick={fetchAiEstimate} disabled={aiLoading || tooShort || !serviceDescription.trim()} className="w-full">
-                          {aiLoading ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              {aiLoadingMessages[aiLoadingStage]}
-                            </span>
-                          ) : (
-                            <>
-                              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                              </svg>
-                              Generate AI Estimate
-                            </>
-                          )}
-                        </Button>
-                        {aiLoading && (
-                          <div className="w-full space-y-2">
-                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary transition-all duration-500 ease-out"
-                                style={{ width: `${aiLoadingProgress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                              {AI_ESTIMATE_LOADING_HINT}
-                            </p>
-                          </div>
-                        )}
-                        {!aiLoading && tooShort && (
-                          <p className="text-xs text-muted-foreground w-full">
-                            Please add at least 30 characters and 6 words (material, size, brand/use) for better results.
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })()}
-
-                  {/* AI accuracy feedback - desktop */}
-                  {showAccuracyQuestion && (
-                  <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 space-y-2">
-                    <p className="text-xs font-medium text-center">How accurate was this?</p>
-                    <div className="flex items-center justify-center gap-1.5">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => handleAccuracyRating(n)}
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-base transition-colors hover:bg-primary/10 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          aria-label={`Rate ${n} out of 5`}
-                        >
-                          {n === 1 ? "😞" : n === 2 ? "😐" : n === 3 ? "🙂" : n === 4 ? "😊" : "😄"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                  {aiAccuracySubmitted && (
-                    <p className="text-sm text-muted-foreground text-center">Thanks for your feedback!</p>
-                  )}
-
-                  {assumptions.length > 0 && (
-                  <div className="rounded-lg border border-border bg-background/80 p-3 space-y-2">
-                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Assumptions
-                    </h3>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {assumptions.map((assumption, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{assumption}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  )}
-
-                  {/* Display Measurements if available */}
-                  {measurements.items && measurements.items.length > 0 && (
-                  <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      <h4 className="text-sm font-medium">Measurements</h4>
-                    </div>
-                    <div className="space-y-2">
-                      {measurements.items.map((item, idx) => (
-                        <div key={idx} className="text-xs text-muted-foreground">
-                          {item.type === "dimensions" && item.length && item.width && (
-                            <span>
-                              {item.name ? <strong>{item.name}:</strong> : ""} {item.length} × {item.width} {item.unit || "ft"}
-                            </span>
-                          )}
-                          {item.type === "square_footage" && item.value && (
-                            <span>
-                              {item.name ? <strong>{item.name}:</strong> : ""} {item.value} sq ft
-                            </span>
-                          )}
-                          {item.type === "linear_feet" && item.value && (
-                            <span>
-                              {item.name ? <strong>{item.name}:</strong> : ""} {item.value} linear ft
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </div>
-
-        </div>}
       </div>
 
       {/* Substitute Modal */}
@@ -3628,7 +2574,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Choose Substitute</h3>
+              <h3 className="text-lg font-semibold">{tq("creator.chooseSub")}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowSubstitute(false)}>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3672,7 +2618,7 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
                   {/* Select Button with Rate */}
                   <div className="flex flex-col items-end">
                     <Button size="sm" className="mb-1">
-                      Select
+                      {tq("creator.selectBtn")}
                     </Button>
                     <span className="text-xs text-muted-foreground">
                       ${parseFloat(substitute.estimated_cost).toFixed(2)}
@@ -3686,4 +2632,4 @@ export function QuoteCreator({ leadId, clientId, projectId, callLeadId, phone, q
       )}
     </div>
   )
-}
+                                 }
