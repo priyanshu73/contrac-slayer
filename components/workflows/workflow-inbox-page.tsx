@@ -2,27 +2,28 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { ChevronRight, ListChecks, Plus, RefreshCw } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { WorkflowRun } from "@/lib/types/workflow"
-import { WORKFLOW_KIND_LABEL } from "@/lib/types/workflow"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NewPacketDialog } from "@/components/workflows/new-packet-dialog"
-import { RunStatusBadge, formatWhen } from "@/components/workflows/shared"
+import { RunStatusBadge, formatWhen, useWorkflowLabels } from "@/components/workflows/shared"
 
-const SECTIONS: { title: string; hint: string; statuses: WorkflowRun["status"][] }[] = [
-  { title: "Waiting for you", hint: "Drafted packets. Open one, check it, approve or reject.", statuses: ["AWAITING_REVIEW"] },
-  { title: "In progress", hint: "Drafting or applying in the background.", statuses: ["DRAFTING", "APPLYING"] },
-  { title: "Needs attention", hint: "Something failed. Open the run to retry.", statuses: ["FAILED"] },
-  { title: "Recent", hint: "", statuses: ["COMPLETED", "REJECTED", "CANCELLED"] },
+const SECTIONS: { id: string; title: string; hint: string | null; statuses: WorkflowRun["status"][] }[] = [
+  { id: "waiting", title: "inbox.sectionWaiting", hint: "inbox.sectionWaitingHint", statuses: ["AWAITING_REVIEW"] },
+  { id: "progress", title: "inbox.sectionProgress", hint: "inbox.sectionProgressHint", statuses: ["DRAFTING", "APPLYING"] },
+  { id: "attention", title: "inbox.sectionAttention", hint: "inbox.sectionAttentionHint", statuses: ["FAILED"] },
+  { id: "recent", title: "inbox.sectionRecent", hint: null, statuses: ["COMPLETED", "REJECTED", "CANCELLED"] },
 ]
 
 function RunRow({ run, locale }: { run: WorkflowRun; locale: string }) {
+  const t = useTranslations("leads.workflows")
+  const labels = useWorkflowLabels()
   const progress = run.job_progress ?? {}
   const live = run.status === "DRAFTING" || run.status === "APPLYING"
   return (
@@ -32,16 +33,16 @@ function RunRow({ run, locale }: { run: WorkflowRun; locale: string }) {
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{WORKFLOW_KIND_LABEL[run.kind] ?? run.kind}</span>
+          <span className="font-medium">{labels.kind(run.kind)}</span>
           <RunStatusBadge status={run.status} />
-          <span className="text-xs text-muted-foreground">{formatWhen(run.drafted_at ?? run.created_at)}</span>
+          <span className="text-xs text-muted-foreground">{formatWhen(run.drafted_at ?? run.created_at, locale)}</span>
         </div>
         <p className="mt-1 truncate text-sm text-muted-foreground">
           {live
-            ? progress.message ?? "Working…"
+            ? progress.message ?? t("inbox.working")
             : run.status === "FAILED"
-              ? run.error ?? "Failed"
-              : run.summary ?? `${run.trigger_ref_kind} ${run.trigger_ref_id}`}
+              ? run.error ?? t("inbox.failed")
+              : run.summary ?? `${labels.refKind(run.trigger_ref_kind)} ${run.trigger_ref_id}`}
         </p>
         {live && progress.steps_total ? (
           <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
@@ -59,6 +60,7 @@ function RunRow({ run, locale }: { run: WorkflowRun; locale: string }) {
 
 export function WorkflowInboxPage() {
   const locale = useLocale()
+  const t = useTranslations("leads.workflows")
   const [runs, setRuns] = useState<WorkflowRun[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -71,10 +73,10 @@ export function WorkflowInboxPage() {
       setRuns(data)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load workflows")
+      setError(e instanceof Error ? e.message : t("inbox.loadFailed"))
       setRuns((prev) => prev ?? [])
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     load()
@@ -96,19 +98,19 @@ export function WorkflowInboxPage() {
       <main className="container mx-auto max-w-4xl px-4 py-6 pb-24 md:pb-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">Workflows</h1>
+            <h1 className="text-2xl font-semibold">{t("inbox.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Packets the assistant drafted for you. Nothing is created or sent until you approve it.
+              {t("inbox.subtitle")}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
             <Button variant="outline" size="sm" onClick={() => load(false)}>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
+              {t("inbox.refresh")}
             </Button>
             <Button size="sm" onClick={() => setPickerOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New packet
+              {t("inbox.newPacket")}
             </Button>
           </div>
         </div>
@@ -127,16 +129,15 @@ export function WorkflowInboxPage() {
               <EmptyMedia variant="icon">
                 <ListChecks className="h-6 w-6" />
               </EmptyMedia>
-              <EmptyTitle>No workflow runs yet</EmptyTitle>
+              <EmptyTitle>{t("inbox.emptyTitle")}</EmptyTitle>
               <EmptyDescription>
-                Press New packet and pick a lead, or ask the assistant to draft a quote for a lead.
-                Turn on auto-start in Settings to draft one for every new lead.
+                {t("inbox.emptyDesc")}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button onClick={() => setPickerOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                New packet
+                {t("inbox.newPacket")}
               </Button>
             </EmptyContent>
           </Empty>
@@ -146,12 +147,12 @@ export function WorkflowInboxPage() {
               const rows = runs.filter((r) => section.statuses.includes(r.status))
               if (!rows.length) return null
               return (
-                <Card key={section.title} className="border-0 shadow-none">
+                <Card key={section.id} className="border-0 shadow-none">
                   <CardHeader className="px-0 pb-3">
                     <CardTitle className="text-base">
-                      {section.title} <span className="ml-1 text-sm font-normal text-muted-foreground">{rows.length}</span>
+                      {t(section.title)} <span className="ml-1 text-sm font-normal text-muted-foreground">{rows.length}</span>
                     </CardTitle>
-                    {section.hint && <CardDescription>{section.hint}</CardDescription>}
+                    {section.hint && <CardDescription>{t(section.hint)}</CardDescription>}
                   </CardHeader>
                   <CardContent className="space-y-2 px-0">
                     {rows.map((run) => (
