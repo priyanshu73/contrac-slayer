@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { api } from "@/lib/api"
 import { Loader2, Sparkles } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
 
 function openAiPanelForEstimate() {
   window.dispatchEvent(new CustomEvent("open-ai-panel-for-estimate"))
 }
 
 export default function NewQuotePage() {
+  const t = useTranslations("quotes")
+  const locale = useLocale()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -32,7 +35,7 @@ export default function NewQuotePage() {
           const data = await api.getJob(parseInt(copyFromId))
           setCopiedQuoteData(data)
         } catch (err: any) {
-          setError(err.message || "Failed to load quote to copy")
+          setError(err.message || t("pages.new.loadFailed"))
         } finally {
           setLoadingCopy(false)
         }
@@ -64,20 +67,20 @@ export default function NewQuotePage() {
   }
 
   const subtitle = copyFromId
-    ? `Copying from Quote #${copyFromId}`
+    ? t("pages.new.copying", { id: copyFromId })
     : projectId
-      ? "From project – client and project pre-filled"
+      ? t("pages.new.fromProject")
       : clientId
-        ? "From client – basic info pre-filled"
+        ? t("pages.new.fromClient")
       : leadId
-        ? "From Lead - AI-powered pricing"
-        : "AI-powered pricing"
+        ? t("pages.new.fromLead")
+        : t("pages.new.ai")
 
   if (loadingCopy) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading quote to copy...</p>
+        <p className="text-muted-foreground">{t("pages.new.loadingCopy")}</p>
       </div>
     )
   }
@@ -88,8 +91,8 @@ export default function NewQuotePage() {
         <div className="text-destructive mb-2 px-4 py-2 border border-destructive/20 bg-destructive/10 rounded-md">
           <p className="font-medium text-center">{error}</p>
         </div>
-        <Button onClick={() => window.location.href = '/quotes/new'} variant="outline" className="mt-4">
-          Start Blank Quote Instead
+        <Button onClick={() => window.location.href = `/${locale}/quotes/new`} variant="outline" className="mt-4">
+          {t("pages.new.startBlank")}
         </Button>
       </div>
     )
@@ -101,14 +104,14 @@ export default function NewQuotePage() {
         <div className="container mx-auto flex min-h-16 items-center justify-between gap-2 px-3 py-2 sm:h-16 sm:gap-0 sm:px-4 sm:py-0">
           <div className="flex items-center gap-1 max-sm:min-w-0 sm:gap-3">
             <Button variant="ghost" size="icon" asChild>
-              <a href="/quotes">
+              <a href={`/${locale}/quotes`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </a>
             </Button>
             <div className="max-sm:min-w-0">
-              <h1 className="hidden text-lg font-semibold leading-none md:block">Create Quote</h1>
+              <h1 className="hidden text-lg font-semibold leading-none md:block">{t("pages.new.title")}</h1>
               <p className="text-sm text-muted-foreground md:mt-0">{subtitle}</p>
             </div>
           </div>
@@ -120,7 +123,7 @@ export default function NewQuotePage() {
               className="relative flex items-center gap-1.5 whitespace-nowrap rounded-full border-0 bg-gradient-to-r from-sky-500 to-blue-600 px-2.5 sm:px-4 font-semibold text-white shadow-lg shadow-sky-500/30 transition-transform hover:scale-105 hover:from-sky-400 hover:to-blue-500"
             >
               <Sparkles className="h-4 w-4 animate-pulse" />
-              Estimate with AI
+              {t("pages.new.aiBtn")}
             </Button>
           </div>
         </div>

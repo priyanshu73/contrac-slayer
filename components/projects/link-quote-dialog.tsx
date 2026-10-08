@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,6 +17,9 @@ interface LinkQuoteDialogProps {
 
 export function LinkQuoteDialog({ projectId, open, onOpenChange, onLinked }: LinkQuoteDialogProps) {
   const t = useTranslations("projects.quotes")
+  const tf = useTranslations("filters")
+  const tq = useTranslations("quotes")
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [linking, setLinking] = useState(false)
   const [quotes, setQuotes] = useState<Job[]>([])
@@ -68,29 +71,29 @@ export function LinkQuoteDialog({ projectId, open, onOpenChange, onLinked }: Lin
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{t("linkQuoteDialogTitle") || "Link Quote to Project"}</DialogTitle>
+          <DialogTitle>{t("linkQuoteDialogTitle")}</DialogTitle>
           <DialogDescription>
-            {t("linkQuoteDialogDescription") || "Select an existing quote to associate with this project. A quote can only belong to one project at a time."}
+            {t("linkQuoteDialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           <Select disabled={loading} value={selectedQuoteId} onValueChange={setSelectedQuoteId}>
             <SelectTrigger>
-              <SelectValue placeholder={loading ? "Loading quotes..." : "Select a quote"} />
+              <SelectValue placeholder={loading ? t("loading") : t("selectQuote")} />
             </SelectTrigger>
             <SelectContent>
               {quotes.map(quote => (
                 <SelectItem key={quote.id} value={quote.id.toString()}>
-                  {quote.title || quote.job_number || `Quote #${quote.id}`}
-                  {quote.client?.name ? ` for ${quote.client.name}` : ""} - {
-                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(quote.total_amount || 0)
-                  } ({quote.status})
+                  {quote.title || quote.job_number || tq("pages.copy.estimateNum", { id: quote.id })}
+                  {quote.client?.name ? t("forClient", { name: quote.client.name }) : ""} - {
+                    new Intl.NumberFormat(locale === "es" ? "es-US" : "en-US", { style: "currency", currency: "USD" }).format(quote.total_amount || 0)
+                  } ({tf.has(String(quote.status).toLowerCase()) ? tf(String(quote.status).toLowerCase() as any) : quote.status})
                 </SelectItem>
               ))}
               {quotes.length === 0 && !loading && (
                 <SelectItem value="none" disabled>
-                  No available quotes found
+                  {t("noAvailableQuotes")}
                 </SelectItem>
               )}
             </SelectContent>
@@ -99,10 +102,10 @@ export function LinkQuoteDialog({ projectId, open, onOpenChange, onLinked }: Lin
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button disabled={!selectedQuoteId || selectedQuoteId === "none" || linking} onClick={handleLink}>
-            {linking ? "Linking..." : "Link Quote"}
+            {linking ? t("linking") : t("linkQuote")}
           </Button>
         </DialogFooter>
       </DialogContent>

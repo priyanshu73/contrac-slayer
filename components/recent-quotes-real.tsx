@@ -48,8 +48,8 @@ function getStatusColor(status: string) {
   }
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
+function formatCurrency(amount: number, locale: string = "en") {
+  return new Intl.NumberFormat(locale === "es" ? "es-US" : "en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
@@ -99,13 +99,13 @@ export function RecentQuotesReal() {
     <Card className="flex h-full flex-col border-slate-200 bg-white p-3 shadow-sm">
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">{t("recentQuotes") || "Recent Quotes"}</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t("recentQuotes")}</h2>
         </div>
         <Link
           href={`/${locale}/quotes`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:border-sky-700 hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
         >
-          {t("viewAll") || "View All"}
+          {t("viewAll")}
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
@@ -131,8 +131,8 @@ export function RecentQuotesReal() {
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
             <FileText className="h-5 w-5 text-slate-400" />
           </div>
-          <p className="text-sm font-medium text-slate-900">{t("noQuotesYet") || "No quotes yet."}</p>
-          <p className="mt-1 text-sm text-slate-500">Your newest quotes will show up here once you create them.</p>
+          <p className="text-sm font-medium text-slate-900">{t("noQuotesYet")}</p>
+          <p className="mt-1 text-sm text-slate-500">{t("recentEstimates.hint")}</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -145,22 +145,22 @@ export function RecentQuotesReal() {
                 className="grid min-h-[58px] grid-cols-[56px_1fr_auto] items-center gap-3 rounded border border-slate-100 bg-white px-2.5 py-2 transition-all hover:border-slate-300 hover:bg-slate-50"
               >
                 <div>
-                  <p className="text-[9px] uppercase tracking-[0.12em] text-slate-400">Quote No</p>
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-slate-400">{t("recentEstimates.numberLabel")}</p>
                   <p className="mt-0.5 text-[11px] font-semibold text-slate-700">#{quote.id}</p>
                 </div>
 
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-semibold text-slate-900">
-                    {quote.client?.name || "Unknown Client"}
+                    {quote.client?.name || t("recentEstimates.unknownClient")}
                   </p>
                   {status === "DRAFT" && (
                     <span className="mt-0.5 inline-block rounded bg-sky-100 px-1.5 py-0 text-[10px] font-medium text-sky-700">
-                      Add Proposal
+                      {t("recentEstimates.addProposal")}
                     </span>
                   )}
                   {status === "ACCEPTED" && (
                     <span className="mt-0.5 inline-block rounded bg-emerald-100 px-1.5 py-0 text-[10px] font-medium text-emerald-700">
-                      Create Project
+                      {t("recentEstimates.createProject")}
                     </span>
                   )}
                 </div>
@@ -170,10 +170,10 @@ export function RecentQuotesReal() {
                     variant="outline"
                     className={`shrink-0 rounded-full px-2 py-0 text-[10px] font-medium ${getStatusColor(quote.status)}`}
                   >
-                    {formatStatusLabel(quote.status)}
+                    {status && t.has(`recentEstimates.status.${status}`) ? t(`recentEstimates.status.${status}`) : formatStatusLabel(quote.status)}
                   </Badge>
                   <p className="text-sm font-semibold text-slate-900">
-                    {formatCurrency(quote.total_amount)}
+                    {formatCurrency(quote.total_amount, locale)}
                   </p>
                 </div>
               </Link>
@@ -186,7 +186,7 @@ export function RecentQuotesReal() {
                   <Button asChild size="sm" className="mt-3 h-9 w-full bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700">
                     <Link href={`/${locale}/quotes/new`}>
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      {t("createQuote") || "Create Quote"}
+                      {t("createQuote")}
                     </Link>
                   </Button>
                 </Card>
