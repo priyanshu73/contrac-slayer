@@ -83,7 +83,9 @@
       "linkSuccess": "Estimate linked successfully",
       "linkError": "Could not link estimate",
       "linkQuoteDialogTitle": "Link Estimate to Project",
-      "linkQuoteDialogDescription": "Select an existing estimate to associate with this project. An estimate can only belong to one project at a time."
+      "linkQuoteDialogDescription": "Select an existing estimate to associate with this project. An estimate can only belong to one project at a time.",
+      "linking": "Linking…",
+      "forClient": " for {name}"
     }
   },
   "auth": {
@@ -110,6 +112,23 @@
     "quoteRequest": {
       "title": "Estimate Request Form",
       "linkCopiedDesc": "Estimate request link has been copied to your clipboard."
+    },
+    "recentEstimates": {
+      "hint": "Your newest estimates will show up here once you create them.",
+      "numberLabel": "Estimate no.",
+      "unknownClient": "Unknown client",
+      "addProposal": "Add proposal",
+      "createProject": "Create project",
+      "status": {
+        "DRAFT": "Draft",
+        "SENT": "Sent",
+        "VIEWED": "Viewed",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "PAID": "Paid",
+        "IN_PROGRESS": "In progress",
+        "COMPLETED": "Completed"
+      }
     }
   },
   "settings": {
@@ -465,6 +484,58 @@
       "perSf": "Per sq ft",
       "chooseSub": "Choose substitute",
       "projectNum": "Project #{id}"
+    },
+    "pages": {
+      "edit": {
+        "loadFailed": "Failed to load estimate",
+        "errorTitle": "Error loading estimate",
+        "tryAgain": "Try again",
+        "notFound": "Estimate not found",
+        "notFoundDesc": "The estimate you're looking for doesn't exist.",
+        "back": "Back to estimates",
+        "title": "Edit estimate #{id}",
+        "subtitle": "Update estimate details and line items",
+        "aiBtn": "Estimate with AI"
+      },
+      "new": {
+        "loadFailed": "Failed to load estimate to copy",
+        "copying": "Copying from estimate #{id}",
+        "fromProject": "From project – client and project pre-filled",
+        "fromClient": "From client – basic info pre-filled",
+        "fromLead": "From lead - AI-powered pricing",
+        "ai": "AI-powered pricing",
+        "loadingCopy": "Loading estimate to copy…",
+        "startBlank": "Start blank estimate instead",
+        "title": "Create estimate",
+        "aiBtn": "Estimate with AI"
+      },
+      "copy": {
+        "title": "Select estimate to copy",
+        "subtitle": "Choose an existing estimate to use as a starting point",
+        "emptyTitle": "No estimates to copy",
+        "emptyFiltered": "No {status} estimates found",
+        "emptyNone": "You haven't created any estimates yet.",
+        "createBlank": "Create new blank estimate",
+        "estimateNum": "Estimate #{id}",
+        "created": "Created {date}",
+        "select": "Select"
+      }
+    },
+    "dialogs": {
+      "newFromLead": {
+        "defaultTitle": "{name} estimate",
+        "titleRequired": "Estimate title is required",
+        "title": "Create new estimate from lead",
+        "linkedTo": "- linked to client {name}",
+        "desc": "Review the scope below, then continue to the estimate builder for AI pricing.",
+        "linkedClient": "Linked client",
+        "titleLabel": "Estimate title",
+        "titlePh": "e.g. Bathroom renovation",
+        "scopeLabel": "Scope / description",
+        "scopePh": "Describe the work to be estimated…",
+        "cancel": "Cancel",
+        "continue": "Continue to builder"
+      }
     }
   },
   "leads": {
