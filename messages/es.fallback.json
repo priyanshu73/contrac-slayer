@@ -944,7 +944,20 @@
         },
         "derivedFromTitle": "Calculado a partir de {title}",
         "derivedFromAccepted": "Calculado a partir del presupuesto aceptado",
-        "derivedFromCount": "{count, plural, one {Calculado a partir de # presupuesto} other {Calculado a partir de # presupuestos}}"
+        "derivedFromCount": "{count, plural, one {Calculado a partir de # presupuesto} other {Calculado a partir de # presupuestos}}",
+        "estimateStatus": {
+          "DRAFT": "Borrador",
+          "SENT": "Enviado",
+          "VIEWED": "Visto",
+          "CUSTOMER_MODIFIED": "Modificado por el cliente",
+          "ACCEPTED": "Aceptado",
+          "REJECTED": "Rechazado",
+          "IN_PROGRESS": "En curso",
+          "COMPLETED": "Completado",
+          "INVOICED": "Facturado",
+          "PAID": "Pagado",
+          "CANCELLED": "Cancelado"
+        }
       },
       "jobCosting": {
         "error": "Error",
@@ -994,6 +1007,40 @@
       "documents": {
         "documentsReceipts": "Documentos y recibos del proyecto",
         "changeOrders": "Órdenes de cambio (contratos y firmas)"
+      },
+      "qbo": {
+        "statusPaid": "Pagado",
+        "statusPartiallyPaid": "Parcialmente pagado",
+        "statusOpen": "Abierto",
+        "dueOn": "Vence {date}",
+        "invNumber": "Fact. {number}",
+        "total": "Total",
+        "paid": "Pagado",
+        "due": "Pendiente",
+        "lineItems": "Partidas ({count})",
+        "item": "Partida",
+        "qty": "Cant.",
+        "rate": "Tarifa",
+        "amt": "Monto",
+        "subtotal": "Subtotal",
+        "tax": "Impuesto",
+        "synced": "Sincronizado el {date}",
+        "paidAppOnly": "Pagado · Solo en la app",
+        "noQboLinked": "No hay una factura de QuickBooks vinculada: se cuenta como cobrado en el resumen.",
+        "openEstimate": "Abrir presupuesto",
+        "otherPayments": "Otros pagos",
+        "noQboInvoice": "(sin factura de QuickBooks)",
+        "otherPaymentsHint": "Presupuestos pagados registrados en la app sin un ID ni enlace de factura de QuickBooks. Los totales coinciden con el resumen financiero.",
+        "loadFailed": "No se pudieron cargar los detalles de la factura",
+        "tryAgain": "Intentar de nuevo",
+        "connectQuickbooks": "Conectar QuickBooks",
+        "settingsIntegrations": "Configuración → Integraciones",
+        "connect": "Conectar",
+        "noInvoices": "Aún no hay facturas de QuickBooks en los presupuestos vinculados.",
+        "noInvoicesHint": "Cuando sincronices facturas desde QuickBooks, aparecerán aquí. Los presupuestos pagados sin QuickBooks también aparecen en Otros pagos cuando corresponde.",
+        "title": "QuickBooks",
+        "refresh": "Actualizar",
+        "refreshAria": "Actualizar datos de QuickBooks"
       }
     }
   },
