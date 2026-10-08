@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useCallback, ReactNode } from 'react'
 import Link from 'next/link'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   Project,
   QBOInvoiceDetail,
@@ -47,37 +47,42 @@ interface QuickBooksInvoicesSectionProps {
 
 type InvoiceRow = QBOInvoiceDetail & { job_id: number }
 
-function getStatusBadge(status: string) {
+const fmtDate = (d: string, locale: string) =>
+  new Date(d).toLocaleDateString(locale === 'es' ? 'es-US' : 'en-US')
+
+function getStatusBadge(status: string, tq: (key: string) => string) {
   switch (status) {
     case 'Paid':
       return (
         <Badge className="bg-status-active/15 text-status-active border-status-active/30 font-semibold">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Paid
+          <CheckCircle2 className="w-3 h-3 mr-1" /> {tq('statusPaid')}
         </Badge>
       )
     case 'Partially Paid':
       return (
         <Badge className="bg-status-pending/15 text-status-pending border-status-pending/30 font-semibold">
-          <Clock className="w-3 h-3 mr-1" /> Partially Paid
+          <Clock className="w-3 h-3 mr-1" /> {tq('statusPartiallyPaid')}
         </Badge>
       )
     default:
       return (
         <Badge className="bg-primary/15 text-primary border-primary/20 font-semibold">
-          <AlertCircle className="w-3 h-3 mr-1" /> Open
+          <AlertCircle className="w-3 h-3 mr-1" /> {tq('statusOpen')}
         </Badge>
       )
   }
 }
 
 function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
+  const tq = useTranslations('projectsPage.financials.qbo')
+  const locale = useLocale()
   const dateStr =
     detail.txn_date && detail.due_date
-      ? `${new Date(detail.txn_date).toLocaleDateString()} · Due ${new Date(detail.due_date).toLocaleDateString()}`
+      ? `${fmtDate(detail.txn_date, locale)} · ${tq('dueOn', { date: fmtDate(detail.due_date, locale) })}`
       : detail.txn_date
-        ? new Date(detail.txn_date).toLocaleDateString()
+        ? fmtDate(detail.txn_date, locale)
         : detail.due_date
-          ? `Due ${new Date(detail.due_date).toLocaleDateString()}`
+          ? tq('dueOn', { date: fmtDate(detail.due_date, locale) })
           : ''
 
   return (
@@ -86,10 +91,10 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-bold text-foreground">
-              Inv. {detail.doc_number || detail.qbo_invoice_id}
+              {tq('invNumber', { number: detail.doc_number || detail.qbo_invoice_id })}
             </h3>
             <span className="text-xs text-muted-foreground">#{detail.job_id}</span>
-            {getStatusBadge(detail.status)}
+            {getStatusBadge(detail.status, tq)}
           </div>
           {dateStr && <p className="text-xs text-muted-foreground">{dateStr}</p>}
         </div>
@@ -104,15 +109,15 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
 
       <div className="grid grid-cols-3 divide-x border-b text-center">
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">{tq('total')}</p>
           <p className="text-lg font-bold text-foreground mt-0.5">{formatCurrency(detail.total)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-status-active uppercase">Paid</p>
+          <p className="text-[10px] font-semibold text-status-active uppercase">{tq('paid')}</p>
           <p className="text-lg font-bold text-status-active mt-0.5">{formatCurrency(detail.amount_paid)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-primary uppercase">Due</p>
+          <p className="text-[10px] font-semibold text-primary uppercase">{tq('due')}</p>
           <p className="text-lg font-bold text-primary mt-0.5">{formatCurrency(detail.balance)}</p>
         </div>
       </div>
@@ -120,17 +125,17 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
       {detail.line_items.length > 0 && (
         <details className="group border-b">
           <summary className="px-4 py-2.5 text-xs font-medium text-muted-foreground cursor-pointer list-none flex items-center justify-between hover:bg-muted/80 [&::-webkit-details-marker]:hidden">
-            <span>Line items ({detail.line_items.length})</span>
+            <span>{tq('lineItems', { count: detail.line_items.length })}</span>
             <span className="text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="overflow-x-auto border-t">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <th className="text-left p-2 font-semibold">Item</th>
-                  <th className="text-right p-2 font-semibold">Qty</th>
-                  <th className="text-right p-2 font-semibold">Rate</th>
-                  <th className="text-right p-2 font-semibold">Amt</th>
+                  <th className="text-left p-2 font-semibold">{tq('item')}</th>
+                  <th className="text-right p-2 font-semibold">{tq('qty')}</th>
+                  <th className="text-right p-2 font-semibold">{tq('rate')}</th>
+                  <th className="text-right p-2 font-semibold">{tq('amt')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -148,21 +153,21 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
               <tfoot className="border-t text-muted-foreground text-xs">
                 <tr>
                   <td colSpan={3} className="p-2 text-right font-medium">
-                    Subtotal
+                    {tq('subtotal')}
                   </td>
                   <td className="p-2 text-right font-medium">{formatCurrency(detail.subtotal)}</td>
                 </tr>
                 {detail.tax_total > 0 && (
                   <tr>
                     <td colSpan={3} className="p-2 text-right font-medium">
-                      Tax
+                      {tq('tax')}
                     </td>
                     <td className="p-2 text-right font-medium">{formatCurrency(detail.tax_total)}</td>
                   </tr>
                 )}
                 <tr className="text-foreground font-bold">
                   <td colSpan={3} className="p-2 text-right">
-                    Total
+                    {tq('total')}
                   </td>
                   <td className="p-2 text-right">{formatCurrency(detail.total)}</td>
                 </tr>
@@ -174,7 +179,7 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
 
       {detail.synced_at && (
         <div className="px-4 py-2 bg-muted text-[11px] text-muted-foreground">
-          Synced {new Date(detail.synced_at).toLocaleDateString()}
+          {tq('synced', { date: fmtDate(detail.synced_at, locale) })}
         </div>
       )}
     </Card>
@@ -182,6 +187,7 @@ function QboInvoiceCard({ detail }: { detail: InvoiceRow }) {
 }
 
 function ManualPaidQuoteCard({ row, locale }: { row: ManualPaidQuoteSnapshot; locale: string }) {
+  const tq = useTranslations('projectsPage.financials.qbo')
   const href = `/${locale}/quotes/${row.job_id}`
   return (
     <Card className="border-status-active/30 overflow-hidden border-l-4 border-l-status-active shadow-sm">
@@ -194,30 +200,30 @@ function ManualPaidQuoteCard({ row, locale }: { row: ManualPaidQuoteSnapshot; lo
             <h3 className="text-base font-bold text-foreground">{row.title}</h3>
             <span className="text-xs text-muted-foreground">#{row.job_id}</span>
             <Badge className="bg-status-active/15 text-status-active border-status-active/30 font-semibold shadow-none">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Paid · App only
+              <CheckCircle2 className="w-3 h-3 mr-1" /> {tq('paidAppOnly')}
             </Badge>
           </div>
           {row.client_name && <p className="text-xs text-muted-foreground pl-10 sm:pl-0">{row.client_name}</p>}
-          <p className="text-xs text-muted-foreground pl-10 sm:pl-0">No QuickBooks invoice linked — counted as collected in the snapshot.</p>
+          <p className="text-xs text-muted-foreground pl-10 sm:pl-0">{tq('noQboLinked')}</p>
         </div>
         <Button variant="outline" size="sm" className="border-border shrink-0 h-8" asChild>
           <Link href={href}>
-            <FileText className="w-3.5 h-3.5 mr-1" /> Open quote
+            <FileText className="w-3.5 h-3.5 mr-1" /> {tq('openEstimate')}
           </Link>
         </Button>
       </div>
 
       <div className="grid grid-cols-3 divide-x border-b border-border text-center">
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">{tq('total')}</p>
           <p className="text-lg font-bold text-foreground mt-0.5">{formatCurrency(row.total_amount)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-status-active uppercase">Paid</p>
+          <p className="text-[10px] font-semibold text-status-active uppercase">{tq('paid')}</p>
           <p className="text-lg font-bold text-status-active mt-0.5">{formatCurrency(row.total_amount)}</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Due</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase">{tq('due')}</p>
           <p className="text-lg font-bold text-muted-foreground mt-0.5">{formatCurrency(0)}</p>
         </div>
       </div>
@@ -234,16 +240,17 @@ function ManualPaidQuotesSection({
   locale: string
   className?: string
 }) {
+  const tq = useTranslations('projectsPage.financials.qbo')
   if (rows.length === 0) return null
   return (
     <div className={className}>
       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
         <Banknote className="w-4 h-4 text-status-active" />
-        Other payments
-        <span className="text-muted-foreground font-normal">(no QuickBooks invoice)</span>
+        {tq('otherPayments')}
+        <span className="text-muted-foreground font-normal">{tq('noQboInvoice')}</span>
       </h3>
       <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-xl">
-        Paid quotes recorded in the app without a QuickBooks invoice id or link. Totals match the financial snapshot.
+        {tq('otherPaymentsHint')}
       </p>
       <div className="space-y-3">
         {rows.map((row) => (
@@ -256,6 +263,7 @@ function ManualPaidQuotesSection({
 
 export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSectionProps) {
   const locale = useLocale()
+  const tq = useTranslations('projectsPage.financials.qbo')
   const settingsIntegrationsHref = `/${locale}/settings?tab=integrations`
 
   const [qboPayload, setQboPayload] = useState<QBOProjectInvoiceDetailResponse | null>(null)
@@ -285,7 +293,7 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load invoice details'
+      const msg = err instanceof Error ? err.message : tq('loadFailed')
       setQboError(msg)
     } finally {
       setQboLoading(false)
@@ -313,7 +321,7 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
           <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
           <p className="text-sm text-destructive">{qboError}</p>
           <Button variant="outline" size="sm" onClick={fetchQBODetail} className="mt-3">
-            Try Again
+            {tq('tryAgain')}
           </Button>
         </CardContent>
       </Card>
@@ -328,11 +336,11 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
               <Link2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Connect QuickBooks</p>
-              <p className="text-xs text-muted-foreground mt-1">Settings → Integrations</p>
+              <p className="text-sm font-semibold text-foreground">{tq('connectQuickbooks')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{tq('settingsIntegrations')}</p>
             </div>
             <Button asChild>
-              <Link href={settingsIntegrationsHref}>Connect</Link>
+              <Link href={settingsIntegrationsHref}>{tq('connect')}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -350,10 +358,9 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
         <Card className="border-dashed border-border bg-muted">
           <CardContent className="p-8 text-center space-y-2">
             <FileText className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-sm font-medium text-muted-foreground">No QuickBooks invoices on linked quotes yet.</p>
+            <p className="text-sm font-medium text-muted-foreground">{tq('noInvoices')}</p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              When you sync invoices from QuickBooks, they appear here. Paid quotes without QuickBooks also list under
-              Other payments when applicable.
+              {tq('noInvoicesHint')}
             </p>
           </CardContent>
         </Card>
@@ -386,15 +393,15 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">QuickBooks</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{tq('title')}</h2>
         <Button
           variant="ghost"
           size="icon"
           onClick={fetchQBODetail}
           disabled={qboLoading}
           className="text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
-          title="Refresh"
-          aria-label="Refresh QuickBooks data"
+          title={tq('refresh')}
+          aria-label={tq('refreshAria')}
         >
           <RefreshCw className={`w-4 h-4 ${qboLoading ? 'animate-spin' : ''}`} />
         </Button>
