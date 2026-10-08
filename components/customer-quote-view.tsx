@@ -132,7 +132,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
 
   const handleSignatureComplete = (signature: string) => {
     // Would save signature and mark quote as accepted
-    alert("Quote accepted! You'll receive a confirmation email shortly.")
+    alert("Estimate accepted! You'll receive a confirmation email shortly.")
     setShowSignature(false)
   }
 
@@ -149,7 +149,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
             />
             <div className="flex-1">
               <h1 className="text-2xl font-bold">{quote.contractorName}</h1>
-              <p className="mt-1 text-muted-foreground">Quote for {quote.customerName}</p>
+              <p className="mt-1 text-muted-foreground">Estimate for {quote.customerName}</p>
             </div>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -158,7 +158,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
               <p className="font-semibold">{quote.projectTitle}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Quote Date</p>
+              <p className="text-sm text-muted-foreground">Estimate Date</p>
               <p className="font-semibold">{quote.createdDate}</p>
             </div>
             <div>
@@ -174,7 +174,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
 
         {/* Line Items */}
         <Card className="mb-6 p-6">
-          <h2 className="mb-4 text-xl font-bold">Quote Breakdown</h2>
+          <h2 className="mb-4 text-xl font-bold">Estimate Breakdown</h2>
           <Accordion type="multiple" defaultValue={["labor", "materials"]}>
             {/* Labor */}
             <AccordionItem value="labor">
@@ -307,7 +307,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
           {hasChanges ? (
             <div className="space-y-4">
               <div className="rounded-lg bg-[var(--status-pending)]/10 p-4 text-sm text-[var(--status-pending)]">
-                <p className="font-semibold">You've made changes to this quote</p>
+                <p className="font-semibold">You've made changes to this estimate</p>
                 <p className="mt-1">Send your suggested changes to the contractor for review.</p>
               </div>
               <Button size="lg" className="w-full" onClick={handleSendChanges}>
@@ -333,7 +333,7 @@ export function CustomerQuoteView({ quoteId }: { quoteId: string }) {
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Accept & Sign Quote
+                Accept & Sign Estimate
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 By accepting, you agree to the terms and pricing outlined above
