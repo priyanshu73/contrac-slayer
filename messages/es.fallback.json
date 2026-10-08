@@ -209,6 +209,239 @@
       "awaiting": "En espera",
       "awaitingCount": "{count, plural, one {# presupuesto} other {# presupuestos}}",
       "totalUnpaid": "Total sin pagar"
+    },
+    "assistant": {
+      "view": {
+        "conversations": "Conversaciones",
+        "notifications": "Notificaciones",
+        "chatCount": "{count, plural, one {# chat} other {# chats}}",
+        "unreadCount": "{count} sin leer",
+        "chatFallback": "Chat",
+        "newConversation": "Nueva conversación",
+        "backToChat": "Volver al chat",
+        "viewNotifications": "Ver notificaciones",
+        "viewConversations": "Ver conversaciones",
+        "newChat": "Nuevo chat",
+        "collapse": "Contraer Bob AI",
+        "expand": "Expandir Bob AI",
+        "close": "Cerrar Bob AI",
+        "open": "Abrir Bob AI"
+      },
+      "convList": {
+        "empty": "Aún no hay conversaciones",
+        "startNew": "Iniciar un chat nuevo",
+        "delete": "Eliminar conversación"
+      },
+      "notif": {
+        "updates": "Novedades de tu negocio",
+        "markAllRead": "Marcar todo como leído",
+        "unavailable": "Notificaciones no disponibles",
+        "unavailableDesc": "El servidor conectado aún no tiene las notificaciones activadas.",
+        "empty": "Aún no hay notificaciones",
+        "emptyDesc": "Aquí aparecerán la actividad de los presupuestos, los pagos y las solicitudes nuevas.",
+        "delete": "Eliminar notificación",
+        "deleteNamed": "Eliminar notificación: {title}"
+      },
+      "scope": {
+        "title": "Aclarar el alcance",
+        "analyzing": "Analizando el contexto del proyecto…",
+        "selectAll": "(selecciona todas las que correspondan)",
+        "somethingElse": "¿Algo más?",
+        "addMore": "Agrega lo que no esté en las opciones de arriba…",
+        "typeAnswer": "Escribe tu respuesta…",
+        "back": "Atrás",
+        "skipAll": "Omitir todo",
+        "skip": "Omitir",
+        "submit": "Enviar y generar",
+        "next": "Siguiente →"
+      },
+      "context": {
+        "estimateContext": "Contexto del presupuesto",
+        "projectContext": "Contexto del proyecto",
+        "estimateType": "Tipo de presupuesto (opcional)",
+        "projectType": "Tipo de proyecto (opcional)",
+        "estimateDescription": "Descripción del presupuesto",
+        "projectDescription": "Descripción del proyecto",
+        "typePlaceholder": "p. ej., instalación de patio, construcción de terraza",
+        "descPlaceholder": "Describe el proyecto (materiales, mano de obra, instalación, etc.)",
+        "includeBrief": "Incluir el resumen del proyecto en el contexto",
+        "noBrief": "Aún no se ha cargado un resumen del proyecto para este presupuesto.",
+        "proposalContext": "Contexto de la propuesta",
+        "filled": "completado",
+        "proposalTitle": "Título de la propuesta",
+        "proposalTitlePlaceholder": "p. ej., Propuesta de remodelación del patio trasero",
+        "project": "Proyecto",
+        "projectNamePlaceholder": "Nombre del proyecto",
+        "description": "Descripción",
+        "proposalDescPlaceholder": "Describe el alcance, los objetivos y el enfoque",
+        "includeLineItems": "Incluir las partidas del presupuesto en el contexto"
+      },
+      "switch": {
+        "title": "¿Cambiar el contexto del proyecto?",
+        "auto": "Pasaste a <b>{name}</b>. Al cambiar se inicia un chat nuevo para que Bob se mantenga en los archivos del proyecto correcto.",
+        "manual": "¿Cambiar el contexto a <b>{name}</b>? Se iniciará un chat nuevo para que Bob se mantenga en los archivos del proyecto correcto.",
+        "confirm": "Cambiar e iniciar chat nuevo",
+        "keep": "Mantener el proyecto actual"
+      },
+      "gen": {
+        "dismiss": "Descartar el estado de generación",
+        "generateEstimate": "Generar presupuesto",
+        "generateProposal": "Generar propuesta",
+        "editContext": "Editar contexto",
+        "addDescription": "Agrega al menos una descripción breve del proyecto antes de generar.",
+        "aiEstimate": "Generar presupuesto con IA",
+        "aiProposal": "Generar propuesta con IA"
+      },
+      "welcome": {
+        "title": "Pregúntale a Bob desde donde estés",
+        "body": "Bob puede buscar tus prospectos, clientes, presupuestos, proyectos, calendario y más.",
+        "briefing": "Resumen de la mañana",
+        "briefingPrompt": "¡Buenos días! Dame mi resumen del día.",
+        "followUps": "Seguimientos",
+        "followUpsPrompt": "¿A qué debo dar seguimiento hoy?"
+      },
+      "thinking": "Pensando…",
+      "picker": {
+        "current": "Proyecto actual",
+        "projectNumber": "Proyecto n.º {id}",
+        "remove": "Quitar el contexto del proyecto",
+        "switch": "Cambiar contexto",
+        "select": "Seleccionar contexto",
+        "search": "Buscar contexto…",
+        "loading": "Cargando contexto…",
+        "none": "No se encontró contexto.",
+        "projects": "Proyectos"
+      },
+      "input": {
+        "askAbout": "Pregúntale a Bob sobre {name}…",
+        "askAnything": "Pregúntale lo que quieras a Bob…"
+      },
+      "banner": {
+        "estimateFor": "Crea un presupuesto para {client}.",
+        "estimateClient": "Crea un presupuesto para este cliente.",
+        "briefNamed": "Resumen de {project} cargado.",
+        "brief": "Resumen del proyecto cargado.",
+        "proposalFor": "Crea una propuesta para {name}.",
+        "proposalQuote": "Crea una propuesta para este presupuesto.",
+        "proposalProject": "Crea una propuesta para este proyecto.",
+        "lineItemsNamed": "Partidas de {project} cargadas.",
+        "lineItems": "Partidas del presupuesto cargadas."
+      },
+      "step": {
+        "estimateTitle": "Generando presupuesto con IA",
+        "estimateDetail": "Enviando el alcance al generador de presupuestos.",
+        "proposalTitle": "Generando propuesta con IA",
+        "proposalDetail": "Enviando el alcance al generador de propuestas.",
+        "openingRoute": "Abriendo {route}…",
+        "openingPage": "Abriendo página…",
+        "openingDialog": "Abriendo {dialog}…",
+        "openingDialogGeneric": "Abriendo cuadro de diálogo…",
+        "copying": "Copiando al portapapeles…",
+        "updatingForm": "Actualizando el formulario en tiempo real…",
+        "running": "Ejecutando {tool}…"
+      },
+      "action": {
+        "copied": "Copiado al portapapeles",
+        "confirmTitle": "Confirmar acción",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "failed": "La acción falló",
+        "failedDesc": "No se pudo completar la acción solicitada.",
+        "completed": "Acción completada",
+        "runError": "Ocurrió un error durante la ejecución.",
+        "reviewBelow": "Revisa la acción de abajo:",
+        "chatError": "Lo siento, hubo un error. Inténtalo de nuevo.",
+        "cancelled": "Acción cancelada",
+        "cancelledDesc": "El comando se rechazó correctamente.",
+        "replayed": "Acción repetida",
+        "approved": "Acción aprobada",
+        "replayedDesc": "Este comando ya se había ejecutado y el resultado se repitió de forma segura.",
+        "executedDesc": "El comando se ejecutó correctamente.",
+        "execError": "Error de ejecución",
+        "processFailed": "No se pudo procesar el comando.",
+        "executing": "Ejecutando…",
+        "projectName": "Nombre del proyecto"
+      },
+      "time": {
+        "justNow": "Ahora mismo",
+        "minutes": "hace {count} min",
+        "hours": "hace {count} h",
+        "days": "hace {count} d"
+      },
+      "suggest": {
+        "client_detail": {
+          "0": "Cuéntame sobre este cliente",
+          "1": "Muéstrame sus presupuestos",
+          "2": "¿Tiene citas próximas?",
+          "3": "Crea un presupuesto para este cliente"
+        },
+        "lead_detail": {
+          "0": "Cuéntame sobre este prospecto",
+          "1": "¿Cuál es el estado?",
+          "2": "Convierte en cliente",
+          "3": "Programa un seguimiento"
+        },
+        "project_detail": {
+          "0": "Resume este proyecto",
+          "1": "Muestra las tareas del proyecto",
+          "2": "¿Cuál es el estado?",
+          "3": "¿Hay bloqueos?"
+        },
+        "proposal_builder": {
+          "0": "Resume esta propuesta",
+          "1": "¿Qué secciones tiene esta propuesta?",
+          "2": "Ayúdame a redactar el resumen del alcance",
+          "3": "¿Cuál es la descripción general del proyecto?"
+        },
+        "quote_detail": {
+          "0": "Resume este presupuesto",
+          "1": "¿Cuál es el total?",
+          "2": "Agrega una partida",
+          "3": "Envía al cliente"
+        },
+        "subcontractor_detail": {
+          "0": "Cuéntame sobre este miembro del equipo",
+          "1": "¿Qué oficios maneja?",
+          "2": "Muestra sus proyectos"
+        },
+        "contacts": {
+          "0": "Lista todos mis clientes",
+          "1": "¿Hay clientes inactivos?",
+          "2": "Agrega un cliente nuevo",
+          "3": "Resumen del panel"
+        },
+        "leads": {
+          "0": "¿Cuántos prospectos nuevos hay?",
+          "1": "Muestra los prospectos sin convertir",
+          "2": "Desglose de prospectos por estado",
+          "3": "Resumen del panel"
+        },
+        "projects": {
+          "0": "Muestra los proyectos activos",
+          "1": "¿Hay tareas bloqueadas?",
+          "2": "Resumen del estado de los proyectos",
+          "3": "Resumen del panel"
+        },
+        "quotes": {
+          "0": "Muestra los presupuestos en borrador",
+          "1": "¿Hay presupuestos pendientes?",
+          "2": "Crea un presupuesto nuevo",
+          "3": "Resumen del panel"
+        },
+        "calendar": {
+          "0": "¿Cuál es mi enlace público de reservas?",
+          "1": "¿Qué tengo en el calendario esta semana?",
+          "2": "Muestra las próximas citas",
+          "3": "Resumen del panel"
+        },
+        "default": {
+          "0": "¿Cuál es mi enlace de reservas?",
+          "1": "¿Cuántos prospectos tengo?",
+          "2": "Muestra mis proyectos activos",
+          "3": "¿Qué tengo en el calendario?",
+          "4": "Resumen del panel"
+        }
+      }
     }
   },
   "settings": {
