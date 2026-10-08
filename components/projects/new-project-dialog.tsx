@@ -77,6 +77,7 @@ export function NewProjectDialog({
     defaultClientId,
 }: NewProjectDialogProps) {
     const t = useTranslations("projects.newProjectDialog")
+    const tp = useTranslations("projectsPage.newProject")
     const { toast } = useToast()
 
     const [title, setTitle] = useState("")
@@ -194,8 +195,8 @@ export function NewProjectDialog({
         }
         if (fromLead && !defaultClientId) {
             toast({
-                title: "Save the client first",
-                description: "Create the client record before starting the project.",
+                title: tp("saveClientFirst"),
+                description: tp("saveClientFirstDesc"),
                 variant: "destructive",
             })
             return
@@ -303,7 +304,7 @@ export function NewProjectDialog({
                                 <div className="flex items-baseline justify-between gap-2">
                                     <p className="text-sm font-semibold text-blue-900 truncate">{fromLead.name}</p>
                                     <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide shrink-0">
-                                        Linked client
+                                        {tp("linkedClient")}
                                     </span>
                                 </div>
                                 {(fromLead.email || fromLead.phone || fromLead.address) && (
@@ -348,7 +349,7 @@ export function NewProjectDialog({
                                     onClick={() => setAddClientPanelOpen(true)}
                                 >
                                     <UserPlus className="h-3.5 w-3.5" />
-                                    Add client
+                                    {tp("addClient")}
                                 </Button>
                             </div>
                             <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
@@ -371,16 +372,16 @@ export function NewProjectDialog({
                                                 )}
                                             </span>
                                         ) : (
-                                            <span>Select a client</span>
+                                            <span>{tp("selectClient")}</span>
                                         )}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                                     <Command>
-                                        <CommandInput placeholder="Search clients..." className="h-10" />
+                                        <CommandInput placeholder={tp("searchClients")} className="h-10" />
                                         <CommandList>
-                                            <CommandEmpty>No clients found.</CommandEmpty>
+                                            <CommandEmpty>{tp("noClients")}</CommandEmpty>
                                             <CommandGroup>
                                                 {selectedClient && (
                                                     <CommandItem
@@ -391,7 +392,7 @@ export function NewProjectDialog({
                                                         }}
                                                         className="text-slate-500"
                                                     >
-                                                        Clear selection
+                                                        {tp("clearSelection")}
                                                     </CommandItem>
                                                 )}
                                                 {clients.map((c) => (
@@ -518,9 +519,9 @@ export function NewProjectDialog({
             <Sheet open={addClientPanelOpen} onOpenChange={setAddClientPanelOpen}>
                 <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
                     <SheetHeader>
-                        <SheetTitle>Add client</SheetTitle>
+                        <SheetTitle>{tp("addClient")}</SheetTitle>
                         <p className="text-sm text-muted-foreground">
-                            Create a new client and link it to this project.
+                            {tp("addClientDesc")}
                         </p>
                     </SheetHeader>
                     <div className="mt-4 px-1">
