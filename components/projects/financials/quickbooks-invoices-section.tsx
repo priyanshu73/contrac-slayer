@@ -293,7 +293,7 @@ export function QuickBooksInvoicesSection({ project }: QuickBooksInvoicesSection
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : tq('loadFailed')
+      const msg = tq('loadFailed')
       setQboError(msg)
     } finally {
       setQboLoading(false)
