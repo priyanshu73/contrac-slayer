@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
@@ -68,13 +69,6 @@ interface BeforeAfterPanelProps {
 const UI_MAX_INDIVIDUAL_IMAGES = 3
 const UI_MIN_MULTI_ANGLE_IMAGES = 2
 const UI_MAX_MULTI_ANGLE_IMAGES = 4
-
-const loadingMessages = [
-  "AI is rendering your project...",
-  "Keeping the same angle while applying your scope of work...",
-  "Synthesizing site context from your photos...",
-  "Polishing a photorealistic after view...",
-]
 
 function makePairId() {
   return `before-after-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -276,6 +270,8 @@ export function BeforeAfterPanel({
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null)
 
   const { toast } = useToast()
+  const t = useTranslations("quotes.beforeAfterPanel")
+  const loadingMessages = [t("loading1"), t("loading2"), t("loading3"), t("loading4")]
   const [mode, setMode] = useState<GenerationMode>("individual")
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingSlotId, setGeneratingSlotId] = useState<string | null>(null)
@@ -350,7 +346,7 @@ export function BeforeAfterPanel({
 
     const remainingSlots = UI_MAX_MULTI_ANGLE_IMAGES - multiAngleFiles.length
     if (remainingSlots <= 0) {
-      setGenerationError(`You can upload up to ${UI_MAX_MULTI_ANGLE_IMAGES} angles for this space.`)
+      setGenerationError(t("errMaxAngles", { max: UI_MAX_MULTI_ANGLE_IMAGES }))
       event.target.value = ""
       return
     }
@@ -379,19 +375,19 @@ export function BeforeAfterPanel({
 
   const handleGenerateMultiAngle = async () => {
     if (!jobId) {
-      setGenerationError("Save the quote first to generate and store before/after images.")
+      setGenerationError(t("errSaveFirst"))
       return
     }
     if (multiAngleFiles.length < UI_MIN_MULTI_ANGLE_IMAGES) {
-      setGenerationError(`Upload at least ${UI_MIN_MULTI_ANGLE_IMAGES} angles of the space to generate.`)
+      setGenerationError(t("errMinAngles", { min: UI_MIN_MULTI_ANGLE_IMAGES }))
       return
     }
     if (!multiAngleDescription.trim()) {
-      setGenerationError("Add the finished look description before generating.")
+      setGenerationError(t("errMasterDesc"))
       return
     }
     if (selectedUsableLineItems.length === 0) {
-      setGenerationError("Select at least one scope item to include.")
+      setGenerationError(t("errScopeItem"))
       return
     }
 
@@ -442,10 +438,10 @@ export function BeforeAfterPanel({
         setIsMultiAngleSaved(false)
         setPreviewAngleIndex(0)
       } else {
-        throw new Error(item?.error || "Multi-angle render failed.")
+        throw new Error(item?.error || t("errMultiFailed"))
       }
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : "Multi-angle render failed.")
+      setGenerationError(error instanceof Error ? error.message : t("errMultiFailed"))
     } finally {
       window.clearInterval(messageTimer)
       setLoadingMessageIndex(0)
@@ -478,13 +474,13 @@ export function BeforeAfterPanel({
       setIsMultiAngleSaved(true)
       onSavedChange?.()
       toast({
-        title: "Saved to Quote",
-        description: "Your Before & After master visualization has been saved to the quote.",
+        title: t("savedTitle"),
+        description: t("savedMasterDesc"),
       })
     } catch (err: any) {
       toast({
-        title: "Save Failed",
-        description: err?.message || "Failed to save visualization to quote.",
+        title: t("saveFailedTitle"),
+        description: err?.message || t("saveFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -496,7 +492,7 @@ export function BeforeAfterPanel({
 
   const handleAddSlot = () => {
     if (individualSlots.length >= UI_MAX_INDIVIDUAL_IMAGES) {
-      setGenerationError(`You can have up to ${UI_MAX_INDIVIDUAL_IMAGES} individual photo slots.`)
+      setGenerationError(t("errMaxSlots", { max: UI_MAX_INDIVIDUAL_IMAGES }))
       return
     }
     const newSlot: IndividualSlot = {
@@ -546,15 +542,15 @@ export function BeforeAfterPanel({
 
   const handleGenerateSingleSlot = async (slot: IndividualSlot, index: number) => {
     if (!jobId) {
-      setGenerationError("Save the quote first to generate and store before/after images.")
+      setGenerationError(t("errSaveFirst"))
       return
     }
     if (!slot.beforeFile && !slot.beforePreview) {
-      setGenerationError("Upload a before photo for this slot first.")
+      setGenerationError(t("errSlotBefore"))
       return
     }
     if (!slot.description.trim()) {
-      setGenerationError(`Add the finished look description for Photo #${index + 1}.`)
+      setGenerationError(t("errSlotDesc", { n: index + 1 }))
       return
     }
 
@@ -576,7 +572,7 @@ export function BeforeAfterPanel({
     try {
       const file = slot.beforeFile
       if (!file) {
-        throw new Error("Please re-select the before photo to generate.")
+        throw new Error(t("errReselect"))
       }
 
       const result = await api.generateAfterImagesBatch(jobId, {
@@ -613,10 +609,10 @@ export function BeforeAfterPanel({
           )
         )
       } else {
-        throw new Error(item?.error || "Generation failed for this photo.")
+        throw new Error(item?.error || t("errPhotoFailed"))
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Generation failed."
+      const msg = error instanceof Error ? error.message : t("errGenFailed")
       setIndividualSlots((prev) =>
         prev.map((s) =>
           s.id === slot.id ? { ...s, status: "failed", error: msg } : s
@@ -669,13 +665,13 @@ export function BeforeAfterPanel({
       )
       onSavedChange?.()
       toast({
-        title: "Saved to Quote",
-        description: `Photo #${slotIndex + 1} visualization saved to the quote.`,
+        title: t("savedTitle"),
+        description: t("savedSlotDesc", { n: slotIndex + 1 }),
       })
     } catch (err: any) {
       toast({
-        title: "Save Failed",
-        description: err?.message || "Failed to save visualization to quote.",
+        title: t("saveFailedTitle"),
+        description: err?.message || t("saveFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -749,15 +745,15 @@ export function BeforeAfterPanel({
       )
 
       toast({
-        title: "Visualization deleted",
-        description: "The before & after images were removed from this quote.",
+        title: t("deletedTitle"),
+        description: t("deletedDesc"),
       })
 
       onSavedChange?.()
     } catch (err: any) {
       toast({
-        title: "Delete failed",
-        description: err?.message || "Failed to remove visualization from quote.",
+        title: t("deleteFailedTitle"),
+        description: err?.message || t("deleteFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -801,7 +797,7 @@ export function BeforeAfterPanel({
         {!jobId && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-[12px] text-amber-700">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            Save the quote first to generate and store before/after images.
+            {t("saveFirstBanner")}
           </div>
         )}
 
@@ -819,7 +815,7 @@ export function BeforeAfterPanel({
           >
             <div className="flex items-center gap-1.5 text-[12px] font-semibold">
               <Camera className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Individual area photos</span>
+              <span>{t("modeIndividual")}</span>
             </div>
             <span className="mt-0.5 text-[10px] text-zinc-400">
               1 photo → 1 after render (up to 3 total)
@@ -837,7 +833,7 @@ export function BeforeAfterPanel({
           >
             <div className="flex items-center gap-1.5 text-[12px] font-semibold">
               <Layers className="h-3.5 w-3.5 text-blue-600" />
-              <span>Multiple angles of the same space</span>
+              <span>{t("modeMulti")}</span>
             </div>
             <span className="mt-0.5 text-[10px] text-zinc-400">
               2–4 angles consolidated into 1 master render
@@ -849,7 +845,7 @@ export function BeforeAfterPanel({
         <div className="rounded-xl border border-zinc-200/80 bg-white px-4 py-3 shadow-[0_1px_3px_rgb(15_17_21/0.04)]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Scope:</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{t("scope")}</p>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -858,7 +854,7 @@ export function BeforeAfterPanel({
                     className="h-7 max-w-full rounded-full px-3 text-[12px]"
                     disabled={usableLineItems.length === 0}
                   >
-                    <span className="mr-1">Quote Items</span>
+                    <span className="mr-1">{t("estimateItems")}</span>
                     {usableLineItems.length > 0 && (
                       <span className="text-[11px] text-zinc-400">
                         ({selectedUsableLineItems.length}/{usableLineItems.length})
@@ -870,7 +866,7 @@ export function BeforeAfterPanel({
                 <DropdownMenuContent align="start" className="w-80">
                   <div className="flex items-center justify-between px-2 py-1.5">
                     <DropdownMenuLabel className="p-0 text-[11px] font-medium text-zinc-500">
-                      Quote items to include in AI build plan
+                      {t("estimateItemsHint")}
                     </DropdownMenuLabel>
                     <div className="flex items-center gap-1">
                       <button
@@ -878,21 +874,21 @@ export function BeforeAfterPanel({
                         onClick={() => setAllLineItemsSelected(true)}
                         className="rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
                       >
-                        All
+                        {t("all")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setAllLineItemsSelected(false)}
                         className="rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
                       >
-                        None
+                        {t("none")}
                       </button>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
                   {usableLineItems.map((item) => {
                     const checked = selectedLineItems[item.originalIndex] ?? true
-                    const label = item.title?.trim() || item.description?.trim() || "Untitled item"
+                    const label = item.title?.trim() || item.description?.trim() || t("untitledItem")
                     const detail = item.title?.trim() && item.description?.trim() ? item.description?.trim() : null
 
                     return (
@@ -916,11 +912,11 @@ export function BeforeAfterPanel({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-zinc-500">Project context</span>
+              <span className="text-[11px] text-zinc-500">{t("projectContext")}</span>
               <Switch
                 checked={includeProjectContext}
                 onCheckedChange={setIncludeProjectContext}
-                aria-label="Include project context"
+                aria-label={t("includeProjectContext")}
                 className="scale-90"
               />
             </div>
@@ -934,10 +930,10 @@ export function BeforeAfterPanel({
               <div className="mb-2 flex items-center justify-between">
                 <div>
                   <p className="text-[10.5px] font-semibold uppercase tracking-wider text-zinc-400">
-                    Angle Photos ({multiAngleFiles.length}/{UI_MAX_MULTI_ANGLE_IMAGES})
+                    {t("anglePhotos", { count: multiAngleFiles.length, max: UI_MAX_MULTI_ANGLE_IMAGES })}
                   </p>
                   <p className="text-[11px] text-zinc-500">
-                    Upload 2 to 4 angles of the space. AI analyzes all angles for 3D context and renders on the Hero angle.
+                    {t("anglesHelp", { min: UI_MIN_MULTI_ANGLE_IMAGES, max: UI_MAX_MULTI_ANGLE_IMAGES })}
                   </p>
                 </div>
                 {multiAngleFiles.length < UI_MAX_MULTI_ANGLE_IMAGES && (
@@ -948,7 +944,7 @@ export function BeforeAfterPanel({
                     className="h-7 rounded-full px-3 text-[11.5px]"
                   >
                     <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-                    Add Angles
+                    {t("addAngles")}
                   </Button>
                 )}
                 <input
@@ -977,7 +973,7 @@ export function BeforeAfterPanel({
                         )}
                       >
                         <div className="aspect-[4/3] w-full overflow-hidden">
-                          <img src={item.preview} alt={`Angle ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={item.preview} alt={t("angleN", { n: index + 1 })} className="h-full w-full object-cover" />
                         </div>
 
                         {/* Badges and actions */}
@@ -985,7 +981,7 @@ export function BeforeAfterPanel({
                           {isHero ? (
                             <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-600">
                               <Star className="h-3 w-3 fill-blue-600 text-blue-600" />
-                              Hero Angle
+                              {t("heroAngle")}
                             </span>
                           ) : (
                             <button
@@ -993,7 +989,7 @@ export function BeforeAfterPanel({
                               onClick={() => setHeroAngleIndex(index)}
                               className="text-[10px] font-medium text-zinc-500 hover:text-blue-600"
                             >
-                              Set as Hero
+                              {t("setAsHero")}
                             </button>
                           )}
                         </div>
@@ -1002,7 +998,7 @@ export function BeforeAfterPanel({
                           type="button"
                           onClick={() => handleRemoveMultiFile(item.id)}
                           className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white/90 backdrop-blur-sm transition hover:bg-black/80"
-                          title="Remove angle"
+                          title={t("removeAngle")}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -1016,8 +1012,8 @@ export function BeforeAfterPanel({
                   className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 py-7 text-center transition hover:bg-zinc-50"
                 >
                   <ImagePlus className="mb-1.5 h-6 w-6 text-zinc-400" />
-                  <p className="text-[12.5px] font-medium text-zinc-700">Upload 2 to 4 photos of the same space</p>
-                  <p className="text-[11px] text-zinc-400">e.g. Center view, Left angle, Right boundary</p>
+                  <p className="text-[12.5px] font-medium text-zinc-700">{t("uploadRange", { min: UI_MIN_MULTI_ANGLE_IMAGES, max: UI_MAX_MULTI_ANGLE_IMAGES })}</p>
+                  <p className="text-[11px] text-zinc-400">{t("uploadExample")}</p>
                 </div>
               )}
             </div>
@@ -1032,7 +1028,7 @@ export function BeforeAfterPanel({
                 onChange={(e) => setMultiAngleDescription(e.target.value)}
                 rows={2}
                 className="min-h-[70px] resize-none rounded-lg border-zinc-200 text-[12.5px] placeholder:text-zinc-400 focus:border-zinc-400"
-                placeholder="Describe what the finished renovation will look like across the entire space (materials, styles, layout)..."
+                placeholder={t("masterPlaceholder")}
               />
             </div>
 
@@ -1042,8 +1038,8 @@ export function BeforeAfterPanel({
                 {isGenerating
                   ? loadingMessages[loadingMessageIndex]
                   : multiAngleFiles.length < UI_MIN_MULTI_ANGLE_IMAGES
-                    ? `Add at least ${UI_MIN_MULTI_ANGLE_IMAGES} angles`
-                    : `${multiAngleFiles.length} angles ready · Hero selected`}
+                    ? t("addAtLeast", { min: UI_MIN_MULTI_ANGLE_IMAGES })
+                    : t("anglesReady", { count: multiAngleFiles.length })}
               </p>
               <Button
                 type="button"
@@ -1059,12 +1055,12 @@ export function BeforeAfterPanel({
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Generating...
+                    {t("generating")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                    Generate Master Render
+                    {t("generateMaster")}
                   </>
                 )}
               </Button>
@@ -1077,7 +1073,7 @@ export function BeforeAfterPanel({
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                     <span className="text-[12px] font-semibold text-zinc-800">
-                      Analyzing {multiAngleFiles.length} angles & rendering master after view...
+                      {t("analyzing", { count: multiAngleFiles.length })}
                     </span>
                   </div>
                   <span className="text-[11px] text-zinc-400">{loadingMessages[loadingMessageIndex]}</span>
@@ -1087,20 +1083,20 @@ export function BeforeAfterPanel({
                     <div className="aspect-[16/10] overflow-hidden bg-zinc-100">
                       <img
                         src={multiAngleFiles[heroAngleIndex]?.preview}
-                        alt="Hero Angle"
+                        alt={t("heroAngle")}
                         className="h-full w-full object-cover"
                       />
                       <SilkGenerationLoader src={multiAngleFiles[heroAngleIndex]?.preview} />
                     </div>
                     <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
-                      Hero Angle · Analyzing
+                      {t("heroAnalyzing")}
                     </span>
                   </div>
                   <div className="flex aspect-[16/10] flex-col items-center justify-center bg-zinc-50/50 p-6 text-center">
                     <Sparkles className="mb-2 h-6 w-6 text-blue-500 animate-pulse" />
-                    <p className="text-[12.5px] font-semibold text-zinc-800">Ops Image Gen</p>
+                    <p className="text-[12.5px] font-semibold text-zinc-800">{t("opsImageGen")}</p>
                     <p className="mt-1 text-[11px] text-zinc-400 max-w-[240px]">
-                      Combining site geometry from all {multiAngleFiles.length} photos into one seamless photorealistic finish.
+                      {t("combining", { count: multiAngleFiles.length })}
                     </p>
                   </div>
                 </div>
@@ -1114,7 +1110,7 @@ export function BeforeAfterPanel({
                   <div className="flex items-center gap-2">
                     <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                     <span className="text-[12.5px] font-semibold text-zinc-900">
-                      Generated Master Render
+                      {t("generatedMaster")}
                     </span>
                     <span className="text-[11px] text-zinc-400">
                       ({latestMultiAngleResult.beforeAngles?.length || multiAngleFiles.length} angles synthesized)
@@ -1125,7 +1121,7 @@ export function BeforeAfterPanel({
                     {isMultiAngleSaved ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11.5px] font-semibold text-emerald-700 border border-emerald-200">
                         <Check className="h-3.5 w-3.5" />
-                        Saved in Quote
+                        {t("savedInEstimate")}
                       </span>
                     ) : (
                       <Button
@@ -1138,12 +1134,12 @@ export function BeforeAfterPanel({
                         {isSavingMultiAngle ? (
                           <>
                             <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            Saving...
+                            {t("saving")}
                           </>
                         ) : (
                           <>
                             <Check className="mr-1.5 h-3.5 w-3.5" />
-                            Save to Quote
+                            {t("saveToEstimate")}
                           </>
                         )}
                       </Button>
@@ -1157,7 +1153,7 @@ export function BeforeAfterPanel({
                       className="h-7.5 rounded-full px-3 text-[11.5px]"
                     >
                       <Download className="mr-1.5 h-3.5 w-3.5" />
-                      Download
+                      {t("download")}
                     </Button>
                   </div>
                 </div>
@@ -1171,7 +1167,7 @@ export function BeforeAfterPanel({
                           latestMultiAngleResult.beforeAngles?.[previewAngleIndex] ||
                           latestMultiAngleResult.beforePreview
                         }
-                        alt="Before view"
+                        alt={t("beforeView")}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -1191,14 +1187,14 @@ export function BeforeAfterPanel({
                                 : "bg-black/60 text-white/80 hover:bg-black/80"
                             )}
                           >
-                            {aIdx === 0 ? "Hero Angle" : `Angle ${aIdx + 1}`}
+                            {aIdx === 0 ? t("heroAngle") : t("angleN", { n: aIdx + 1 })}
                           </button>
                         ))}
                       </div>
                     )}
 
                     <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
-                      Before Photo
+                      {t("beforePhoto")}
                     </span>
                   </div>
 
@@ -1207,7 +1203,7 @@ export function BeforeAfterPanel({
                     <div className="aspect-[16/10] overflow-hidden bg-zinc-100">
                       <img
                         src={latestMultiAngleResult.afterUrl!}
-                        alt="After render"
+                        alt={t("afterRender")}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -1226,7 +1222,7 @@ export function BeforeAfterPanel({
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <p className="text-[11px] font-medium text-zinc-500">
-                Individual Photos ({individualSlots.length}/{UI_MAX_INDIVIDUAL_IMAGES}) · Generate one by one
+                {t("individualPhotos", { count: individualSlots.length, max: UI_MAX_INDIVIDUAL_IMAGES })}
               </p>
               {individualSlots.length < UI_MAX_INDIVIDUAL_IMAGES && (
                 <Button
@@ -1237,7 +1233,7 @@ export function BeforeAfterPanel({
                   className="h-7 rounded-full px-3 text-[11.5px]"
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
-                  Add Photo Slot
+                  {t("addPhotoSlot")}
                 </Button>
               )}
             </div>
@@ -1267,14 +1263,14 @@ export function BeforeAfterPanel({
                   {/* Card Header */}
                   <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-3.5 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11.5px] font-semibold text-zinc-700">Photo #{index + 1}</span>
+                      <span className="text-[11.5px] font-semibold text-zinc-700">{t("photoN", { n: index + 1 })}</span>
                       {slot.isSavedToQuote ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-100">
-                          <Check className="h-2.5 w-2.5" /> Saved in Quote
+                          <Check className="h-2.5 w-2.5" /> {t("savedInEstimate")}
                         </span>
                       ) : slot.afterUrl ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-100">
-                          Ready to save
+                          {t("readyToSave")}
                         </span>
                       ) : null}
                     </div>
@@ -1282,11 +1278,11 @@ export function BeforeAfterPanel({
                     <div className="flex items-center gap-2">
                       {slot.status === "failed" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
-                          <AlertCircle className="h-3 w-3" />Failed
+                          <AlertCircle className="h-3 w-3" />{t("failed")}
                         </span>
                       ) : isCardGenerating ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
-                          <Loader2 className="h-3 w-3 animate-spin" />Rendering...
+                          <Loader2 className="h-3 w-3 animate-spin" />{t("rendering")}
                         </span>
                       ) : null}
 
@@ -1301,7 +1297,7 @@ export function BeforeAfterPanel({
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 transition"
-                              title="Delete from quote"
+                              title={t("deleteFromEstimate")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -1314,7 +1310,7 @@ export function BeforeAfterPanel({
                           >
                             <div className="space-y-2">
                               <div className="space-y-1">
-                                <p className="text-xs font-semibold text-zinc-900">Delete visualization?</p>
+                                <p className="text-xs font-semibold text-zinc-900">{t("deleteVisualization")}</p>
                                 <p className="text-[11px] text-zinc-500 leading-snug">
                                   This will remove photo #{index + 1} from quote #{jobId}.
                                 </p>
@@ -1328,7 +1324,7 @@ export function BeforeAfterPanel({
                                   onClick={() => setDeletePopoverPairId(null)}
                                   disabled={deletingPairId === slot.id}
                                 >
-                                  Cancel
+                                  {t("cancel")}
                                 </Button>
                                 <Button
                                   type="button"
@@ -1351,10 +1347,10 @@ export function BeforeAfterPanel({
                                   {deletingPairId === slot.id ? (
                                     <>
                                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                      Deleting...
+                                      {t("deleting")}
                                     </>
                                   ) : (
-                                    "Confirm"
+                                    t("confirm")
                                   )}
                                 </Button>
                               </div>
@@ -1381,7 +1377,7 @@ export function BeforeAfterPanel({
                     <div className="relative border-r border-zinc-100">
                       {slot.beforePreview ? (
                         <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100">
-                          <img src={slot.beforePreview} alt={`Before ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={slot.beforePreview} alt={t("beforeN", { n: index + 1 })} className="h-full w-full object-cover" />
                           <button
                             type="button"
                             onClick={() => {
@@ -1390,7 +1386,7 @@ export function BeforeAfterPanel({
                             }}
                             className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm hover:bg-black/80"
                           >
-                            Replace Before
+                            {t("replaceBefore")}
                           </button>
                         </div>
                       ) : (
@@ -1402,7 +1398,7 @@ export function BeforeAfterPanel({
                           className="flex aspect-[16/10] cursor-pointer flex-col items-center justify-center bg-zinc-50/70 p-4 text-center transition hover:bg-zinc-100/70"
                         >
                           <ImagePlus className="mb-1 h-5 w-5 text-zinc-400" />
-                          <span className="text-[11.5px] font-medium text-zinc-600">Upload Before Photo</span>
+                          <span className="text-[11.5px] font-medium text-zinc-600">{t("uploadBefore")}</span>
                         </div>
                       )}
                     </div>
@@ -1411,7 +1407,7 @@ export function BeforeAfterPanel({
                     <div className="relative">
                       {slot.afterUrl ? (
                         <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100">
-                          <img src={slot.afterUrl} alt={`After ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={slot.afterUrl} alt={t("afterN", { n: index + 1 })} className="h-full w-full object-cover" />
                           <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                             <span className="rounded-md bg-black/60 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
                               After · AI
@@ -1422,7 +1418,7 @@ export function BeforeAfterPanel({
                               className="flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm hover:bg-black/80"
                             >
                               <Download className="h-3 w-3" />
-                              Download
+                              {t("download")}
                             </button>
                           </div>
                         </div>
@@ -1433,7 +1429,7 @@ export function BeforeAfterPanel({
                         </div>
                       ) : (
                         <div className="flex aspect-[16/10] items-center justify-center bg-zinc-50/40 p-4 text-center text-[11px] text-zinc-400">
-                          Generated after view will appear here
+                          {t("afterPlaceholder")}
                         </div>
                       )}
                     </div>
@@ -1442,14 +1438,14 @@ export function BeforeAfterPanel({
                   {/* Dedicated Description for this Photo */}
                   <div className="p-3.5">
                     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                      Finished Look for Photo #{index + 1} <span className="text-rose-400">*</span>
+                      {t("finishedLookFor", { n: index + 1 })} <span className="text-rose-400">*</span>
                     </label>
                     <Textarea
                       value={slot.description}
                       onChange={(e) => handleUpdateSlotDescription(slot.id, e.target.value)}
                       rows={2}
                       className="min-h-[56px] resize-none rounded-lg border-zinc-200 text-[12px] placeholder:text-zinc-400 focus:border-zinc-400"
-                      placeholder={`e.g. Modern travertine paver patio with built-in bench seating for Photo #${index + 1}...`}
+                      placeholder={t("slotPlaceholder", { n: index + 1 })}
                     />
 
                     <div className="mt-2.5 flex items-center justify-between">
@@ -1457,10 +1453,10 @@ export function BeforeAfterPanel({
                         {isCardGenerating
                           ? loadingMessages[loadingMessageIndex]
                           : slot.isSavedToQuote
-                            ? "Saved in quote"
+                            ? t("savedInEstimate")
                             : slot.afterUrl
-                              ? "Ready to save"
-                              : "Ready"}
+                              ? t("readyToSave")
+                              : t("ready")}
                       </span>
 
                       <div className="flex items-center gap-2">
@@ -1476,12 +1472,12 @@ export function BeforeAfterPanel({
                             {savingSlotId === slot.id ? (
                               <>
                                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                                Saving...
+                                {t("saving")}
                               </>
                             ) : (
                               <>
                                 <Check className="mr-1 h-3.5 w-3.5" />
-                                Save to Quote
+                                {t("saveToEstimate")}
                               </>
                             )}
                           </Button>
@@ -1497,12 +1493,12 @@ export function BeforeAfterPanel({
                           {isCardGenerating ? (
                             <>
                               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                              Rendering...
+                              {t("rendering")}
                             </>
                           ) : slot.afterUrl ? (
                             <>
                               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                              Regenerate
+                              {t("regenerate")}
                             </>
                           ) : (
                             <>
@@ -1539,10 +1535,10 @@ export function BeforeAfterPanel({
           <div className="space-y-2.5 pt-3 border-t border-zinc-200/80">
             <div className="flex items-center justify-between px-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                Saved in Quote ({completedPairs.length})
+                {t("savedInEstimateCount", { count: completedPairs.length })}
               </p>
               <span className="text-[10.5px] text-zinc-400">
-                Attached to quote #{jobId}
+                {t("attachedTo", { id: jobId ?? "" })}
               </span>
             </div>
 
@@ -1584,7 +1580,7 @@ export function BeforeAfterPanel({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 transition"
-                          title="Remove from quote"
+                          title={t("removeFromEstimate")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -1597,9 +1593,9 @@ export function BeforeAfterPanel({
                       >
                         <div className="space-y-2">
                           <div className="space-y-1">
-                            <p className="text-xs font-semibold text-zinc-900">Delete visualization?</p>
+                            <p className="text-xs font-semibold text-zinc-900">{t("deleteVisualization")}</p>
                             <p className="text-[11px] text-zinc-500 leading-snug">
-                              This will remove the before &amp; after images from quote #{jobId}.
+                              {t("deleteVisualizationDesc", { id: jobId ?? "" })}
                             </p>
                           </div>
                           <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-zinc-100">
@@ -1611,7 +1607,7 @@ export function BeforeAfterPanel({
                               onClick={() => setDeletePopoverPairId(null)}
                               disabled={deletingPairId === pair.id}
                             >
-                              Cancel
+                              {t("cancel")}
                             </Button>
                             <Button
                               type="button"
@@ -1624,10 +1620,10 @@ export function BeforeAfterPanel({
                               {deletingPairId === pair.id ? (
                                 <>
                                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                  Deleting...
+                                  {t("deleting")}
                                 </>
                               ) : (
-                                "Confirm"
+                                t("confirm")
                               )}
                             </Button>
                           </div>
@@ -1659,14 +1655,14 @@ export function BeforeAfterPanel({
                                   : "bg-black/60 text-white/80 hover:bg-black/80"
                               )}
                             >
-                              {aIdx === 0 ? "Hero" : `Angle ${aIdx + 1}`}
+                              {aIdx === 0 ? t("hero") : t("angleN", { n: aIdx + 1 })}
                             </button>
                           ))}
                         </div>
                       )}
 
                       <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
-                        Before Photo
+                        {t("beforePhoto")}
                       </span>
                     </div>
 
@@ -1677,7 +1673,7 @@ export function BeforeAfterPanel({
                       </div>
                       <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                         <span className="rounded-md bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
-                          After · AI Render
+                          {t("afterAiRender")}
                         </span>
                         <button
                           type="button"
@@ -1685,7 +1681,7 @@ export function BeforeAfterPanel({
                           className="flex items-center gap-1 rounded-md bg-black/60 px-2.5 py-1 text-[10px] font-medium text-white/90 backdrop-blur-sm hover:bg-black/80 transition"
                         >
                           <Download className="h-3 w-3" />
-                          Download
+                          {t("download")}
                         </button>
                       </div>
                     </div>
