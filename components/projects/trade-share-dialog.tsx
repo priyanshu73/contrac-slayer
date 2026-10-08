@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTranslations } from "next-intl"
 import {
   Dialog,
   DialogContent,
@@ -23,20 +24,16 @@ function getTradeScopeLink(trade: ProjectTrade, locale = "en"): string {
   return `${window.location.origin}/${locale}/projects/trade/${trade.uuid}`
 }
 
-const defaultEmailSubject = (projectTitle: string, tradeType: string) =>
-  `Your scope: ${tradeType} – ${projectTitle}`
+type Translator = (key: string, values?: Record<string, string | number>) => string
 
-const defaultEmailBody = (subcontractorName: string, projectTitle: string, scopeLink: string) =>
-  `Hi ${subcontractorName},
+const defaultEmailSubject = (t: Translator, projectTitle: string, tradeType: string) =>
+  t("emailSubject", { trade: tradeType, project: projectTitle })
 
-Your scope for "${projectTitle}" is ready. You can view details and accept it here:
+const defaultEmailBody = (t: Translator, subcontractorName: string, projectTitle: string, scopeLink: string) =>
+  t("emailBody", { name: subcontractorName, project: projectTitle, link: scopeLink })
 
-${scopeLink}
-
-Let us know if you have any questions.`
-
-const defaultSmsMessage = (subcontractorName: string, projectTitle: string, scopeLink: string) =>
-  `Hi ${subcontractorName}, your scope for ${projectTitle} is ready. View and accept here: ${scopeLink}`
+const defaultSmsMessage = (t: Translator, subcontractorName: string, projectTitle: string, scopeLink: string) =>
+  t("smsBody", { name: subcontractorName, project: projectTitle, link: scopeLink })
 
 /** Escape for HTML text content (no tags) */
 function escapeHtml(s: string): string {
@@ -126,6 +123,7 @@ export function TradeSendEmailDialog({
   onSent,
 }: TradeSendEmailDialogProps) {
   const { toast } = useToast()
+  const t = useTranslations("projectsPage.tradeShare")
   const [to, setTo] = useState("")
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
@@ -135,19 +133,19 @@ export function TradeSendEmailDialog({
     if (open && trade) {
       setTo(trade.subcontractor_email ?? "")
       const scopeLink = getTradeScopeLink(trade, locale)
-      setSubject(defaultEmailSubject(projectTitle, trade.trade_type))
-      setBody(defaultEmailBody(trade.subcontractor_name, projectTitle, scopeLink))
+      setSubject(defaultEmailSubject(t, projectTitle, trade.trade_type))
+      setBody(defaultEmailBody(t, trade.subcontractor_name, projectTitle, scopeLink))
     }
-  }, [open, trade, projectTitle, locale])
+  }, [open, trade, projectTitle, locale, t])
 
   const handleSubmit = async () => {
     const toTrim = to.trim()
     if (!toTrim) {
-      toast({ title: "Enter email", description: "Please enter the subcontractor's email address.", variant: "destructive" })
+      toast({ title: t("enterEmail"), description: t("enterEmailDesc"), variant: "destructive" })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toTrim)) {
-      toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" })
+      toast({ title: t("invalidEmail"), description: t("invalidEmailDesc"), variant: "destructive" })
       return
     }
     setSending(true)
@@ -161,17 +159,17 @@ export function TradeSendEmailDialog({
       )
       await api.gmailSend({
         to: toTrim,
-        subject: subject.trim() || defaultEmailSubject(projectTitle, trade?.trade_type ?? "Scope"),
+        subject: subject.trim() || defaultEmailSubject(t, projectTitle, trade?.trade_type ?? t("scope")),
         body_html: bodyHtml,
-        body_plain: body.trim() || defaultEmailBody(trade!.subcontractor_name, projectTitle, scopeLink),
+        body_plain: body.trim() || defaultEmailBody(t, trade!.subcontractor_name, projectTitle, scopeLink),
       })
-      toast({ title: "Email sent", description: `Scope link sent to ${toTrim}.` })
+      toast({ title: t("emailSent"), description: t("emailSentDesc", { email: toTrim }) })
       onOpenChange(false)
       onSent?.()
     } catch (err: any) {
       toast({
-        title: "Send failed",
-        description: err?.message ?? "Failed to send email. Is Gmail connected in Settings?",
+        title: t("sendFailed"),
+        description: err?.message ?? t("emailFailedDesc"),
         variant: "destructive",
       })
     } finally {
@@ -188,27 +186,27 @@ export function TradeSendEmailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader className="pb-2">
-          <DialogTitle>Send scope via email</DialogTitle>
+          <DialogTitle>{t("emailTitle")}</DialogTitle>
           <DialogDescription>
-            Send the scope link to {trade.subcontractor_name}. Email will be sent from your connected Gmail.
+            {t("emailDesc", { name: trade.subcontractor_name })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-0 border-t">
           {/* From */}
           <div className="flex items-center gap-3 py-3 border-b px-1">
-            <span className="text-muted-foreground text-sm w-14 shrink-0">From</span>
+            <span className="text-muted-foreground text-sm w-14 shrink-0">{t("from")}</span>
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <UserCircle className="h-5 w-5" />
               </div>
-              <span className="truncate text-sm font-medium text-muted-foreground">Your connected Gmail</span>
+              <span className="truncate text-sm font-medium text-muted-foreground">{t("connectedGmail")}</span>
             </div>
           </div>
 
           {/* To */}
           <div className="flex items-start gap-3 py-3 border-b px-1">
-            <span className="text-muted-foreground text-sm w-14 shrink-0 pt-2.5">To</span>
+            <span className="text-muted-foreground text-sm w-14 shrink-0 pt-2.5">{t("to")}</span>
             <div className="min-w-0 flex-1">
               <Input
                 id="trade-email-to"
@@ -224,32 +222,32 @@ export function TradeSendEmailDialog({
 
           {/* Subject */}
           <div className="flex items-center gap-3 py-3 border-b px-1">
-            <span className="text-muted-foreground text-sm w-14 shrink-0">Subject</span>
+            <span className="text-muted-foreground text-sm w-14 shrink-0">{t("subject")}</span>
             <Input
               id="trade-email-subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Subject"
+              placeholder={t("subject")}
               className="min-h-9 flex-1 border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent px-0"
             />
           </div>
 
           {/* Message */}
           <div className="flex gap-3 py-3 px-1">
-            <span className="text-muted-foreground text-sm w-14 shrink-0 pt-2.5">Message</span>
+            <span className="text-muted-foreground text-sm w-14 shrink-0 pt-2.5">{t("message")}</span>
             <Textarea
               id="trade-email-body"
               rows={5}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               className="min-w-0 flex-1 resize-y rounded-md border border-input bg-background"
-              placeholder="Message body..."
+              placeholder={t("messageBodyPlaceholder")}
             />
           </div>
 
           {/* Preview: what they'll receive + view link */}
           <div className="rounded-lg border bg-muted/30 p-3 mx-1 mt-2">
-            <p className="text-xs text-muted-foreground mb-2">What the subcontractor will receive</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("willReceive")}</p>
             <div className="rounded-md border bg-background p-3 text-left space-y-2">
               <p className="text-sm text-muted-foreground">
                 Hi{firstName && firstName !== "there" ? ` ${firstName}` : ""},
@@ -273,11 +271,11 @@ export function TradeSendEmailDialog({
         </div>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>{t("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={sending || !to.trim()}>
             {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <SendIcon className="mr-2 h-4 w-4" />
-            Send email
+            {t("sendEmail")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -307,23 +305,24 @@ export function TradeSendSmsDialog({
   onSent,
 }: TradeSendSmsDialogProps) {
   const { toast } = useToast()
+  const t = useTranslations("projectsPage.tradeShare")
   const [messageText, setMessageText] = useState("")
   const [sending, setSending] = useState(false)
 
   useEffect(() => {
     if (open && trade) {
       const scopeLink = getTradeScopeLink(trade, locale)
-      setMessageText(defaultSmsMessage(trade.subcontractor_name, projectTitle, scopeLink))
+      setMessageText(defaultSmsMessage(t, trade.subcontractor_name, projectTitle, scopeLink))
     }
-  }, [open, trade, projectTitle, locale])
+  }, [open, trade, projectTitle, locale, t])
 
   const handleSubmit = async () => {
     if (!trade?.contact_info?.trim()) {
-      toast({ title: "No phone number", description: "Add a phone number for this subcontractor to send SMS.", variant: "destructive" })
+      toast({ title: t("noPhone"), description: t("noPhoneDesc"), variant: "destructive" })
       return
     }
     if (!spId) {
-      toast({ title: "SMS not available", description: "Connect Contractor AI in Settings → Integrations to send SMS.", variant: "destructive" })
+      toast({ title: t("smsUnavailable"), description: t("smsUnavailableDesc"), variant: "destructive" })
       return
     }
     if (!messageText.trim()) return
@@ -335,11 +334,11 @@ export function TradeSendSmsDialog({
         reference_type: "project_trade",
         reference_id: trade.id,
       })
-      toast({ title: "SMS sent", description: "Scope link sent to subcontractor." })
+      toast({ title: t("smsSent"), description: t("smsSentDesc") })
       onOpenChange(false)
       onSent?.()
     } catch (err: any) {
-      toast({ title: "Send failed", description: err?.message ?? "Failed to send SMS.", variant: "destructive" })
+      toast({ title: t("sendFailed"), description: err?.message ?? t("smsFailedDesc"), variant: "destructive" })
     } finally {
       setSending(false)
     }
@@ -353,22 +352,22 @@ export function TradeSendSmsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Send scope via SMS</DialogTitle>
+          <DialogTitle>{t("smsTitle")}</DialogTitle>
           <DialogDescription>
             {hasPhone
-              ? `Send the scope link to ${trade.subcontractor_name} at ${trade.contact_info}.`
-              : `No phone number for ${trade.subcontractor_name}. Add one in the trade details to send SMS.`}
+              ? t("smsDesc", { name: trade.subcontractor_name, phone: trade.contact_info ?? "" })
+              : t("smsNoPhoneDesc", { name: trade.subcontractor_name })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="trade-sms-message">Message</Label>
+            <Label htmlFor="trade-sms-message">{t("message")}</Label>
             <Textarea
               id="trade-sms-message"
               rows={4}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Message to subcontractor..."
+              placeholder={t("smsPlaceholder")}
               maxLength={500}
               disabled={!hasPhone}
             />
@@ -376,11 +375,11 @@ export function TradeSendSmsDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>{t("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={sending || !messageText.trim() || !hasPhone || !spId}>
             {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <SendIcon className="mr-2 h-4 w-4" />
-            Send SMS
+            {t("sendSms")}
           </Button>
         </DialogFooter>
       </DialogContent>
