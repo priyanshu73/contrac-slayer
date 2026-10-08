@@ -210,4 +210,4 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
             </DialogContent>
         </Dialog>
     )
-                                    }
+}
