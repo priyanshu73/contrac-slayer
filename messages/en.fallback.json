@@ -197,7 +197,94 @@
     "deleteQuoteTitle": "Delete Estimate",
     "deleteQuoteConfirm": "Are you sure you want to delete the estimate for <strong>{client}</strong>? This action cannot be undone.",
     "thisClient": "this client",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "detail": {
+      "linkedToProject": "Estimate linked to project",
+      "linkFailed": "Failed to link project",
+      "unlinkedFromProject": "Estimate unlinked from project",
+      "unlinkFailed": "Failed to unlink project",
+      "error": "Error",
+      "changeOrderFailed": "Failed to create change order",
+      "emailNotConnected": "Email account not connected",
+      "connectEmailRich": "Connect Google or Microsoft in <link>Settings → Integrations</link> to send the estimate from your connected account.",
+      "prepareEmailFailed": "Failed to prepare email.",
+      "enterEmail": "Enter email",
+      "enterClientEmail": "Please enter the client's email address.",
+      "linkUnavailable": "Estimate link is not available.",
+      "estimateSent": "Estimate sent",
+      "sentTo": "Sent to {email}.",
+      "sendFailed": "Send failed",
+      "invalidTo": "Please enter a valid email address in the To field and try again.",
+      "sendEmailFailed": "Failed to send email.",
+      "estimateDeleted": "Estimate deleted",
+      "estimateRemoved": "Estimate #{id} has been removed.",
+      "deleteFailed": "Delete failed",
+      "deleteEstimateFailed": "Failed to delete estimate.",
+      "invoiceCreated": "Invoice created",
+      "invoiceCreatedQbo": "Invoice created in ContractorOps and QuickBooks.",
+      "invoiceQboSyncFailed": "Invoice created in ContractorOps, but QuickBooks sync failed: {error}",
+      "unknownError": "Unknown error",
+      "invoiceCreatedDesc": "Invoice {number} has been created. View it in your Invoices tab.",
+      "invoiceFailed": "Failed to create invoice",
+      "somethingWrong": "Something went wrong.",
+      "invoiceSent": "Invoice sent",
+      "invoiceEmailed": "Invoice emailed to client.",
+      "invoiceSendFailed": "Failed to send invoice",
+      "smsUnavailable": "SMS not available",
+      "smsNotSetUp": "Your ContractorOps number is not set up. Connect it in settings to send the estimate via SMS.",
+      "numberRequired": "ContractorOps number required",
+      "numberRequiredDesc": "Set up your ContractorOps number in Settings → Integrations to send the estimate via SMS.",
+      "noPhone": "No phone number",
+      "noPhoneDesc": "Add a phone number for this client to send the estimate via SMS.",
+      "linkGenFailed": "Failed to generate estimate link",
+      "tryAgain": "Please try again.",
+      "smsDocsReady": "Hi {name}, your documents are ready. View them here: {url}",
+      "smsFailed": "Failed to send SMS. Please try again.",
+      "followupBasic": "Hi {name}, just following up on the estimate we sent. Do you have any questions?",
+      "followupWithLink": "Hi {name}, just following up on the estimate we sent. You can view it here: {url}\n\nDo you have any questions?",
+      "followupNotSetUp": "Unable to send follow-up. Your ContractorOps number is not set up.",
+      "customerPhoneMissing": "Customer phone number not found. Add a phone number for the client to send SMS.",
+      "clientEmailMissing": "Client email not found. Add an email for the client to send follow-up by email.",
+      "selectChannel": "Select at least one: SMS or Email.",
+      "followupSent": "Follow-up sent!",
+      "followupSentDesc": "{mix, select, sms {SMS sent to {name} successfully.} email {Email sent to {name} successfully.} other {SMS and email sent to {name} successfully.}}",
+      "followupFailed": "Failed to send follow-up",
+      "customer": "Customer",
+      "backToEstimates": "Back to Estimates",
+      "breadcrumbEstimates": "Estimates",
+      "changeOrderNum": "Change Order #{id}",
+      "estimateNum": "Estimate #{id}",
+      "linkedProject": "Linked to project",
+      "noProjects": "No projects found",
+      "createProject": "Create Project",
+      "deleteTitle": "Delete estimate?",
+      "deleteDesc": "This permanently removes estimate #{id}. This action cannot be undone.",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "deleteEstimate": "Delete estimate",
+      "acceptedTitle": "This estimate has already been accepted",
+      "acceptedDesc": "Estimate #{id} has been accepted, so editing it directly would change a signed contract. Create a change order instead to capture the revision while keeping the original on record.",
+      "creating": "Creating...",
+      "createChangeOrder": "Create change order",
+      "beforeAfterTitle": "AI Before and After",
+      "beforeAfterDesc": "Upload a before photo, choose the saved estimate items to include, and generate an AI preview for this estimate. Generated images are not actual completed work.",
+      "estimateSentTo": "Estimate sent to {email}",
+      "sentConfirmDesc": "Your client will receive the email from your connected account with a secure View & Sign link.",
+      "linkCopied": "Link copied",
+      "copied": "Copied!",
+      "copyShareLink": "Copy share link",
+      "close": "Close",
+      "reviewSend": "Review & Send Estimate",
+      "from": "From",
+      "to": "To",
+      "clientEmailPlaceholder": "Enter client email address",
+      "subject": "Subject",
+      "noteOptional": "Add a short message (optional)",
+      "clientWillReceive": "What your client will receive",
+      "discard": "Discard",
+      "sending": "Sending…",
+      "sendEstimate": "Send Estimate"
+    }
   },
   "leads": {
     "fromQuoteRequest": "From Estimate Request",
@@ -231,7 +318,8 @@
   "billing": {
     "features": {
       "aiQuoteGeneration": "AI-Powered Estimate Generation",
-      "unlimitedQuotes": "Unlimited Estimates & Invoices"
+      "unlimitedQuotes": "Unlimited Estimates & Invoices",
+      "quotesAndInvoices": "Estimates & Invoices"
     },
     "success": {
       "subscriptionActive": "Your workspace is ready. Start managing leads, estimates, jobs, and invoices from one clean dashboard."
@@ -262,6 +350,9 @@
   "frontline": {
     "setup": {
       "pricingDesc": "{operatorName} won't estimate exact prices — just enough to sound informed."
+    },
+    "settings": {
+      "pricingDesc": "Share ranges and fees; Frontline will not promise an exact estimate."
     }
   },
   "menu": {
@@ -270,6 +361,9 @@
   "website": {
     "gallery": {
       "importPrivacyUntitled": "Copy one image into this project. Customer names, addresses and project notes are not copied."
+    },
+    "setup": {
+      "areasHint": "One public area label per line. This display list does not change estimate eligibility."
     }
   },
   "dashboardHome": {
