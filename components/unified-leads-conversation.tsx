@@ -639,13 +639,13 @@ export function CallHistorySection({ phoneNumber, currentLeadId }: CallHistorySe
     const getDisplaySpeaker = (speaker: string): string => {
       const speakerLower = speaker.trim().toLowerCase()
       if (speakerLower.includes('contractor') || speakerLower.includes('contratista')) {
-        return isTranslated || locale === 'es' ? tLeads('unified.conv.contractor') : 'Contractor'
+        return tLeads('unified.conv.contractor')
       }
       if (speakerLower.includes('frontline') || speakerLower.includes('assistant')) {
         return tLeads('unified.conv.frontline')
       }
       if (speakerLower.includes('customer') || speakerLower.includes('client') || speakerLower.includes('cliente')) {
-        return isTranslated || locale === 'es' ? tLeads('unified.conv.customer') : 'Customer'
+        return tLeads('unified.conv.customer')
       }
       return speaker.trim()
     }
