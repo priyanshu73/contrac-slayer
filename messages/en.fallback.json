@@ -557,6 +557,87 @@
       "unlink": "Unlink",
       "delete": "Delete",
       "preview": "Preview"
+    },
+    "tasks": {
+      "noMatches": "No matches",
+      "selectProjectToast": "Please select a project",
+      "project": "Project",
+      "selectProject": "Select a project"
+    },
+    "brief": {
+      "title": "Project Brief",
+      "saved": "Saved",
+      "answeredOf": "{answered} of {total} answered",
+      "hideLong": "Hide long brief",
+      "openLong": "Open long brief",
+      "phaseN": "Phase {number}",
+      "remove": "Remove",
+      "phaseName": "Phase name",
+      "duration": "Duration",
+      "crew": "Crew",
+      "phaseDescription": "What happens in this phase?",
+      "dependencies": "Dependencies",
+      "weatherSensitive": "Weather sensitive",
+      "clickToAnswer": "Click to answer",
+      "selectOption": "Select an option...",
+      "typeAnswer": "Type your answer...",
+      "sections": {
+        "client-context": "Client-Specific Context",
+        "scope": "Scope Boundaries",
+        "timeline": "Timeline"
+      },
+      "questions": {
+        "client_priorities": {
+          "label": "What did the client emphasize most?",
+          "placeholder": "e.g. \"Wants more natural light and storage before family visits\""
+        },
+        "client_concerns": {
+          "label": "Concerns or hesitations they raised",
+          "placeholder": "e.g. \"Worried about dust, timeline, and budget creep\""
+        },
+        "competing_bids": {
+          "label": "Competing bids mentioned",
+          "placeholder": "e.g. \"Received another bid that excludes finish carpentry\""
+        },
+        "timeline_pressure": {
+          "label": "Timeline pressure or event-driven?",
+          "placeholder": "e.g. \"Needs to be done before guests arrive in mid-June\""
+        },
+        "whats_included": {
+          "label": "What's included",
+          "placeholder": "e.g. \"Demo, framing changes, drywall patching, paint touch-up, new closet build\""
+        },
+        "whats_excluded": {
+          "label": "What's NOT included",
+          "placeholder": "e.g. \"Permits, flooring replacement outside work area, electrical redesign\""
+        },
+        "allowances": {
+          "label": "Allowances vs. fixed costs",
+          "placeholder": "e.g. \"Closet hardware allowance; framing and drywall are fixed\""
+        },
+        "known_risks": {
+          "label": "Known risks or unknowns",
+          "placeholder": "e.g. \"Hidden framing conditions once window wall is opened up\""
+        },
+        "start_date": {
+          "label": "Estimated start date"
+        },
+        "total_duration": {
+          "label": "Total duration",
+          "placeholder": "e.g. \"2-3 weeks\""
+        },
+        "phases": {
+          "label": "Project phases"
+        },
+        "working_hours": {
+          "label": "On-site working hours / days",
+          "placeholder": "e.g. \"Mon-Fri 7am-4pm\""
+        },
+        "lead_time_dependencies": {
+          "label": "Weather or lead-time dependencies",
+          "placeholder": "e.g. \"Custom windows require a 2-week lead time\""
+        }
+      }
     }
   },
   "reportsPage": {
