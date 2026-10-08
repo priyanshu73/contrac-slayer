@@ -1,0 +1,295 @@
+{
+  "landing": {
+    "heroStrip3Body": "Costos, presupuestos y facturas se mantienen alineados.",
+    "workflowBottomBody": "Los clientes siguen usando llamadas y mensajes. Tu equipo obtiene el CRM, calendario, presupuestos, proyectos y finanzas organizados detrás de escena.",
+    "workflowBottomChip3": "Presupuestos",
+    "pricingBasic3": "Generación de Presupuestos con IA",
+    "featuresPmBody": "Tareas, alcances, documentos y traspasos de cuadrilla quedan unidos al proyecto para que nada se pierda tras el presupuesto.",
+    "featuresProofBody": "Los visitantes entienden el sistema rápido: responde antes, presupuesta mejor, despacha con inteligencia y mantén el dinero organizado.",
+    "workflowStep2Label": "Presupuesta"
+  },
+  "navigation": {
+    "quotes": "Presupuestos",
+    "today": "Hoy",
+    "sales": "Ventas",
+    "work": "Trabajo",
+    "aiAgents": "Agentes de IA",
+    "crew": "Equipo",
+    "late": "{count} atrasadas",
+    "collapse": "Contraer",
+    "collapseSidebar": "Contraer barra lateral",
+    "expandSidebar": "Expandir barra lateral",
+    "pageSales": "Ventas",
+    "pageWork": "Trabajo",
+    "pageEngage": "Atención al cliente",
+    "leadDetails": "Detalles del prospecto",
+    "createProposal": "Crear propuesta",
+    "newQuote": "Nuevo presupuesto",
+    "copyQuote": "Copiar presupuesto",
+    "proposalBuilder": "Creador de propuestas",
+    "editQuote": "Editar presupuesto",
+    "quoteDetails": "Detalles del presupuesto",
+    "customerInvoice": "Factura del cliente",
+    "invoiceDetails": "Detalles de la factura",
+    "bookingDetails": "Detalles de la reserva",
+    "newClient": "Nuevo cliente",
+    "clientDetails": "Detalles del cliente",
+    "reviewPacket": "Paquete de revisión",
+    "workflows": "Flujos de trabajo",
+    "newCampaign": "Nueva campaña",
+    "campaignDetails": "Detalles de la campaña",
+    "crewDetails": "Detalles del equipo",
+    "tradeScope": "Alcance del oficio",
+    "projectDetails": "Detalles del proyecto"
+  },
+  "projects": {
+    "emptyState": "Aún no hay proyectos. Crea uno desde un presupuesto aceptado o agrégalo manualmente.",
+    "newProjectDialog": {
+      "fields": {
+        "quote": "Presupuesto / Trabajo",
+        "selectQuote": "Seleccionar un presupuesto",
+        "searchJobs": "Buscar presupuestos...",
+        "loadingJobs": "Cargando presupuestos...",
+        "noJobs": "No se encontraron presupuestos"
+      }
+    },
+    "changeOrders": {
+      "noRootJob": "Este proyecto aún no está vinculado a un presupuesto. Vincula uno para ver las órdenes de cambio."
+    },
+    "detail": {
+      "tabs": {
+        "quotes": "Presupuestos"
+      }
+    },
+    "quotes": {
+      "title": "Presupuestos",
+      "noQuotes": "Aún no se han vinculado presupuestos a este proyecto.",
+      "linkQuote": "Vincular presupuesto",
+      "loading": "Cargando presupuestos...",
+      "loadFailed": "No se pudieron cargar los presupuestos.",
+      "empty": "No hay presupuestos vinculados a este proyecto.",
+      "selectQuote": "Selecciona un presupuesto para vincularlo",
+      "noAvailableQuotes": "No hay presupuestos sin vincular disponibles.",
+      "linkSuccess": "Presupuesto vinculado correctamente",
+      "linkError": "No se pudo vincular el presupuesto",
+      "linkQuoteDialogTitle": "Vincular presupuesto al proyecto",
+      "linkQuoteDialogDescription": "Selecciona un presupuesto existente para asociarlo a este proyecto. Un presupuesto solo puede pertenecer a un proyecto a la vez."
+    }
+  },
+  "auth": {
+    "signupTabQuotes": "Presupuestos",
+    "signupFeature2": "Crea presupuestos profesionales en minutos"
+  },
+  "dashboard": {
+    "recentQuotes": "Presupuestos",
+    "createQuote": "Crear Presupuesto",
+    "copyQuote": "Copiar Presupuesto",
+    "noQuotesYet": "No hay presupuestos aún. ¡Crea tu primer presupuesto!",
+    "stats": {
+      "paidQuotes": "De presupuestos pagados"
+    },
+    "actions": {
+      "createQuote": "Crear Presupuesto"
+    },
+    "proposalSelector": {
+      "title": "Seleccionar presupuesto para propuesta",
+      "description": "Elige un presupuesto para abrirlo en el editor de propuestas.",
+      "emptyTitle": "No hay presupuestos disponibles",
+      "emptyDescription": "Primero crea un presupuesto y luego conviértelo en una propuesta."
+    },
+    "quoteRequest": {
+      "title": "Formulario de Solicitud de Presupuesto",
+      "linkCopiedDesc": "El enlace de solicitud de presupuesto ha sido copiado al portapapeles."
+    }
+  },
+  "settings": {
+    "laborRateTooltip": "Su tarifa predeterminada por hora, día o pie cuadrado para mano de obra en presupuestos",
+    "salesTaxTooltip": "Aplicado a artículos gravables en presupuestos y facturas",
+    "quoteTierMarkups": "Márgenes por Nivel de Presupuesto",
+    "tabFollowups": "Seguimientos",
+    "tabCostBook": "Libro de costos",
+    "tabBusiness": "Negocio",
+    "tabTeam": "Equipo",
+    "tabAutoReply": "Respuesta automática",
+    "tabIntegrations": "Integraciones",
+    "tabBilling": "Facturación"
+  },
+  "scheduling": {
+    "settings": {
+      "quoteFollowups": "Seguimientos de Presupuestos",
+      "quoteFollowupsDesc": "Seguir automáticamente con clientes que no han respondido a presupuestos",
+      "daysAfterQuote": "Días después de enviar presupuesto",
+      "daysAfterQuoteHint": "Enviar seguimiento tantos días después de enviar el presupuesto",
+      "quoteTemplate": "Plantilla de Seguimiento de Presupuesto",
+      "quoteTemplatePlaceholder": "Hola '{customer_name}', solo seguimiento sobre el presupuesto que enviamos...",
+      "quoteCadence": "Cadencia de seguimiento de presupuestos",
+      "quoteCadenceDesc": "Después de enviar un presupuesto, estos mensajes salen en los días indicados hasta que el cliente responda, firme o rechace.",
+      "cadenceStops": "Se detiene automáticamente cuando el cliente responde, acepta o rechaza el presupuesto, o se da de baja.",
+      "sendDays": "Seguimientos de presupuesto los"
+    },
+    "list": {
+      "typeQuote": "Seguimiento de Presupuesto",
+      "openQuote": "Abrir presupuesto",
+      "reasonQuoteAccepted": "presupuesto aceptado",
+      "reasonQuoteRejected": "presupuesto rechazado",
+      "reasonQuoteClosed": "presupuesto cerrado"
+    },
+    "dialog": {
+      "templateQuote": "Seguimiento de Presupuesto"
+    }
+  },
+  "clientCommunications": {
+    "quoteFollowup": "Seguimiento de Presupuesto",
+    "quoteFollowupDesc": "Programar un seguimiento para un presupuesto",
+    "selectQuote": "Seleccionar presupuesto",
+    "selectQuoteRequired": "Por favor seleccione un presupuesto.",
+    "noQuotes": "No hay presupuestos para este cliente. Cree un presupuesto primero.",
+    "quoteFollowupMessageHint": "Incluya el enlace del presupuesto y pregunte si tienen preguntas.",
+    "fetchingQuoteLink": "Obteniendo enlace de presupuesto...",
+    "signQuoteFirst": "Por favor firme el presupuesto primero para generar un enlace, o elimine el marcador de enlace del mensaje."
+  },
+  "quotes": {
+    "listTitle": "Presupuestos",
+    "noMatches": "No hay presupuestos con estos filtros.",
+    "quoteNumber": "Presupuesto n.º {id}",
+    "statusUpdated": "Estado del presupuesto actualizado a {status}.",
+    "sendToClientTooltipReady": "Abre el correo con el enlace del presupuesto para enviar al cliente.",
+    "sendToClientTooltipSignFirst": "Firma el presupuesto primero para enviarlo al cliente.",
+    "copyLinkTooltipSignFirst": "Firma el presupuesto primero para generar un enlace público.",
+    "copyLinkTooltipCopy": "Copiar enlace de presupuesto",
+    "newQuote": "Nuevo presupuesto",
+    "noQuotesYet": "Aún no hay presupuestos",
+    "createFirstQuote": "Crea tu primer presupuesto para comenzar.",
+    "quote": "PRESUPUESTO",
+    "quoteDetails": "DETALLES DEL PRESUPUESTO"
+  },
+  "leads": {
+    "fromQuoteRequest": "De Solicitud de Presupuesto",
+    "createQuote": "Crear Presupuesto"
+  },
+  "clients": {
+    "noClientsDesc": "Los clientes aparecerán aquí cuando crees presupuestos o facturas para ellos.",
+    "archiveClientDesc": "Esto archivará a {name}. Aún puedes ver clientes archivados en la lista. Esto no elimina sus presupuestos ni historial.",
+    "createQuote": "Crear Presupuesto",
+    "quotes": "Presupuestos",
+    "quoteRequests": "Solicitudes de Presupuesto",
+    "noQuotesYet": "Aún no hay presupuestos",
+    "createFirstQuote": "Crear Primer Presupuesto",
+    "noQuoteRequests": "No hay solicitudes de presupuesto",
+    "convertedToQuote": "Convertido a Presupuesto #{id}",
+    "viewQuote": "Ver Presupuesto →",
+    "archiveConfirmDesc": "Esto archivará a {name}. Aún puedes ver clientes archivados en la lista. Esto no elimina sus presupuestos ni historial."
+  },
+  "profileSetup": {
+    "opsAiNumber": {
+      "numberDescription": "Una línea telefónica dedicada para su negocio que usa IA para manejar automáticamente llamadas de clientes, solicitudes de presupuesto y seguimiento de prospectos."
+    },
+    "aiEstimator": {
+      "description": "Disponible 24/7 — contesta llamadas y mensajes, da seguimiento a prospectos y le ayuda a presupuestar como ya lo hace. Suba unos documentos reales para que conozca su negocio desde el primer día.",
+      "uploadDescription": "Suba facturas, propuestas, listas de precios o fotos de trabajos — el mismo papeleo que ya usa. Su asistente aprende sus tarifas, tono y alcance para que cada presupuesto suene como usted."
+    },
+    "numberPicker": {
+      "subtitle": "Números disponibles en el código de área {areaCode}{stateSuffix}. Los clientes lo verán en presupuestos y su panel."
+    }
+  },
+  "billing": {
+    "features": {
+      "aiQuoteGeneration": "Generación de Presupuestos con IA",
+      "unlimitedQuotes": "Presupuestos y Facturas Ilimitados"
+    },
+    "success": {
+      "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, presupuestos, trabajos y facturas desde un panel limpio."
+    }
+  },
+  "proposals": {
+    "badge": {
+      "quoteNumber": "PRESUPUESTO #{id}"
+    },
+    "aiModal": {
+      "description": "Sube una foto del antes, elige los conceptos guardados del presupuesto que deseas incluir y genera una vista previa de antes y después para este presupuesto."
+    },
+    "errors": {
+      "noQuoteToUpload": "No hay un presupuesto ni un proyecto al que subir archivos",
+      "loadQuoteProposal": "No se pudo cargar la propuesta del presupuesto.",
+      "savedQuotesOnly": "El editor de propuestas solo está disponible para presupuestos guardados.",
+      "quoteNotFound": "Presupuesto no encontrado."
+    },
+    "routePage": {
+      "backToQuote": "Volver al presupuesto",
+      "breadcrumbQuotes": "Presupuestos",
+      "breadcrumbQuoteNumber": "Presupuesto #{id}"
+    },
+    "public": {
+      "viewQuote": "Ver presupuesto"
+    }
+  },
+  "menu": {
+    "quotes": "Presupuestos"
+  },
+  "website": {
+    "gallery": {
+      "importPrivacyUntitled": "Copia una imagen en este proyecto. No se copian nombres, direcciones ni notas del cliente."
+    }
+  },
+  "dashboardHome": {
+    "thingsNeedYou": "{count, plural, one {# cosa necesita su atención} other {# cosas necesitan su atención}}",
+    "invoicesPastDue": "{count, plural, one {# factura vencida} other {# facturas vencidas}}",
+    "nothingOnCalendar": "nada en el calendario hoy",
+    "onCalendarToday": "{count} en el calendario hoy",
+    "new": "Nuevo",
+    "newEstimate": "Nuevo presupuesto",
+    "newProject": "Nuevo proyecto",
+    "newClient": "Nuevo cliente",
+    "unpaid": "Sin pagar",
+    "pastDue": "Vencido",
+    "awaitingReply": "Esperando respuesta",
+    "estimatesUnit": "presupuestos",
+    "newLeads7d": "Prospectos nuevos · 7d",
+    "bookedThisWeek": "Reservado esta semana",
+    "jobsUnit": "trabajos",
+    "dueThisMonth": "Vence este mes",
+    "later": "Más adelante",
+    "money": "Dinero",
+    "outstandingAcross": "{count, plural, one {pendiente en # factura} other {pendiente en # facturas}}",
+    "paidLast30d": "Pagado · últimos 30 d",
+    "pipeline": "Embudo",
+    "stageLeads": "Prospectos nuevos",
+    "stageQuoted": "Presupuestado · en espera",
+    "stageAccepted": "Aceptado",
+    "stageInProgress": "En curso",
+    "noProjectAttached": "{count, plural, one {# presupuesto aceptado no tiene proyecto asociado.} other {# presupuestos aceptados no tienen proyecto asociado.}}",
+    "review": "Revisar",
+    "chipOverdueDays": "VENCIDO {days} D",
+    "chipOverdue": "VENCIDO",
+    "chipDrawReady": "ANTICIPO LISTO",
+    "chipViewed": "VISTO",
+    "chipChanges": "CAMBIOS",
+    "chipNoViewsDays": "SIN VISTAS {days} D",
+    "chipNoViews": "SIN VISTAS",
+    "chipNoProjectWeeks": "SIN PROYECTO {weeks} SEM",
+    "chipNoProject": "SIN PROYECTO",
+    "chipExpiring": "POR VENCER",
+    "chipTrade": "OFICIO",
+    "chipTask": "TAREA",
+    "chipLead": "PROSPECTO",
+    "actionSendReminder": "Enviar recordatorio",
+    "actionBillDraw": "Facturar anticipo",
+    "actionStartProject": "Iniciar proyecto",
+    "actionMarkDone": "Marcar como hecho",
+    "actionOpenLead": "Abrir prospecto",
+    "reminderSent": "Recordatorio enviado",
+    "reminderFailed": "No se pudo enviar el recordatorio",
+    "taskCompleted": "Tarea completada",
+    "taskFailed": "No se pudo completar la tarea",
+    "snoozedForWeek": "{count, plural, one {# elemento pospuesto una semana} other {# elementos pospuestos una semana}}",
+    "snoozeFailed": "No se pudo posponer",
+    "needsYou": "Requiere su atención",
+    "snoozedCount": "{count} pospuestos",
+    "snoozeAll": "Posponer todo",
+    "allCaughtUp": "Está al día",
+    "nothingNeedsAction": "Nada requiere acción por ahora."
+  },
+  "filters": {
+    "quoted": "Presupuestado"
+  }
+}

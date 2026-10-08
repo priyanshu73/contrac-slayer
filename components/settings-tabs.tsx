@@ -537,21 +537,21 @@ export function SettingsTabs() {
   const topTabs = [
     { id: "business" as const, label: t('business'), icon: Building2 },
     { id: "website" as const, label: tWebsite("name"), icon: Globe },
-    { id: "followups" as const, label: "Follow-ups", icon: CalendarClock },
-    { id: "cost-book" as const, label: "Cost Book", icon: DollarSign },
+    { id: "followups" as const, label: t("tabFollowups"), icon: CalendarClock },
+    { id: "cost-book" as const, label: t("tabCostBook"), icon: DollarSign },
   ]
 
   // Side-bar items shown inside the Profile tab. Team sits directly below Business.
   const profileSidebarItems = [
-    { id: "business" as const, label: "Business", icon: Building2 },
-    { id: "team" as const, label: "Team", icon: Users },
+    { id: "business" as const, label: t("tabBusiness"), icon: Building2 },
+    { id: "team" as const, label: t("tabTeam"), icon: Users },
     { id: "pricing" as const, label: t('pricingRates'), icon: DollarSign },
     // Hidden when Frontline is enabled — it owns caller follow-up then.
     ...(frontlineEnabled
       ? []
-      : [{ id: "auto-reply" as const, label: "Auto-reply", icon: MessageSquare }]),
-    { id: "integrations" as const, label: "Integrations", icon: Link2 },
-    ...(canSeeBilling ? [{ id: "billing" as const, label: "Billing", icon: CreditCard }] : []),
+      : [{ id: "auto-reply" as const, label: t("tabAutoReply"), icon: MessageSquare }]),
+    { id: "integrations" as const, label: t("tabIntegrations"), icon: Link2 },
+    ...(canSeeBilling ? [{ id: "billing" as const, label: t("tabBilling"), icon: CreditCard }] : []),
   ]
 
   const isProfileActive = PROFILE_SECTIONS.includes(activeSection)
