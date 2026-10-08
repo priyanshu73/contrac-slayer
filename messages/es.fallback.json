@@ -127,6 +127,88 @@
         "IN_PROGRESS": "En curso",
         "COMPLETED": "Completado"
       }
+    },
+    "globalSearch": {
+      "kind": {
+        "quote": "Presupuesto",
+        "invoice": "Factura",
+        "project": "Proyecto",
+        "task": "Tarea",
+        "client": "Cliente",
+        "crew": "Equipo",
+        "lead": "Prospecto"
+      },
+      "kindPlural": {
+        "quote": "Presupuestos",
+        "invoice": "Facturas",
+        "project": "Proyectos",
+        "task": "Tareas",
+        "client": "Clientes",
+        "crew": "Equipo",
+        "lead": "Prospectos"
+      },
+      "date": {
+        "any": "Cualquier fecha",
+        "7d": "7 d",
+        "30d": "30 d",
+        "90d": "90 d"
+      },
+      "estimateNum": "Presupuesto n.º {id}",
+      "placeholder": "Buscar presupuestos, facturas, proyectos…",
+      "clear": "Borrar búsqueda",
+      "filters": "Filtros de búsqueda",
+      "all": "Todos",
+      "typeToSearch": "Escribe para buscar.",
+      "searching": "Buscando…",
+      "noMatches": "Sin resultados."
+    },
+    "drawer": {
+      "project": {
+        "COMPLETED": "Completado",
+        "IN_PROGRESS": "En curso",
+        "ON_HOLD": "En pausa",
+        "PLANNING": "Planificación",
+        "fallback": "Activo"
+      },
+      "quote": {
+        "DRAFT": "Borrador",
+        "SENT": "Enviado",
+        "VIEWED": "Visto",
+        "ACCEPTED": "Aceptado",
+        "REJECTED": "Rechazado",
+        "fallback": "Presupuesto"
+      },
+      "invoice": {
+        "overdue": "Vencido",
+        "partial": "Parcial",
+        "sent": "Enviado",
+        "paid": "Pagado",
+        "draft": "Borrador",
+        "fallback": "Factura"
+      },
+      "tabProjects": "Proyectos",
+      "tabEstimates": "Presupuestos",
+      "tabInvoices": "Facturas",
+      "noProjects": "No se encontraron proyectos activos.",
+      "projectNum": "Proyecto n.º {id}",
+      "new": "Nuevo",
+      "noEstimates": "No se encontraron presupuestos.",
+      "estimateNum": "Presupuesto n.º {id}",
+      "noInvoices": "No se encontraron facturas.",
+      "clientNum": "Cliente n.º {id}",
+      "client": "Cliente",
+      "due": "Vence el {date}",
+      "paidOn": "Pagado el {date}",
+      "paidInFull": "Pagado por completo",
+      "invoiceWord": "Factura",
+      "snapshot": "Resumen financiero",
+      "unpaidTotal": "{amount} sin pagar",
+      "pastDueTitle": "Vencido: {amount}",
+      "currentUnpaid": "Saldo actual sin pagar",
+      "pastDue": "Vencido",
+      "awaiting": "En espera",
+      "awaitingCount": "{count, plural, one {# presupuesto} other {# presupuestos}}",
+      "totalUnpaid": "Total sin pagar"
     }
   },
   "settings": {
@@ -634,6 +716,47 @@
     },
     "public": {
       "viewQuote": "Ver presupuesto"
+    },
+    "newPage": {
+      "estimateNum": "Presupuesto n.º {id}",
+      "projectNum": "Proyecto n.º {id}",
+      "proposalForProject": "Propuesta de {title}",
+      "proposalNum": "Propuesta n.º {id}",
+      "title": "Crear propuesta",
+      "subtitle": "Elige un presupuesto o proyecto para crear una propuesta",
+      "fromEstimate": "Desde un presupuesto",
+      "searchPh": "Busca por nombre del cliente o título del presupuesto…",
+      "searchInputPh": "Nombre del cliente o título del presupuesto…",
+      "loading": "Cargando…",
+      "noEstimates": "No se encontraron presupuestos.",
+      "hasProposal": "Tiene propuesta",
+      "loadMore": "Cargar más",
+      "fromProject": "Desde un proyecto",
+      "noProjects": "Aún no hay proyectos",
+      "noProjectsHint": "Primero crea un proyecto y luego crea una propuesta para ese proyecto.",
+      "goToProjects": "Ir a proyectos",
+      "newProposal": "Nueva propuesta",
+      "loadMoreProjects": "Cargar más proyectos"
+    },
+    "section": {
+      "proposalNum": "Propuesta n.º {id}",
+      "estimateProposal": "Propuesta del presupuesto n.º {id}",
+      "deleted": "Propuesta eliminada",
+      "deleteFailed": "No se pudo eliminar la propuesta",
+      "tryAgain": "Inténtalo de nuevo.",
+      "title": "Propuestas",
+      "edit": "Editar",
+      "new": "Nueva",
+      "actions": "Acciones de la propuesta",
+      "preview": "Vista previa",
+      "delete": "Eliminar",
+      "deleteTitle": "¿Eliminar propuesta?",
+      "deleteEmbedded": "Esto elimina de forma permanente la propuesta guardada en este presupuesto.",
+      "deleteProject": "Esto elimina de forma permanente esta propuesta del proyecto vinculado. Los enlaces públicos dejarán de funcionar.",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando…",
+      "deleteBtn": "Eliminar propuesta",
+      "updated": "Actualizado el {date}"
     }
   },
   "menu": {

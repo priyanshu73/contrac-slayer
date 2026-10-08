@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import {
   ExternalLink,
   FileText,
@@ -62,10 +63,10 @@ interface QuoteProposalsSectionProps {
   onChanged?: () => void
 }
 
-function formatDate(iso?: string | null): string | undefined {
+function formatDate(iso: string | null | undefined, locale: string): string | undefined {
   if (!iso) return undefined
   try {
-    return new Date(iso).toLocaleDateString("en-US", {
+    return new Date(iso).toLocaleDateString(locale === "es" ? "es-US" : "en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -79,6 +80,7 @@ function formatDate(iso?: string | null): string | undefined {
 export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposalsSectionProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useTranslations("proposals.section")
   const [open, setOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ProposalRow | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -98,7 +100,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
       list.push({
         kind: "embedded",
         key: `quote-proposal-${p.id}`,
-        title: (p as any).title || job.title || `Quote #${job.id} Proposal`,
+        title: (p as any).title || job.title || t("estimateProposal", { id: job.id }),
         status: p.status,
         updatedAt: (p as any).updated_at ?? null,
         viewHref: `/${locale}/quotes/${job.id}/proposal/preview`,
@@ -112,7 +114,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
       list.push({
         kind: "project",
         key: `project-${p.project_id}-${p.id}`,
-        title: p.title || `Proposal #${p.id}`,
+        title: p.title || t("proposalNum", { id: p.id }),
         status: p.status,
         updatedAt: p.updated_at,
         projectId: p.project_id,
@@ -124,7 +126,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
     }
 
     return list
-  }, [job.id, job.portal_proposals, job.title, jobProposals, locale])
+  }, [job.id, job.portal_proposals, job.title, jobProposals, locale, t])
 
   const handleDelete = async () => {
     if (!pendingDelete) return
@@ -134,17 +136,17 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
         const proposal = jobProposals.find((p) => `quote-proposal-${p.id}` === pendingDelete.key)
         if (proposal) await api.deleteJobProposal(job.id, proposal.id)
         setJobProposals((prev) => prev.filter((p) => `quote-proposal-${p.id}` !== pendingDelete.key))
-        toast({ title: "Proposal deleted" })
+        toast({ title: t("deleted") })
       } else {
         await api.deleteProposal(pendingDelete.projectId, pendingDelete.proposalId)
-        toast({ title: "Proposal deleted" })
+        toast({ title: t("deleted") })
       }
       setPendingDelete(null)
       onChanged?.()
     } catch (err: any) {
       toast({
-        title: "Could not delete proposal",
-        description: err?.message || "Please try again.",
+        title: t("deleteFailed"),
+        description: err?.message || t("tryAgain"),
         variant: "destructive",
       })
     } finally {
@@ -158,7 +160,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
     <>
       <QuoteSidebarSection
         icon={<FileText className="h-3.5 w-3.5 shrink-0 text-sky-600" />}
-        title="Proposals"
+        title={t("title")}
         count={rows.length}
         open={open}
         onToggle={() => setOpen((o) => !o)}
@@ -166,7 +168,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
           <Button asChild size="sm" className="h-7 gap-1 rounded-md bg-sky-600 px-2 text-[11px] font-semibold text-white hover:bg-sky-700">
             <Link href={createHref}>
               <Plus className="h-3 w-3" />
-              {jobProposals.length > 0 ? "Edit" : "New"}
+              {jobProposals.length > 0 ? t("edit") : t("new")}
             </Link>
           </Button>
         }
@@ -174,7 +176,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
         {rows.length === 0 ? null : (
           <ul className="divide-y divide-sky-100/60">
             {rows.map((row) => {
-              const updated = formatDate(row.updatedAt)
+              const updated = formatDate(row.updatedAt, locale)
               return (
                 <li key={row.key} className="px-3 py-2.5">
                   <div className="flex items-start gap-2">
@@ -195,7 +197,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                         </div>
                       ) : null}
                       {updated ? (
-                        <p className="mt-1 text-[10px] text-slate-400">Updated {updated}</p>
+                        <p className="mt-1 text-[10px] text-slate-400">{t("updated", { date: updated })}</p>
                       ) : null}
                     </div>
                     <DropdownMenu>
@@ -204,7 +206,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                           size="icon"
                           variant="ghost"
                           className="h-6 w-6 shrink-0 text-slate-500 hover:bg-sky-100 hover:text-sky-700"
-                          aria-label="Proposal actions"
+                          aria-label={t("actions")}
                         >
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
@@ -212,12 +214,12 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem onSelect={() => router.push(row.editHref)}>
                           <PencilLine className="mr-2 h-3.5 w-3.5" />
-                          Edit
+                          {t("edit")}
                         </DropdownMenuItem>
                         {row.viewHref ? (
                           <DropdownMenuItem onSelect={() => router.push(row.viewHref!)}>
                             <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                            Preview
+                            {t("preview")}
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuSeparator />
@@ -229,7 +231,7 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
                           }}
                         >
                           <Trash2 className="mr-2 h-3.5 w-3.5" />
-                          Delete
+                          {t("delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -249,11 +251,11 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete proposal?</DialogTitle>
+            <DialogTitle>{t("deleteTitle")}</DialogTitle>
             <DialogDescription>
               {pendingDelete?.kind === "embedded"
-                ? "This permanently removes the proposal saved on this quote."
-                : "This permanently removes this proposal from the linked project. Public links to it will stop working."}
+                ? t("deleteEmbedded")
+                : t("deleteProject")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -262,16 +264,16 @@ export function QuoteProposalsSection({ job, locale, onChanged }: QuoteProposals
               onClick={() => setPendingDelete(null)}
               disabled={deleting}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting…
+                  {t("deleting")}
                 </>
               ) : (
-                "Delete proposal"
+                t("deleteBtn")
               )}
             </Button>
           </DialogFooter>

@@ -129,6 +129,88 @@
         "IN_PROGRESS": "In progress",
         "COMPLETED": "Completed"
       }
+    },
+    "globalSearch": {
+      "kind": {
+        "quote": "Estimate",
+        "invoice": "Invoice",
+        "project": "Project",
+        "task": "Task",
+        "client": "Client",
+        "crew": "Crew",
+        "lead": "Lead"
+      },
+      "kindPlural": {
+        "quote": "Estimates",
+        "invoice": "Invoices",
+        "project": "Projects",
+        "task": "Tasks",
+        "client": "Clients",
+        "crew": "Crew",
+        "lead": "Leads"
+      },
+      "date": {
+        "any": "Any time",
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d"
+      },
+      "estimateNum": "Estimate #{id}",
+      "placeholder": "Search estimates, invoices, projects…",
+      "clear": "Clear search",
+      "filters": "Search filters",
+      "all": "All",
+      "typeToSearch": "Type to search.",
+      "searching": "Searching…",
+      "noMatches": "No matches."
+    },
+    "drawer": {
+      "project": {
+        "COMPLETED": "Completed",
+        "IN_PROGRESS": "In progress",
+        "ON_HOLD": "On hold",
+        "PLANNING": "Planning",
+        "fallback": "Active"
+      },
+      "quote": {
+        "DRAFT": "Draft",
+        "SENT": "Sent",
+        "VIEWED": "Viewed",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Declined",
+        "fallback": "Estimate"
+      },
+      "invoice": {
+        "overdue": "Overdue",
+        "partial": "Partial",
+        "sent": "Sent",
+        "paid": "Paid",
+        "draft": "Draft",
+        "fallback": "Invoice"
+      },
+      "tabProjects": "Projects",
+      "tabEstimates": "Estimates",
+      "tabInvoices": "Invoices",
+      "noProjects": "No active projects found.",
+      "projectNum": "Project #{id}",
+      "new": "New",
+      "noEstimates": "No estimates found.",
+      "estimateNum": "Estimate #{id}",
+      "noInvoices": "No invoices found.",
+      "clientNum": "Client #{id}",
+      "client": "Client",
+      "due": "Due {date}",
+      "paidOn": "Paid · {date}",
+      "paidInFull": "Paid in full",
+      "invoiceWord": "Invoice",
+      "snapshot": "Financial snapshot",
+      "unpaidTotal": "{amount} unpaid",
+      "pastDueTitle": "Past due: {amount}",
+      "currentUnpaid": "Current unpaid",
+      "pastDue": "Past due",
+      "awaiting": "Awaiting",
+      "awaitingCount": "{count, plural, one {# estimate} other {# estimates}}",
+      "totalUnpaid": "Total unpaid"
     }
   },
   "settings": {
@@ -639,6 +721,47 @@
     },
     "public": {
       "viewQuote": "View Estimate"
+    },
+    "newPage": {
+      "estimateNum": "Estimate #{id}",
+      "projectNum": "Project #{id}",
+      "proposalForProject": "{title} proposal",
+      "proposalNum": "Proposal #{id}",
+      "title": "Create proposal",
+      "subtitle": "Pick an estimate or project to create a proposal for",
+      "fromEstimate": "From an estimate",
+      "searchPh": "Search by client name or estimate title…",
+      "searchInputPh": "Client name or estimate title…",
+      "loading": "Loading…",
+      "noEstimates": "No estimates found.",
+      "hasProposal": "Has proposal",
+      "loadMore": "Load more",
+      "fromProject": "From a project",
+      "noProjects": "No projects yet",
+      "noProjectsHint": "Create a project first, then build a proposal for it.",
+      "goToProjects": "Go to projects",
+      "newProposal": "New proposal",
+      "loadMoreProjects": "Load more projects"
+    },
+    "section": {
+      "proposalNum": "Proposal #{id}",
+      "estimateProposal": "Estimate #{id} proposal",
+      "deleted": "Proposal deleted",
+      "deleteFailed": "Could not delete proposal",
+      "tryAgain": "Please try again.",
+      "title": "Proposals",
+      "edit": "Edit",
+      "new": "New",
+      "actions": "Proposal actions",
+      "preview": "Preview",
+      "delete": "Delete",
+      "deleteTitle": "Delete proposal?",
+      "deleteEmbedded": "This permanently removes the proposal saved on this estimate.",
+      "deleteProject": "This permanently removes this proposal from the linked project. Public links to it will stop working.",
+      "cancel": "Cancel",
+      "deleting": "Deleting…",
+      "deleteBtn": "Delete proposal",
+      "updated": "Updated {date}"
     }
   },
   "frontline": {
