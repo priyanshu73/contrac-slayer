@@ -1,5 +1,6 @@
 "use client"
 
+import { useLocale, useTranslations } from "next-intl"
 import type { Project, ProjectNote } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,9 +24,9 @@ interface ProjectNotesProps {
   project: Project
 }
 
-function formatTimestamp(iso: string): string {
+function formatTimestamp(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleString("en-US", {
+    return new Date(iso).toLocaleString(locale, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -38,6 +39,8 @@ function formatTimestamp(iso: string): string {
 }
 
 export function ProjectNotes({ project }: ProjectNotesProps) {
+  const t = useTranslations("projectsPage.notes")
+  const locale = useLocale()
   const { toast } = useToast()
 
   const [notes, setNotes] = useState<ProjectNote[]>([])
@@ -63,7 +66,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
       })
       .catch(() => {
         if (!cancelled)
-          toast({ title: "Couldn't load notes", description: "Please try again.", variant: "destructive" })
+          toast({ title: t("loadFailed"), description: t("tryAgain"), variant: "destructive" })
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -82,7 +85,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
       setNotes((prev) => [note, ...prev])
       setDraft("")
     } catch {
-      toast({ title: "Couldn't add note", description: "Please try again.", variant: "destructive" })
+      toast({ title: t("addFailed"), description: t("tryAgain"), variant: "destructive" })
     } finally {
       setCreating(false)
     }
@@ -111,7 +114,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
       setNotes((prev) => prev.map((n) => (n.id === note.id ? updated : n)))
       cancelEdit()
     } catch {
-      toast({ title: "Couldn't save note", description: "Please try again.", variant: "destructive" })
+      toast({ title: t("saveFailed"), description: t("tryAgain"), variant: "destructive" })
     } finally {
       setSavingEdit(false)
     }
@@ -125,7 +128,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
       setNotes((prev) => prev.filter((n) => n.id !== pendingDelete.id))
       setPendingDelete(null)
     } catch {
-      toast({ title: "Couldn't delete note", description: "Please try again.", variant: "destructive" })
+      toast({ title: t("deleteFailed"), description: t("tryAgain"), variant: "destructive" })
     } finally {
       setDeleting(false)
     }
@@ -138,7 +141,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a note — site update, call log, decision…"
+          placeholder={t("placeholder")}
           rows={3}
           className="resize-y"
           onKeyDown={(e) => {
@@ -149,10 +152,10 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
           }}
         />
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">Tip: ⌘/Ctrl + Enter to save</span>
+          <span className="text-xs text-slate-400">{t("tip")}</span>
           <Button size="sm" onClick={handleCreate} disabled={creating || !draft.trim()}>
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Add note
+            {t("addNote")}
           </Button>
         </div>
       </Card>
@@ -177,7 +180,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
                   <div className="min-w-0 text-xs text-slate-500">
                     <span className="font-medium text-slate-700">{note.author_name || "Unknown"}</span>
                     <span className="mx-1.5">·</span>
-                    <span>{formatTimestamp(note.created_at)}</span>
+                    <span>{formatTimestamp(note.created_at, locale)}</span>
                     {note.updated_at && note.updated_at !== note.created_at && (
                       <span className="ml-1.5 italic text-slate-400">(edited)</span>
                     )}
@@ -189,7 +192,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
                         size="icon"
                         className="h-7 w-7 text-slate-400 hover:text-slate-700"
                         onClick={() => startEdit(note)}
-                        aria-label="Edit note"
+                        aria-label={t("editAria")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -198,7 +201,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
                         size="icon"
                         className="h-7 w-7 text-slate-400 hover:text-red-600"
                         onClick={() => setPendingDelete(note)}
-                        aria-label="Delete note"
+                        aria-label={t("deleteAria")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -218,7 +221,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
                     <div className="flex items-center justify-end gap-2">
                       <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}>
                         <X className="h-4 w-4" />
-                        Cancel
+                        {t("cancel")}
                       </Button>
                       <Button
                         size="sm"
@@ -226,7 +229,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
                         disabled={savingEdit || !editBody.trim()}
                       >
                         {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        Save
+                        {t("save")}
                       </Button>
                     </div>
                   </div>
@@ -242,11 +245,11 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this note?</AlertDialogTitle>
-            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
@@ -255,7 +258,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

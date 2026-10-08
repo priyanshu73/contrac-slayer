@@ -35,6 +35,7 @@ type StatusFilter = ProjectStatus | "ALL"
 
 export default function ProjectsPage() {
   const t = useTranslations("projects")
+  const tp = useTranslations("projectsPage")
   const locale = useLocale()
   const [projects, setProjects] = useState<ProjectListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -161,7 +162,7 @@ export default function ProjectsPage() {
                   <Input
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by project or client name"
+                    placeholder={tp("searchPlaceholder")}
                     className="h-9 pl-8 text-sm"
                   />
                 </div>
@@ -178,7 +179,7 @@ export default function ProjectsPage() {
                 <div className="p-6 text-center text-sm text-slate-500">
                   {projects.length === 0
                     ? t("emptyState")
-                    : "No projects match your search."}
+                    : tp("noMatch")}
                 </div>
               ) : (
                 filteredProjects.map((project) => (
@@ -223,7 +224,7 @@ export default function ProjectsPage() {
                     {/* Delete button – always visible on mobile, visible on hover on desktop */}
                     <button
                       type="button"
-                      aria-label="Delete project"
+                      aria-label={tp("deleteAria")}
                       className="flex h-11 w-full shrink-0 items-center justify-center rounded-xl border border-slate-200 text-rose-600 transition-colors active:bg-rose-50 hover:bg-rose-50 sm:ml-1 sm:h-auto sm:w-auto sm:rounded-lg sm:border-0 sm:p-2 sm:text-slate-400 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:text-rose-600"
                       onClick={(e) => {
                         e.stopPropagation()
@@ -273,17 +274,18 @@ export default function ProjectsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogTitle>{tp("deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-slate-900">
-                &ldquo;{deleteTarget?.title || "this project"}&rdquo;
-              </span>
-              ? This will permanently remove the project along with all its tasks, trades, and media. This action cannot be undone.
+              {tp.rich("deleteDesc", {
+                title: deleteTarget?.title || tp("thisProject"),
+                strong: (chunks) => (
+                  <span className="font-semibold text-slate-900">{chunks}</span>
+                ),
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tp("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
@@ -295,10 +297,10 @@ export default function ProjectsPage() {
               {deleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting…
+                  {tp("deleting")}
                 </>
               ) : (
-                "Delete Project"
+                tp("deleteTitle")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

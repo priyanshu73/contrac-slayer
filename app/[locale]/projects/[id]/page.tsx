@@ -25,6 +25,7 @@ export default function ProjectDetailPage() {
   const params = useParams()
   const locale = useLocale()
   const t = useTranslations("projects.detail")
+  const tp = useTranslations("projectsPage.detail")
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,11 +121,11 @@ export default function ProjectDetailPage() {
     setProject({ ...project, client_id: newClientId ?? undefined })
     try {
       await api.updateProject(project.id, { client_id: newClientId })
-      toast({ title: "Client updated" })
+      toast({ title: tp("clientUpdated") })
     } catch (err) {
       console.error("Failed to update client", err)
       setProject({ ...project, client_id: prevClientId })
-      toast({ title: "Failed to update client", variant: "destructive" })
+      toast({ title: tp("clientUpdateFailed"), variant: "destructive" })
     }
   }
 
@@ -144,7 +145,7 @@ export default function ProjectDetailPage() {
     if (!project) return
     const nextTitle = draftTitle.trim()
     if (!nextTitle) {
-      toast({ title: "Project title is required", variant: "destructive" })
+      toast({ title: tp("titleRequired"), variant: "destructive" })
       return
     }
     setSavingHeader(true)
@@ -155,10 +156,10 @@ export default function ProjectDetailPage() {
       }) as Project
       setProject(updated)
       setIsEditingHeader(false)
-      toast({ title: "Project updated" })
+      toast({ title: tp("projectUpdated") })
     } catch (err) {
       console.error("Failed to update project header", err)
-      toast({ title: "Failed to update project", variant: "destructive" })
+      toast({ title: tp("projectUpdateFailed"), variant: "destructive" })
     } finally {
       setSavingHeader(false)
     }
@@ -201,7 +202,7 @@ export default function ProjectDetailPage() {
                     className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all shadow-sm hover:border-slate-400 hover:text-slate-900"
                   >
                     <Pencil className="w-3.5 h-3.5" />
-                    Edit
+                    {tp("edit")}
                   </button>
                 )}
                 <StatusDropdown status={project.status} onChange={handleStatusChange} />
@@ -213,13 +214,13 @@ export default function ProjectDetailPage() {
               <div className="max-w-4xl space-y-4 pb-3">
                 <label className="block space-y-2">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Project Title
+                    {tp("projectTitle")}
                   </span>
                   <input
                     type="text"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    placeholder="Project title"
+                    placeholder={tp("titlePlaceholder")}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-semibold tracking-tight text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/70"
                   />
                 </label>
@@ -227,7 +228,7 @@ export default function ProjectDetailPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      Project Overview
+                      {tp("projectOverview")}
                     </span>
                     <span className="text-[11px] text-slate-400">Supports markdown formatting.</span>
                   </div>
@@ -264,7 +265,7 @@ export default function ProjectDetailPage() {
 
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                   <p className="text-xs text-slate-400">
-                    The brief and other project views will use this context too.
+                    {tp("briefContext")}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -272,7 +273,7 @@ export default function ProjectDetailPage() {
                       disabled={savingHeader}
                       className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
                     >
-                      Cancel
+                      {tp("cancel")}
                     </button>
                     <button
                       onClick={handleSaveHeader}
@@ -280,7 +281,7 @@ export default function ProjectDetailPage() {
                       className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
                     >
                       {savingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Save changes
+                      {tp("saveChanges")}
                     </button>
                   </div>
                 </div>
@@ -319,7 +320,7 @@ export default function ProjectDetailPage() {
                             onClick={() => setDescriptionExpanded(v => !v)}
                             className="mt-1 text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors"
                           >
-                            {descriptionExpanded ? "Show less" : "Show more"}
+                            {descriptionExpanded ? tp("showLess") : tp("showMore")}
                           </button>
                         )}
                       </div>
@@ -501,6 +502,7 @@ function ClientPicker({
   currentClientId?: number
   onChange: (clientId: number | null) => void
 }) {
+  const tp = useTranslations("projectsPage.detail")
   const [open, setOpen] = useState(false)
   const [clients, setClients] = useState<SimpleClient[]>([])
   const [loading, setLoading] = useState(false)
@@ -580,7 +582,7 @@ function ClientPicker({
               <input
                 autoFocus
                 type="text"
-                placeholder="Search clients..."
+                placeholder={tp("searchClients")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"

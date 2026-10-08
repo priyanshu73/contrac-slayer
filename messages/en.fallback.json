@@ -474,5 +474,89 @@
     "setupNumber": "Set up your ContractorOps number to send SMS.",
     "requestAvailabilitySms": "Request availability via SMS",
     "reviewRequestDesc": "Review the request, then send it from your ContractorOps number."
+  },
+  "projectsPage": {
+    "searchPlaceholder": "Search by project or client name",
+    "noMatch": "No projects match your search.",
+    "deleteAria": "Delete project",
+    "deleteTitle": "Delete Project",
+    "thisProject": "this project",
+    "deleteDesc": "Are you sure you want to delete “<strong>{title}</strong>”? This will permanently remove the project along with all its tasks, trades, and media. This action cannot be undone.",
+    "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "detail": {
+      "clientUpdated": "Client updated",
+      "clientUpdateFailed": "Failed to update client",
+      "titleRequired": "Project title is required",
+      "projectUpdated": "Project updated",
+      "projectUpdateFailed": "Failed to update project",
+      "titlePlaceholder": "Project title",
+      "showLess": "Show less",
+      "showMore": "Show more",
+      "searchClients": "Search clients...",
+      "edit": "Edit",
+      "projectTitle": "Project Title",
+      "projectOverview": "Project Overview",
+      "briefContext": "The brief and other project views will use this context too.",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes"
+    },
+    "notes": {
+      "loadFailed": "Couldn't load notes",
+      "addFailed": "Couldn't add note",
+      "saveFailed": "Couldn't save note",
+      "deleteFailed": "Couldn't delete note",
+      "tryAgain": "Please try again.",
+      "placeholder": "Add a note — site update, call log, decision...",
+      "tip": "Tip: ⌘/Ctrl + Enter to save",
+      "addNote": "Add note",
+      "editAria": "Edit note",
+      "deleteAria": "Delete note",
+      "cancel": "Cancel",
+      "save": "Save",
+      "deleteTitle": "Delete this note?",
+      "deleteDesc": "This can't be undone.",
+      "delete": "Delete"
+    },
+    "records": {
+      "kind": {
+        "quote": "Estimate",
+        "proposal": "Proposal",
+        "invoice": "Invoice"
+      },
+      "filters": {
+        "all": "All",
+        "quote": "Estimates",
+        "proposal": "Proposals",
+        "invoice": "Invoices"
+      },
+      "empty": {
+        "quote": "No estimates yet",
+        "proposal": "No proposals yet",
+        "invoice": "No invoices yet"
+      },
+      "estimateNumber": "Estimate #{number}",
+      "proposalNumber": "Proposal #{number}",
+      "invoiceNumber": "Invoice {number}",
+      "createProposalFailed": "Failed to create proposal",
+      "estimateUnlinked": "Estimate unlinked.",
+      "unlinkFailed": "Failed to unlink estimate",
+      "estimateDeleted": "Estimate #{number} deleted.",
+      "deleteEstimateFailed": "Failed to delete estimate",
+      "proposalDeleted": "Proposal #{number} deleted.",
+      "deleteProposalFailed": "Failed to delete proposal",
+      "documents": "Documents",
+      "linkExisting": "Link existing",
+      "new": "New",
+      "newEstimate": "New estimate",
+      "newProposal": "New proposal",
+      "nothingYet": "Nothing here yet",
+      "createHint": "Create an estimate, proposal, or invoice to get started",
+      "quickbooks": "QuickBooks",
+      "edit": "Edit",
+      "unlink": "Unlink",
+      "delete": "Delete",
+      "preview": "Preview"
+    }
   }
 }
