@@ -798,13 +798,14 @@
         "grossMargin": "Gross Margin",
         "gpOverRevenue": "Gross Profit ÷ Revenue",
         "gpPerUnit": "Gross Profit per {unit}",
-        "gpDividedUnits": "GP ÷ {value} {unit}",
+        "gpDividedUnits": "GP ÷ {text}",
         "setUnits": "Set # units",
         "gpPerCrewDay": "Gross Profit per Crew Day",
         "gpDividedCrewDays": "{count, plural, one {GP ÷ {value} crew day} other {GP ÷ {value} crew days}}",
         "setCrewDays": "Set # crew days",
         "breakevenDayRate": "Breakeven Day Rate",
-        "breakevenHint": "Loaded crew-day cost above this = job loses money."
+        "breakevenHint": "Loaded crew-day cost above this = job loses money.",
+        "defaultUnitCount": "{count, plural, one {{value} unit} other {{value} units}}"
       },
       "picker": {
         "title": "Add from estimate → {destination}",
