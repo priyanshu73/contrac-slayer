@@ -1628,7 +1628,51 @@
       "completed": "Completada",
       "rescheduled": "Reprogramada"
     },
-    "bookingCount": "{count, plural, one {# reserva} other {# reservas}}"
+    "bookingCount": "{count, plural, one {# reserva} other {# reservas}}",
+    "availability": {
+      "title": "Horario semanal",
+      "subtitle": "Define cuándo sueles estar disponible para citas",
+      "quickApply": "Aplicar rápido",
+      "start": "Inicio",
+      "end": "Fin",
+      "timeZone": "Zona horaria",
+      "selectTimezone": "Selecciona la zona horaria",
+      "apply": "Aplicar",
+      "addHours": "Agregar horario",
+      "reload": "Recargar",
+      "saving": "Guardando…",
+      "save": "Guardar",
+      "loadFailed": "No se pudo cargar la disponibilidad. Aún puedes definirla manualmente.",
+      "saved": "¡Guardado!",
+      "savedDesc": "Se actualizó tu horario semanal.",
+      "error": "Error",
+      "saveFailed": "No se pudo guardar el horario",
+      "appliedUniform": "Se aplicó el mismo horario (aún sin guardar).",
+      "removeRange": "Quitar franja horaria de {day}",
+      "addRange": "Agregar otra franja horaria para {day}",
+      "weekday": {
+        "sunday": "Domingo",
+        "monday": "Lunes",
+        "tuesday": "Martes",
+        "wednesday": "Miércoles",
+        "thursday": "Jueves",
+        "friday": "Viernes",
+        "saturday": "Sábado"
+      },
+      "weekdayShort": {
+        "sunday": "D",
+        "monday": "L",
+        "tuesday": "M",
+        "wednesday": "X",
+        "thursday": "J",
+        "friday": "V",
+        "saturday": "S"
+      },
+      "monthly": {
+        "previous": "Mes anterior",
+        "next": "Mes siguiente"
+      }
+    }
   },
   "invoicesPage": {
     "title": "Facturas",
