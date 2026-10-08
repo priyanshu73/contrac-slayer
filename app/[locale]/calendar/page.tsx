@@ -1720,4 +1720,4 @@ export default function CalendarPage() {
       </main>
     </div>
   )
-                                    }
+}
