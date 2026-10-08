@@ -208,7 +208,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       setClientData(data as ClientDetailData)
     } catch (err: any) {
       console.error("Failed to fetch client details:", err)
-      setError(err.message || "Failed to load client details")
+      setError(err.message || tClients("detail.loadFailed"))
       toast({
         title: tCommon("error"),
         description: tClients("loadFailed"),
@@ -252,8 +252,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       setEditOpen(false)
       await fetchClientDetails()
       toast({
-        title: "Client updated",
-        description: "Client details have been saved.",
+        title: tClients("detail.updated"),
+        description: tClients("detail.updatedDesc"),
       })
     } catch (err: any) {
       toast({
@@ -272,8 +272,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
     try {
       await api.deleteClient(clientData.id)
       toast({
-        title: "Client archived",
-        description: `${clientData.name} has been archived.`,
+        title: tClients("detail.archived"),
+        description: tClients("detail.archivedDesc", { name: clientData.name }),
       })
       toast({ title: tClients("notifications.deleted") });
       router.push(`/${locale}/clients`);
@@ -290,15 +290,15 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
   const formatCurrency = (amount: number | undefined) => {
     if (!amount) return "$0.00"
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale === 'es' ? 'es-US' : 'en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount)
   }
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "N/A"
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return tClients("detail.notAvailable")
+    return new Date(dateString).toLocaleDateString(locale === 'es' ? 'es-US' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -385,9 +385,9 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-semibold mb-1">Client not found</h3>
+            <h3 className="text-lg font-semibold mb-1">{tClients("detail.notFound")}</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {error || "The client you're looking for doesn't exist or hasn't been created yet."}
+              {error || tClients("detail.notFoundDesc")}
             </p>
             <Button variant="outline" asChild>
               <a href={`/${locale}/clients`}>{tClients("backToClients")}</a>
@@ -528,7 +528,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             <div className="flex flex-col gap-2 sm:min-w-[140px]">
               <Button size="sm" variant="outline" className="h-11 w-full rounded-lg sm:h-9 touch-manipulation" onClick={() => setNewProjectOpen(true)}>
                 <FolderOpen className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                Create Project
+                {tClients("detail.createProject")}
               </Button>
               <div className="flex gap-2">
                 <Tooltip>
@@ -595,12 +595,12 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                   <TabsTrigger value="leads" className="flex-1 min-w-0 px-1.5 sm:px-4 py-2.5 rounded-md font-medium text-xs sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1 overflow-hidden">
                     <MessageSquare className="h-4 w-4 shrink-0" />
                     <span className="truncate hidden sm:inline">{tClients("quoteRequests")}</span>
-                    <span className="truncate sm:hidden">Requests</span>
+                    <span className="truncate sm:hidden">{tClients("detail.requests")}</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientData.leads.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="projects" className="flex-1 min-w-0 px-1.5 sm:px-4 py-2.5 rounded-md font-medium text-xs sm:text-base min-h-[44px] sm:min-h-0 touch-manipulation data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1 overflow-hidden">
                     <FolderOpen className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Projects</span>
+                    <span className="truncate">{tClients("detail.projects")}</span>
                     <Badge variant="secondary" className="ml-1 shrink-0">{clientProjects.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
@@ -627,7 +627,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2 min-w-0">
                             <h3 className="min-w-0 max-w-full truncate text-base font-semibold">
-                              {quote.title || quote.job_number || `Quote #${quote.id}`}
+                              {quote.title || quote.job_number || tClients("detail.estimateNum", { id: quote.id })}
                             </h3>
                             <Badge className={`${getStatusColor(quote.status)} shrink-0`}>
                               {quote.status}
@@ -769,15 +769,15 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 {projectsLoading ? (
                   <div className="text-center py-8">
                     <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading projects…</p>
+                    <p className="text-sm text-muted-foreground">{tClients("detail.loadingProjects")}</p>
                   </div>
                 ) : clientProjects.length === 0 ? (
                   <div className="text-center py-8">
                     <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No projects yet</p>
+                    <p className="text-sm text-muted-foreground">{tClients("detail.noProjects")}</p>
                     <Button className="mt-4" onClick={() => setNewProjectOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Create First Project
+                      {tClients("detail.createFirstProject")}
                     </Button>
                   </div>
                 ) : (
@@ -792,7 +792,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                           <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="flex flex-wrap items-center gap-2 mb-1 min-w-0">
                               <h3 className="font-semibold text-base truncate min-w-0">
-                                {project.title || "Untitled Project"}
+                                {project.title || tClients("detail.untitledProject")}
                               </h3>
                               <ProjectStatusBadge status={project.status} />
                             </div>
@@ -810,7 +810,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                           <div className="flex items-center gap-3 shrink-0">
                             {project.total_trades != null && (
                               <div className="text-right">
-                                <p className="text-xs text-muted-foreground">Trades</p>
+                                <p className="text-xs text-muted-foreground">{tClients("detail.trades")}</p>
                                 <p className="text-sm font-medium">{project.accepted_trades ?? 0}/{project.total_trades}</p>
                               </div>
                             )}
@@ -821,7 +821,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                     ))}
                     <Button variant="outline" className="w-full mt-2" onClick={() => setNewProjectOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Add Project
+                      {tClients("detail.addProject")}
                     </Button>
                   </>
                 )}
@@ -868,7 +868,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
           {clientData.notes && (
             <Card className="p-4 sm:p-5">
-              <h3 className="font-semibold mb-3">Notes</h3>
+              <h3 className="font-semibold mb-3">{tClients("detail.notes")}</h3>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{clientData.notes}</p>
             </Card>
           )}
@@ -894,7 +894,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           </Button>
           <Button variant="outline" className="h-12 rounded-lg" onClick={() => setNewProjectOpen(true)}>
             <FolderOpen className="h-4 w-4" />
-            Project
+            {tClients("detail.project")}
           </Button>
           {clientData.phone ? (
             <Button variant="outline" className="h-12 rounded-lg" asChild>
@@ -906,7 +906,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           ) : (
             <Button variant="outline" className="h-12 rounded-lg" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" />
-              Edit
+              {tClients("detail.edit")}
             </Button>
           )}
         </div>
@@ -933,7 +933,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             {/* Core fields */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="edit-name">Name *</Label>
+                <Label htmlFor="edit-name">{tClients("detail.nameRequired")}</Label>
                 <Input id="edit-name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
               </div>
               <div className="space-y-1.5">
@@ -944,7 +944,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="edit-phone">Phone</Label>
+                <Label htmlFor="edit-phone">{tClients("detail.phone")}</Label>
                 <Input id="edit-phone" type="tel" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
@@ -961,7 +961,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             {/* Address — Mapbox search */}
             <MapboxAddressInput
               label={tClients("address")}
-              placeholder="Start typing an address…"
+              placeholder={tClients("detail.addressPlaceholder")}
               defaultValue={editForm.address}
               onAddressSelect={(data) => {
                 setEditAddressData(data)
@@ -994,18 +994,18 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showMoreFields ? 'rotate-90' : ''}`} />
-              {showMoreFields ? 'Hide details' : 'More details'}
+              {showMoreFields ? tClients("detail.hideDetails") : tClients("detail.moreDetails")}
             </button>
 
             {showMoreFields && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label>Company name</Label>
+                  <Label>{tClients("detail.companyName")}</Label>
                   <Input value={editForm.company_name} onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>Tax ID</Label>
+                    <Label>{tClients("detail.taxId")}</Label>
                     <Input value={editForm.tax_id} onChange={(e) => setEditForm((f) => ({ ...f, tax_id: e.target.value }))} />
                   </div>
                   <div className="space-y-1.5">
@@ -1015,7 +1015,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>Preferred contact</Label>
+                    <Label>{tClients("detail.preferredContact")}</Label>
                     <Input value={editForm.preferred_contact_method} onChange={(e) => setEditForm((f) => ({ ...f, preferred_contact_method: e.target.value }))} placeholder="e.g. email, phone" />
                   </div>
                   <div className="space-y-1.5">
@@ -1024,7 +1024,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Referral source</Label>
+                  <Label>{tClients("detail.referralSource")}</Label>
                   <Input value={editForm.referral_source} onChange={(e) => setEditForm((f) => ({ ...f, referral_source: e.target.value }))} />
                 </div>
                 <div className="space-y-1.5">
@@ -1035,8 +1035,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             )}
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
-              <Button type="submit" disabled={editSaving}>{editSaving ? "Saving…" : "Save changes"}</Button>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>{tClients("detail.cancel")}</Button>
+              <Button type="submit" disabled={editSaving}>{editSaving ? tClients("detail.saving") : tClients("detail.saveChanges")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1071,6 +1071,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 }
 
 function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  const tClients = useTranslations("clients")
   const color =
     status === "COMPLETED"
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -1082,10 +1083,9 @@ function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
             ? "bg-rose-50 text-rose-700 border-rose-200"
             : "bg-slate-50 text-slate-700 border-slate-200"
 
-  const label =
-    status === "IN_PROGRESS" ? "In Progress" :
-      status === "ON_HOLD" ? "On Hold" :
-        status.charAt(0) + status.slice(1).toLowerCase()
+  const label = tClients.has(`detail.projectStatus.${status}`)
+    ? tClients(`detail.projectStatus.${status}`)
+    : status.charAt(0) + status.slice(1).toLowerCase()
 
   return (
     <Badge
