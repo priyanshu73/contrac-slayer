@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import {
@@ -50,6 +51,7 @@ interface NewQuoteDialogProps {
 }
 
 export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQuoteDialogProps) {
+    const tq = useTranslations("quotes")
     const { toast } = useToast()
 
     const [title, setTitle] = useState("")
@@ -83,7 +85,7 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
             initializedRef.current = true
 
             const usableType = isUsableProjectType(fromLead.projectType)
-            setTitle(usableType ? formatProjectType(fromLead.projectType) : `${fromLead.name} Quote`)
+            setTitle(usableType ? formatProjectType(fromLead.projectType) : tq("dialogs.newFromLead.defaultTitle", { name: fromLead.name }))
             // Leave the scope empty for the user to write; the AI-captured version lives
             // in its own panel below.
             setObjective("")
@@ -105,7 +107,7 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
     const handleConfirm = () => {
         if (!title.trim()) {
-            toast({ title: "Quote title is required", variant: "destructive" })
+            toast({ title: tq("dialogs.newFromLead.titleRequired"), variant: "destructive" })
             return
         }
         onConfirm({
@@ -126,11 +128,11 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
             <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-lg font-semibold text-slate-900">
-                        Create New Quote from lead
-                        <span className="font-normal text-slate-500"> — linked to client {fromLead.name}</span>
+                        {tq("dialogs.newFromLead.title")}
+                        <span className="font-normal text-slate-500"> {tq("dialogs.newFromLead.linkedTo", { name: fromLead.name })}</span>
                     </DialogTitle>
                     <DialogDescription className="text-sm text-slate-500">
-                        Review the scope below, then continue to the quote builder for AI pricing.
+                        {tq("dialogs.newFromLead.desc")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -143,7 +145,7 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
                             <div className="flex items-baseline justify-between gap-2">
                                 <p className="text-sm font-semibold text-blue-900 truncate">{fromLead.name}</p>
                                 <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide shrink-0">
-                                    Linked client
+                                    {tq("dialogs.newFromLead.linkedClient")}
                                 </span>
                             </div>
                             {(fromLead.email || fromLead.phone || fromLead.address) && (
@@ -162,11 +164,11 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
                     <div className="space-y-1.5">
                         <Label htmlFor="quote-title" className="text-sm font-medium text-slate-700">
-                            Quote Title <span className="text-rose-500">*</span>
+                            {tq("dialogs.newFromLead.titleLabel")} <span className="text-rose-500">*</span>
                         </Label>
                         <Input
                             id="quote-title"
-                            placeholder="e.g. Bathroom Renovation"
+                            placeholder={tq("dialogs.newFromLead.titlePh")}
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             className="border-slate-200"
@@ -175,12 +177,12 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
                     <div className="space-y-1.5">
                         <Label htmlFor="quote-scope" className="text-sm font-medium text-slate-700">
-                            Scope / Description
+                            {tq("dialogs.newFromLead.scopeLabel")}
                         </Label>
                         <textarea
                             id="quote-scope"
                             rows={4}
-                            placeholder="Describe the work to be quoted…"
+                            placeholder={tq("dialogs.newFromLead.scopePh")}
                             value={objective}
                             onChange={(e) => setObjective(e.target.value)}
                             className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
@@ -198,14 +200,14 @@ export function NewQuoteDialog({ open, onOpenChange, fromLead, onConfirm }: NewQ
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {tq("dialogs.newFromLead.cancel")}
                     </Button>
                     <Button onClick={handleConfirm} disabled={!title.trim()} className="min-w-[160px]">
-                        Continue to Builder
+                        {tq("dialogs.newFromLead.continue")}
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     )
-}
+                                    }
