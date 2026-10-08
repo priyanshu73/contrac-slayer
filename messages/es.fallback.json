@@ -489,7 +489,7 @@
       "searchClients": "Buscar clientes...",
       "edit": "Editar",
       "projectTitle": "Título del proyecto",
-      "projectOverview": "Resumen del proyecto",
+      "projectOverview": "Brief del proyecto",
       "briefContext": "El resumen y otras vistas del proyecto también usarán este contexto.",
       "cancel": "Cancelar",
       "saveChanges": "Guardar cambios"
@@ -550,6 +550,87 @@
       "unlink": "Desvincular",
       "delete": "Eliminar",
       "preview": "Vista previa"
+    },
+    "tasks": {
+      "noMatches": "Sin coincidencias",
+      "selectProjectToast": "Selecciona un proyecto",
+      "project": "Proyecto",
+      "selectProject": "Selecciona un proyecto"
+    },
+    "brief": {
+      "title": "Brief del proyecto",
+      "saved": "Guardado",
+      "answeredOf": "{answered} de {total} respondidas",
+      "hideLong": "Ocultar brief completo",
+      "openLong": "Abrir brief completo",
+      "phaseN": "Fase {number}",
+      "remove": "Quitar",
+      "phaseName": "Nombre de la fase",
+      "duration": "Duración",
+      "crew": "Equipo",
+      "phaseDescription": "¿Qué sucede en esta fase?",
+      "dependencies": "Dependencias",
+      "weatherSensitive": "Sensible al clima",
+      "clickToAnswer": "Haz clic para responder",
+      "selectOption": "Selecciona una opción...",
+      "typeAnswer": "Escribe tu respuesta...",
+      "sections": {
+        "client-context": "Contexto del cliente",
+        "scope": "Límites del alcance",
+        "timeline": "Cronograma"
+      },
+      "questions": {
+        "client_priorities": {
+          "label": "¿Qué fue lo que más enfatizó el cliente?",
+          "placeholder": "p. ej., \"Quiere más luz natural y almacenamiento antes de las visitas familiares\""
+        },
+        "client_concerns": {
+          "label": "Preocupaciones o dudas que planteó",
+          "placeholder": "p. ej., \"Le preocupan el polvo, los plazos y que el presupuesto se dispare\""
+        },
+        "competing_bids": {
+          "label": "Ofertas de la competencia mencionadas",
+          "placeholder": "p. ej., \"Recibió otra oferta que excluye la carpintería de acabados\""
+        },
+        "timeline_pressure": {
+          "label": "¿Presión de tiempo o ligado a un evento?",
+          "placeholder": "p. ej., \"Debe estar listo antes de que lleguen los invitados a mediados de junio\""
+        },
+        "whats_included": {
+          "label": "Qué está incluido",
+          "placeholder": "p. ej., \"Demolición, cambios de estructura, reparación de paneles de yeso, retoques de pintura, nuevo clóset\""
+        },
+        "whats_excluded": {
+          "label": "Qué NO está incluido",
+          "placeholder": "p. ej., \"Permisos, cambio de piso fuera del área de trabajo, rediseño eléctrico\""
+        },
+        "allowances": {
+          "label": "Asignaciones vs. costos fijos",
+          "placeholder": "p. ej., \"Asignación para herrajes del clóset; estructura y paneles de yeso a costo fijo\""
+        },
+        "known_risks": {
+          "label": "Riesgos o incógnitas conocidos",
+          "placeholder": "p. ej., \"Condiciones ocultas de la estructura al abrir el muro de ventanas\""
+        },
+        "start_date": {
+          "label": "Fecha de inicio estimada"
+        },
+        "total_duration": {
+          "label": "Duración total",
+          "placeholder": "p. ej., \"2-3 semanas\""
+        },
+        "phases": {
+          "label": "Fases del proyecto"
+        },
+        "working_hours": {
+          "label": "Horario y días de trabajo en obra",
+          "placeholder": "p. ej., \"Lun-Vie 7 a. m.-4 p. m.\""
+        },
+        "lead_time_dependencies": {
+          "label": "Dependencias del clima o de plazos de entrega",
+          "placeholder": "p. ej., \"Las ventanas a medida requieren 2 semanas de entrega\""
+        }
+      }
     }
   },
   "reportsPage": {
