@@ -1,4 +1,5 @@
 'use client'
+import { useTranslations } from 'next-intl'
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,6 +29,7 @@ interface FinancialSidebarProps {
 
 export function FinancialSidebar({ project, payments, summary, onPaymentAdded }: FinancialSidebarProps) {
   const { toast } = useToast()
+  const tp = useTranslations('projectsPage.financials')
   
   const [openPaymentModal, setOpenPaymentModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -53,7 +55,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
         notes: notes || null
       })
       
-      toast({ title: 'Payment logged successfully' })
+      toast({ title: tp('paymentLogged') })
       setOpenPaymentModal(false)
       onPaymentAdded()
       
@@ -63,7 +65,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
       setNotes('')
     } catch (err: any) {
       toast({
-        title: 'Error logging payment',
+        title: tp('paymentLogError'),
         description: err.message,
         variant: 'destructive',
       })
@@ -73,14 +75,14 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
   }
 
   const handleDeletePayment = async (paymentId: number) => {
-    if (!confirm('Are you sure you want to delete this payment record?')) return
+    if (!confirm(tp('deletePaymentConfirm'))) return
     try {
       await api.deleteProjectPayment(project.id, paymentId)
-      toast({ title: 'Payment deleted' })
+      toast({ title: tp('paymentDeleted') })
       onPaymentAdded()
     } catch (err: any) {
       toast({
-        title: 'Error deleting payment',
+        title: tp('paymentDeleteError'),
         description: err.message,
         variant: 'destructive',
       })
@@ -122,7 +124,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
       <Card className="border shadow-sm top-6 sticky">
         <CardHeader className="bg-muted border-b flex flex-row items-center justify-between pb-3 pt-4 px-4 sticky top-0 rounded-t-lg z-10">
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Payments Received
+            {tp('paymentsReceived')}
           </CardTitle>
           
           <Dialog open={openPaymentModal} onOpenChange={setOpenPaymentModal}>
@@ -133,12 +135,12 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Log payment</DialogTitle>
+                <DialogTitle>{tp('logPayment')}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddPayment} className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Amount</Label>
+                    <Label>{tp('amount')}</Label>
                     <Input
                       type="text"
                       inputMode="decimal"
@@ -149,7 +151,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Date</Label>
+                    <Label>{tp('date')}</Label>
                     <Input 
                       type="date" 
                       value={dateStr} 
@@ -160,33 +162,33 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Payment Method</Label>
+                  <Label>{tp('paymentMethod')}</Label>
                   <Select value={method} onValueChange={(v: any) => setMethod(v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Method" />
+                      <SelectValue placeholder={tp('selectMethod')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CHECK">Check</SelectItem>
-                      <SelectItem value="WIRE">Wire Transfer</SelectItem>
-                      <SelectItem value="ACH">ACH</SelectItem>
-                      <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
-                      <SelectItem value="CASH">Cash</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="CHECK">{tp('methodCheck')}</SelectItem>
+                      <SelectItem value="WIRE">{tp('methodWire')}</SelectItem>
+                      <SelectItem value="ACH">{tp('methodAch')}</SelectItem>
+                      <SelectItem value="CREDIT_CARD">{tp('methodCard')}</SelectItem>
+                      <SelectItem value="CASH">{tp('methodCash')}</SelectItem>
+                      <SelectItem value="OTHER">{tp('methodOther')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Invoice # (Optional)</Label>
+                  <Label>{tp('invoiceOptional')}</Label>
                   <Input 
-                    placeholder="e.g. INV-2025-001" 
+                    placeholder={tp('invoicePlaceholder')} 
                     value={invoiceRef} 
                     onChange={e => setInvoiceRef(e.target.value)} 
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
+                  <Label>{tp('notesOptional')}</Label>
                   <Input 
                     value={notes} 
                     onChange={e => setNotes(e.target.value)} 
@@ -195,7 +197,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
                 
                 <div className="flex justify-end pt-4">
                   <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
-                    {isSubmitting ? 'Logging...' : 'Save Payment'}
+                    {isSubmitting ? tp('logging') : tp('savePayment')}
                   </Button>
                 </div>
               </form>
@@ -207,11 +209,11 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
           <div className="p-4 space-y-4 bg-card">
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Collected</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">{tp('collected')}</p>
                 <p className="text-2xl font-bold text-status-active">{formatCurrency(totalPaid)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Due</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">{tp('due')}</p>
                 <p className="text-lg font-bold text-primary">{formatCurrency(remainingBalance)}</p>
               </div>
             </div>
@@ -249,8 +251,11 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
               <div className="flex items-start gap-1.5 rounded-md bg-status-pending/10 border border-status-pending/30 px-2.5 py-2 text-[11px] leading-snug text-status-pending">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
                 <span>
-                  Budget is overridden — quote-derived total is {formatCurrency(derivedContract)}
-                  {' '}({contractDrift > 0 ? '+' : '−'}{formatCurrency(Math.abs(contractDrift))}).
+                  {tp('budgetOverridden', {
+                    derived: formatCurrency(derivedContract),
+                    sign: contractDrift > 0 ? '+' : '−',
+                    diff: formatCurrency(Math.abs(contractDrift)),
+                  })}
                 </span>
               </div>
             )}
@@ -258,7 +263,7 @@ export function FinancialSidebar({ project, payments, summary, onPaymentAdded }:
 
           <div className="divide-y border-t bg-muted/50">
             {payments.length === 0 ? (
-              <div className="p-5 text-center text-xs text-muted-foreground">No entries</div>
+              <div className="p-5 text-center text-xs text-muted-foreground">{tp('noEntries')}</div>
             ) : (
               payments.map(payment => (
                 <div key={payment.id} className="p-4 flex items-center justify-between group">
