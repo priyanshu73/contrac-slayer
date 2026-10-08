@@ -1095,4 +1095,4 @@ function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
       {label}
     </Badge>
   )
-          }
+}
