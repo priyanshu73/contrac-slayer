@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { CreateAppointmentDialog, type CreateAppointmentClient } from "@/components/create-appointment-dialog"
 
 type Booking = Record<string, any>
@@ -165,7 +165,14 @@ function getBookingAvatarColor(idx: number): string {
   return BOOKING_AVATAR_COLORS[idx % BOOKING_AVATAR_COLORS.length]
 }
 
-function bookingTitle(b: Booking) {
+function bookingStatusText(raw: unknown, t: (key: string, values?: any) => string) {
+  const k = String(raw || "").toLowerCase()
+  return ["confirmed", "cancelled", "canceled", "pending", "completed", "rescheduled"].includes(k)
+    ? t(`status.${k}`)
+    : String(raw || "")
+}
+
+function bookingTitle(b: Booking, t: (key: string, values?: any) => string) {
   const customTitle = b?.title || b?.name
   if (customTitle && typeof customTitle === "string") return customTitle
   
@@ -176,9 +183,9 @@ function bookingTitle(b: Booking) {
     return (parsed.displayName || name).trim() || null
   })()
   if (clientDisplayName) {
-    return `Meeting with ${clientDisplayName}`
+    return t("meetingWith", { name: clientDisplayName })
   }
-  return "Booking"
+  return t("bookingFallback")
 }
 
   const getBookingStatusText = (booking: Booking) => {
@@ -256,28 +263,28 @@ function getBookingClientPhone(b: Booking): string | null {
   return null
 }
 
-function bookingTimeLabel(b: Booking) {
+function bookingTimeLabel(b: Booking, t: (key: string, values?: any) => string, loc?: string) {
   const dt = bookingStartDate(b)
-  if (!dt || isNaN(dt.getTime())) return "Time TBD"
+  if (!dt || isNaN(dt.getTime())) return t("timeTbd")
   const tz = b?.time_zone || undefined
-  return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz })
+  return dt.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit", timeZone: tz })
 }
 
-  const getBookingEndTime = (booking: Booking) => {
+  const getBookingEndTime = (booking: Booking, loc?: string) => {
     const dt = booking?.end ? new Date(booking.end) : null
     if (!dt || isNaN(dt.getTime())) return ""
     const tz = booking?.time_zone || undefined
-    return dt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz })
+    return dt.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit", timeZone: tz })
   }
 
-function bookingDateTimeRangeLabel(b: Booking) {
+function bookingDateTimeRangeLabel(b: Booking, loc?: string) {
   const s = bookingStartDate(b)
   if (!s) return ""
   const e = bookingEndDate(b)
-  const date = s.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-  const startTime = s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  const date = s.toLocaleDateString(loc, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+  const startTime = s.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit" })
   if (!e) return `${date} • ${startTime}`
-  const endTime = e.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  const endTime = e.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit" })
   return `${date} • ${startTime} – ${endTime}`
 }
 
@@ -302,12 +309,12 @@ function isSameMonth(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
 }
 
-function formatMonthTitle(d: Date) {
-  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+function formatMonthTitle(d: Date, loc?: string) {
+  return d.toLocaleDateString(loc, { month: "long", year: "numeric" })
 }
 
-function formatDayTitle(d: Date) {
-  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
+function formatDayTitle(d: Date, loc?: string) {
+  return d.toLocaleDateString(loc, { weekday: "long", month: "short", day: "numeric" })
 }
 
 function availabilityId(a: any): string | undefined {
@@ -431,6 +438,8 @@ function DayTimeline({
   bookings: Booking[]
   onBookingClick?: (b: Booking) => void
 }) {
+  const tCal = useTranslations("calendar")
+  const locale = useLocale()
   const startHour = 6
   const endHour = 20
   const pxPerHour = 44
@@ -449,10 +458,10 @@ function DayTimeline({
     <div className="relative rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold text-slate-900">Daily view</div>
-          <div className="text-sm text-slate-500">{formatDayTitle(day)}</div>
+          <div className="text-sm font-semibold text-slate-900">{tCal("dailyView")}</div>
+          <div className="text-sm text-slate-500">{formatDayTitle(day, locale)}</div>
         </div>
-        <div className="text-xs text-slate-500 tabular-nums">{bookings.length} event(s)</div>
+        <div className="text-xs text-slate-500 tabular-nums">{tCal("eventsCount", { count: bookings.length })}</div>
       </div>
 
       <Separator className="my-4" />
@@ -467,7 +476,7 @@ function DayTimeline({
           {Array.from({ length: endHour - startHour + 1 }).map((_, idx) => {
             const hour = startHour + idx
             const top = idx * pxPerHour
-            const label = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour).toLocaleTimeString([], {
+            const label = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour).toLocaleTimeString(locale, {
               hour: "numeric",
             })
             return (
@@ -491,7 +500,7 @@ function DayTimeline({
             const clientPhone = getBookingClientPhone(b)
             const location = b?.location || getBookingLocation(b)
             const isPhysical = b?.type === "physical" || b?.preferred_meeting_spot === "physical"
-            const endTime = getBookingEndTime(b)
+            const endTime = getBookingEndTime(b, locale)
 
             return (
               <div key={idx} className="absolute left-[72px] right-2" style={{ top }}>
@@ -527,7 +536,7 @@ function DayTimeline({
                         {/* Row 1: title + type badge */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="truncate text-[13px] font-semibold text-slate-900 leading-snug flex-1 min-w-0">
-                            {bookingTitle(b)}
+                            {bookingTitle(b, tCal)}
                           </div>
                           <span className={cn(
                             "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1",
@@ -539,13 +548,13 @@ function DayTimeline({
                               "h-1.5 w-1.5 rounded-full",
                               isPhysical ? "bg-orange-400" : "bg-indigo-500"
                             )} />
-                            {isPhysical ? "In-person" : "Virtual"}
+                            {isPhysical ? tCal("inPerson") : tCal("virtual")}
                           </span>
                         </div>
 
                         {/* Row 2: time range */}
                         <div className="mt-0.5 text-[11px] font-medium text-slate-400 tabular-nums">
-                          {bookingTimeLabel(b)}{endTime ? ` – ${endTime}` : ""}
+                          {bookingTimeLabel(b, tCal, locale)}{endTime ? ` – ${endTime}` : ""}
                         </div>
 
                         {/* Divider */}
@@ -593,7 +602,7 @@ function DayTimeline({
                         {b?.status && String(b.status) !== "confirmed" && (
                           <div className="mt-2">
                             <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200 capitalize">
-                              {String(b.status)}
+                              {bookingStatusText(b.status, tCal)}
                             </span>
                           </div>
                         )}
@@ -614,7 +623,9 @@ function DayTimeline({
 export default function CalendarPage() {
   const { toast } = useToast()
   const tCalendar = useTranslations('calendar')
+  const locale = useLocale()
   const tCommon = useTranslations('common')
+  const statusText = (raw: unknown) => bookingStatusText(raw, tCalendar)
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null)
@@ -794,13 +805,13 @@ export default function CalendarPage() {
 
   const onCopyLink = async () => {
     if (!calendarLink) {
-      toast({ title: "No public booking link found", variant: "destructive" })
+      toast({ title: tCalendar("noPublicLinkFound"), variant: "destructive" })
       return
     }
     if (navigator.clipboard) {
       navigator.clipboard.writeText(calendarLink)
-        .then(() => toast({ title: "Copied!", description: "Public booking link copied to clipboard." }))
-        .catch(() => toast({ title: "Failed to copy", variant: "destructive" }))
+        .then(() => toast({ title: tCalendar("copiedTitle"), description: tCalendar("publicLinkCopied") }))
+        .catch(() => toast({ title: tCalendar("copyFailed"), variant: "destructive" }))
     }
   }
 
@@ -847,19 +858,19 @@ export default function CalendarPage() {
     if (!activeBooking) return
     const sid = bookingSid(activeBooking)
     if (!sid) {
-      toast({ description: "Cannot cancel: booking ID missing.", variant: "destructive" as any })
+      toast({ description: tCalendar("cannotCancelNoId"), variant: "destructive" as any })
       return
     }
     setCancelling(true)
     try {
       await api.cancelBooking(activeBooking.id)
-      toast({ title: "Cancelled", description: "The meeting has been cancelled." })
+      toast({ title: tCalendar("cancelledTitle"), description: tCalendar("cancelledDescription") })
       setCancelConfirmOpen(false)
       setBookingDialogOpen(false)
       setActiveBooking(null)
       fetchBookings(currentMonthStr)
     } catch (e: any) {
-      toast({ description: e?.message || "Failed to cancel booking", variant: "destructive" as any })
+      toast({ description: e?.message || tCalendar("cancelFailed"), variant: "destructive" as any })
     } finally {
       setCancelling(false)
     }
@@ -927,7 +938,7 @@ export default function CalendarPage() {
     if (!activeBooking) return
     const sid = bookingSid(activeBooking)
     if (!sid) {
-      toast({ description: "Cannot reschedule: booking ID missing.", variant: "destructive" as any })
+      toast({ description: tCalendar("cannotRescheduleNoId"), variant: "destructive" as any })
       return
     }
     if (!rescheduleDate.trim()) {
@@ -935,7 +946,7 @@ export default function CalendarPage() {
       return
     }
     if (!rescheduleTime) {
-      toast({ description: "Please select an available time.", variant: "destructive" as any })
+      toast({ description: tCalendar("selectAvailableTime"), variant: "destructive" as any })
       return
     }
     const timeZoneToUse = rescheduleTimeZone
@@ -945,7 +956,7 @@ export default function CalendarPage() {
       return e && !isPlaceholderEmail(e) ? String(e) : ""
     })()
     if (!email) {
-      toast({ description: "Client email is required to reschedule.", variant: "destructive" as any })
+      toast({ description: tCalendar("clientEmailRequired"), variant: "destructive" as any })
       return
     }
     setRescheduleError("")
@@ -956,13 +967,13 @@ export default function CalendarPage() {
         slot_start_time: rescheduleTime,
         time_zone: timeZoneToUse,
       })
-      toast({ title: "Rescheduled!", description: "The meeting has been updated." })
+      toast({ title: tCalendar("rescheduledTitle"), description: tCalendar("rescheduledDescription") })
       setRescheduleDialogOpen(false)
       setBookingDialogOpen(false)
       setActiveBooking(null)
       fetchBookings(currentMonthStr)
     } catch (e: any) {
-      const msg = e?.message || "Failed to reschedule"
+      const msg = e?.message || tCalendar("rescheduleFailed")
       setRescheduleError(msg)
       toast({ description: msg, variant: "destructive" as any })
     } finally {
@@ -1027,7 +1038,7 @@ export default function CalendarPage() {
                   >
                     <PlusIcon className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
-                    <span className="sm:hidden">New</span>
+                    <span className="sm:hidden">{tCalendar("new")}</span>
                   </Button>
                 </div>
                 <div className="flex items-center gap-3 min-w-0">
@@ -1037,7 +1048,7 @@ export default function CalendarPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-semibold text-foreground break-words">
                       {selectedDay
-                        ? selectedDay.toLocaleDateString(undefined, {
+                        ? selectedDay.toLocaleDateString(locale, {
                             weekday: "long",
                             month: "short",
                             day: "numeric",
@@ -1048,7 +1059,7 @@ export default function CalendarPage() {
                       {selectedDayBookings.length === 0
                         ? tCalendar("noBookings")
                         : selectedDay
-                          ? `${selectedDay.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${selectedDayBookings.length} ${selectedDayBookings.length === 1 ? "booking" : "bookings"}`
+                          ? `${selectedDay.toLocaleDateString(locale, { month: "short", day: "numeric" })} • ${tCalendar("bookingCount", { count: selectedDayBookings.length })}`
                           : ""}
                     </p>
                   </div>
@@ -1074,7 +1085,7 @@ export default function CalendarPage() {
                     >
                       <PlusIcon className="h-4 w-4 mr-2 shrink-0" />
                       <span className="hidden sm:inline">{tCalendar("createAppointment")}</span>
-                      <span className="sm:hidden">New</span>
+                      <span className="sm:hidden">{tCalendar("new")}</span>
                     </Button>
                   </div>
                 ) : (
@@ -1096,18 +1107,18 @@ export default function CalendarPage() {
                         let subtitle = ""
                         if (isPhysical && displayLocation) {
                           if (clientPhone) {
-                            subtitle = `Meeting with ${clientPhone} at ${displayLocation}`
+                            subtitle = tCalendar("meetingWithPhoneAt", { phone: clientPhone, place: displayLocation })
                           } else {
-                            subtitle = `Meeting at ${displayLocation}`
+                            subtitle = tCalendar("meetingAt", { place: displayLocation })
                           }
                         } else if (!isPhysical) {
                           if (clientPhone) {
-                            subtitle = `Virtual Meeting — ${clientPhone}`
+                            subtitle = tCalendar("virtualMeetingPhone", { phone: clientPhone })
                           } else {
-                            subtitle = "Virtual Meeting"
+                            subtitle = tCalendar("virtualMeeting")
                           }
                         } else {
-                            subtitle = clientPhone ? `Meeting with ${clientPhone}` : (clientName + (showEmail ? ` (${b.email})` : ""))
+                            subtitle = clientPhone ? tCalendar("meetingWithPhone", { phone: clientPhone }) : (clientName + (showEmail ? ` (${b.email})` : ""))
                         }
 
                         const status = (b?.status as string) || "confirmed"
@@ -1118,7 +1129,7 @@ export default function CalendarPage() {
                             type="button"
                             onClick={() => openBooking(b)}
                             className="w-full rounded-lg border border-border bg-background p-4 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            aria-label={`Open booking details for ${bookingTitle(b)}`}
+                            aria-label={tCalendar("openBookingDetails", { title: bookingTitle(b, tCalendar) })}
                           >
                             <div className="flex items-start gap-3">
                               <Avatar
@@ -1134,7 +1145,7 @@ export default function CalendarPage() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between gap-2">
                                   <h3 className="text-base font-semibold text-primary truncate">
-                                    {bookingTitle(b)}
+                                    {bookingTitle(b, tCalendar)}
                                   </h3>
                                   <span className="shrink-0 rounded-full p-1 text-muted-foreground" aria-hidden>
                                     <MoreHorizontalIcon className="h-4 w-4" />
@@ -1161,7 +1172,7 @@ export default function CalendarPage() {
                                 ) : null}
                                 <div className="flex flex-wrap items-center gap-2 mt-2">
                                   <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
-                                    {bookingTimeLabel(b)}
+                                    {bookingTimeLabel(b, tCalendar, locale)}
                                   </span>
                                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                     {isConfirmed ? (
@@ -1170,7 +1181,7 @@ export default function CalendarPage() {
                                         Confirmed
                                       </>
                                     ) : (
-                                      <span className="capitalize">{status}</span>
+                                      <span className="capitalize">{statusText(status)}</span>
                                     )}
                                   </span>
                                 </div>
@@ -1220,7 +1231,7 @@ export default function CalendarPage() {
                             <TooltipTrigger asChild>
                               <div
                                 className="font-mono text-sm text-primary min-w-0 flex-1 truncate py-2.5 pr-2 cursor-default"
-                                aria-label="Scheduling link URL"
+                                aria-label={tCalendar("schedulingLinkUrl")}
                               >
                                 {calendarLink}
                               </div>
@@ -1238,7 +1249,7 @@ export default function CalendarPage() {
                                   size="icon"
                                   className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                   onClick={onCopyLink}
-                                  aria-label="Copy scheduling link"
+                                  aria-label={tCalendar("copySchedulingLink")}
                                 >
                                   {copied ? (
                                     <CheckIcon className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden />
@@ -1247,7 +1258,7 @@ export default function CalendarPage() {
                                   )}
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>{copied ? tCalendar("copiedToClipboard") : "Copy"}</TooltipContent>
+                              <TooltipContent>{copied ? tCalendar("copiedToClipboard") : tCalendar("copy")}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1257,12 +1268,12 @@ export default function CalendarPage() {
                                   size="icon"
                                   className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                   onClick={() => setSchedulingLinkViewOpen(true)}
-                                  aria-label="View scheduling link"
+                                  aria-label={tCalendar("viewSchedulingLink")}
                                 >
                                   <Eye className="h-4 w-4" aria-hidden />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>View</TooltipContent>
+                              <TooltipContent>{tCalendar("view")}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1272,14 +1283,14 @@ export default function CalendarPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                  aria-label="Open scheduling link in new tab"
+                                  aria-label={tCalendar("openSchedulingLinkNewTab")}
                                 >
                                   <a href={calendarLink} target="_blank" rel="noreferrer">
                                     <ExternalLinkIcon className="h-4 w-4" aria-hidden />
                                   </a>
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Open</TooltipContent>
+                              <TooltipContent>{tCalendar("open")}</TooltipContent>
                             </Tooltip>
                           </div>
                         </div>
@@ -1316,7 +1327,7 @@ export default function CalendarPage() {
                         size="icon"
                         className="h-8 w-8 shrink-0"
                         onClick={() => setSchedulingLinkViewOpen(false)}
-                        aria-label="Close"
+                        aria-label={tCommon("close")}
                       >
                         <XIcon className="h-4 w-4" />
                       </Button>
@@ -1324,7 +1335,7 @@ export default function CalendarPage() {
                     {calendarLink ? (
                       <iframe
                         src={calendarLink}
-                        title="Scheduling link preview"
+                        title={tCalendar("schedulingLinkPreview")}
                         className="w-full flex-1 min-h-0 rounded-b-lg"
                       />
                     ) : null}
@@ -1351,13 +1362,13 @@ export default function CalendarPage() {
             {/* Header */}
             <div className="px-6 pt-6 pb-5 border-b">
               <DialogTitle className="text-xl font-semibold text-foreground mb-2">
-                {activeBooking ? bookingTitle(activeBooking) : "Booking"}
+                {activeBooking ? bookingTitle(activeBooking, tCalendar) : tCalendar("bookingFallback")}
               </DialogTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>{activeBooking ? bookingDateTimeRangeLabel(activeBooking) : null}</span>
+                <span>{activeBooking ? bookingDateTimeRangeLabel(activeBooking, locale) : null}</span>
               </div>
             </div>
 
@@ -1368,10 +1379,10 @@ export default function CalendarPage() {
                   {/* Meeting type badge */}
                   {(() => {
                     const isPhysical = activeBooking?.type === "physical" || activeBooking?.preferred_meeting_spot === "physical"
-                    const label = isPhysical ? "In-person" : "Virtual"
+                    const label = isPhysical ? tCalendar("inPerson") : tCalendar("virtual")
                     return (
                       <div className="flex py-3 border-b border-border/50">
-                        <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Type</span>
+                        <span className="text-sm font-medium text-muted-foreground min-w-[100px]">{tCalendar("typeLabel")}</span>
                         <span className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
                           isPhysical
@@ -1385,7 +1396,7 @@ export default function CalendarPage() {
                     )
                   })()}
                   <div className="flex py-3 border-b border-border/50">
-                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Client</span>
+                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">{tCalendar("clientLabel")}</span>
                     <span className="text-sm text-foreground">
                       {activeBooking?.client_name || parseBookingNameAndLocation(activeBooking?.name).displayName || "—"}
                       {(() => {
@@ -1401,14 +1412,14 @@ export default function CalendarPage() {
                       <>
                         {location && (
                           <div className="flex items-center gap-2 py-3 border-b border-border/50">
-                            <span className="text-sm font-medium text-muted-foreground min-w-[100px] shrink-0">Location</span>
+                            <span className="text-sm font-medium text-muted-foreground min-w-[100px] shrink-0">{tCalendar("location")}</span>
                             <span className="text-sm text-foreground min-w-0 flex-1 truncate">{location}</span>
                             <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 rounded-lg p-0" asChild>
                               <a
                                 href={`https://maps.google.com/?q=${encodeURIComponent(location)}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                aria-label="Open location in Google Maps"
+                                aria-label={tCalendar("openLocationMaps")}
                               >
                                 <MapPin className="h-4 w-4" />
                               </a>
@@ -1417,7 +1428,7 @@ export default function CalendarPage() {
                         )}
                         {clientPhone && (
                           <div className="flex py-3 border-b border-border/50">
-                            <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Phone</span>
+                            <span className="text-sm font-medium text-muted-foreground min-w-[100px]">{tCalendar("phoneLabel")}</span>
                             <span className="text-sm text-foreground">{formatPhoneForDisplay(clientPhone)}</span>
                           </div>
                         )}
@@ -1425,14 +1436,14 @@ export default function CalendarPage() {
                     ) : null
                   })()}
                   <div className="flex py-3 border-b border-border/50">
-                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Status</span>
+                    <span className="text-sm font-medium text-muted-foreground min-w-[100px]">{tCalendar("statusLabel")}</span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-muted text-foreground capitalize">
-                      {String(activeBooking?.status || "—")}
+                      {activeBooking?.status ? statusText(activeBooking.status) : "—"}
                     </span>
                   </div>
                   {activeBooking?.time_zone ? (
                     <div className="flex py-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[100px]">Time zone</span>
+                      <span className="text-sm font-medium text-muted-foreground min-w-[100px]">{tCalendar("timeZoneLabel")}</span>
                       <span className="text-sm text-foreground">{String(activeBooking.time_zone)}</span>
                     </div>
                   ) : null}
@@ -1543,9 +1554,9 @@ export default function CalendarPage() {
                         !rescheduleDate.trim()
                           ? tCalendar("selectDate")
                           : rescheduleSlotsLoading
-                            ? "Loading..."
+                            ? tCommon("loading")
                             : rescheduleSlotTimeOptions.length === 0
-                              ? "No available slots"
+                              ? tCalendar("noAvailableSlots")
                               : undefined
                       }
                     />
@@ -1620,9 +1631,9 @@ export default function CalendarPage() {
                 <Alert className="bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800">
                   <AlertCircleIcon className="text-indigo-600 dark:text-indigo-400" />
                   <AlertDescription className="flex flex-col items-start gap-3 text-indigo-800 md:flex-row md:items-center md:justify-between dark:text-indigo-200">
-                    <span>Connect a Google or Microsoft account to sync calendar features.</span>
+                    <span>{tCalendar("connectAccountPrompt")}</span>
                     <Button variant="outline" size="sm" asChild className="w-full shrink-0 bg-white md:ml-4 md:w-auto dark:bg-transparent">
-                      <a href="/settings?tab=integrations">Connect account</a>
+                      <a href="/settings?tab=integrations">{tCalendar("connectAccount")}</a>
                     </Button>
                   </AlertDescription>
                 </Alert>
@@ -1709,4 +1720,4 @@ export default function CalendarPage() {
       </main>
     </div>
   )
-}
+                                    }
