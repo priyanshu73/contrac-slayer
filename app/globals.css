@@ -173,6 +173,10 @@
   flex: 1;
 }
 
+.landing-section-auto {
+  min-height: auto;
+}
+
 .landing-section-pricing {
   min-height: auto;
   padding-bottom: 1.5rem;
