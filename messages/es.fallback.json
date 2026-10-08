@@ -40,7 +40,13 @@
     "campaignDetails": "Detalles de la campaña",
     "crewDetails": "Detalles del equipo",
     "tradeScope": "Alcance del oficio",
-    "projectDetails": "Detalles del proyecto"
+    "projectDetails": "Detalles del proyecto",
+    "pageBilling": "Facturación",
+    "pageAdmin": "Administración",
+    "pagePrivacy": "Privacidad",
+    "requestSettings": "Configuración de solicitudes",
+    "quoteRequest": "Solicitud de presupuesto",
+    "pageAvailability": "Disponibilidad"
   },
   "projects": {
     "emptyState": "Aún no hay proyectos. Crea uno desde un presupuesto aceptado o agrégalo manualmente.",
