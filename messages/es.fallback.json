@@ -4,7 +4,9 @@
     "workflowBottomBody": "Los clientes siguen usando llamadas y mensajes. Tu equipo obtiene el CRM, calendario, presupuestos, proyectos y finanzas organizados detrás de escena.",
     "workflowBottomChip3": "Presupuestos",
     "pricingBasic3": "Generación de Presupuestos con IA",
-    "featuresPmBody": "Tareas, alcances, documentos y traspasos de cuadrilla quedan unidos al proyecto para que nada se pierda tras el presupuesto."
+    "featuresPmBody": "Tareas, alcances, documentos y traspasos de cuadrilla quedan unidos al proyecto para que nada se pierda tras el presupuesto.",
+    "featuresProofBody": "Los visitantes entienden el sistema rápido: responde antes, presupuesta mejor, despacha con inteligencia y mantén el dinero organizado.",
+    "workflowStep2Label": "Presupuesta"
   },
   "navigation": {
     "quotes": "Presupuestos",
@@ -66,12 +68,12 @@
       "loading": "Cargando presupuestos...",
       "loadFailed": "No se pudieron cargar los presupuestos.",
       "empty": "No hay presupuestos vinculados a este proyecto.",
-      "selectQuote": "Selecciona un presupuesto para vincularla",
+      "selectQuote": "Selecciona un presupuesto para vincularlo",
       "noAvailableQuotes": "No hay presupuestos sin vincular disponibles.",
       "linkSuccess": "Presupuesto vinculado correctamente",
       "linkError": "No se pudo vincular el presupuesto",
       "linkQuoteDialogTitle": "Vincular presupuesto al proyecto",
-      "linkQuoteDialogDescription": "Selecciona un presupuesto existente para asociarla a este proyecto. Un presupuesto solo puede pertenecer a un proyecto a la vez."
+      "linkQuoteDialogDescription": "Selecciona un presupuesto existente para asociarlo a este proyecto. Un presupuesto solo puede pertenecer a un proyecto a la vez."
     }
   },
   "auth": {
@@ -82,9 +84,9 @@
     "recentQuotes": "Presupuestos",
     "createQuote": "Crear Presupuesto",
     "copyQuote": "Copiar Presupuesto",
-    "noQuotesYet": "No hay presupuestos aún. ¡Crea tu primera presupuesto!",
+    "noQuotesYet": "No hay presupuestos aún. ¡Crea tu primer presupuesto!",
     "stats": {
-      "paidQuotes": "De presupuestos pagadas"
+      "paidQuotes": "De presupuestos pagados"
     },
     "actions": {
       "createQuote": "Crear Presupuesto"
@@ -142,7 +144,7 @@
     "selectQuote": "Seleccionar presupuesto",
     "selectQuoteRequired": "Por favor seleccione un presupuesto.",
     "noQuotes": "No hay presupuestos para este cliente. Cree un presupuesto primero.",
-    "quoteFollowupMessageHint": "Incluya el enlace de el presupuesto y pregunte si tienen preguntas.",
+    "quoteFollowupMessageHint": "Incluya el enlace del presupuesto y pregunte si tienen preguntas.",
     "fetchingQuoteLink": "Obteniendo enlace de presupuesto...",
     "signQuoteFirst": "Por favor firme el presupuesto primero para generar un enlace, o elimine el marcador de enlace del mensaje."
   },
@@ -150,16 +152,16 @@
     "listTitle": "Presupuestos",
     "noMatches": "No hay presupuestos con estos filtros.",
     "quoteNumber": "Presupuesto n.º {id}",
-    "statusUpdated": "Estado de el presupuesto actualizado a {status}.",
-    "sendToClientTooltipReady": "Abre el correo con el enlace de el presupuesto para enviar al cliente.",
+    "statusUpdated": "Estado del presupuesto actualizado a {status}.",
+    "sendToClientTooltipReady": "Abre el correo con el enlace del presupuesto para enviar al cliente.",
     "sendToClientTooltipSignFirst": "Firma el presupuesto primero para enviarlo al cliente.",
     "copyLinkTooltipSignFirst": "Firma el presupuesto primero para generar un enlace público.",
     "copyLinkTooltipCopy": "Copiar enlace de presupuesto",
-    "newQuote": "Nueva presupuesto",
+    "newQuote": "Nuevo presupuesto",
     "noQuotesYet": "Aún no hay presupuestos",
-    "createFirstQuote": "Crea tu primera presupuesto para comenzar.",
+    "createFirstQuote": "Crea tu primer presupuesto para comenzar.",
     "quote": "PRESUPUESTO",
-    "quoteDetails": "DETALLES DE LA PRESUPUESTO"
+    "quoteDetails": "DETALLES DEL PRESUPUESTO"
   },
   "leads": {
     "fromQuoteRequest": "De Solicitud de Presupuesto",
@@ -172,7 +174,7 @@
     "quotes": "Presupuestos",
     "quoteRequests": "Solicitudes de Presupuesto",
     "noQuotesYet": "Aún no hay presupuestos",
-    "createFirstQuote": "Crear Primera Presupuesto",
+    "createFirstQuote": "Crear Primer Presupuesto",
     "noQuoteRequests": "No hay solicitudes de presupuesto",
     "convertedToQuote": "Convertido a Presupuesto #{id}",
     "viewQuote": "Ver Presupuesto →",
@@ -193,7 +195,7 @@
   "billing": {
     "features": {
       "aiQuoteGeneration": "Generación de Presupuestos con IA",
-      "unlimitedQuotes": "Presupuestos y Facturas Ilimitadas"
+      "unlimitedQuotes": "Presupuestos y Facturas Ilimitados"
     },
     "success": {
       "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, presupuestos, trabajos y facturas desde un panel limpio."
@@ -204,16 +206,16 @@
       "quoteNumber": "PRESUPUESTO #{id}"
     },
     "aiModal": {
-      "description": "Sube una foto del antes, elige los conceptos guardados de el presupuesto que deseas incluir y genera una vista previa de antes y después para este presupuesto."
+      "description": "Sube una foto del antes, elige los conceptos guardados del presupuesto que deseas incluir y genera una vista previa de antes y después para este presupuesto."
     },
     "errors": {
       "noQuoteToUpload": "No hay un presupuesto ni un proyecto al que subir archivos",
       "loadQuoteProposal": "No se pudo cargar la propuesta del presupuesto.",
       "savedQuotesOnly": "El editor de propuestas solo está disponible para presupuestos guardados.",
-      "quoteNotFound": "Presupuesto no encontrada."
+      "quoteNotFound": "Presupuesto no encontrado."
     },
     "routePage": {
-      "backToQuote": "Volver a el presupuesto",
+      "backToQuote": "Volver al presupuesto",
       "breadcrumbQuotes": "Presupuestos",
       "breadcrumbQuoteNumber": "Presupuesto #{id}"
     },
@@ -286,5 +288,8 @@
     "snoozeAll": "Posponer todo",
     "allCaughtUp": "Está al día",
     "nothingNeedsAction": "Nada requiere acción por ahora."
+  },
+  "filters": {
+    "quoted": "Presupuestado"
   }
 }
