@@ -48,7 +48,9 @@
     "pagePrivacy": "Privacy",
     "requestSettings": "Request Settings",
     "quoteRequest": "Estimate Request",
-    "pageAvailability": "Availability"
+    "pageAvailability": "Availability",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "projects": {
     "emptyState": "No projects yet. Start by creating a project from an accepted estimate or add one manually.",
