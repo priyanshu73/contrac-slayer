@@ -192,7 +192,94 @@
     "deleteQuoteTitle": "Eliminar presupuesto",
     "deleteQuoteConfirm": "¿Seguro que quieres eliminar el presupuesto de <strong>{client}</strong>? Esta acción no se puede deshacer.",
     "thisClient": "este cliente",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "detail": {
+      "linkedToProject": "Presupuesto vinculado al proyecto",
+      "linkFailed": "No se pudo vincular el proyecto",
+      "unlinkedFromProject": "Presupuesto desvinculado del proyecto",
+      "unlinkFailed": "No se pudo desvincular el proyecto",
+      "error": "Error",
+      "changeOrderFailed": "No se pudo crear la orden de cambio",
+      "emailNotConnected": "Cuenta de correo no conectada",
+      "connectEmailRich": "Conecta Google o Microsoft en <link>Configuración → Integraciones</link> para enviar el presupuesto desde tu cuenta conectada.",
+      "prepareEmailFailed": "No se pudo preparar el correo.",
+      "enterEmail": "Ingresa un correo",
+      "enterClientEmail": "Ingresa el correo electrónico del cliente.",
+      "linkUnavailable": "El enlace del presupuesto no está disponible.",
+      "estimateSent": "Presupuesto enviado",
+      "sentTo": "Enviado a {email}.",
+      "sendFailed": "Error al enviar",
+      "invalidTo": "Ingresa un correo electrónico válido en el campo Para e inténtalo de nuevo.",
+      "sendEmailFailed": "No se pudo enviar el correo.",
+      "estimateDeleted": "Presupuesto eliminado",
+      "estimateRemoved": "El presupuesto n.º {id} se eliminó.",
+      "deleteFailed": "Error al eliminar",
+      "deleteEstimateFailed": "No se pudo eliminar el presupuesto.",
+      "invoiceCreated": "Factura creada",
+      "invoiceCreatedQbo": "Factura creada en ContractorOps y QuickBooks.",
+      "invoiceQboSyncFailed": "Factura creada en ContractorOps, pero falló la sincronización con QuickBooks: {error}",
+      "unknownError": "Error desconocido",
+      "invoiceCreatedDesc": "Se creó la factura {number}. Búscala en la pestaña Facturas.",
+      "invoiceFailed": "No se pudo crear la factura",
+      "somethingWrong": "Algo salió mal.",
+      "invoiceSent": "Factura enviada",
+      "invoiceEmailed": "Factura enviada por correo al cliente.",
+      "invoiceSendFailed": "No se pudo enviar la factura",
+      "smsUnavailable": "SMS no disponible",
+      "smsNotSetUp": "Tu número de ContractorOps no está configurado. Conéctalo en la configuración para enviar el presupuesto por SMS.",
+      "numberRequired": "Se requiere el número de ContractorOps",
+      "numberRequiredDesc": "Configura tu número de ContractorOps en Configuración → Integraciones para enviar el presupuesto por SMS.",
+      "noPhone": "Sin número de teléfono",
+      "noPhoneDesc": "Agrega un número de teléfono para este cliente y poder enviar el presupuesto por SMS.",
+      "linkGenFailed": "No se pudo generar el enlace del presupuesto",
+      "tryAgain": "Inténtalo de nuevo.",
+      "smsDocsReady": "Hola {name}, tus documentos están listos. Míralos aquí: {url}",
+      "smsFailed": "No se pudo enviar el SMS. Inténtalo de nuevo.",
+      "followupBasic": "Hola {name}, te escribo para dar seguimiento al presupuesto que te enviamos. ¿Tienes alguna pregunta?",
+      "followupWithLink": "Hola {name}, te escribo para dar seguimiento al presupuesto que te enviamos. Puedes verlo aquí: {url}\n\n¿Tienes alguna pregunta?",
+      "followupNotSetUp": "No se pudo enviar el seguimiento. Tu número de ContractorOps no está configurado.",
+      "customerPhoneMissing": "No se encontró el teléfono del cliente. Agrega un número de teléfono para enviar SMS.",
+      "clientEmailMissing": "No se encontró el correo del cliente. Agrega un correo para enviar el seguimiento por correo electrónico.",
+      "selectChannel": "Selecciona al menos una opción: SMS o correo electrónico.",
+      "followupSent": "¡Seguimiento enviado!",
+      "followupSentDesc": "{mix, select, sms {SMS enviado a {name} correctamente.} email {Correo enviado a {name} correctamente.} other {SMS y correo enviados a {name} correctamente.}}",
+      "followupFailed": "No se pudo enviar el seguimiento",
+      "customer": "Cliente",
+      "backToEstimates": "Volver a presupuestos",
+      "breadcrumbEstimates": "Presupuestos",
+      "changeOrderNum": "Orden de cambio n.º {id}",
+      "estimateNum": "Presupuesto n.º {id}",
+      "linkedProject": "Vinculado al proyecto",
+      "noProjects": "No se encontraron proyectos",
+      "createProject": "Crear proyecto",
+      "deleteTitle": "¿Eliminar presupuesto?",
+      "deleteDesc": "Esto elimina de forma permanente el presupuesto n.º {id}. Esta acción no se puede deshacer.",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando...",
+      "deleteEstimate": "Eliminar presupuesto",
+      "acceptedTitle": "Este presupuesto ya fue aceptado",
+      "acceptedDesc": "El presupuesto n.º {id} ya fue aceptado, así que editarlo directamente cambiaría un contrato firmado. Crea una orden de cambio para registrar la revisión y conservar el original.",
+      "creating": "Creando...",
+      "createChangeOrder": "Crear orden de cambio",
+      "beforeAfterTitle": "Antes y después con IA",
+      "beforeAfterDesc": "Sube una foto del antes, elige las partidas guardadas del presupuesto que quieres incluir y genera una vista previa con IA de este presupuesto. Las imágenes generadas no son trabajo realmente terminado.",
+      "estimateSentTo": "Presupuesto enviado a {email}",
+      "sentConfirmDesc": "Tu cliente recibirá el correo desde tu cuenta conectada con un enlace seguro para ver y firmar.",
+      "linkCopied": "Enlace copiado",
+      "copied": "¡Copiado!",
+      "copyShareLink": "Copiar enlace para compartir",
+      "close": "Cerrar",
+      "reviewSend": "Revisar y enviar presupuesto",
+      "from": "De",
+      "to": "Para",
+      "clientEmailPlaceholder": "Ingresa el correo del cliente",
+      "subject": "Asunto",
+      "noteOptional": "Agrega un mensaje breve (opcional)",
+      "clientWillReceive": "Lo que recibirá tu cliente",
+      "discard": "Descartar",
+      "sending": "Enviando…",
+      "sendEstimate": "Enviar presupuesto"
+    }
   },
   "leads": {
     "fromQuoteRequest": "De Solicitud de Presupuesto",
@@ -226,7 +313,8 @@
   "billing": {
     "features": {
       "aiQuoteGeneration": "Generación de Presupuestos con IA",
-      "unlimitedQuotes": "Presupuestos y facturas ilimitados"
+      "unlimitedQuotes": "Presupuestos y facturas ilimitados",
+      "quotesAndInvoices": "Presupuestos y facturas"
     },
     "success": {
       "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, presupuestos, trabajos y facturas desde un panel limpio."
@@ -260,6 +348,9 @@
   "website": {
     "gallery": {
       "importPrivacyUntitled": "Copia una imagen en este proyecto. No se copian nombres, direcciones ni notas del cliente."
+    },
+    "setup": {
+      "areasHint": "Una etiqueta de zona pública por línea. Esta lista solo se muestra y no cambia la elegibilidad para presupuestos."
     }
   },
   "dashboardHome": {
@@ -1099,6 +1190,11 @@
       "SOCIAL_MEDIA": "Redes sociales",
       "CONSOLIDATED": "Consolidado",
       "OTHER": "Otro"
+    }
+  },
+  "frontline": {
+    "settings": {
+      "pricingDesc": "Comparte rangos y tarifas; Frontline no prometerá un presupuesto exacto."
     }
   }
 }
