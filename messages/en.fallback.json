@@ -951,7 +951,20 @@
         },
         "derivedFromTitle": "Derived from {title}",
         "derivedFromAccepted": "Derived from the accepted estimate",
-        "derivedFromCount": "{count, plural, one {Derived from # estimate} other {Derived from # estimates}}"
+        "derivedFromCount": "{count, plural, one {Derived from # estimate} other {Derived from # estimates}}",
+        "estimateStatus": {
+          "DRAFT": "Draft",
+          "SENT": "Sent",
+          "VIEWED": "Viewed",
+          "CUSTOMER_MODIFIED": "Customer modified",
+          "ACCEPTED": "Accepted",
+          "REJECTED": "Rejected",
+          "IN_PROGRESS": "In progress",
+          "COMPLETED": "Completed",
+          "INVOICED": "Invoiced",
+          "PAID": "Paid",
+          "CANCELLED": "Cancelled"
+        }
       },
       "jobCosting": {
         "error": "Error",
@@ -1001,6 +1014,40 @@
       "documents": {
         "documentsReceipts": "Project Documents & Receipts",
         "changeOrders": "Change Orders (Contracts & Signatures)"
+      },
+      "qbo": {
+        "statusPaid": "Paid",
+        "statusPartiallyPaid": "Partially Paid",
+        "statusOpen": "Open",
+        "dueOn": "Due {date}",
+        "invNumber": "Inv. {number}",
+        "total": "Total",
+        "paid": "Paid",
+        "due": "Due",
+        "lineItems": "Line items ({count})",
+        "item": "Item",
+        "qty": "Qty",
+        "rate": "Rate",
+        "amt": "Amt",
+        "subtotal": "Subtotal",
+        "tax": "Tax",
+        "synced": "Synced {date}",
+        "paidAppOnly": "Paid · App only",
+        "noQboLinked": "No QuickBooks invoice linked — counted as collected in the snapshot.",
+        "openEstimate": "Open estimate",
+        "otherPayments": "Other payments",
+        "noQboInvoice": "(no QuickBooks invoice)",
+        "otherPaymentsHint": "Paid estimates recorded in the app without a QuickBooks invoice id or link. Totals match the financial snapshot.",
+        "loadFailed": "Failed to load invoice details",
+        "tryAgain": "Try Again",
+        "connectQuickbooks": "Connect QuickBooks",
+        "settingsIntegrations": "Settings → Integrations",
+        "connect": "Connect",
+        "noInvoices": "No QuickBooks invoices on linked estimates yet.",
+        "noInvoicesHint": "When you sync invoices from QuickBooks, they appear here. Paid estimates without QuickBooks also list under Other payments when applicable.",
+        "title": "QuickBooks",
+        "refresh": "Refresh",
+        "refreshAria": "Refresh QuickBooks data"
       }
     }
   },
