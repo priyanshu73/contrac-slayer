@@ -498,7 +498,9 @@
 @media (max-width: 720px){
   .lp .s8 .stats4 b{font-size:20px!important}
   .lp .s8 .stats4 div{padding:10px 10px}
+  .lp .s6 .gbr{position:static;width:auto;margin-top:24px}
   .lp .s6 .ph4{margin:18px auto!important;display:block}
+  .lp .s6 .rq .stp{margin-top:26px!important}
 }
 
 /* costs toggles, tile padding */
