@@ -1638,7 +1638,51 @@
       "completed": "Completed",
       "rescheduled": "Rescheduled"
     },
-    "bookingCount": "{count, plural, one {# booking} other {# bookings}}"
+    "bookingCount": "{count, plural, one {# booking} other {# bookings}}",
+    "availability": {
+      "title": "Weekly hours",
+      "subtitle": "Set when you’re typically available for meetings",
+      "quickApply": "Quick apply",
+      "start": "Start",
+      "end": "End",
+      "timeZone": "Time zone",
+      "selectTimezone": "Select time zone",
+      "apply": "Apply",
+      "addHours": "Add hours",
+      "reload": "Reload",
+      "saving": "Saving…",
+      "save": "Save",
+      "loadFailed": "Failed to load availability. You can still set it manually.",
+      "saved": "Saved!",
+      "savedDesc": "Your weekly hours have been updated.",
+      "error": "Error",
+      "saveFailed": "Failed to save hours",
+      "appliedUniform": "Applied uniform hours (not saved yet).",
+      "removeRange": "Remove time range from {day}",
+      "addRange": "Add another time range for {day}",
+      "weekday": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      },
+      "weekdayShort": {
+        "sunday": "S",
+        "monday": "M",
+        "tuesday": "T",
+        "wednesday": "W",
+        "thursday": "Th",
+        "friday": "F",
+        "saturday": "S"
+      },
+      "monthly": {
+        "previous": "Previous month",
+        "next": "Next month"
+      }
+    }
   },
   "invoicesPage": {
     "title": "Invoices",
