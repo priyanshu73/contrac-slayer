@@ -1325,4 +1325,4 @@ export function FollowupSettings({
       </div>
     </div>
   )
-          }
+}
