@@ -266,13 +266,13 @@ export function Navbar() {
     if (currentRoute === "/reports") return t("reports");
     if (currentRoute === "/actions/scheduling") return t("scheduling");
     if (currentRoute.startsWith("/settings")) return t("settings");
-    if (currentRoute.startsWith("/billing")) return "Billing";
-    if (currentRoute.startsWith("/admin")) return "Admin";
-    if (currentRoute.startsWith("/privacy")) return "Privacy";
-    if (currentRoute.startsWith("/request/settings")) return "Request Settings";
-    if (currentRoute.startsWith("/request")) return "Quote Request";
-    if (currentRoute.startsWith("/availability")) return "Availability";
-    return "Dashboard";
+    if (currentRoute.startsWith("/billing")) return t("pageBilling");
+    if (currentRoute.startsWith("/admin")) return t("pageAdmin");
+    if (currentRoute.startsWith("/privacy")) return t("pagePrivacy");
+    if (currentRoute.startsWith("/request/settings")) return t("requestSettings");
+    if (currentRoute.startsWith("/request")) return t("quoteRequest");
+    if (currentRoute.startsWith("/availability")) return t("pageAvailability");
+    return t("dashboard");
   };
 
   const pageTitle = getPageTitle();
