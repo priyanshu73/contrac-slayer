@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,6 +25,7 @@ interface AddSubcontractorFormProps {
 
 export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubcontractorFormProps) {
     const { toast } = useToast()
+    const t = useTranslations("crewPage")
     const [saving, setSaving] = useState(false)
     const [form, setForm] = useState({
         name: "",
@@ -42,7 +44,7 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!form.name.trim()) {
-            toast({ title: "Name is required", variant: "destructive" })
+            toast({ title: t("nameRequired"), variant: "destructive" })
             return
         }
 
@@ -57,12 +59,12 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                 address: form.address.trim() || undefined,
                 notes: form.notes.trim() || undefined,
             })
-            toast({ title: "Crew member added successfully" })
+            toast({ title: t("added") })
             setForm({ name: "", email: "", phone_number: "", company_name: "", specialty: "", address: "", notes: "" })
             onOpenChange(false)
             onSuccess?.()
         } catch (err: any) {
-            toast({ title: "Failed to add subcontractor", description: err.message, variant: "destructive" })
+            toast({ title: t("addFailed"), description: err.message, variant: "destructive" })
         } finally {
             setSaving(false)
         }
@@ -72,14 +74,14 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Crew Member</DialogTitle>
+                    <DialogTitle>{t("addCrewMember")}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="sub-name">Name *</Label>
+                        <Label htmlFor="sub-name">{t("nameLabel")}</Label>
                         <Input
                             id="sub-name"
-                            placeholder="Full name"
+                            placeholder={t("fullNamePlaceholder")}
                             value={form.name}
                             onChange={(e) => handleChange("name", e.target.value)}
                             required
@@ -87,17 +89,17 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label htmlFor="sub-email">Email</Label>
+                            <Label htmlFor="sub-email">{t("email")}</Label>
                             <Input
                                 id="sub-email"
                                 type="email"
-                                placeholder="email@example.com"
+                                placeholder={t("emailPlaceholder")}
                                 value={form.email}
                                 onChange={(e) => handleChange("email", e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sub-phone">Phone</Label>
+                            <Label htmlFor="sub-phone">{t("phone")}</Label>
                             <Input
                                 id="sub-phone"
                                 placeholder="(555) 123-4567"
@@ -108,38 +110,38 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label htmlFor="sub-company">Company Name</Label>
+                            <Label htmlFor="sub-company">{t("companyName")}</Label>
                             <Input
                                 id="sub-company"
-                                placeholder="Company name"
+                                placeholder={t("companyPlaceholder")}
                                 value={form.company_name}
                                 onChange={(e) => handleChange("company_name", e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sub-specialty">Specialty</Label>
+                            <Label htmlFor="sub-specialty">{t("specialty")}</Label>
                             <Input
                                 id="sub-specialty"
-                                placeholder="e.g. Plumbing"
+                                placeholder={t("specialtyPlaceholder")}
                                 value={form.specialty}
                                 onChange={(e) => handleChange("specialty", e.target.value)}
                             />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="sub-address">Address</Label>
+                        <Label htmlFor="sub-address">{t("address")}</Label>
                         <Input
                             id="sub-address"
-                            placeholder="Street address"
+                            placeholder={t("streetPlaceholder")}
                             value={form.address}
                             onChange={(e) => handleChange("address", e.target.value)}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="sub-notes">Notes</Label>
+                        <Label htmlFor="sub-notes">{t("notes")}</Label>
                         <Textarea
                             id="sub-notes"
-                            placeholder="Internal notes..."
+                            placeholder={t("notesPlaceholder")}
                             rows={3}
                             value={form.notes}
                             onChange={(e) => handleChange("notes", e.target.value)}
@@ -147,10 +149,10 @@ export function AddSubcontractorForm({ open, onOpenChange, onSuccess }: AddSubco
                     </div>
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancel
+                            {t("cancel")}
                         </Button>
                         <Button type="submit" disabled={saving}>
-                            {saving ? "Saving..." : "Add Crew Member"}
+                            {saving ? t("saving") : t("addCrewMember")}
                         </Button>
                     </DialogFooter>
                 </form>
