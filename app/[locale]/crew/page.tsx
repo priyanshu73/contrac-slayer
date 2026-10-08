@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTranslations } from "next-intl"
 import { SubcontractorsList } from "@/components/subcontractors-list"
 import { AddSubcontractorForm } from "@/components/add-subcontractor-form"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { Plus, LayoutGrid, List } from "lucide-react"
 export type ClientsViewMode = "grid" | "list"
 
 export default function CrewPage() {
+  const t = useTranslations("crewPage")
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -51,7 +53,7 @@ export default function CrewPage() {
           <div className="max-w-7xl mx-auto space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="hidden text-2xl font-bold tracking-tight text-slate-900 md:block">Crew</h1>
+                <h1 className="hidden text-2xl font-bold tracking-tight text-slate-900 md:block">{t("title")}</h1>
                 <p className="mt-0.5 text-xs font-medium text-slate-500 md:hidden">
                   {loading ? "Loading..." : `${filteredSubcontractors.length} crew members`}
                 </p>
@@ -70,7 +72,7 @@ export default function CrewPage() {
               <div className="flex-1 min-w-0">
                 <input
                   type="text"
-                  placeholder="Search crew..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:h-10 sm:max-w-xs sm:text-sm sm:shadow-none"
@@ -85,8 +87,8 @@ export default function CrewPage() {
                     className={`flex h-10 w-10 sm:h-9 sm:w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 items-center justify-center rounded-md transition-colors touch-manipulation ${
                       viewMode === "list" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                     }`}
-                    title="List view"
-                    aria-label="List view"
+                    title={t("listView")}
+                    aria-label={t("listView")}
                   >
                     <List className="h-4 w-4" />
                   </button>
@@ -96,8 +98,8 @@ export default function CrewPage() {
                     className={`flex h-10 w-10 sm:h-9 sm:w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 items-center justify-center rounded-md transition-colors touch-manipulation ${
                       viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                     }`}
-                    title="Grid view"
-                    aria-label="Grid view"
+                    title={t("gridView")}
+                    aria-label={t("gridView")}
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </button>
@@ -107,7 +109,7 @@ export default function CrewPage() {
                   onClick={() => setAddSubOpen(true)}
                 >
                   <Plus className="h-5 w-5 shrink-0 mr-2" />
-                  Add Crew Member
+                  {t("addCrewMember")}
                 </Button>
               </div>
             </div>
