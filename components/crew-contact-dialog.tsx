@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy, Mail, MessageSquare, Phone } from "lucide-react";
 
 import { ClientSendSmsDialog } from "@/components/client-send-sms-dialog";
@@ -34,6 +35,7 @@ export function CrewSmsTrigger({
 }: CrewContactBaseProps & {
   children: (open: () => void) => ReactNode;
 }) {
+  const t = useTranslations("crewPage");
   const [open, setOpen] = useState(false);
 
   return (
@@ -46,8 +48,8 @@ export function CrewSmsTrigger({
           spId={spId ?? 0}
           clientName={crew.name}
           clientPhone={crew.phone_number}
-          title="Send SMS"
-          description="Send a message from your ContractorOps number."
+          title={t("sendSms")}
+          description={t("sendSmsDesc")}
           showPresets={false}
           referenceType="subcontractor"
           referenceId={crew.id}
@@ -65,6 +67,7 @@ export function CrewContactPopover({
 }: CrewContactBaseProps & {
   children: ReactNode;
 }) {
+  const t = useTranslations("crewPage");
   const [open, setOpen] = useState(false);
   const [channel, setChannel] = useState<"email" | "sms" | null>(null);
 
@@ -92,12 +95,12 @@ export function CrewContactPopover({
               {crew.phone_number ? (
                 <a href={`tel:${crew.phone_number}`} onClick={() => setOpen(false)}>
                   <Phone className="mr-2 h-4 w-4" />
-                  Call
+                  {t("call")}
                 </a>
               ) : (
                 <span>
                   <Phone className="mr-2 h-4 w-4" />
-                  Call
+                  {t("call")}
                 </span>
               )}
             </Button>
@@ -109,7 +112,7 @@ export function CrewContactPopover({
               onClick={() => openComposer("sms")}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Send SMS
+              {t("sendSms")}
             </Button>
             <Button
               type="button"
@@ -119,7 +122,7 @@ export function CrewContactPopover({
               onClick={() => openComposer("email")}
             >
               <Mail className="mr-2 h-4 w-4" />
-              Send email
+              {t("sendEmail")}
             </Button>
           </div>
         </PopoverContent>
@@ -141,8 +144,8 @@ export function CrewContactPopover({
           spId={spId ?? 0}
           clientName={crew.name}
           clientPhone={crew.phone_number}
-          title="Send SMS"
-          description="Send a message from your ContractorOps number."
+          title={t("sendSms")}
+          description={t("sendSmsDesc")}
           showPresets={false}
           referenceType="subcontractor"
           referenceId={crew.id}
@@ -163,6 +166,7 @@ export function CrewAvailabilityPopover({
   children: ReactNode;
 }) {
   const { toast } = useToast();
+  const t = useTranslations("crewPage");
   const [open, setOpen] = useState(false);
   const [channel, setChannel] = useState<"email" | "sms" | null>(null);
   const [availabilityUrl, setAvailabilityUrl] = useState("");
@@ -181,12 +185,12 @@ export function CrewAvailabilityPopover({
       await navigator.clipboard.writeText(url);
       setCopied(true);
       toast({
-        title: "Link copied",
-        description: "Availability link copied to clipboard.",
+        title: t("linkCopiedShort"),
+        description: t("availabilityLinkCopied"),
       });
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      toast({ title: "Failed to copy", variant: "destructive" });
+      toast({ title: t("copyFailed"), variant: "destructive" });
     }
   };
 
@@ -202,9 +206,9 @@ export function CrewAvailabilityPopover({
         <PopoverTrigger asChild>{children}</PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-2">
           <div className="px-2 pb-2 pt-1">
-            <p className="text-sm font-semibold">Request availability</p>
+            <p className="text-sm font-semibold">{t("requestAvailability")}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Copy the private link or send it directly.
+              {t("copyPrivateLink")}
             </p>
           </div>
           <div className="grid gap-1">
@@ -220,7 +224,7 @@ export function CrewAvailabilityPopover({
               ) : (
                 <Copy className="mr-2 h-4 w-4" />
               )}
-              {copied ? "Copied" : "Copy link"}
+              {copied ? t("copiedShort") : t("copyLink")}
             </Button>
             <Button
               type="button"
@@ -230,7 +234,7 @@ export function CrewAvailabilityPopover({
               onClick={() => openComposer("email")}
             >
               <Mail className="mr-2 h-4 w-4" />
-              Send by email
+              {t("sendByEmail")}
             </Button>
             <Button
               type="button"
@@ -240,12 +244,12 @@ export function CrewAvailabilityPopover({
               onClick={() => openComposer("sms")}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Send by SMS
+              {t("sendBySms")}
             </Button>
           </div>
           {!spId && crew.phone_number && (
             <p className="px-2 pb-1 pt-2 text-xs text-muted-foreground">
-              Set up your ContractorOps number to send SMS.
+              {t("setupNumber")}
             </p>
           )}
         </PopoverContent>
@@ -270,8 +274,8 @@ export function CrewAvailabilityPopover({
           clientName={crew.name}
           clientPhone={crew.phone_number}
           presetMessage={initialBody}
-          title="Request availability via SMS"
-          description="Review the request, then send it from your ContractorOps number."
+          title={t("requestAvailabilitySms")}
+          description={t("reviewRequestDesc")}
           showPresets={false}
           referenceType="subcontractor"
           referenceId={crew.id}
