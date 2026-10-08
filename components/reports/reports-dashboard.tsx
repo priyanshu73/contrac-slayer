@@ -19,6 +19,8 @@ import {
   subDays,
   differenceInCalendarDays,
 } from "date-fns"
+import { es as dfEs } from "date-fns/locale"
+import { useLocale, useTranslations } from "next-intl"
 import type { DateRange } from "react-day-picker"
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays } from "lucide-react"
 
@@ -62,15 +64,18 @@ const COLOR_BAR: Record<string, string> = {
   slate: "bg-slate-400",
 }
 
-const currency = (n: number) =>
-  new Intl.NumberFormat("en-US", {
+const numLocale = (locale: string) => (locale === "es" ? "es-US" : "en-US")
+const dfLocale = (locale: string) => (locale === "es" ? dfEs : undefined)
+
+const currency = (n: number, locale: string) =>
+  new Intl.NumberFormat(numLocale(locale), {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(n || 0)
 
-const count = (n: number) => new Intl.NumberFormat("en-US").format(Math.round(n || 0))
+const count = (n: number, locale: string) => new Intl.NumberFormat(numLocale(locale)).format(Math.round(n || 0))
 const apiDate = (d: Date) => format(d, "yyyy-MM-dd")
 
 type PresetKey = "week" | "month" | "30d" | "custom"
@@ -91,6 +96,8 @@ function granularityFor(from: Date, to: Date): AnalyticsGranularity {
 }
 
 export function ReportsDashboard() {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
   const { user } = useAuth()
   const contractorUuid = user?.contractor_profile?.uuid
 
@@ -133,7 +140,7 @@ export function ReportsDashboard() {
         setTimeseries(ts)
         setBreakdowns(bd)
       } catch (err) {
-        if (!cancelled) setError("Couldn't load reports. Please try again.")
+        if (!cancelled) setError(t("loadError"))
         if (process.env.NODE_ENV === "development") console.error("reports load failed", err)
       } finally {
         if (!cancelled) setLoading(false)
@@ -143,10 +150,12 @@ export function ReportsDashboard() {
     return () => {
       cancelled = true
     }
-  }, [contractorUuid, fromKey, toKey])
+  }, [contractorUuid, fromKey, toKey, t])
 
   const rangeLabel =
-    from && to ? `${format(from, "MMM d, yyyy")} – ${format(to, "MMM d, yyyy")}` : "Select a range"
+    from && to
+      ? `${format(from, t("dateFormat"), { locale: dfLocale(locale) })} – ${format(to, t("dateFormat"), { locale: dfLocale(locale) })}`
+      : t("selectRange")
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6">
@@ -157,15 +166,15 @@ export function ReportsDashboard() {
             <BarChart3 className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Reports</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("title")}</h1>
             <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <PresetButton label="This week" active={preset === "week"} onClick={() => { setPreset("week"); setRange(presetRange("week")) }} />
-          <PresetButton label="This month" active={preset === "month"} onClick={() => { setPreset("month"); setRange(presetRange("month")) }} />
-          <PresetButton label="Last 30 days" active={preset === "30d"} onClick={() => { setPreset("30d"); setRange(presetRange("30d")) }} />
+          <PresetButton label={t("thisWeek")} active={preset === "week"} onClick={() => { setPreset("week"); setRange(presetRange("week")) }} />
+          <PresetButton label={t("thisMonth")} active={preset === "month"} onClick={() => { setPreset("month"); setRange(presetRange("month")) }} />
+          <PresetButton label={t("last30")} active={preset === "30d"} onClick={() => { setPreset("30d"); setRange(presetRange("30d")) }} />
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -174,11 +183,12 @@ export function ReportsDashboard() {
                 className="gap-1.5"
               >
                 <CalendarDays className="h-4 w-4" />
-                Custom
+                {t("custom")}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
+                locale={dfLocale(locale)}
                 mode="range"
                 selected={range}
                 onSelect={(r) => {
@@ -201,44 +211,44 @@ export function ReportsDashboard() {
 
       {/* KPI strip */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard title="Quotes sent" metric={overview?.quotes_sent} format="count" loading={loading} />
-        <KpiCard title="Quotes accepted" metric={overview?.quotes_accepted} format="count" loading={loading} />
-        <KpiCard title="Win rate" metric={overview?.win_rate} format="percent" loading={loading} />
-        <KpiCard title="Avg quote value" metric={overview?.avg_quote_value} format="currency" loading={loading} />
-        <KpiCard title="Projects completed" metric={overview?.projects_completed} format="count" loading={loading} />
-        <KpiCard title="Invoices sent" metric={overview?.invoices_sent_amount} format="currency" loading={loading} subtitle={overview ? `${count(overview.invoices_sent_count.value)} invoices` : undefined} />
-        <KpiCard title="Revenue collected" metric={overview?.revenue_collected} format="currency" accent="emerald" loading={loading} />
-        <KpiCard title="Outstanding A/R" metric={overview?.outstanding_ar} format="currency" accent="rose" invertDelta loading={loading} />
+        <KpiCard title={t("quotesSent")} metric={overview?.quotes_sent} format="count" loading={loading} />
+        <KpiCard title={t("quotesAccepted")} metric={overview?.quotes_accepted} format="count" loading={loading} />
+        <KpiCard title={t("winRate")} metric={overview?.win_rate} format="percent" loading={loading} />
+        <KpiCard title={t("avgEstimateValue")} metric={overview?.avg_quote_value} format="currency" loading={loading} />
+        <KpiCard title={t("projectsCompleted")} metric={overview?.projects_completed} format="count" loading={loading} />
+        <KpiCard title={t("invoicesSent")} metric={overview?.invoices_sent_amount} format="currency" loading={loading} subtitle={overview ? t("invoicesCount", { count: overview.invoices_sent_count.value }) : undefined} />
+        <KpiCard title={t("revenueCollected")} metric={overview?.revenue_collected} format="currency" accent="emerald" loading={loading} />
+        <KpiCard title={t("outstandingAr")} metric={overview?.outstanding_ar} format="currency" accent="rose" invertDelta loading={loading} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Pipeline funnel */}
         <Card className="p-5">
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">Sales pipeline</h2>
-          <p className="mb-4 text-xs text-muted-foreground">Counts across the funnel for this period.</p>
+          <h2 className="mb-1 text-sm font-semibold text-slate-900">{t("salesPipeline")}</h2>
+          <p className="mb-4 text-xs text-muted-foreground">{t("funnelHint")}</p>
           <PipelineFunnel pipeline={pipeline} loading={loading} />
         </Card>
 
         {/* Revenue / quotes trend */}
         <Card className="p-5">
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">Invoiced vs. collected</h2>
-          <p className="mb-4 text-xs text-muted-foreground">Money invoiced and cash collected over time.</p>
+          <h2 className="mb-1 text-sm font-semibold text-slate-900">{t("invoicedVsCollected")}</h2>
+          <p className="mb-4 text-xs text-muted-foreground">{t("invoicedHint")}</p>
           <RevenueTrend timeseries={timeseries} loading={loading} />
         </Card>
       </div>
 
       {/* Quotes trend */}
       <Card className="p-5">
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">Quotes sent vs. accepted</h2>
-        <p className="mb-4 text-xs text-muted-foreground">Quoting activity over time.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">{t("estimatesSentVsAccepted")}</h2>
+        <p className="mb-4 text-xs text-muted-foreground">{t("estimatesHint")}</p>
         <QuotesTrend timeseries={timeseries} loading={loading} />
       </Card>
 
       {/* Breakdowns */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <BreakdownPanel title="By lead source" rows={breakdowns?.by_lead_source} loading={loading} valueKind="count" />
-        <BreakdownPanel title="By team member" rows={breakdowns?.by_team_member} loading={loading} valueKind="currency" />
-        <BreakdownPanel title="By quote tier" rows={breakdowns?.by_quote_tier} loading={loading} valueKind="currency" />
+        <BreakdownPanel title={t("byLeadSource")} rows={breakdowns?.by_lead_source} loading={loading} valueKind="count" />
+        <BreakdownPanel title={t("byTeamMember")} rows={breakdowns?.by_team_member} loading={loading} valueKind="currency" />
+        <BreakdownPanel title={t("byEstimateTier")} rows={breakdowns?.by_quote_tier} loading={loading} valueKind="currency" />
       </section>
 
       {/* Caveats */}
@@ -263,11 +273,11 @@ function PresetButton({ label, active, onClick }: { label: string; active: boole
 
 type ValueFormat = "count" | "currency" | "percent" | "days"
 
-function formatValue(v: number, f: ValueFormat): string {
-  if (f === "currency") return currency(v)
+function formatValue(v: number, f: ValueFormat, locale: string): string {
+  if (f === "currency") return currency(v, locale)
   if (f === "percent") return `${(v ?? 0).toFixed(1)}%`
   if (f === "days") return `${(v ?? 0).toFixed(1)}d`
-  return count(v)
+  return count(v, locale)
 }
 
 function KpiCard({
@@ -287,6 +297,8 @@ function KpiCard({
   invertDelta?: boolean
   loading: boolean
 }) {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
   const accentText = accent === "emerald" ? "text-emerald-600" : accent === "rose" ? "text-rose-600" : "text-slate-900"
   const delta = metric?.delta_pct
   // For metrics where down is good (A/R), invert which direction reads as positive.
@@ -300,7 +312,7 @@ function KpiCard({
       ) : (
         <>
           <p className={cn("mt-1 text-2xl font-bold tracking-tight tabular-nums", accentText)}>
-            {formatValue(metric.value, fmt)}
+            {formatValue(metric.value, fmt, locale)}
           </p>
           <div className="mt-1 flex items-center gap-1 text-xs">
             {delta == null ? (
@@ -311,7 +323,7 @@ function KpiCard({
                 {Math.abs(delta).toFixed(1)}%
               </span>
             )}
-            {subtitle ? <span className="truncate text-muted-foreground">· {subtitle}</span> : <span className="text-muted-foreground">vs prev.</span>}
+            {subtitle ? <span className="truncate text-muted-foreground">· {subtitle}</span> : <span className="text-muted-foreground">{t("vsPrev")}</span>}
           </div>
         </>
       )}
@@ -320,6 +332,8 @@ function KpiCard({
 }
 
 function PipelineFunnel({ pipeline, loading }: { pipeline: PipelineResponse | null; loading: boolean }) {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
   if (loading || !pipeline) {
     return (
       <div className="space-y-3">
@@ -334,16 +348,16 @@ function PipelineFunnel({ pipeline, loading }: { pipeline: PipelineResponse | nu
     <div className="space-y-2.5">
       {pipeline.stages.map((s) => (
         <div key={s.stage} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 text-xs font-medium text-slate-600">{s.stage}</span>
+          <span className="w-24 shrink-0 text-xs font-medium text-slate-600">{labelFor(t, "stages", s.stage)}</span>
           <div className="relative h-7 flex-1 overflow-hidden rounded bg-slate-100">
             <div
               className={cn("flex h-full items-center rounded transition-all", COLOR_BAR[s.color] ?? COLOR_BAR.slate)}
               style={{ width: `${Math.max((s.count / max) * 100, s.count > 0 ? 6 : 0)}%` }}
             >
-              <span className="px-2 text-xs font-semibold text-white tabular-nums">{count(s.count)}</span>
+              <span className="px-2 text-xs font-semibold text-white tabular-nums">{count(s.count, locale)}</span>
             </div>
           </div>
-          {s.amount > 0 && <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{currency(s.amount)}</span>}
+          {s.amount > 0 && <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{currency(s.amount, locale)}</span>}
         </div>
       ))}
       {pipeline.note && <p className="pt-1 text-[11px] text-muted-foreground">{pipeline.note}</p>}
@@ -351,15 +365,24 @@ function PipelineFunnel({ pipeline, loading }: { pipeline: PipelineResponse | nu
   )
 }
 
-const revenueConfig = {
-  invoiced_amount: { label: "Invoiced", color: COLOR_HEX.sky },
-  collected_amount: { label: "Collected", color: COLOR_HEX.emerald },
-} satisfies ChartConfig
+const revenueConfig = (t: (k: string) => string) =>
+  ({
+    invoiced_amount: { label: t("invoiced"), color: COLOR_HEX.sky },
+    collected_amount: { label: t("collected"), color: COLOR_HEX.emerald },
+  }) satisfies ChartConfig
 
-const quotesConfig = {
-  quotes_sent: { label: "Sent", color: COLOR_HEX.sky },
-  quotes_accepted: { label: "Accepted", color: COLOR_HEX.emerald },
-} satisfies ChartConfig
+const estimatesConfig = (t: (k: string) => string) =>
+  ({
+    quotes_sent: { label: t("sent"), color: COLOR_HEX.sky },
+    quotes_accepted: { label: t("accepted"), color: COLOR_HEX.emerald },
+  }) satisfies ChartConfig
+
+// Backend-provided labels (funnel stages, tiers, lead sources) are looked up by exact
+// name; unknown values fall through unchanged.
+function labelFor(t: any, group: string, raw: string | null | undefined): string {
+  const v = raw ?? ""
+  return v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v
+}
 
 function ChartSkeleton() {
   return <div className="h-[260px] w-full animate-pulse rounded bg-slate-100" />
@@ -373,21 +396,24 @@ function EmptyChart({ label }: { label: string }) {
   )
 }
 
-function tickLabel(d: string) {
-  return format(new Date(d), "MMM d")
+function tickLabel(d: string, locale: string, pattern: string) {
+  return format(new Date(d), pattern, { locale: dfLocale(locale) })
 }
 
 function RevenueTrend({ timeseries, loading }: { timeseries: TimeseriesResponse | null; loading: boolean }) {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
+  const tick = (d: string) => tickLabel(d, locale, t("tickFormat"))
   if (loading || !timeseries) return <ChartSkeleton />
   const hasData = timeseries.buckets.some((b) => b.invoiced_amount > 0 || b.collected_amount > 0)
-  if (!hasData) return <EmptyChart label="No invoicing activity in this period" />
+  if (!hasData) return <EmptyChart label={t("noInvoicing")} />
   return (
-    <ChartContainer config={revenueConfig} className="h-[260px] w-full">
+    <ChartContainer config={revenueConfig(t)} className="h-[260px] w-full">
       <AreaChart data={timeseries.buckets} margin={{ left: 8, right: 8, top: 8 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="date" tickFormatter={tickLabel} tickLine={false} axisLine={false} minTickGap={24} />
-        <YAxis tickFormatter={(v) => currency(Number(v))} tickLine={false} axisLine={false} width={56} />
-        <ChartTooltip content={<ChartTooltipContent labelFormatter={(l) => tickLabel(String(l))} />} />
+        <XAxis dataKey="date" tickFormatter={tick} tickLine={false} axisLine={false} minTickGap={24} />
+        <YAxis tickFormatter={(v) => currency(Number(v), locale)} tickLine={false} axisLine={false} width={56} />
+        <ChartTooltip content={<ChartTooltipContent labelFormatter={(l) => tick(String(l))} />} />
         <Area type="monotone" dataKey="invoiced_amount" stroke="var(--color-invoiced_amount)" fill="var(--color-invoiced_amount)" fillOpacity={0.15} strokeWidth={2} />
         <Area type="monotone" dataKey="collected_amount" stroke="var(--color-collected_amount)" fill="var(--color-collected_amount)" fillOpacity={0.2} strokeWidth={2} />
       </AreaChart>
@@ -396,16 +422,19 @@ function RevenueTrend({ timeseries, loading }: { timeseries: TimeseriesResponse 
 }
 
 function QuotesTrend({ timeseries, loading }: { timeseries: TimeseriesResponse | null; loading: boolean }) {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
+  const tick = (d: string) => tickLabel(d, locale, t("tickFormat"))
   if (loading || !timeseries) return <ChartSkeleton />
   const hasData = timeseries.buckets.some((b) => b.quotes_sent > 0 || b.quotes_accepted > 0)
-  if (!hasData) return <EmptyChart label="No quoting activity in this period" />
+  if (!hasData) return <EmptyChart label={t("noEstimating")} />
   return (
-    <ChartContainer config={quotesConfig} className="h-[240px] w-full">
+    <ChartContainer config={estimatesConfig(t)} className="h-[240px] w-full">
       <BarChart data={timeseries.buckets} margin={{ left: 8, right: 8, top: 8 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="date" tickFormatter={tickLabel} tickLine={false} axisLine={false} minTickGap={24} />
+        <XAxis dataKey="date" tickFormatter={tick} tickLine={false} axisLine={false} minTickGap={24} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
-        <ChartTooltip content={<ChartTooltipContent labelFormatter={(l) => tickLabel(String(l))} />} />
+        <ChartTooltip content={<ChartTooltipContent labelFormatter={(l) => tick(String(l))} />} />
         <Bar dataKey="quotes_sent" fill="var(--color-quotes_sent)" radius={[3, 3, 0, 0]} />
         <Bar dataKey="quotes_accepted" fill="var(--color-quotes_accepted)" radius={[3, 3, 0, 0]} />
       </BarChart>
@@ -424,6 +453,8 @@ function BreakdownPanel({
   loading: boolean
   valueKind: "count" | "currency"
 }) {
+  const t = useTranslations("reportsPage")
+  const locale = useLocale()
   return (
     <Card className="p-5">
       <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
@@ -434,7 +465,7 @@ function BreakdownPanel({
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No data in this period</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("noData")}</p>
       ) : (
         <div className="space-y-2.5">
           {rows.slice(0, 8).map((r, i) => {
@@ -443,9 +474,9 @@ function BreakdownPanel({
             return (
               <div key={r.key ?? r.label ?? i}>
                 <div className="mb-0.5 flex items-center justify-between text-xs">
-                  <span className="truncate text-slate-700">{r.label}</span>
+                  <span className="truncate text-slate-700">{labelFor(t, "breakdownLabels", r.label)}</span>
                   <span className="shrink-0 font-medium tabular-nums text-slate-900">
-                    {valueKind === "currency" ? currency(r.amount) : count(r.count)}
+                    {valueKind === "currency" ? currency(r.amount, locale) : count(r.count, locale)}
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
