@@ -94,16 +94,3 @@ export interface WorkflowActionResponse {
   run: WorkflowRun
   message: string
 }
-
-export const WORKFLOW_KIND_LABEL: Record<string, string> = {
-  lead_to_quote: "Lead to quote",
-  noop: "Test workflow",
-}
-
-export const WORKFLOW_STEP_LABEL: Record<string, string> = {
-  client: "Client",
-  project: "Project",
-  estimate: "Estimate",
-  quote: "Quote",
-  email: "Email",
-}
