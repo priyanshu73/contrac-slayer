@@ -17,13 +17,16 @@ import {
 } from "./landing-markup"
 
 /** Plays each example with typing pauses once its conversation is visible. */
-function useSequentialChat(ref: React.RefObject<HTMLDivElement | null>) {
+function useSequentialChat(
+  ref: React.RefObject<HTMLDivElement | null>,
+  customerTypingKey: "chatTypingCustomer" | "chatTypingKaren" = "chatTypingCustomer",
+) {
   const t = useTranslations("landing")
   useEffect(() => {
     const root = ref.current
     if (!root) return
-    return animateLandingChat(root, { ai: t("chatTypingAi"), customer: t("chatTypingCustomer") })
-  }, [ref, t])
+    return animateLandingChat(root, { ai: t("chatTypingAi"), customer: t(customerTypingKey) })
+  }, [ref, t, customerTypingKey])
 }
 
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US")
@@ -98,16 +101,16 @@ function useCostToggle(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref])
 }
 
-function Block({ html }: { html: string }) {
+function Block({ html, customerTypingKey }: { html: string; customerTypingKey?: "chatTypingKaren" }) {
   const ref = useRef<HTMLDivElement>(null)
-  useSequentialChat(ref)
+  useSequentialChat(ref, customerTypingKey)
   useCostToggle(ref)
   return <div className="lp" ref={ref} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 export const LandingBento = () => <Block html={BENTO_HTML} />
 export const LandingBob = () => <Block html={BOB_HTML} />
-export const LandingWorkspace = () => <Block html={WORK_HTML} />
+export const LandingWorkspace = () => <Block html={WORK_HTML} customerTypingKey="chatTypingKaren" />
 export const LandingLead = () => <Block html={LEAD_HTML} />
 export const LandingOnline = () => <Block html={ONLINE_HTML} />
 export const LandingFinalCta = () => <Block html={FIN_HTML} />
