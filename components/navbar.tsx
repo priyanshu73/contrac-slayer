@@ -393,7 +393,7 @@ export function Navbar() {
         <div className="relative flex h-14 items-center justify-between px-4">
           <button
             type="button"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-label={mobileMenuOpen ? t("closeMenu") : t("openMenu")}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((open) => !open)}
             className="group flex h-10 w-10 items-center justify-center text-slate-700 transition-colors active:text-slate-950"
@@ -437,7 +437,7 @@ export function Navbar() {
       >
         <button
           type="button"
-          aria-label="Close menu"
+          aria-label={t("closeMenu")}
           className={`absolute inset-y-0 right-0 w-full bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
             mobileMenuOpen ? "opacity-100" : "opacity-0"
           }`}
