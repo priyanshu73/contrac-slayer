@@ -791,13 +791,14 @@
         "grossMargin": "Margen bruto",
         "gpOverRevenue": "Ganancia bruta ÷ Ingresos",
         "gpPerUnit": "Ganancia bruta por {unit}",
-        "gpDividedUnits": "Ganancia bruta ÷ {value} {unit}",
+        "gpDividedUnits": "Ganancia bruta ÷ {text}",
         "setUnits": "Define el n.º de unidades",
         "gpPerCrewDay": "Ganancia bruta por día de equipo",
         "gpDividedCrewDays": "{count, plural, one {Ganancia bruta ÷ {value} día de equipo} other {Ganancia bruta ÷ {value} días de equipo}}",
         "setCrewDays": "Define el n.º de días de equipo",
         "breakevenDayRate": "Tarifa diaria de punto de equilibrio",
-        "breakevenHint": "Si el costo con cargas por día de equipo supera esta tarifa, el trabajo pierde dinero."
+        "breakevenHint": "Si el costo con cargas por día de equipo supera esta tarifa, el trabajo pierde dinero.",
+        "defaultUnitCount": "{count, plural, one {{value} unidad} other {{value} unidades}}"
       },
       "picker": {
         "title": "Agregar desde presupuesto → {destination}",
