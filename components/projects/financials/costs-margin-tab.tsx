@@ -63,7 +63,9 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
     : null
 
   const profitClass = grossProfit >= 0 ? 'text-status-active' : 'text-destructive'
-  const plural = (n: number | null, w: string) => `${w}${n === 1 ? '' : 's'}`
+  // User-entered labels are not pluralized; only the built-in default unit uses an ICU plural.
+  const unitCountText = (n: number) =>
+    unitLabel ? `${num(n)} ${unitLabel.toLowerCase()}` : tc('defaultUnitCount', { count: n, value: num(n) })
 
   const savePnl = async (updates: Record<string, any>) => {
     try {
@@ -99,7 +101,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
   // Compact editable caption for the per-unit inputs.
   const pnlSummaryText = (unitCount != null || crewDays != null)
     ? [
-        unitCount != null ? `${num(unitCount)} ${plural(unitCount, unitWord.toLowerCase())}` : null,
+        unitCount != null ? unitCountText(unitCount) : null,
         crewDays != null ? tc('crewDaysCount', { count: crewDays, value: num(crewDays) }) : null,
       ].filter(Boolean).join(' · ')
     : tc('setUnitsCrewDays')
@@ -174,7 +176,7 @@ export function CostsMarginTab({ project, summary, onRefreshTotal, onProjectMedi
               {tile(
                 tc('gpPerUnit', { unit: unitWord }),
                 gpPerUnit != null ? formatCurrency(gpPerUnit) : '—',
-                unitCount != null ? tc('gpDividedUnits', { value: num(unitCount), unit: plural(unitCount, unitWord.toLowerCase()) }) : tc('setUnits'),
+                unitCount != null ? tc('gpDividedUnits', { text: unitCountText(unitCount) }) : tc('setUnits'),
               )}
               {tile(
                 tc('gpPerCrewDay'),
