@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { FilePlus2, FolderPlus, Plus, UserPlus } from "lucide-react"
 
 import {
@@ -26,26 +26,25 @@ export function TodayHeader({
 }) {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("dashboardHome")
   const [newProjectOpen, setNewProjectOpen] = useState(false)
 
   const today = new Date()
-  const dateLabel = today.toLocaleDateString("en-US", {
+  const dateLabel = today.toLocaleDateString(locale, {
     weekday: "long",
     month: "long",
     day: "numeric",
   })
 
   const parts: string[] = []
-  if (queue) parts.push(`${queue.items.length} thing${queue.items.length === 1 ? "" : "s"} need you`)
+  if (queue) parts.push(t("thingsNeedYou", { count: queue.items.length }))
   if (summary) {
     if (summary.money.past_due_count > 0)
-      parts.push(
-        `${summary.money.past_due_count} invoice${summary.money.past_due_count === 1 ? "" : "s"} past due`
-      )
+      parts.push(t("invoicesPastDue", { count: summary.money.past_due_count }))
     parts.push(
       summary.schedule.booked_today === 0
-        ? "nothing on the calendar today"
-        : `${summary.schedule.booked_today} on the calendar today`
+        ? t("nothingOnCalendar")
+        : t("onCalendarToday", { count: summary.schedule.booked_today })
     )
   }
 
@@ -72,19 +71,19 @@ export function TodayHeader({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex h-10 items-center gap-1.5 rounded-lg bg-slate-900 px-4 text-[13.5px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700">
-              New
+              {t("new")}
               <Plus className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={() => router.push(`/${locale}/quotes/new`)}>
-              <FilePlus2 className="h-4 w-4" /> New quote
+              <FilePlus2 className="h-4 w-4" /> {t("newEstimate")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setNewProjectOpen(true)}>
-              <FolderPlus className="h-4 w-4" /> New project
+              <FolderPlus className="h-4 w-4" /> {t("newProject")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push(`/${locale}/clients/new`)}>
-              <UserPlus className="h-4 w-4" /> New client
+              <UserPlus className="h-4 w-4" /> {t("newClient")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
