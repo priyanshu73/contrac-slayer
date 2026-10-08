@@ -201,7 +201,7 @@
   "billing": {
     "features": {
       "aiQuoteGeneration": "Generación de Presupuestos con IA",
-      "unlimitedQuotes": "Presupuestos y Facturas Ilimitados"
+      "unlimitedQuotes": "Presupuestos y facturas ilimitados"
     },
     "success": {
       "subscriptionActive": "Su espacio de trabajo está listo. Administre prospectos, presupuestos, trabajos y facturas desde un panel limpio."
