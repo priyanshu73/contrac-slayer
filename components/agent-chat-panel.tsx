@@ -225,7 +225,7 @@ export function AgentChatPanel() {
         if (proposalContext.projectId) {
             return {
                 projectId: proposalContext.projectId,
-                projectName: proposalContext.projectTitle?.trim() || t("assistant.picker.current"),
+                projectName: proposalContext.projectTitle?.trim() || "Current project",
             }
         }
         if (estimateContext.projectId) {
@@ -234,7 +234,7 @@ export function AgentChatPanel() {
                 projectName:
                     estimateContext.projectTitle?.trim()
                     || estimateContext.projectType?.trim()
-                    || t("assistant.picker.current"),
+                    || "Current project",
             }
         }
         return null
@@ -448,7 +448,7 @@ export function AgentChatPanel() {
                 const nextContext: SelectedProjectContext = {
                     type: "project",
                     projectId: project.id,
-                    projectName: project.title?.trim() || t("assistant.picker.projectNumber", { id: project.id }),
+                    projectName: project.title?.trim() || `Project #${project.id}`,
                     source: "auto",
                 }
 
