@@ -1,6 +1,6 @@
 "use client"
 
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import Link from "next/link"
 import type { DashboardMoney } from "@/lib/types/dashboard"
 
@@ -21,9 +21,9 @@ const moneyShort = (n: number) =>
   }).format(n || 0)
 
 const SEGMENTS = [
-  { key: "past_due_total", label: "Past due", color: "#e11d48" },
-  { key: "due_this_month_total", label: "Due this month", color: "#d97706" },
-  { key: "later", label: "Later", color: "#e2e8f0" },
+  { key: "past_due_total", labelKey: "pastDue", color: "#e11d48" },
+  { key: "due_this_month_total", labelKey: "dueThisMonth", color: "#d97706" },
+  { key: "later", labelKey: "later", color: "#e2e8f0" },
 ] as const
 
 export function MoneyCard({
@@ -34,6 +34,7 @@ export function MoneyCard({
   bare?: boolean
 }) {
   const locale = useLocale()
+  const t = useTranslations("dashboardHome")
   const shell = bare
     ? "px-5 pb-4 pt-5"
     : "rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
@@ -56,12 +57,12 @@ export function MoneyCard({
 
   return (
     <div className={shell}>
-      <h2 className="text-[15px] font-semibold text-slate-900">Money</h2>
+      <h2 className="text-[15px] font-semibold text-slate-900">{t("money")}</h2>
       <p className="mt-2 font-mono text-[26px] font-bold tabular-nums leading-none text-slate-900">
         {money(m.unpaid_total)}
       </p>
       <p className="mt-1 text-[12.5px] text-slate-500">
-        outstanding across {m.unpaid_count} invoice{m.unpaid_count === 1 ? "" : "s"}
+        {t("outstandingAcross", { count: m.unpaid_count })}
       </p>
 
       <div className="mt-4 flex h-2 w-full gap-px overflow-hidden rounded-full bg-slate-100">
@@ -84,7 +85,7 @@ export function MoneyCard({
           <div key={s.key} className="flex items-center justify-between text-[13px]">
             <span className="flex items-center gap-2 text-slate-600">
               <span className="h-2 w-2 rounded-[2px]" style={{ background: s.color }} />
-              {s.label}
+              {t(s.labelKey)}
             </span>
             <span className="font-mono font-semibold tabular-nums text-slate-900">
               {moneyShort(values[s.key])}
@@ -94,7 +95,7 @@ export function MoneyCard({
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-[13px]">
-        <span className="text-slate-600">Paid · last 30d</span>
+        <span className="text-slate-600">{t("paidLast30d")}</span>
         <Link
           href={`/${locale}/invoices`}
           className="font-mono font-semibold tabular-nums text-emerald-600 hover:underline"
