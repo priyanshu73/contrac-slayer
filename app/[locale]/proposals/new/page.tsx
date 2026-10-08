@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { ArrowLeft, Check, ChevronsUpDown, FileText, FolderOpen, Plus, ScrollText } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -36,14 +36,16 @@ interface ProjectWithProposals extends ProjectListItem {
   proposals?: Proposal[]
 }
 
-function quoteLabel(q: Job) {
-  const title = q.title || q.job_number || `Quote #${q.id}`
+function quoteLabel(q: Job, t: (k: string, v?: any) => string) {
+  const title = q.title || q.job_number || t("estimateNum", { id: q.id })
   return q.client?.name ? `${title} — ${q.client.name}` : title
 }
 
 export default function NewProposalPage() {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("proposals.newPage")
+  const tProj = useTranslations("clients")
 
   // Quote combobox state
   const [quotes, setQuotes] = useState<Job[]>([])
@@ -98,8 +100,8 @@ export default function NewProposalPage() {
     try {
       const result = await api.getProjects({ skip, limit: PROJECTS_PAGE_SIZE })
       const batch = (Array.isArray(result) ? (result as ProjectWithProposals[]) : []).sort((a, b) =>
-        String(a.title || `Project #${a.id}`).localeCompare(
-          String(b.title || `Project #${b.id}`),
+        String(a.title || t("projectNum", { id: a.id })).localeCompare(
+          String(b.title || t("projectNum", { id: b.id })),
           undefined,
           { sensitivity: "base" }
         )
@@ -139,7 +141,7 @@ export default function NewProposalPage() {
     setCreatingFor(project.id)
     try {
       const proposal = (await api.createProposal(project.id, {
-        title: `${project.title} Proposal`,
+        title: t("proposalForProject", { title: project.title }),
       })) as Proposal
       router.push(`/${locale}/projects/${project.id}/proposals/${proposal.id}`)
     } catch (err: any) {
@@ -162,9 +164,9 @@ export default function NewProposalPage() {
           <div>
             <h1 className="flex items-center gap-2 text-lg font-semibold leading-none">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              Create Proposal
+              {t("title")}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">Pick a quote or project to create a proposal for</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
         </div>
       </header>
@@ -172,7 +174,7 @@ export default function NewProposalPage() {
       <main className="container mx-auto px-4 py-6">
         {/* ── From a Quote ── */}
         <div className="mb-6">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">From a quote</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("fromEstimate")}</p>
           <Card className="p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="min-w-0 flex-1">
@@ -185,7 +187,7 @@ export default function NewProposalPage() {
                       className="w-full justify-between font-normal"
                     >
                       <span className="truncate text-left">
-                        {selectedQuote ? quoteLabel(selectedQuote) : "Search by client name or quote title…"}
+                        {selectedQuote ? quoteLabel(selectedQuote, t) : t("searchPh")}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -196,15 +198,15 @@ export default function NewProposalPage() {
                   >
                     <Command shouldFilter={false}>
                       <CommandInput
-                        placeholder="Client name or quote title…"
+                        placeholder={t("searchInputPh")}
                         value={quoteSearch}
                         onValueChange={setQuoteSearch}
                       />
                       <CommandList className="max-h-72">
                         {loadingQuotes ? (
-                          <CommandEmpty>Loading…</CommandEmpty>
+                          <CommandEmpty>{t("loading")}</CommandEmpty>
                         ) : quotes.length === 0 ? (
-                          <CommandEmpty>No quotes found.</CommandEmpty>
+                          <CommandEmpty>{t("noEstimates")}</CommandEmpty>
                         ) : (
                           <CommandGroup>
                             {quotes.map((quote) => {
@@ -229,12 +231,12 @@ export default function NewProposalPage() {
                                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                                     <span className="flex items-center gap-2">
                                       <span className="truncate text-sm font-medium">
-                                        {quote.title || quote.job_number || `Quote #${quote.id}`}
+                                        {quote.title || quote.job_number || t("estimateNum", { id: quote.id })}
                                       </span>
                                       {hasProposal && (
                                         <span className="flex shrink-0 items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
                                           <ScrollText className="h-2.5 w-2.5" />
-                                          Has proposal
+                                          {t("hasProposal")}
                                         </span>
                                       )}
                                     </span>
@@ -259,7 +261,7 @@ export default function NewProposalPage() {
                               disabled={loadingMoreQuotes}
                               className="w-full rounded-sm py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                             >
-                              {loadingMoreQuotes ? "Loading…" : "Load more"}
+                              {loadingMoreQuotes ? t("loading") : t("loadMore")}
                             </button>
                           </div>
                         )}
@@ -277,7 +279,7 @@ export default function NewProposalPage() {
               >
                 <span className="flex items-center gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
-                  Create Proposal
+                  {t("title")}
                 </span>
               </Button>
             </div>
@@ -285,7 +287,7 @@ export default function NewProposalPage() {
         </div>
 
         {/* ── From a Project ── */}
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">From a project</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("fromProject")}</p>
 
         {loading ? (
           <div className="space-y-3">
@@ -308,12 +310,12 @@ export default function NewProposalPage() {
                 <FolderOpen className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="mb-1 text-base font-semibold">No projects yet</h3>
+                <h3 className="mb-1 text-base font-semibold">{t("noProjects")}</h3>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Create a project first, then build a proposal for it.
+                  {t("noProjectsHint")}
                 </p>
                 <Button size="sm" onClick={() => router.push(`/${locale}/projects`)}>
-                  Go to Projects
+                  {t("goToProjects")}
                 </Button>
               </div>
             </div>
@@ -332,7 +334,7 @@ export default function NewProposalPage() {
                         <div className="mb-1 flex flex-wrap items-center gap-2">
                           <h3 className="truncate text-sm font-semibold">{project.title}</h3>
                           <Badge className={`shrink-0 px-1.5 py-0 text-[10px] ${getStatusColor(project.status)}`}>
-                            {formatStatusLabel(project.status)}
+                            {tProj.has(`detail.projectStatus.${project.status}`) ? tProj(`detail.projectStatus.${project.status}`) : formatStatusLabel(project.status)}
                           </Badge>
                           {proposalCount !== null && proposalCount > 0 && (
                             <span className="text-[10px] text-muted-foreground">
@@ -351,7 +353,7 @@ export default function NewProposalPage() {
                               >
                                 <FileText className="h-3 w-3 shrink-0" />
                                 <span className="truncate">
-                                  {proposal.title || `Proposal #${proposal.id}`}
+                                  {proposal.title || t("proposalNum", { id: proposal.id })}
                                 </span>
                                 <span className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
                                   proposal.status === "SENT" ? "bg-blue-100 text-blue-700" :
@@ -381,7 +383,7 @@ export default function NewProposalPage() {
                         ) : (
                           <span className="flex items-center gap-1.5">
                             <Plus className="h-3.5 w-3.5" />
-                            New Proposal
+                            {t("newProposal")}
                           </span>
                         )}
                       </Button>
@@ -404,7 +406,7 @@ export default function NewProposalPage() {
                     Loading…
                   </span>
                 ) : (
-                  "Load more projects"
+                  t("loadMoreProjects")
                 )}
               </Button>
             )}
