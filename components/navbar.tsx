@@ -160,7 +160,7 @@ export function Navbar() {
 
   const dashboardLink = {
     href: `/${locale}/dashboard`,
-    label: "Today",
+    label: t("today"),
     icon: LayoutDashboard,
   };
 
@@ -177,7 +177,7 @@ export function Navbar() {
   const navGroups = [
     {
       id: "sales",
-      label: "Sales",
+      label: t("sales"),
       links: [
         { href: `/${locale}/leads`, label: t("leads"), icon: MessageSquare },
         { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
@@ -188,17 +188,17 @@ export function Navbar() {
     },
     {
       id: "work",
-      label: "Work",
+      label: t("work"),
       links: [
         { href: `/${locale}/projects`, label: t("projects"), icon: FolderKanban },
         { href: `/${locale}/tasks`, label: t("tasks"), icon: ListTodo },
         { href: `/${locale}/calendar`, label: t("calendar"), icon: Calendar },
-        { href: `/${locale}/crew`, label: "Crew", icon: Wrench },
+        { href: `/${locale}/crew`, label: t("crew"), icon: Wrench },
       ],
     },
     {
       id: "ai-agents",
-      label: "AI Agents",
+      label: t("aiAgents"),
       links: [
         {
           href: `/${locale}/lead-generator-agent`,
@@ -231,36 +231,36 @@ export function Navbar() {
   const currentRoute = getLocalizedRoute(pathname);
   const getPageTitle = () => {
     if (currentRoute === "/dashboard") return t("dashboard");
-    if (currentRoute === "/mobile/sales") return "Sales";
-    if (currentRoute === "/mobile/work") return "Work";
-    if (currentRoute === "/mobile/engage") return "Customer Engagement";
+    if (currentRoute === "/mobile/sales") return t("pageSales");
+    if (currentRoute === "/mobile/work") return t("pageWork");
+    if (currentRoute === "/mobile/engage") return t("pageEngage");
     if (currentRoute === "/leads") return t("leads");
-    if (currentRoute.startsWith("/leads/")) return "Lead Details";
-    if (currentRoute === "/proposals/new") return "Create Proposal";
-    if (currentRoute === "/quotes/new") return "New Quote";
-    if (currentRoute === "/quotes/copy") return "Copy Quote";
-    if (currentRoute.match(/^\/quotes\/[^/]+\/proposal$/)) return "Proposal Builder";
-    if (currentRoute.match(/^\/quotes\/[^/]+\/edit$/)) return "Edit Quote";
-    if (currentRoute.startsWith("/quotes/")) return "Quote Details";
+    if (currentRoute.startsWith("/leads/")) return t("leadDetails");
+    if (currentRoute === "/proposals/new") return t("createProposal");
+    if (currentRoute === "/quotes/new") return t("newQuote");
+    if (currentRoute === "/quotes/copy") return t("copyQuote");
+    if (currentRoute.match(/^\/quotes\/[^/]+\/proposal$/)) return t("proposalBuilder");
+    if (currentRoute.match(/^\/quotes\/[^/]+\/edit$/)) return t("editQuote");
+    if (currentRoute.startsWith("/quotes/")) return t("quoteDetails");
     if (currentRoute === "/quotes") return t("quotes");
-    if (currentRoute.startsWith("/invoices/") && currentRoute.endsWith("/customer")) return "Customer Invoice";
-    if (currentRoute.startsWith("/invoices/")) return "Invoice Details";
+    if (currentRoute.startsWith("/invoices/") && currentRoute.endsWith("/customer")) return t("customerInvoice");
+    if (currentRoute.startsWith("/invoices/")) return t("invoiceDetails");
     if (currentRoute === "/invoices") return t("invoices");
-    if (currentRoute.startsWith("/calendar/")) return "Booking Details";
+    if (currentRoute.startsWith("/calendar/")) return t("bookingDetails");
     if (currentRoute === "/calendar") return t("calendar");
-    if (currentRoute === "/clients/new") return "New Client";
-    if (currentRoute.startsWith("/clients/")) return "Client Details";
+    if (currentRoute === "/clients/new") return t("newClient");
+    if (currentRoute.startsWith("/clients/")) return t("clientDetails");
     if (currentRoute === "/clients") return t("clients");
-    if (currentRoute.startsWith("/workflows/")) return "Review packet";
-    if (currentRoute === "/workflows") return "Workflows";
-    if (currentRoute === "/lead-generator-agent/new") return "New Campaign";
-    if (currentRoute.startsWith("/lead-generator-agent/")) return "Campaign Details";
+    if (currentRoute.startsWith("/workflows/")) return t("reviewPacket");
+    if (currentRoute === "/workflows") return t("workflows");
+    if (currentRoute === "/lead-generator-agent/new") return t("newCampaign");
+    if (currentRoute.startsWith("/lead-generator-agent/")) return t("campaignDetails");
     if (currentRoute === "/lead-generator-agent") return t("leadGeneratorAgent");
     if (currentRoute === "/frontline") return t("yourFrontline");
-    if (currentRoute.startsWith("/crew/")) return "Crew Details";
-    if (currentRoute === "/crew") return "Crew";
-    if (currentRoute.startsWith("/projects/trade/")) return "Trade Scope";
-    if (currentRoute.startsWith("/projects/")) return "Project Details";
+    if (currentRoute.startsWith("/crew/")) return t("crewDetails");
+    if (currentRoute === "/crew") return t("crew");
+    if (currentRoute.startsWith("/projects/trade/")) return t("tradeScope");
+    if (currentRoute.startsWith("/projects/")) return t("projectDetails");
     if (currentRoute === "/projects") return t("projects");
     if (currentRoute === "/tasks") return t("tasks");
     if (currentRoute === "/reports") return t("reports");
@@ -324,7 +324,7 @@ export function Navbar() {
         </span>
         {lateCount ? (
           <span className="shrink-0 rounded bg-rose-500/25 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-rose-300 border border-rose-500/30">
-            {lateCount} late
+            {t("late", { count: lateCount })}
           </span>
         ) : count != null && count > 0 ? (
           <span
@@ -684,14 +684,14 @@ export function Navbar() {
             className={`mx-0 flex w-full items-center gap-3 border-t border-border px-2 py-3 text-[13.5px] font-semibold leading-none tracking-[0] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
               collapsed ? "justify-center" : "px-5"
             }`}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? t("expandSidebar") : t("collapseSidebar")}
           >
             {collapsed ? (
               <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
             ) : (
               <>
                 <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
-                <span className="truncate">Collapse</span>
+                <span className="truncate">{t("collapse")}</span>
               </>
             )}
           </button>
