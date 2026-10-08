@@ -103,7 +103,7 @@ export function AgentActionCard({
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400" data-testid="action-card-approved">
                         <span>✓ {t("assistant.action.approved")}</span>
-                        {card.replayed && <span className="text-[10px] opacity-75" data-testid="action-card-replayed">(Replayed)</span>}
+                        {card.replayed && <span className="text-[10px] opacity-75" data-testid="action-card-replayed">({t("assistant.action.replayed")})</span>}
                     </div>
                     {projectId && onViewProject ? (
                         <button
