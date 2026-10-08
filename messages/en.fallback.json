@@ -1,0 +1,302 @@
+{
+  "landing": {
+    "heroStrip3Body": "Costs, estimates, and invoices stay aligned.",
+    "workflowStep2Label": "Estimate",
+    "workflowBottomBody": "Customers keep using calls and text messages. Your team gets the organized CRM, calendar, estimate, project, and financial view behind the scenes.",
+    "workflowBottomChip3": "Estimates",
+    "pricingBasic3": "AI-Powered Estimate Generation",
+    "step2Total": "Instant Estimate Total",
+    "step2DescribeBody": "The agent immediately calculates an intelligent estimate analyzing labor, your custom GC margin, and materials. Delivering competitive estimates to clients in seconds instead of days.",
+    "featuresPmBody": "Tasks, scopes, documents, and crew handoffs stay attached to the project so nothing disappears after the estimate.",
+    "featuresProofBody": "First-time visitors see the system in plain terms: answer faster, estimate cleaner, dispatch smarter, and keep the money organized."
+  },
+  "navigation": {
+    "quotes": "Estimates",
+    "today": "Today",
+    "sales": "Sales",
+    "work": "Work",
+    "aiAgents": "AI Agents",
+    "crew": "Crew",
+    "late": "{count} late",
+    "collapse": "Collapse",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "pageSales": "Sales",
+    "pageWork": "Work",
+    "pageEngage": "Customer Engagement",
+    "leadDetails": "Lead Details",
+    "createProposal": "Create Proposal",
+    "newQuote": "New Estimate",
+    "copyQuote": "Copy Estimate",
+    "proposalBuilder": "Proposal Builder",
+    "editQuote": "Edit Estimate",
+    "quoteDetails": "Estimate Details",
+    "customerInvoice": "Customer Invoice",
+    "invoiceDetails": "Invoice Details",
+    "bookingDetails": "Booking Details",
+    "newClient": "New Client",
+    "clientDetails": "Client Details",
+    "reviewPacket": "Review packet",
+    "workflows": "Workflows",
+    "newCampaign": "New Campaign",
+    "campaignDetails": "Campaign Details",
+    "crewDetails": "Crew Details",
+    "tradeScope": "Trade Scope",
+    "projectDetails": "Project Details"
+  },
+  "projects": {
+    "emptyState": "No projects yet. Start by creating a project from an accepted estimate or add one manually.",
+    "newProjectDialog": {
+      "fields": {
+        "quote": "Estimate / Job",
+        "selectQuote": "Select an estimate",
+        "searchJobs": "Search estimates...",
+        "loadingJobs": "Loading estimates...",
+        "noJobs": "No estimates found"
+      }
+    },
+    "changeOrders": {
+      "noRootJob": "This project is not linked to an estimate yet. Link an estimate to see change orders."
+    },
+    "detail": {
+      "tabs": {
+        "quotes": "Estimates"
+      }
+    },
+    "quotes": {
+      "title": "Estimates",
+      "noQuotes": "No estimates have been linked to this project yet.",
+      "linkQuote": "Link Estimate",
+      "loading": "Loading estimates...",
+      "loadFailed": "Failed to load estimates.",
+      "empty": "No estimates are linked to this project yet.",
+      "selectQuote": "Select an estimate to link",
+      "noAvailableQuotes": "No unlinked estimates available.",
+      "linkSuccess": "Estimate linked successfully",
+      "linkError": "Could not link estimate",
+      "linkQuoteDialogTitle": "Link Estimate to Project",
+      "linkQuoteDialogDescription": "Select an existing estimate to associate with this project. An estimate can only belong to one project at a time."
+    }
+  },
+  "auth": {
+    "signupTabQuotes": "Estimates",
+    "signupFeature2": "Create professional estimates in minutes"
+  },
+  "dashboard": {
+    "recentQuotes": "Estimates",
+    "createQuote": "Create Estimate",
+    "copyQuote": "Copy Estimate",
+    "noQuotesYet": "No estimates yet. Create your first estimate!",
+    "stats": {
+      "paidQuotes": "From paid estimates"
+    },
+    "actions": {
+      "createQuote": "Create Estimate"
+    },
+    "proposalSelector": {
+      "title": "Select Estimate for Proposal",
+      "description": "Choose an estimate to open in the proposal builder.",
+      "emptyTitle": "No estimates available",
+      "emptyDescription": "Create an estimate first, then turn it into a proposal."
+    },
+    "quoteRequest": {
+      "title": "Estimate Request Form",
+      "linkCopiedDesc": "Estimate request link has been copied to your clipboard."
+    }
+  },
+  "settings": {
+    "laborRateTooltip": "Your default hourly, daily, or per-square-foot rate for labor on estimates",
+    "salesTaxTooltip": "Applied to taxable items on estimates and invoices",
+    "quoteTierMarkups": "Estimate Tier Markups",
+    "tabFollowups": "Follow-ups",
+    "tabCostBook": "Cost Book",
+    "tabBusiness": "Business",
+    "tabTeam": "Team",
+    "tabAutoReply": "Auto-reply",
+    "tabIntegrations": "Integrations",
+    "tabBilling": "Billing"
+  },
+  "scheduling": {
+    "settings": {
+      "quoteFollowups": "Estimate Follow-ups",
+      "quoteFollowupsDesc": "Automatically follow up with customers who haven't responded to estimates",
+      "daysAfterQuote": "Days after sending estimate",
+      "daysAfterQuoteHint": "Send follow-up this many days after estimate is sent",
+      "quoteTemplate": "Estimate Follow-up Template",
+      "quoteTemplatePlaceholder": "Hi '{customer_name}', just following up on the estimate we sent...",
+      "quoteCadence": "Estimate follow-up cadence",
+      "quoteCadenceDesc": "After an estimate is sent, these texts go out on the days below until the customer replies, signs, or declines.",
+      "cadenceStops": "Stops automatically when the customer replies, accepts or declines the estimate, or opts out.",
+      "sendDays": "Estimate follow-ups on"
+    },
+    "list": {
+      "typeQuote": "Estimate Follow-up",
+      "openQuote": "Open estimate",
+      "reasonQuoteAccepted": "estimate accepted",
+      "reasonQuoteRejected": "estimate declined",
+      "reasonQuoteClosed": "estimate closed"
+    },
+    "dialog": {
+      "templateQuote": "Estimate Follow-up"
+    }
+  },
+  "clientCommunications": {
+    "quoteFollowup": "Estimate Follow-up",
+    "quoteFollowupDesc": "Schedule a follow-up for an estimate",
+    "selectQuote": "Select an estimate",
+    "selectQuoteRequired": "Please select an estimate.",
+    "noQuotes": "No estimates for this client. Create an estimate first.",
+    "quoteFollowupMessageHint": "Include the estimate link and ask if they have questions.",
+    "fetchingQuoteLink": "Fetching estimate link...",
+    "signQuoteFirst": "Please sign the estimate first to generate a link, or remove the link placeholder from the message."
+  },
+  "filters": {
+    "quoted": "Estimated"
+  },
+  "quotes": {
+    "listTitle": "Estimates",
+    "noMatches": "No estimates match your filters.",
+    "quoteNumber": "Estimate #{id}",
+    "statusUpdated": "Estimate status updated to {status}.",
+    "sendToClientTooltipReady": "Open email with estimate link to send to client.",
+    "sendToClientTooltipSignFirst": "Sign the estimate first to send to client.",
+    "copyLinkTooltipSignFirst": "Sign the estimate first to generate a public link.",
+    "copyLinkTooltipCopy": "Copy estimate link",
+    "newQuote": "New Estimate",
+    "quote": "ESTIMATE",
+    "quoteDetails": "ESTIMATE DETAILS",
+    "noQuotesYet": "No estimates yet",
+    "createFirstQuote": "Create your first estimate to get started."
+  },
+  "leads": {
+    "fromQuoteRequest": "From Estimate Request",
+    "createQuote": "Create Estimate"
+  },
+  "clients": {
+    "noClientsDesc": "Clients will appear here once you create estimates or invoices for them.",
+    "archiveClientDesc": "This will archive {name}. You can still view archived clients from the clients list. This does not remove their estimates or history.",
+    "createQuote": "Create Estimate",
+    "quotes": "Estimates",
+    "quoteRequests": "Estimate Requests",
+    "noQuotesYet": "No estimates created yet",
+    "createFirstQuote": "Create First Estimate",
+    "noQuoteRequests": "No estimate requests yet",
+    "convertedToQuote": "Converted to Estimate #{id}",
+    "viewQuote": "View Estimate →",
+    "archiveConfirmDesc": "This will archive {name}. You can still view archived clients from the clients list. This does not remove their estimates or history."
+  },
+  "profileSetup": {
+    "opsAiNumber": {
+      "numberDescription": "A dedicated phone line for your business that uses AI to automatically handle customer calls, estimate requests, and lead tracking."
+    },
+    "aiEstimator": {
+      "description": "It's on 24/7 — answering calls and texts, following up with leads, and helping you estimate the way you already do. Upload a few real documents so it knows your business from day one.",
+      "uploadDescription": "Drop invoices, proposals, price lists, or job photos — the same paperwork you already use. Your AI worker learns your rates, tone, and scope so every estimate and reply sounds like you."
+    },
+    "numberPicker": {
+      "subtitle": "Available numbers in area code {areaCode}{stateSuffix}. Customers will see this on estimates and your dashboard."
+    }
+  },
+  "billing": {
+    "features": {
+      "aiQuoteGeneration": "AI-Powered Estimate Generation",
+      "unlimitedQuotes": "Unlimited Estimates & Invoices"
+    },
+    "success": {
+      "subscriptionActive": "Your workspace is ready. Start managing leads, estimates, jobs, and invoices from one clean dashboard."
+    }
+  },
+  "proposals": {
+    "badge": {
+      "quoteNumber": "ESTIMATE #{id}"
+    },
+    "aiModal": {
+      "description": "Upload a before photo, choose the saved estimate items to include, and generate a before/after preview for this estimate."
+    },
+    "errors": {
+      "noQuoteToUpload": "No estimate or project to upload media to",
+      "loadQuoteProposal": "Failed to load estimate proposal.",
+      "savedQuotesOnly": "Proposal builder is only available for saved estimate records.",
+      "quoteNotFound": "Estimate not found."
+    },
+    "routePage": {
+      "backToQuote": "Back to Estimate",
+      "breadcrumbQuotes": "Estimates",
+      "breadcrumbQuoteNumber": "Estimate #{id}"
+    },
+    "public": {
+      "viewQuote": "View Estimate"
+    }
+  },
+  "frontline": {
+    "setup": {
+      "pricingDesc": "{operatorName} won't estimate exact prices — just enough to sound informed."
+    }
+  },
+  "menu": {
+    "quotes": "Estimates"
+  },
+  "website": {
+    "gallery": {
+      "importPrivacyUntitled": "Copy one image into this project. Customer names, addresses and project notes are not copied."
+    }
+  },
+  "dashboardHome": {
+    "thingsNeedYou": "{count, plural, one {# thing needs you} other {# things need you}}",
+    "invoicesPastDue": "{count, plural, one {# invoice past due} other {# invoices past due}}",
+    "nothingOnCalendar": "nothing on the calendar today",
+    "onCalendarToday": "{count} on the calendar today",
+    "new": "New",
+    "newEstimate": "New estimate",
+    "newProject": "New project",
+    "newClient": "New client",
+    "unpaid": "Unpaid",
+    "pastDue": "Past due",
+    "awaitingReply": "Awaiting reply",
+    "estimatesUnit": "estimates",
+    "newLeads7d": "New leads · 7d",
+    "bookedThisWeek": "Booked this week",
+    "jobsUnit": "jobs",
+    "dueThisMonth": "Due this month",
+    "later": "Later",
+    "money": "Money",
+    "outstandingAcross": "{count, plural, one {outstanding across # invoice} other {outstanding across # invoices}}",
+    "paidLast30d": "Paid · last 30d",
+    "pipeline": "Pipeline",
+    "stageLeads": "New leads",
+    "stageQuoted": "Estimated · awaiting",
+    "stageAccepted": "Accepted",
+    "stageInProgress": "In progress",
+    "noProjectAttached": "{count, plural, one {# accepted estimate has no project attached.} other {# accepted estimates have no project attached.}}",
+    "review": "Review",
+    "chipOverdueDays": "OVERDUE {days}D",
+    "chipOverdue": "OVERDUE",
+    "chipDrawReady": "DRAW READY",
+    "chipViewed": "VIEWED",
+    "chipChanges": "CHANGES",
+    "chipNoViewsDays": "NO VIEWS {days}D",
+    "chipNoViews": "NO VIEWS",
+    "chipNoProjectWeeks": "NO PROJECT {weeks}W",
+    "chipNoProject": "NO PROJECT",
+    "chipExpiring": "EXPIRING",
+    "chipTrade": "TRADE",
+    "chipTask": "TASK",
+    "chipLead": "LEAD",
+    "actionSendReminder": "Send reminder",
+    "actionBillDraw": "Bill draw",
+    "actionStartProject": "Start project",
+    "actionMarkDone": "Mark done",
+    "actionOpenLead": "Open lead",
+    "reminderSent": "Reminder sent",
+    "reminderFailed": "Couldn't send reminder",
+    "taskCompleted": "Task completed",
+    "taskFailed": "Couldn't complete task",
+    "snoozedForWeek": "{count, plural, one {Snoozed # item for a week} other {Snoozed # items for a week}}",
+    "snoozeFailed": "Couldn't snooze",
+    "needsYou": "Needs you",
+    "snoozedCount": "{count} snoozed",
+    "snoozeAll": "Snooze all",
+    "allCaughtUp": "You're all caught up",
+    "nothingNeedsAction": "Nothing needs action right now."
+  }
+}
