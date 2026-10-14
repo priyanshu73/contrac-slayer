@@ -3,12 +3,12 @@
       {
         "source": "/api/:path*",
         "has": [{ "type": "host", "value": "contractorops.ai" }],
-        "destination": "https://seal-app-bz6bk.ondigitalocean.app/api/:path*"
+        "destination": "https://service.contractorops.ai/api/:path*"
       },
       {
         "source": "/api/:path*",
         "has": [{ "type": "host", "value": "www.contractorops.ai" }],
-        "destination": "https://seal-app-bz6bk.ondigitalocean.app/api/:path*"
+        "destination": "https://service.contractorops.ai/api/:path*"
       },
       {
         "source": "/api/:path*",

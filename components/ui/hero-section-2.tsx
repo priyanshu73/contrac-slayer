@@ -2,7 +2,9 @@
 
 import React from "react"
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Play } from "lucide-react"
+import "@/components/landing/landing.css"
+import { HERO_CARD_HTML } from "@/components/landing/landing-markup"
 import { useLocale, useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { useReferral, buildSignupUrl } from "@/contexts/ReferralContext"
@@ -82,47 +84,41 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
         )}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,22,0.72),rgba(8,14,22,0.52)_46%,rgba(8,14,22,0.40)),radial-gradient(circle_at_center,rgba(38,49,61,0.08),rgba(8,14,22,0.48)_82%)]" />
 
-        <motion.div 
-          className="mx-auto flex min-h-[calc(100svh-1rem)] max-w-6xl items-center justify-center pb-20 pt-10 text-center sm:min-h-[100svh] lg:pb-24"
+        <motion.div
+          className="lp lp-hero-wrap mx-auto grid min-h-[calc(100svh-1rem)] max-w-[1200px] items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] sm:min-h-[100svh]"
           variants={containerVariants}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
         >
-          <div className="w-full max-w-5xl min-w-0">
-            <motion.h1 variants={itemVariants} className="mx-auto max-w-full min-w-0 text-3xl font-semibold leading-[1.12] tracking-normal text-white sm:text-5xl lg:max-w-none lg:text-6xl [text-wrap:balance]">
-              {title ?? (
-                <>
-                  <span className="block">{t("heroHeadline")}</span>
-                  <span className="mt-2 block text-xl font-medium text-white/60 sm:text-2xl md:text-3xl lg:text-4xl leading-snug [text-wrap:balance]">
-                    {t("heroHeadlineAccent")}
-                  </span>
-                </>
-              )}
+          <div className="min-w-0 text-left">
+            <motion.div variants={itemVariants} className="lp-hero-eyebrow">AI BACK OFFICE FOR CONTRACTORS</motion.div>
+            <motion.h1 variants={itemVariants} className="lp-hero-title">
+              More jobs.
+              <br />
+              Less chasing.
             </motion.h1>
-
-            <motion.p variants={itemVariants} className="mx-auto mt-6 max-w-2xl px-2 text-sm font-medium leading-relaxed text-white/70 [text-shadow:0_2px_18px_rgba(0,0,0,0.62)] sm:text-base md:text-lg">
-              {subtitle ?? t("heroBody")}
+            <motion.p variants={itemVariants} className="lp-hero-body">
+              Keep leads, estimates, crews and job costs moving, with AI helping your team handle the follow-through.
             </motion.p>
-
-            <motion.div variants={itemVariants} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href={signupUrl}
-                className="flex h-12 items-center gap-2 rounded-full bg-white px-7 text-base font-medium text-[#26313d] transition hover:bg-white/90"
-              >
-                {t("heroPrimaryCta")}
-                <ArrowRight className="h-5 w-5" />
-              </Link>
+            <motion.div variants={itemVariants} className="lp-hero-actions">
               <a
                 href={callToAction?.href ?? "https://cal.com/johnson-subedi/30min"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-12 items-center rounded-full px-7 text-base font-medium text-white transition hover:bg-white/10"
+                className="lp-hero-btn"
               >
-                {callToAction?.text ?? t("scheduleDemo")}
+                Book a demo
+                <ArrowRight className="h-5 w-5" />
+              </a>
+              <a href="#receptionist" className="lp-hero-btn lp-hero-btn-ghost">
+                <Play className="h-4 w-4 fill-current" />
+                Hear the AI
               </a>
             </motion.div>
+            <motion.div variants={itemVariants} className="lp-hero-note">For owner-operated shops and growing teams</motion.div>
           </div>
+          <motion.div variants={itemVariants} className="lp-hero-card" dangerouslySetInnerHTML={{ __html: HERO_CARD_HTML }} />
         </motion.div>
       </section>
     )

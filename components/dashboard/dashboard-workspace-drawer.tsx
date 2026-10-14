@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import {
   FolderKanban,
   FileText,
@@ -27,63 +27,65 @@ interface QuoteItem {
   created_at?: string
 }
 
-function currency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
+function currency(amount: number, locale: string = "en") {
+  return new Intl.NumberFormat(locale === "es" ? "es-US" : "en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(amount || 0)
 }
 
-function getProjectStatusBadge(status?: string) {
+type TFn = (key: string, values?: Record<string, any>) => string
+
+function getProjectStatusBadge(status: string | undefined, t: TFn) {
   switch (status?.toUpperCase()) {
     case "COMPLETED":
-      return { label: "Completed", className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      return { label: t("project.COMPLETED"), className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
     case "IN_PROGRESS":
-      return { label: "In Progress", className: "bg-sky-50 text-sky-700 border-sky-200" }
+      return { label: t("project.IN_PROGRESS"), className: "bg-sky-50 text-sky-700 border-sky-200" }
     case "ON_HOLD":
-      return { label: "On Hold", className: "bg-amber-50 text-amber-700 border-amber-200" }
+      return { label: t("project.ON_HOLD"), className: "bg-amber-50 text-amber-700 border-amber-200" }
     case "PLANNING":
-      return { label: "Planning", className: "bg-indigo-50 text-indigo-700 border-indigo-200" }
+      return { label: t("project.PLANNING"), className: "bg-indigo-50 text-indigo-700 border-indigo-200" }
     default:
-      return { label: status || "Active", className: "bg-slate-50 text-slate-700 border-slate-200" }
+      return { label: status || t("project.fallback"), className: "bg-slate-50 text-slate-700 border-slate-200" }
   }
 }
 
-function getQuoteStatusBadge(status?: string) {
+function getQuoteStatusBadge(status: string | undefined, t: TFn) {
   switch (status?.toUpperCase()) {
     case "DRAFT":
-      return { label: "Draft", className: "bg-amber-50 text-amber-700 border-amber-200" }
+      return { label: t("quote.DRAFT"), className: "bg-amber-50 text-amber-700 border-amber-200" }
     case "SENT":
-      return { label: "Sent", className: "bg-sky-50 text-sky-700 border-sky-200" }
+      return { label: t("quote.SENT"), className: "bg-sky-50 text-sky-700 border-sky-200" }
     case "VIEWED":
-      return { label: "Viewed", className: "bg-violet-50 text-violet-700 border-violet-200" }
+      return { label: t("quote.VIEWED"), className: "bg-violet-50 text-violet-700 border-violet-200" }
     case "ACCEPTED":
-      return { label: "Accepted", className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      return { label: t("quote.ACCEPTED"), className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
     case "REJECTED":
-      return { label: "Declined", className: "bg-rose-50 text-rose-700 border-rose-200" }
+      return { label: t("quote.REJECTED"), className: "bg-rose-50 text-rose-700 border-rose-200" }
     default:
-      return { label: status || "Quote", className: "bg-slate-50 text-slate-700 border-slate-200" }
+      return { label: status || t("quote.fallback"), className: "bg-slate-50 text-slate-700 border-slate-200" }
   }
 }
 
-function getInvoiceStatusBadge(inv: Invoice) {
+function getInvoiceStatusBadge(inv: Invoice, t: TFn) {
   if (inv.status === "OVERDUE" || ((inv.balance_due ?? 0) > 0 && inv.due_date && new Date(inv.due_date).getTime() < Date.now())) {
-    return { label: "Overdue", className: "bg-rose-50 text-rose-700 border-rose-200" }
+    return { key: "overdue", label: t("invoice.overdue"), className: "bg-rose-50 text-rose-700 border-rose-200" }
   }
   if ((inv.amount_paid ?? 0) > 0 && (inv.balance_due ?? 0) > 0) {
-    return { label: "Partial", className: "bg-amber-50 text-amber-700 border-amber-200" }
+    return { key: "partial", label: t("invoice.partial"), className: "bg-amber-50 text-amber-700 border-amber-200" }
   }
   switch (inv.status) {
     case "SENT":
     case "VIEWED":
-      return { label: "Sent", className: "bg-sky-50 text-sky-700 border-sky-200" }
+      return { key: "sent", label: t("invoice.sent"), className: "bg-sky-50 text-sky-700 border-sky-200" }
     case "PAID":
-      return { label: "Paid", className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      return { key: "paid", label: t("invoice.paid"), className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
     case "DRAFT":
-      return { label: "Draft", className: "bg-slate-50 text-slate-600 border-slate-200" }
+      return { key: "draft", label: t("invoice.draft"), className: "bg-slate-50 text-slate-600 border-slate-200" }
     default:
-      return { label: inv.status || "Invoice", className: "bg-slate-50 text-slate-600 border-slate-200" }
+      return { key: "other", label: inv.status || t("invoice.fallback"), className: "bg-slate-50 text-slate-600 border-slate-200" }
   }
 }
 
@@ -95,6 +97,7 @@ export function DashboardWorkspaceDrawer({
   onRefresh?: () => void
 }) {
   const locale = useLocale()
+  const t = useTranslations("dashboard.drawer")
   const [activeTab, setActiveTab] = useState<"projects" | "quotes" | "invoices">("projects")
   
   const [projects, setProjects] = useState<ProjectListItem[]>([])
@@ -214,7 +217,7 @@ export function DashboardWorkspaceDrawer({
             )}
           >
             <FolderKanban className="h-3.5 w-3.5" />
-            <span>Projects</span>
+            <span>{t("tabProjects")}</span>
           </button>
 
           <button
@@ -228,7 +231,7 @@ export function DashboardWorkspaceDrawer({
             )}
           >
             <FileText className="h-3.5 w-3.5" />
-            <span>Quotes</span>
+            <span>{t("tabEstimates")}</span>
           </button>
 
           <button
@@ -242,7 +245,7 @@ export function DashboardWorkspaceDrawer({
             )}
           >
             <Receipt className="h-3.5 w-3.5" />
-            <span>Invoices</span>
+            <span>{t("tabInvoices")}</span>
           </button>
         </div>
 
@@ -256,7 +259,7 @@ export function DashboardWorkspaceDrawer({
                 ))
               ) : projects.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
-                  <p>No active projects found.</p>
+                  <p>{t("noProjects")}</p>
                   <button
                     onClick={() => setNewProjectOpen(true)}
                     className="mt-2 text-xs font-semibold text-sky-600 hover:underline"
@@ -266,8 +269,8 @@ export function DashboardWorkspaceDrawer({
                 </div>
               ) : (
                 projects.map((project) => {
-                  const badge = getProjectStatusBadge(project.status)
-                  const title = project.title || `Project #${project.id}`
+                  const badge = getProjectStatusBadge(project.status, t)
+                  const title = project.title || t("projectNum", { id: project.id })
                   return (
                     <Link
                       key={project.id}
@@ -312,7 +315,7 @@ export function DashboardWorkspaceDrawer({
                 className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-slate-900"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>New</span>
+                <span>{t("new")}</span>
               </button>
             </div>
           </div>
@@ -328,7 +331,7 @@ export function DashboardWorkspaceDrawer({
                 ))
               ) : quotes.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
-                  <p>No quotes found.</p>
+                  <p>{t("noEstimates")}</p>
                   <Link
                     href={`/${locale}/quotes/new`}
                     className="mt-2 inline-block text-xs font-semibold text-sky-600 hover:underline"
@@ -338,8 +341,8 @@ export function DashboardWorkspaceDrawer({
                 </div>
               ) : (
                 quotes.map((quote) => {
-                  const badge = getQuoteStatusBadge(quote.status)
-                  const title = quote.title || `Quote #${quote.id}`
+                  const badge = getQuoteStatusBadge(quote.status, t)
+                  const title = quote.title || t("estimateNum", { id: quote.id })
                   return (
                     <Link
                       key={quote.id}
@@ -360,7 +363,7 @@ export function DashboardWorkspaceDrawer({
                       <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
                         <span className="truncate">{(quote as any).client_name || quote.client?.name || "No client"}</span>
                         <span className="font-mono font-bold text-slate-800">
-                          {currency(quote.total_amount)}
+                          {currency(quote.total_amount, locale)}
                         </span>
                       </div>
                     </Link>
@@ -381,7 +384,7 @@ export function DashboardWorkspaceDrawer({
                 className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-slate-900"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>New</span>
+                <span>{t("new")}</span>
               </Link>
             </div>
           </div>
@@ -397,20 +400,20 @@ export function DashboardWorkspaceDrawer({
                 ))
               ) : invoices.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
-                  <p>No invoices found.</p>
+                  <p>{t("noInvoices")}</p>
                 </div>
               ) : (
                 invoices.map((inv) => {
-                  const badge = getInvoiceStatusBadge(inv)
+                  const badge = getInvoiceStatusBadge(inv, t)
                   const number = inv.invoice_number || `INV-${inv.id}`
                   const clientName =
                     inv.client_name?.trim() ||
                     inv.client?.name?.trim() ||
                     (inv.title && inv.title !== number ? inv.title.trim() : "") ||
-                    (inv.client_id ? `Client #${inv.client_id}` : "Client")
+                    (inv.client_id ? t("clientNum", { id: inv.client_id }) : t("client"))
 
-                  const isPaid = badge.label === "Paid"
-                  const isOverdue = badge.label === "Overdue"
+                  const isPaid = badge.key === "paid"
+                  const isOverdue = badge.key === "overdue"
 
                   // Show the full invoice amount for paid invoices, or the balance due if unpaid
                   const amount = isPaid
@@ -421,24 +424,24 @@ export function DashboardWorkspaceDrawer({
                   if (isOverdue && inv.due_date) {
                     const d = new Date(inv.due_date)
                     const dueStr = !Number.isNaN(d.getTime())
-                      ? `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      ? t("due", { date: d.toLocaleDateString(locale === "es" ? "es-US" : "en-US", { month: "short", day: "numeric" }) })
                       : ""
                     subtitle = subtitle ? `${subtitle} · ${dueStr}` : dueStr
                   } else if (isPaid && inv.issue_date) {
                     const d = new Date(inv.issue_date)
                     const dateStr = !Number.isNaN(d.getTime())
-                      ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      ? d.toLocaleDateString(locale === "es" ? "es-US" : "en-US", { month: "short", day: "numeric" })
                       : ""
-                    subtitle = subtitle ? `${subtitle} · ${dateStr}` : `Paid · ${dateStr}`
+                    subtitle = subtitle ? `${subtitle} · ${dateStr}` : t("paidOn", { date: dateStr })
                   } else if (inv.due_date) {
                     const d = new Date(inv.due_date)
                     const dueStr = !Number.isNaN(d.getTime())
-                      ? `Due ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      ? t("due", { date: d.toLocaleDateString(locale === "es" ? "es-US" : "en-US", { month: "short", day: "numeric" }) })
                       : ""
                     subtitle = subtitle ? `${subtitle} · ${dueStr}` : dueStr
                   }
                   if (!subtitle) {
-                    subtitle = isPaid ? "Paid in full" : "Invoice"
+                    subtitle = isPaid ? t("paidInFull") : t("invoiceWord")
                   }
 
                   return (
@@ -473,7 +476,7 @@ export function DashboardWorkspaceDrawer({
                             isOverdue ? "text-rose-600" : isPaid ? "text-slate-800" : "text-slate-900"
                           )}
                         >
-                          {currency(amount)}
+                          {currency(amount, locale)}
                         </span>
                       </div>
                     </Link>
@@ -497,9 +500,9 @@ export function DashboardWorkspaceDrawer({
       {/* 3. Compact Financial Snapshot (Non-intrusive) */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-800">Financial Snapshot</span>
+          <span className="text-xs font-bold text-slate-800">{t("snapshot")}</span>
           <span className="font-mono text-xs font-bold text-slate-900">
-            {currency(unpaid)} unpaid
+            {t("unpaidTotal", { amount: currency(unpaid, locale) })}
           </span>
         </div>
 
@@ -508,7 +511,7 @@ export function DashboardWorkspaceDrawer({
           <div
             className="h-full bg-rose-500 transition-all"
             style={{ width: unpaid > 0 ? `${Math.min((pastDue / unpaid) * 100, 100)}%` : "0%" }}
-            title={`Past Due: ${currency(pastDue)}`}
+            title={t("pastDueTitle", { amount: currency(pastDue, locale) })}
           />
           <div
             className="h-full bg-sky-400 transition-all"
@@ -518,29 +521,29 @@ export function DashboardWorkspaceDrawer({
                   ? `${Math.max(100 - Math.min((pastDue / unpaid) * 100, 100), 0)}%`
                   : "100%",
             }}
-            title="Current Unpaid"
+            title={t("currentUnpaid")}
           />
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-[11px]">
           <div>
-            <span className="block text-[10px] font-semibold text-slate-400 uppercase">Past Due</span>
+            <span className="block text-[10px] font-semibold text-slate-400 uppercase">{t("pastDue")}</span>
             <span
               className={cn(
                 "font-mono font-bold",
                 pastDue > 0 ? "text-rose-600" : "text-slate-700"
               )}
             >
-              {currency(pastDue)}
+              {currency(pastDue, locale)}
             </span>
           </div>
           <div>
-            <span className="block text-[10px] font-semibold text-slate-400 uppercase">Awaiting</span>
-            <span className="font-mono font-bold text-sky-700">{awaitingReply} quotes</span>
+            <span className="block text-[10px] font-semibold text-slate-400 uppercase">{t("awaiting")}</span>
+            <span className="font-mono font-bold text-sky-700">{t("awaitingCount", { count: awaitingReply })}</span>
           </div>
           <div>
-            <span className="block text-[10px] font-semibold text-slate-400 uppercase">Total Unpaid</span>
-            <span className="font-mono font-bold text-slate-800">{currency(unpaid)}</span>
+            <span className="block text-[10px] font-semibold text-slate-400 uppercase">{t("totalUnpaid")}</span>
+            <span className="font-mono font-bold text-slate-800">{currency(unpaid, locale)}</span>
           </div>
         </div>
       </div>

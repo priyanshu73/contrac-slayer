@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import Link from "next/link"
 
 import { api } from "@/lib/api"
@@ -15,10 +15,10 @@ const moneyShort = (n: number) => {
 
 // Wireframe shows the active funnel only (no "Paid"/"Completed" history rows).
 const STAGE_LABELS: Record<string, string> = {
-  Leads: "New leads",
-  Quoted: "Quoted · awaiting",
-  Accepted: "Accepted",
-  "In Progress": "In progress",
+  Leads: "stageLeads",
+  Quoted: "stageQuoted",
+  Accepted: "stageAccepted",
+  "In Progress": "stageInProgress",
 }
 
 const STAGE_COLORS: Record<string, string> = {
@@ -36,6 +36,7 @@ export function PipelineCard({
   bare?: boolean
 }) {
   const locale = useLocale()
+  const t = useTranslations("dashboardHome")
   const [pipeline, setPipeline] = useState<PipelineResponse | null>(null)
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export function PipelineCard({
   return (
     <div className={bare ? "px-5 pb-5 pt-4" : "rounded-xl border border-slate-200 bg-white p-5 shadow-sm"}>
       <div className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-semibold text-slate-900">Pipeline</h2>
+        <h2 className="text-[15px] font-semibold text-slate-900">{t("pipeline")}</h2>
         {totalAmount > 0 && (
           <span className="font-mono text-[12px] font-semibold tabular-nums text-slate-400">
             {moneyShort(totalAmount)}
@@ -81,7 +82,7 @@ export function PipelineCard({
           : stages.map((s) => (
               <div key={s.stage}>
                 <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-slate-700">{STAGE_LABELS[s.stage]}</span>
+                  <span className="text-slate-700">{t(STAGE_LABELS[s.stage])}</span>
                   <span className="font-mono font-semibold tabular-nums text-slate-900">
                     {s.count}
                   </span>
@@ -101,9 +102,9 @@ export function PipelineCard({
 
       {noProject > 0 && (
         <p className="mt-4 border-t border-slate-100 pt-3 text-[12.5px] text-slate-500">
-          {noProject} accepted quote{noProject === 1 ? " has" : "s have"} no project attached.{" "}
+          {t("noProjectAttached", { count: noProject })}{" "}
           <Link href={`/${locale}/quotes?status=ACCEPTED`} className="text-sky-700 hover:underline">
-            Review
+            {t("review")}
           </Link>
         </p>
       )}

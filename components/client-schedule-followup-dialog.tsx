@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
+import { enUS, es as esLocale } from "date-fns/locale"
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,7 @@ import {
 import { CalendarIcon, ClockIcon, SendIcon, FileTextIcon, Loader2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 
 type FollowupType = "appointment" | "quote" | "custom"
@@ -93,6 +94,9 @@ export function ClientScheduleFollowupDialog({
   onScheduled,
 }: ClientScheduleFollowupDialogProps) {
   const t = useTranslations("clientCommunications")
+  const locale = useLocale()
+  const dfLocale = locale === "es" ? esLocale : enUS
+  const fmtWhen = (d: Date) => format(d, locale === "es" ? "PPp" : "MMM d, yyyy 'at' h:mm a", { locale: dfLocale })
   const tSched = useTranslations("scheduling.dialog")
   const { toast } = useToast()
   const [followupType, setFollowupType] = useState<FollowupType>("appointment")
@@ -111,7 +115,7 @@ export function ClientScheduleFollowupDialog({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const QUOTE_FOLLOWUP_TEMPLATE = "Hi {client_name}, just following up on the quote we sent. Do you have any questions? {quote_link}"
+  const QUOTE_FOLLOWUP_TEMPLATE = t("quoteFollowupTemplate")
 
   useEffect(() => {
     if (!open) return
@@ -158,7 +162,7 @@ export function ClientScheduleFollowupDialog({
         const frontendUrl = typeof window !== "undefined" ? window.location.origin : ""
         const fullUrl = `${frontendUrl}/quotes/${publicLink}`
         setQuoteLink(fullUrl)
-        const msg = QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? "there").replace(
+        const msg = QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? t("defaultClientName")).replace(
           /\{quote_link\}/g,
           fullUrl
         )
@@ -167,9 +171,9 @@ export function ClientScheduleFollowupDialog({
       .catch(() => {
         setQuoteLink(null)
         setMessageText(
-          QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? "there").replace(
+          QUOTE_FOLLOWUP_TEMPLATE.replace(/\{client_name\}/g, clientName ?? t("defaultClientName")).replace(
             /\{quote_link\}/g,
-            "[Quote link unavailable]"
+            t("quoteLinkUnavailable")
           )
         )
       })
@@ -260,7 +264,7 @@ export function ClientScheduleFollowupDialog({
         })
         return
       }
-      if (!quoteLink && messageText.includes("[Quote link")) {
+      if (!quoteLink && messageText.includes(t("quoteLinkMarker"))) {
         toast({
           title: t("error"),
           description: t("signQuoteFirst"),
@@ -271,7 +275,7 @@ export function ClientScheduleFollowupDialog({
       setIsSubmitting(true)
       try {
         const finalMessage = messageText
-          .replace(/\{client_name\}/g, clientName ?? "there")
+          .replace(/\{client_name\}/g, clientName ?? t("defaultClientName"))
           .replace(/\{quote_link\}/g, quoteLink ?? "")
         await api.scheduleFollowup({
           client_id: clientId,
@@ -284,7 +288,7 @@ export function ClientScheduleFollowupDialog({
         })
         toast({
           title: t("scheduledSuccess"),
-          description: `Quote follow-up scheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+          description: t("quoteFollowupScheduledDesc", { when: fmtWhen(dateTime) }),
         })
         onOpenChange(false)
         onScheduled?.()
@@ -329,13 +333,13 @@ export function ClientScheduleFollowupDialog({
       }
       setIsSubmitting(true)
       try {
-        const timeStr = format(dateTime, "h:mm a")
-        const dateStr = format(dateTime, "MMMM d, yyyy")
+        const timeStr = format(dateTime, "p", { locale: dfLocale })
+        const dateStr = format(dateTime, locale === "es" ? "PPP" : "MMMM d, yyyy", { locale: dfLocale })
         const formattedMessage = messageText
-          .replace(/\{client_name\}/g, clientName ?? "there")
+          .replace(/\{client_name\}/g, clientName ?? t("defaultClientName"))
           .replace(/\{time\}/g, timeStr)
           .replace(/\{date\}/g, dateStr)
-          .replace(/\{datetime\}/g, `${dateStr} at ${timeStr}`)
+          .replace(/\{datetime\}/g, t("dateTimeJoin", { date: dateStr, time: timeStr }))
 
         await api.scheduleFollowup({
           client_id: clientId,
@@ -348,7 +352,7 @@ export function ClientScheduleFollowupDialog({
         })
         toast({
           title: t("scheduledSuccess"),
-          description: `Message scheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+          description: t("messageScheduledDesc", { when: fmtWhen(dateTime) }),
         })
         onOpenChange(false)
         onScheduled?.()
@@ -390,8 +394,8 @@ export function ClientScheduleFollowupDialog({
         title: t("scheduledSuccess"),
         description:
           count > 0
-            ? `Appointment reminders scheduled (${count} reminder${count === 1 ? "" : "s"} — 1 day and 1 hour before).`
-            : "Automatic follow-ups are disabled. Enable them in Scheduling settings.",
+            ? t("remindersScheduledDesc", { count })
+            : t("remindersDisabled"),
       })
       onOpenChange(false)
       onScheduled?.()
@@ -476,10 +480,10 @@ export function ClientScheduleFollowupDialog({
                           isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                         )}
                       >
-                        <div className="font-medium">{b.name ?? "Appointment"}</div>
+                        <div className="font-medium">{b.name ?? t("defaultAppointment")}</div>
                         {start && (
                           <div className="text-sm text-muted-foreground">
-                            {format(start, "EEE, MMM d, yyyy 'at' h:mm a")}
+                            {format(start, locale === "es" ? "PPPp" : "EEE, MMM d, yyyy 'at' h:mm a", { locale: dfLocale })}
                           </div>
                         )}
                       </button>
@@ -514,7 +518,7 @@ export function ClientScheduleFollowupDialog({
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedDate ? format(selectedDate, "PPP") : t("pickDate")}
+                          {selectedDate ? format(selectedDate, "PPP", { locale: dfLocale }) : t("pickDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -577,7 +581,7 @@ export function ClientScheduleFollowupDialog({
                             isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                           )}
                         >
-                          <div className="font-medium">{q.title ?? q.job_number ?? `Quote #${q.id}`}</div>
+                          <div className="font-medium">{q.title ?? q.job_number ?? t("estimateFallbackTitle", { id: q.id })}</div>
                         </button>
                       )
                     })}
@@ -622,7 +626,7 @@ export function ClientScheduleFollowupDialog({
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {selectedDate ? format(selectedDate, "PPP") : t("pickDate")}
+                            {selectedDate ? format(selectedDate, "PPP", { locale: dfLocale }) : t("pickDate")}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -679,7 +683,7 @@ export function ClientScheduleFollowupDialog({
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "PPP") : t("pickDate")}
+                        {selectedDate ? format(selectedDate, "PPP", { locale: dfLocale }) : t("pickDate")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

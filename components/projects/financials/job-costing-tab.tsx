@@ -5,6 +5,7 @@ import { Project, ProjectCostItem, ScopeQuoteLineItem } from '@/lib/types'
 import { api } from '@/lib/api'
 import { QuoteItemPicker } from './quote-item-picker'
 import { useToast } from '@/components/ui/use-toast'
+import { useTranslations } from 'next-intl'
 import { formatCurrency } from '@/lib/utils'
 import {
   Dialog,
@@ -47,6 +48,7 @@ const parseNumOrNull = (raw: string): number | null => {
  */
 export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProps) {
   const { toast } = useToast()
+  const tj = useTranslations('projectsPage.financials.jobCosting')
   const [items, setItems] = useState<ProjectCostItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -56,7 +58,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
       const data = await api.getProjectCostItems(project.id)
       setItems(data)
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+      toast({ title: tj('error'), description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -80,7 +82,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
         onRefreshTotal()
       }
     } catch (err: any) {
-      toast({ title: 'Update failed', description: err.message, variant: 'destructive' })
+      toast({ title: tj('updateFailed'), description: err.message, variant: 'destructive' })
     }
   }
 
@@ -91,9 +93,9 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
       setItems(prev => prev.filter(i => i.id !== itemId))
       onRefreshTotal()
       setDeleteConfirmId(null)
-      toast({ title: 'Cost line deleted' })
+      toast({ title: tj('deleted') })
     } catch (err: any) {
-      toast({ title: 'Delete failed', variant: 'destructive' })
+      toast({ title: tj('deleteFailed'), variant: 'destructive' })
     } finally {
       setDeletingItemId(null)
     }
@@ -138,9 +140,9 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
         })
         created.push(newItem as ProjectCostItem)
       }
-      toast({ title: `Added ${created.length} direct cost line${created.length === 1 ? '' : 's'}` })
+      toast({ title: tj('addedLines', { count: created.length }) })
     } catch (err: any) {
-      toast({ title: 'Error adding from quote', description: err.message, variant: 'destructive' })
+      toast({ title: tj('addFromEstimateError'), description: err.message, variant: 'destructive' })
       throw err
     } finally {
       if (created.length) {
@@ -182,7 +184,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
       setCreateDialogOpen(false)
       if (amount > 0) onRefreshTotal()
     } catch (err: any) {
-      toast({ title: 'Error creating cost line', description: err.message, variant: 'destructive' })
+      toast({ title: tj('createError'), description: err.message, variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -195,12 +197,12 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
       <Table className="table-fixed w-full">
         <TableHeader className="bg-muted">
           <TableRow>
-            <TableHead className="w-[26%] text-xs uppercase tracking-wider">Line Item</TableHead>
-            <TableHead className="w-[8%] text-right text-xs uppercase tracking-wider">Qty</TableHead>
-            <TableHead className="w-[9%] text-xs uppercase tracking-wider">Unit</TableHead>
-            <TableHead className="w-[12%] text-right text-xs uppercase tracking-wider">Rate</TableHead>
-            <TableHead className="w-[13%] text-right text-xs uppercase tracking-wider">Amount</TableHead>
-            <TableHead className="w-[28%] text-xs uppercase tracking-wider">Notes</TableHead>
+            <TableHead className="w-[26%] text-xs uppercase tracking-wider">{tj('lineItemHead')}</TableHead>
+            <TableHead className="w-[8%] text-right text-xs uppercase tracking-wider">{tj('qty')}</TableHead>
+            <TableHead className="w-[9%] text-xs uppercase tracking-wider">{tj('unit')}</TableHead>
+            <TableHead className="w-[12%] text-right text-xs uppercase tracking-wider">{tj('rate')}</TableHead>
+            <TableHead className="w-[13%] text-right text-xs uppercase tracking-wider">{tj('amount')}</TableHead>
+            <TableHead className="w-[28%] text-xs uppercase tracking-wider">{tj('notes')}</TableHead>
             <TableHead className="w-[4%]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -334,10 +336,10 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent side="top" align="end" className="w-52 p-3">
-                    <p className="mb-2 text-xs text-foreground">Delete this cost line?</p>
+                    <p className="mb-2 text-xs text-foreground">{tj('deleteConfirm')}</p>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setDeleteConfirmId(null)}>
-                        Cancel
+                        {tj('cancel')}
                       </Button>
                       <Button
                         size="sm"
@@ -345,7 +347,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
                         disabled={deletingItemId === item.id}
                         onClick={() => handleDeleteItem(item.id)}
                       >
-                        Confirm
+                        {tj('confirm')}
                       </Button>
                     </div>
                   </PopoverContent>
@@ -384,24 +386,24 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
   return (
     <div className="space-y-6">
       {/* DIRECT JOB COST — imported from quotes */}
-      <SectionCard title="Direct Job Cost" subtitle="Cost lines imported from your quotes." total={directTotal}>
-        {renderRows(directItems, 'No direct cost lines yet — add one or pull them from a quote.')}
+      <SectionCard title={tj('directTitle')} subtitle={tj('directSubtitle')} total={directTotal}>
+        {renderRows(directItems, tj('noDirect'))}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => openCreateDialog(DIRECT_PHASE)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
-            <Plus className="w-4 h-4 mr-1" /> Add Item
+            <Plus className="w-4 h-4 mr-1" /> {tj('addItem')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setQuotePickerOpen(true)} className="text-muted-foreground border-border hover:bg-muted font-medium">
-            <FileDown className="w-4 h-4 mr-1" /> Import from quote
+            <FileDown className="w-4 h-4 mr-1" /> {tj('importFromEstimate')}
           </Button>
         </div>
       </SectionCard>
 
       {/* INDIRECT COST — entered directly */}
-      <SectionCard title="Indirect Cost" subtitle="Cost lines you enter directly (not from a quote)." total={indirectTotal}>
-        {renderRows(indirectItems, 'No indirect cost lines yet.')}
+      <SectionCard title={tj('indirectTitle')} subtitle={tj('indirectSubtitle')} total={indirectTotal}>
+        {renderRows(indirectItems, tj('noIndirect'))}
         <div className="mt-3">
           <Button variant="outline" size="sm" onClick={() => openCreateDialog(INDIRECT_PHASE)} className="text-primary border-primary/30 hover:bg-primary/10 font-medium">
-            <Plus className="w-4 h-4 mr-1" /> Add Item
+            <Plus className="w-4 h-4 mr-1" /> {tj('addItem')}
           </Button>
         </div>
       </SectionCard>
@@ -413,18 +415,18 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label>Line item</Label>
+              <Label>{tj('lineItem')}</Label>
               <Input
                 value={newItemName}
                 onChange={e => setNewItemName(e.target.value)}
-                placeholder="e.g. Haul-off & disposal"
+                placeholder={tj('linePlaceholder')}
                 autoFocus
                 required
               />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label>Qty</Label>
+                <Label>{tj('qty')}</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -434,15 +436,15 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
                 />
               </div>
               <div className="space-y-2">
-                <Label>Unit</Label>
+                <Label>{tj('unit')}</Label>
                 <Input
                   value={newItemUnit}
                   onChange={e => setNewItemUnit(e.target.value)}
-                  placeholder="e.g. days"
+                  placeholder={tj('unitPlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Rate</Label>
+                <Label>{tj('rate')}</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -453,7 +455,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Amount {newRateSet && <span className="text-xs text-muted-foreground font-normal">(qty × rate)</span>}</Label>
+              <Label>{tj('amount')} {newRateSet && <span className="text-xs text-muted-foreground font-normal">{tj('qtyTimesRate')}</span>}</Label>
               {newRateSet ? (
                 <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums font-medium">
                   {formatCurrency(computedNewAmount ?? 0)}
@@ -469,16 +471,16 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
               )}
             </div>
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>{tj('notes')}</Label>
               <Input
                 value={newItemNotes}
                 onChange={e => setNewItemNotes(e.target.value)}
-                placeholder="Optional"
+                placeholder={tj('optional')}
               />
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
-                {isSubmitting ? 'Saving...' : 'Save'}
+                {isSubmitting ? tj('saving') : tj('save')}
               </Button>
             </div>
           </form>
@@ -491,7 +493,7 @@ export function JobCostsSection({ project, onRefreshTotal }: JobCostsSectionProp
           open={quotePickerOpen}
           onOpenChange={(o) => { if (!o) setQuotePickerOpen(false) }}
           pulledItemIds={pulledItemIds}
-          destinationLabel="Direct Job Cost"
+          destinationLabel={tj('directTitle')}
           onConfirm={(lineItems) => handleAddFromQuote(lineItems)}
         />
       )}

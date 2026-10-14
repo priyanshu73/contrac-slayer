@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo } from "react"
+import { useLocale, useTranslations } from "next-intl"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
 
 function pad2(n: number) {
   return String(n).padStart(2, "0")
@@ -57,16 +57,24 @@ export function MonthlyCalendar({
   disablePast = false,
   className,
 }: MonthlyCalendarProps) {
+  const locale = useLocale()
+  const tc = useTranslations("calendar")
+  const intlLocale = locale === "es" ? "es-US" : "en-US"
+  const dayNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short" })
+    // 2023-01-01 is a Sunday
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2023, 0, 1 + i)))
+  }, [intlLocale])
   const first = useMemo(() => startOfMonth(month), [month])
   const today = useMemo(() => new Date(), [])
 
   const monthLabel = useMemo(
-    () => first.toLocaleDateString(undefined, { month: "long" }),
-    [first]
+    () => first.toLocaleDateString(intlLocale, { month: "long" }),
+    [first, intlLocale]
   )
   const yearLabel = useMemo(
-    () => first.toLocaleDateString(undefined, { year: "numeric" }),
-    [first]
+    () => first.toLocaleDateString(intlLocale, { year: "numeric" }),
+    [first, intlLocale]
   )
 
   const cells = useMemo(() => {
@@ -103,7 +111,7 @@ export function MonthlyCalendar({
             type="button"
             onClick={() => onMonthChange(addMonths(first, -1))}
             disabled={disablePast && !canGoPrev}
-            aria-label="Previous month"
+            aria-label={tc("availability.monthly.previous")}
             className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-25 disabled:pointer-events-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -111,7 +119,7 @@ export function MonthlyCalendar({
           <button
             type="button"
             onClick={() => onMonthChange(addMonths(first, 1))}
-            aria-label="Next month"
+            aria-label={tc("availability.monthly.next")}
             className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <ChevronRight className="w-4 h-4" />
@@ -121,7 +129,7 @@ export function MonthlyCalendar({
 
       {/* Day-of-week labels */}
       <div className="grid grid-cols-7 mb-1">
-        {DAY_NAMES.map((d) => (
+        {dayNames.map((d) => (
           <div
             key={d}
             className="text-center text-xs font-medium text-gray-400 py-1 select-none"
@@ -151,7 +159,7 @@ export function MonthlyCalendar({
                 onClick={() => !isPast && inMonth && onSelect(date)}
                 disabled={isPast || !inMonth}
                 aria-pressed={isSelected}
-                aria-label={date.toLocaleDateString(undefined, {
+                aria-label={date.toLocaleDateString(intlLocale, {
                   weekday: "long",
                   month: "long",
                   day: "numeric",

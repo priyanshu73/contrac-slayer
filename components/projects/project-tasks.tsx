@@ -463,6 +463,7 @@ export function EditTaskDialog({
     onTaskUpdated,
 }: EditTaskDialogProps) {
     const t = useTranslations("projects.tasks")
+    const tp = useTranslations("projectsPage.tasks")
     const { toast } = useToast()
 
     const [title, setTitle] = useState("")
@@ -734,7 +735,7 @@ export function EditTaskDialog({
                                                 </li>
                                             ))}
                                         {trades.filter((tr) => tradeOptionLabel(tr).toLowerCase().includes(assignedTo.toLowerCase())).length === 0 && (
-                                            <li className="px-3 py-2 text-sm text-slate-500 italic">No matches</li>
+                                            <li className="px-3 py-2 text-sm text-slate-500 italic">{tp("noMatches")}</li>
                                         )}
                                     </ul>
                                 </div>
@@ -848,6 +849,7 @@ export function AddTaskDialog({
     onProjectChange,
 }: AddTaskDialogProps) {
     const t = useTranslations("projects.tasks")
+    const tp = useTranslations("projectsPage.tasks")
     const { toast } = useToast()
 
     const [title, setTitle] = useState("")
@@ -866,7 +868,7 @@ export function AddTaskDialog({
     const handleSubmit = async () => {
         if (!projectId) {
             toast({
-                title: "Please select a project",
+                title: tp("selectProjectToast"),
                 variant: "destructive",
             })
             return
@@ -937,14 +939,14 @@ export function AddTaskDialog({
                     {projects && projects.length > 0 && (
                         <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-slate-700">
-                                Project
+                                {tp("project")}
                             </Label>
                             <select
                                 value={projectId ?? ""}
                                 onChange={(e) => onProjectChange?.(Number(e.target.value))}
                                 className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                             >
-                                <option value="" disabled>Select a project</option>
+                                <option value="" disabled>{tp("selectProject")}</option>
                                 {projects.map((p) => (
                                     <option key={p.id} value={p.id}>
                                         {p.title}

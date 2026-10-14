@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { CopyIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { api } from "@/lib/api"
 import { Card } from "@/components/ui/card"
@@ -13,13 +14,13 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 export const WEEKDAYS = [
-  { key: "sunday", short: "S", label: "Sunday" },
-  { key: "monday", short: "M", label: "Monday" },
-  { key: "tuesday", short: "T", label: "Tuesday" },
-  { key: "wednesday", short: "W", label: "Wednesday" },
-  { key: "thursday", short: "Th", label: "Thursday" },
-  { key: "friday", short: "F", label: "Friday" },
-  { key: "saturday", short: "S", label: "Saturday" },
+  { key: "sunday" },
+  { key: "monday" },
+  { key: "tuesday" },
+  { key: "wednesday" },
+  { key: "thursday" },
+  { key: "friday" },
+  { key: "saturday" },
 ] as const
 export type WeekdayKey = (typeof WEEKDAYS)[number]["key"]
 
@@ -72,6 +73,8 @@ interface AvailabilityTabProps {
 
 export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps) {
   const { toast } = useToast()
+  const tc = useTranslations("calendar")
+  const dayLabel = (k: WeekdayKey) => tc(`availability.weekday.${k}`)
   
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [hasLoadedAvailability, setHasLoadedAvailability] = useState(false)
@@ -180,7 +183,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
         }
       }
     } catch (err: any) {
-      toast({ description: "Failed to load availability. You can still set it manually.", variant: "destructive" })
+      toast({ description: tc("availability.loadFailed"), variant: "destructive" })
     } finally {
       setAvailabilityLoading(false)
       setHasLoadedAvailability(true)
@@ -212,12 +215,12 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
 
       await api.saveAvailabilities({ availabilities: payload })
       
-      toast({ title: "Saved!", description: "Your weekly hours have been updated." })
+      toast({ title: tc("availability.saved"), description: tc("availability.savedDesc") })
       await refreshSingleAvailability()
       
       if (onAvailabilityChanged) onAvailabilityChanged()
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to save hours", variant: "destructive" })
+      toast({ title: tc("availability.error"), description: err.message || tc("availability.saveFailed"), variant: "destructive" })
     } finally {
       setSavingAvailability(false)
     }
@@ -235,7 +238,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
       }
       return next
     })
-    toast({ description: "Applied uniform hours (not saved yet)." })
+    toast({ description: tc("availability.appliedUniform") })
   }
 
   const addRangeForDay = (day: WeekdayKey) => {
@@ -347,8 +350,8 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
     <Card className="rounded-xl border border-[#E2E8F0] dark:border-border bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.08)] relative flex flex-col pt-4 sm:pt-6 md:pt-8 w-full max-w-3xl">
       <div className="px-4 sm:px-6 md:px-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Weekly hours</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Set when you’re typically available for meetings</p>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{tc("availability.title")}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{tc("availability.subtitle")}</p>
         </div>
       </div>
 
@@ -357,7 +360,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
       <div className="grid gap-5 px-4 sm:px-6 md:px-8 pb-4">
         <div className="rounded-xl bg-gray-50/80 dark:bg-muted/10 p-4">
           <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-medium text-muted-foreground">Quick apply</h3>
+            <h3 className="text-xs font-medium text-muted-foreground">{tc("availability.quickApply")}</h3>
 
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {WEEKDAYS.map((d) => (
@@ -369,9 +372,9 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                     "flex items-center justify-center h-8 px-3 rounded-md text-xs font-semibold transition-all",
                     quickDays[d.key] ? "bg-primary text-primary-foreground shadow-sm" : "border border-[#E5E7EB] dark:border-border bg-background hover:bg-muted/60"
                   )}
-                  title={d.label}
+                  title={dayLabel(d.key)}
                 >
-                  {d.short}
+                  {tc(`availability.weekdayShort.${d.key}`)}
                 </button>
               ))}
             </div>
@@ -379,7 +382,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
               <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-2">
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Start</label>
+                  <label className="text-xs font-medium text-muted-foreground">{tc("availability.start")}</label>
                   <Select
                     value={quickStart}
                     onValueChange={(v) => {
@@ -398,7 +401,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                   </Select>
                 </div>
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">End</label>
+                  <label className="text-xs font-medium text-muted-foreground">{tc("availability.end")}</label>
                   <Select
                     value={quickEnd}
                     onValueChange={(v) => {
@@ -418,7 +421,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                 </div>
               </div>
               <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 sm:ml-2">
-                <label className="text-xs font-medium text-muted-foreground">Time zone</label>
+                <label className="text-xs font-medium text-muted-foreground">{tc("availability.timeZone")}</label>
                 <div className="flex gap-2 min-w-0">
                   <Select
                     value={timeZone}
@@ -427,7 +430,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                     }}
                   >
                     <SelectTrigger className="h-9 flex-1 min-w-0 sm:w-[200px]">
-                      <SelectValue placeholder="Select timezone" />
+                      <SelectValue placeholder={tc("availability.selectTimezone")} />
                     </SelectTrigger>
                     <SelectContent>
                       {timeZoneOptions.map((tz) => (
@@ -436,7 +439,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                     </SelectContent>
                   </Select>
                   <Button type="button" size="sm" className="rounded-lg shrink-0 h-9 bg-primary text-primary-foreground" onClick={applyUniformToSelectedDays}>
-                    Apply
+                    {tc("availability.apply")}
                   </Button>
                 </div>
               </div>
@@ -474,7 +477,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                         isUnavailable ? "text-muted-foreground" : "text-gray-800 dark:text-gray-200"
                       )}
                     >
-                      {d.label}
+                      {dayLabel(d.key)}
                     </span>
                   </div>
 
@@ -485,7 +488,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                         onClick={() => addRangeForDay(d.key)}
                         className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors text-right sm:text-left w-full sm:w-auto"
                       >
-                        Add hours
+                        {tc("availability.addHours")}
                       </button>
                     ) : (
                       <div className="flex flex-col gap-2 w-full">
@@ -532,7 +535,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                                 size="icon"
                                 className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                 onClick={() => removeRangeForDay(d.key, i)}
-                                aria-label={`Remove time range from ${d.label}`}
+                                aria-label={tc("availability.removeRange", { day: dayLabel(d.key) })}
                               >
                                 <Trash2Icon className="h-4 w-4" />
                               </Button>
@@ -544,7 +547,7 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
                                   size="icon"
                                   className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                   onClick={() => addRangeForDay(d.key)}
-                                  aria-label={`Add another time range for ${d.label}`}
+                                  aria-label={tc("availability.addRange", { day: dayLabel(d.key) })}
                                 >
                                   <PlusIcon className="h-4 w-4 stroke-[2]" />
                                 </Button>
@@ -564,10 +567,10 @@ export function AvailabilityTab({ onAvailabilityChanged }: AvailabilityTabProps)
       
       <div className="sticky bottom-0 mt-auto border-t border-[#E2E8F0] dark:border-border bg-card/95 backdrop-blur px-4 sm:px-6 md:px-8 py-4 flex items-center justify-end gap-3 z-10 rounded-b-xl">
         <Button type="button" variant="outline" className="rounded-lg" onClick={refreshSingleAvailability} disabled={availabilityLoading}>
-          Reload
+          {tc("availability.reload")}
         </Button>
         <Button type="button" className="rounded-lg bg-primary text-primary-foreground shadow-sm" onClick={onSaveAvailability} disabled={savingAvailability || availabilityLoading}>
-          {savingAvailability ? "Saving…" : "Save"}
+          {savingAvailability ? tc("availability.saving") : tc("availability.save")}
         </Button>
       </div>
     </Card>

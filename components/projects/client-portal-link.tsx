@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { ToastAction } from "@/components/ui/toast"
 import {
@@ -21,6 +21,7 @@ interface ClientPortalLinkProps {
 
 export function ClientPortalLink({ clientId, existingToken, className }: ClientPortalLinkProps) {
   const { toast } = useToast()
+  const tpl = useTranslations('projectsPage.financials.portal')
   const locale = useLocale()
   const [token, setToken] = useState<string | null>(existingToken ?? null)
   const [working, setWorking] = useState(false)
@@ -33,7 +34,7 @@ export function ClientPortalLink({ clientId, existingToken, className }: ClientP
 
   const handleClick = async () => {
     if (!clientId) {
-      toast({ title: "No client linked", description: "Link a client to this project first.", variant: "destructive" })
+      toast({ title: tpl('noClient'), description: tpl('linkClientFirst'), variant: "destructive" })
       return
     }
     try {
@@ -48,18 +49,18 @@ export function ClientPortalLink({ clientId, existingToken, className }: ClientP
       await navigator.clipboard.writeText(portalUrl)
       setCopied(true)
       toast({
-        title: "Link copied",
-        description: "Client portal URL is ready to share.",
+        title: tpl('linkCopied'),
+        description: tpl('portalReady'),
         className: "max-w-xs p-3 pr-8",
         action: (
-          <ToastAction altText="Preview client portal" className="h-7 px-2" onClick={() => window.open(portalUrl, "_blank", "noopener,noreferrer")}>
-            Preview
+          <ToastAction altText={tpl('previewAria')} className="h-7 px-2" onClick={() => window.open(portalUrl, "_blank", "noopener,noreferrer")}>
+            {tpl('preview')}
           </ToastAction>
         ),
       })
       setTimeout(() => setCopied(false), 2000)
     } catch (err: any) {
-      toast({ title: "Failed to copy link", description: err?.message ?? "Please try again.", variant: "destructive" })
+      toast({ title: tpl('copyFailed'), description: err?.message ?? tpl('tryAgain'), variant: "destructive" })
     } finally {
       setWorking(false)
     }
@@ -80,11 +81,11 @@ export function ClientPortalLink({ clientId, existingToken, className }: ClientP
           ) : (
             <Link2 className="mr-1.5 h-3.5 w-3.5 shrink-0" />
           )}
-          {copied ? "Link copied" : "Client Portal Link"}
+          {copied ? tpl('linkCopied') : tpl('portalLink')}
         </Button>
       </TooltipTrigger>
       <TooltipContent>
-        Share this link with your client. They can view all their quotes, proposals, and invoices.
+        {tpl('tooltip')}
       </TooltipContent>
     </Tooltip>
   )

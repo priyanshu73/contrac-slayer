@@ -6,7 +6,7 @@
 // actions, so the numbers are a single source of truth rather than re-entered.
 
 import { useCallback, useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -59,6 +59,8 @@ function BillingBar({ paid, billed, draft = 0, total, className }: { paid: numbe
 export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
   const { toast } = useToast()
   const locale = useLocale()
+  const ts = useTranslations('projectsPage.financials.scopeBilling')
+  const stateLabel = (group: string, v: string | null | undefined) => (v && ts.has(`${group}.${v}`) ? ts(`${group}.${v}`) : v)
   // Open quotes / invoices in a new browser tab so the financials page stays put.
   const openTab = (path: string) => window.open(`/${locale}${path}`, '_blank', 'noopener,noreferrer')
 
@@ -75,7 +77,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
         const res = await api.getProjectScopeBilling(project.id)
         setData(res)
       } catch (err: any) {
-        toast({ title: 'Error loading scope & billing', description: err.message, variant: 'destructive' })
+        toast({ title: ts('loadError'), description: err.message, variant: 'destructive' })
       } finally {
         if (showSpinner) setLoading(false)
       }
@@ -95,14 +97,14 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
     try {
       const invoice = await api.billDraw(jobId, line.id)
       toast({
-        title: 'Invoice draft created',
-        description: `${line.label} — draft ${invoice?.invoice_number ?? ''} for ${formatCurrency(line.computed_amount)}. Review and send it to issue the invoice.`,
+        title: ts('draftCreated'),
+        description: ts('draftCreatedDesc', { label: line.label, number: invoice?.invoice_number ?? '', amount: formatCurrency(line.computed_amount) }),
       })
       await load(false)
     } catch (err: any) {
       toast({
-        title: "Couldn't create this invoice draft",
-        description: err?.message || 'Please try again.',
+        title: ts('draftFailed'),
+        description: err?.message || ts('tryAgain'),
         variant: 'destructive',
       })
     } finally {
@@ -119,7 +121,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
   }
 
   if (!data) {
-    return <div className="p-8 text-center text-sm text-muted-foreground">No financial data available.</div>
+    return <div className="p-8 text-center text-sm text-muted-foreground">{ts('noData')}</div>
   }
 
   const { contract, quotes, schedules, invoices, reconciliation } = data
@@ -156,12 +158,12 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
   const defaultOpenPlan: string[] = []
 
   const stats: { label: string; value: string; accent: string }[] = [
-    { label: 'Issued', value: formatCurrency(invoicedTotal), accent: 'text-status-pending' },
-    { label: 'Drafts', value: formatCurrency(draftTotal), accent: 'text-muted-foreground' },
-    { label: 'Collected', value: formatCurrency(collectedTotal), accent: 'text-status-active' },
+    { label: ts('issued'), value: formatCurrency(invoicedTotal), accent: 'text-status-pending' },
+    { label: ts('drafts'), value: formatCurrency(draftTotal), accent: 'text-muted-foreground' },
+    { label: ts('collected'), value: formatCurrency(collectedTotal), accent: 'text-status-active' },
     overInvoiced
-      ? { label: 'Over-invoiced', value: formatCurrency(Math.abs(reconciliation.uninvoiced_remaining)), accent: 'text-destructive' }
-      : { label: 'Uninvoiced', value: formatCurrency(reconciliation.uninvoiced_remaining), accent: 'text-primary' },
+      ? { label: ts('overInvoiced'), value: formatCurrency(Math.abs(reconciliation.uninvoiced_remaining)), accent: 'text-destructive' }
+      : { label: ts('uninvoiced'), value: formatCurrency(reconciliation.uninvoiced_remaining), accent: 'text-primary' },
   ]
 
   return (
@@ -172,33 +174,33 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
           {/* Contract total + where it comes from, with a status pill */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contract total</p>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{ts('contractTotal')}</p>
               <p className="text-3xl font-bold tabular-nums text-foreground leading-tight">{formatCurrency(contractTotal)}</p>
               <div className="mt-1 text-xs text-muted-foreground">
                 {contract.source === 'quote' && (
                   <span className="inline-flex flex-wrap items-center gap-1">
-                    Derived from {baseQuoteCount > 1 ? `${baseQuoteCount} quotes` : (anchor ? anchor.title : 'the accepted quote')}
+                    {baseQuoteCount > 1 ? ts('derivedFromCount', { count: baseQuoteCount }) : anchor ? ts('derivedFromTitle', { title: anchor.title }) : ts('derivedFromAccepted')}
                     {' '}({formatCurrency(contract.base_contract)})
                     {contract.approved_co_total > 0 && (
-                      <> + {formatCurrency(contract.approved_co_total)} change orders</>
+                      <> {ts('plusChangeOrders', { amount: formatCurrency(contract.approved_co_total) })}</>
                     )}
                   </span>
                 )}
                 {contract.source === 'override' && (
-                  <span>Manually set · quote-derived is {formatCurrency(contract.derived_total)}</span>
+                  <span>{ts('manuallySet', { amount: formatCurrency(contract.derived_total) })}</span>
                 )}
-                {contract.source === 'none' && <span>No accepted quote linked yet.</span>}
+                {contract.source === 'none' && <span>{ts('noAcceptedEstimate')}</span>}
               </div>
             </div>
             <div className="shrink-0">
               {hasDrift ? (
-                <Badge variant="outline" className="border-status-pending/30 bg-status-pending/10 text-status-pending">Overridden</Badge>
+                <Badge variant="outline" className="border-status-pending/30 bg-status-pending/10 text-status-pending">{ts('overridden')}</Badge>
               ) : fullyReconciled ? (
                 <Badge variant="outline" className="border-status-active/30 bg-status-active/10 text-status-active">
-                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Reconciled
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> {ts('reconciled')}
                 </Badge>
               ) : contract.source === 'quote' ? (
-                <Badge variant="outline" className="border-status-active/30 bg-status-active/10 text-status-active">From scope</Badge>
+                <Badge variant="outline" className="border-status-active/30 bg-status-active/10 text-status-active">{ts('fromScope')}</Badge>
               ) : null}
             </div>
           </div>
@@ -209,17 +211,17 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             <div className="flex flex-wrap justify-between gap-x-4 text-[11px] font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-status-active" /> {pct(collectedPct)} collected
+                  <span className="h-2 w-2 rounded-full bg-status-active" /> {ts('pctCollected', { pct: pct(collectedPct) })}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-status-pending" /> {pct(invoicedPct)} issued
+                  <span className="h-2 w-2 rounded-full bg-status-pending" /> {ts('pctIssued', { pct: pct(invoicedPct) })}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/35" /> {formatCurrency(draftTotal)} drafts
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/35" /> {ts('amountDrafts', { amount: formatCurrency(draftTotal) })}
                 </span>
               </span>
               {!overInvoiced && (
-                <span className="tabular-nums">{formatCurrency(reconciliation.remaining_to_issue ?? reconciliation.uninvoiced_remaining)} left to issue</span>
+                <span className="tabular-nums">{ts('leftToIssue', { amount: formatCurrency(reconciliation.remaining_to_issue ?? reconciliation.uninvoiced_remaining) })}</span>
               )}
             </div>
           </div>
@@ -238,10 +240,10 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             <div className="flex items-start gap-2 rounded-md bg-status-pending/10 border border-status-pending/30 px-3 py-2 text-xs text-status-pending">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
-                The contract value is overridden and differs from the quote by{' '}
-                <strong>{formatCurrency(Math.abs(contract.drift))}</strong>{' '}
-                ({contract.drift > 0 ? 'over' : 'under'} the quoted scope). Update the quote or clear the
-                override to reconcile.
+                {ts.rich(contract.drift > 0 ? 'driftOver' : 'driftUnder', {
+                  amount: formatCurrency(Math.abs(contract.drift)),
+                  b: (chunks) => <strong>{chunks}</strong>,
+                })}
               </span>
             </div>
           )}
@@ -249,8 +251,10 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
-                Issued <strong>{formatCurrency(Math.abs(reconciliation.uninvoiced_remaining))}</strong> more than the
-                contract total. Check the Invoices list for stray or duplicate invoices.
+                {ts.rich('overInvoicedWarning', {
+                  amount: formatCurrency(Math.abs(reconciliation.uninvoiced_remaining)),
+                  b: (chunks) => <strong>{chunks}</strong>,
+                })}
               </span>
             </div>
           )}
@@ -261,7 +265,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
       <Card className="border shadow-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Scope {quotes.length > 0 && <span className="text-muted-foreground font-medium normal-case">· {quotes.length} quote{quotes.length === 1 ? '' : 's'}</span>}
+            {ts('scope')} {quotes.length > 0 && <span className="text-muted-foreground font-medium normal-case">· {ts('estimatesCount', { count: quotes.length })}</span>}
           </CardTitle>
           {quotes.length > 0 && (
             <span className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(scopeTotal)}</span>
@@ -269,7 +273,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
         </CardHeader>
         <CardContent>
           {quotes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No quotes linked to this project.</p>
+            <p className="text-sm text-muted-foreground">{ts('noEstimates')}</p>
           ) : (
             <Accordion type="multiple" defaultValue={defaultOpenScope} className="space-y-3">
               {orderedQuotes.map((q) => (
@@ -278,10 +282,10 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                     <div className="flex flex-1 items-center justify-between gap-2 min-w-0 pr-2">
                       <span className="flex items-center gap-2 min-w-0 flex-wrap">
                         <span className="truncate text-sm font-semibold text-foreground">{q.title}</span>
-                        {q.is_anchor && <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">Primary contract</Badge>}
-                        {q.is_change_order && <Badge variant="outline" className="border-chart-4/20 bg-chart-4/10 text-chart-4">Change order</Badge>}
-                        <Badge variant="outline" className="text-muted-foreground">{q.status}</Badge>
-                        <span className="text-xs text-muted-foreground">{q.line_items.length} item{q.line_items.length === 1 ? '' : 's'}</span>
+                        {q.is_anchor && <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{ts('primaryContract')}</Badge>}
+                        {q.is_change_order && <Badge variant="outline" className="border-chart-4/20 bg-chart-4/10 text-chart-4">{ts('changeOrder')}</Badge>}
+                        <Badge variant="outline" className="text-muted-foreground">{stateLabel('estimateStatus', q.status)}</Badge>
+                        <span className="text-xs text-muted-foreground">{ts('itemsCount', { count: q.line_items.length })}</span>
                       </span>
                       <span className="text-sm font-bold tabular-nums text-foreground shrink-0">{formatCurrency(q.grand_total)}</span>
                     </div>
@@ -294,16 +298,16 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         className="h-7 text-muted-foreground hover:text-primary"
                         onClick={() => openTab(`/quotes/${q.job_id}`)}
                       >
-                        Open quote <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                        {ts('openEstimate')} <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
                       </Button>
                     </div>
                     {q.line_items.length > 0 ? (
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
-                            <th className="px-4 py-1.5 text-left font-semibold">Item</th>
-                            <th className="px-4 py-1.5 text-right font-semibold whitespace-nowrap">Qty × Rate</th>
-                            <th className="px-4 py-1.5 text-right font-semibold">Amount</th>
+                            <th className="px-4 py-1.5 text-left font-semibold">{ts('item')}</th>
+                            <th className="px-4 py-1.5 text-right font-semibold whitespace-nowrap">{ts('qtyRate')}</th>
+                            <th className="px-4 py-1.5 text-right font-semibold">{ts('amount')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -321,7 +325,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         </tbody>
                       </table>
                     ) : (
-                      <p className="px-4 py-3 text-xs text-muted-foreground">No line items on this quote.</p>
+                      <p className="px-4 py-3 text-xs text-muted-foreground">{ts('noLineItems')}</p>
                     )}
                   </AccordionContent>
                 </AccordionItem>
@@ -336,14 +340,18 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
       <Card className="border shadow-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Payments &amp; Invoices
+            {ts('paymentsInvoices')}
             {schedules.length > 1 && (
-              <span className="text-muted-foreground font-medium normal-case"> · {schedules.length} quotes</span>
+              <span className="text-muted-foreground font-medium normal-case"> · {ts('estimatesCount', { count: schedules.length })}</span>
             )}
           </CardTitle>
           {schedules.length > 0 && (
             <span className="text-xs text-muted-foreground tabular-nums">
-              Planned <span className="font-semibold text-foreground">{formatCurrency(reconciliation.scheduled_total)}</span> of {formatCurrency(reconciliation.contract_total)}
+              {ts.rich('plannedOf', {
+                planned: formatCurrency(reconciliation.scheduled_total),
+                total: formatCurrency(reconciliation.contract_total),
+                b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+              })}
             </span>
           )}
         </CardHeader>
@@ -351,7 +359,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
           {/* ── Payment plan: draws per quote, billable in place ── */}
           {schedules.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No billing plan yet — link an accepted quote to bill against it.
+              {ts('noBillingPlan')}
             </p>
           ) : (
             <Accordion type="multiple" defaultValue={defaultOpenPlan} className="space-y-3">
@@ -365,9 +373,9 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                       <div className="flex flex-1 items-center justify-between gap-2 min-w-0 pr-2">
                         <span className="flex items-center gap-2 min-w-0 flex-wrap">
                           <span className="truncate text-sm font-semibold text-foreground">{sch.quote_title}</span>
-                          {sch.is_anchor && <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">Primary contract</Badge>}
-                          {sch.is_change_order && <Badge variant="outline" className="border-chart-4/20 bg-chart-4/10 text-chart-4">Change order</Badge>}
-                          {lumpSum && <Badge variant="outline" className="text-muted-foreground">Single payment</Badge>}
+                          {sch.is_anchor && <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{ts('primaryContract')}</Badge>}
+                          {sch.is_change_order && <Badge variant="outline" className="border-chart-4/20 bg-chart-4/10 text-chart-4">{ts('changeOrder')}</Badge>}
+                          {lumpSum && <Badge variant="outline" className="text-muted-foreground">{ts('singlePayment')}</Badge>}
                         </span>
                         <span className="text-sm font-bold tabular-nums text-foreground shrink-0">{formatCurrency(sch.contract_total)}</span>
                       </div>
@@ -377,7 +385,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         {lumpSum ? (
                           <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-2">
                             <span className="text-sm font-medium text-foreground">
-                              Payable in full <span className="text-muted-foreground">· no draw schedule</span>
+                              {ts('payableInFull')} <span className="text-muted-foreground">· {ts('noDrawSchedule')}</span>
                             </span>
                             <div className="flex items-center gap-3 shrink-0">
                               <span className="text-sm font-semibold tabular-nums text-foreground">
@@ -389,7 +397,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                                 className="h-7"
                                 onClick={() => openTab(`/quotes/${sch.job_id}`)}
                               >
-                                Create draft <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                                {ts('createDraft')} <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
@@ -401,7 +409,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                               <div key={line.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="truncate text-sm font-medium text-foreground">{line.label}</span>
-                                  <Badge variant="outline" className={DRAW_STATE_STYLES[line.state] || 'text-muted-foreground'}>{line.state}</Badge>
+                                  <Badge variant="outline" className={DRAW_STATE_STYLES[line.state] || 'text-muted-foreground'}>{stateLabel('drawState', line.state)}</Badge>
                                   {line.invoice_id && line.invoice_number ? (
                                     <button
                                       type="button"
@@ -425,7 +433,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                                       disabled={billingId !== null}
                                       onClick={() => handleBillDraw(sch.job_id, line)}
                                     >
-                                      {billingId === line.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Create draft'}
+                                      {billingId === line.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : ts('createDraft')}
                                     </Button>
                                   )}
                                 </div>
@@ -440,19 +448,19 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span className="tabular-nums">
                             {lumpSum
-                              ? `Payable ${formatCurrency(sch.contract_total)}`
-                              : `Scheduled ${formatCurrency(sch.scheduled_total)} of ${formatCurrency(sch.contract_total)}`}
+                              ? ts('payable', { amount: formatCurrency(sch.contract_total) })
+                              : ts('scheduledOf', { scheduled: formatCurrency(sch.scheduled_total), total: formatCurrency(sch.contract_total) })}
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="tabular-nums">
-                              Issued {formatCurrency(sch.summary.issued ?? sch.summary.billed)} · Drafts {formatCurrency(sch.summary.draft ?? 0)} · <span className="text-status-active">Paid {formatCurrency(sch.summary.paid)}</span>
+                              {ts('summaryLine', { issued: formatCurrency(sch.summary.issued ?? sch.summary.billed), drafts: formatCurrency(sch.summary.draft ?? 0) })} · <span className="text-status-active">{ts('paidAmount', { amount: formatCurrency(sch.summary.paid) })}</span>
                             </span>
                             <button
                               type="button"
                               onClick={() => openTab(`/quotes/${sch.job_id}`)}
                               className="inline-flex items-center text-primary hover:underline"
                             >
-                              Edit schedule <ArrowUpRight className="ml-0.5 h-3 w-3" />
+                              {ts('editSchedule')} <ArrowUpRight className="ml-0.5 h-3 w-3" />
                             </button>
                           </div>
                         </div>
@@ -465,7 +473,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
           )}
           {schedules.length > 1 && (
             <div className="flex justify-between pt-1 text-xs font-semibold text-foreground border-t">
-              <span>Planned across {schedules.length} quotes</span>
+              <span>{ts('plannedAcross', { count: schedules.length })}</span>
               <span className="tabular-nums">
                 {formatCurrency(reconciliation.scheduled_total)} of {formatCurrency(reconciliation.contract_total)}
               </span>
@@ -477,21 +485,25 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Invoices <span className="normal-case font-medium">· {invoices.length}</span>
+                  {ts('invoices')} <span className="normal-case font-medium">· {invoices.length}</span>
                 </p>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  <span className="text-status-active font-semibold">{formatCurrency(invPaid)}</span> collected of {formatCurrency(invTotal)} issued
+                  {ts.rich('collectedOfIssued', {
+                    paid: formatCurrency(invPaid),
+                    total: formatCurrency(invTotal),
+                    b: (chunks) => <span className="text-status-active font-semibold">{chunks}</span>,
+                  })}
                 </span>
               </div>
               <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b">
-                    <th className="px-3 py-1.5 text-left font-semibold">Invoice</th>
-                    <th className="px-3 py-1.5 text-left font-semibold">Status</th>
-                    <th className="px-3 py-1.5 text-right font-semibold">Total</th>
-                    <th className="px-3 py-1.5 text-right font-semibold">Paid</th>
-                    <th className="px-3 py-1.5 text-right font-semibold">Balance</th>
+                    <th className="px-3 py-1.5 text-left font-semibold">{ts('invoice')}</th>
+                    <th className="px-3 py-1.5 text-left font-semibold">{ts('status')}</th>
+                    <th className="px-3 py-1.5 text-right font-semibold">{ts('total')}</th>
+                    <th className="px-3 py-1.5 text-right font-semibold">{ts('paid')}</th>
+                    <th className="px-3 py-1.5 text-right font-semibold">{ts('balance')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -513,12 +525,12 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                         <div className="flex items-center gap-2">
                           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-medium text-primary hover:underline">{inv.invoice_number}</span>
-                          {inv.is_draw && <Badge variant="outline" className="text-muted-foreground text-[10px]">draw</Badge>}
+                          {inv.is_draw && <Badge variant="outline" className="text-muted-foreground text-[10px]">{ts('draw')}</Badge>}
                         </div>
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant="outline" className={INVOICE_STATUS_STYLES[inv.status || 'DRAFT'] || 'text-muted-foreground'}>
-                          {inv.status}
+                          {stateLabel('invoiceStatus', inv.status || 'DRAFT')}
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-foreground">{formatCurrency(inv.total_amount)}</td>
@@ -530,7 +542,7 @@ export function ScopeBillingTab({ project }: ScopeBillingTabProps) {
                 <tfoot>
                   <tr className="border-t font-semibold">
                     <td colSpan={2} className="px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Issued totals
+                      {ts('issuedTotals')}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-foreground">{formatCurrency(invTotal)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-status-active">{formatCurrency(invPaid)}</td>

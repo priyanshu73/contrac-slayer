@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Search, SlidersHorizontal, X } from "lucide-react"
 
 import { api, contractorAI } from "@/lib/api"
@@ -21,31 +21,31 @@ interface Hit {
   path: string
 }
 
-const KIND_META: Record<Kind, { label: string; badge: string; dot: string }> = {
-  quote: { label: "Quote", badge: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-500" },
-  invoice: { label: "Invoice", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  project: { label: "Project", badge: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
-  task: { label: "Task", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  client: { label: "Client", badge: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
-  crew: { label: "Crew", badge: "bg-teal-50 text-teal-700 border-teal-200", dot: "bg-teal-500" },
-  lead: { label: "Lead", badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
+const KIND_META: Record<Kind, { badge: string; dot: string }> = {
+  quote: { badge: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-500" },
+  invoice: { badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+  project: { badge: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
+  task: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  client: { badge: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
+  crew: { badge: "bg-teal-50 text-teal-700 border-teal-200", dot: "bg-teal-500" },
+  lead: { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
 }
 
 const ALL_KINDS: Kind[] = ["quote", "invoice", "project", "task", "client", "crew", "lead"]
 
 const DATE_FILTERS = [
-  { key: "any", label: "Any time", days: null },
-  { key: "7d", label: "7d", days: 7 },
-  { key: "30d", label: "30d", days: 30 },
-  { key: "90d", label: "90d", days: 90 },
+  { key: "any", days: null },
+  { key: "7d", days: 7 },
+  { key: "30d", days: 30 },
+  { key: "90d", days: 90 },
 ] as const
 type DateKey = (typeof DATE_FILTERS)[number]["key"]
 
-function fmtDate(iso?: string | null) {
+function fmtDate(iso: string | null | undefined, locale: string) {
   if (!iso) return ""
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ""
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  return d.toLocaleDateString(locale === "es" ? "es-US" : "en-US", { month: "short", day: "numeric" })
 }
 
 /**
@@ -55,6 +55,7 @@ function fmtDate(iso?: string | null) {
  * and degrade silently when it's unreachable.
  */
 function useSearchIndex(open: boolean, spId: number | null) {
+  const tg = useTranslations("dashboard.globalSearch")
   const indexRef = useRef<Promise<Hit[]> | null>(null)
 
   const load = useCallback((): Promise<Hit[]> => {
@@ -131,7 +132,7 @@ function useSearchIndex(open: boolean, spId: number | null) {
         hits.push({
           kind: "lead",
           id: l.id,
-          label: l.name || l.phone_number || "Lead",
+          label: l.name || l.phone_number || tg("kind.lead"),
           detail: l.service_type || l.status?.toLowerCase?.(),
           date: l.created_at,
           path: `/leads`,
@@ -139,7 +140,7 @@ function useSearchIndex(open: boolean, spId: number | null) {
       return hits
     })
     return indexRef.current
-  }, [spId])
+  }, [spId, tg])
 
   useEffect(() => {
     if (open) void load()
@@ -151,6 +152,7 @@ function useSearchIndex(open: boolean, spId: number | null) {
 export function GlobalSearch({ className }: { className?: string } = {}) {
   const router = useRouter()
   const locale = useLocale()
+  const tg = useTranslations("dashboard.globalSearch")
   const { getContractorAISpId } = useAuth()
   const spId = getContractorAISpId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -211,7 +213,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           (j: any): Hit => ({
             kind: "quote",
             id: j.id,
-            label: j.title || `Quote #${j.id}`,
+            label: j.title || tg("estimateNum", { id: j.id }),
             detail: j.client?.name || j.status?.toLowerCase?.(),
             date: j.created_at,
             path: `/quotes/${j.id}`,
@@ -300,12 +302,12 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onInputKeyDown}
-          placeholder="Search quotes, invoices, projects…"
+          placeholder={tg("placeholder")}
           className="min-w-0 flex-1 bg-transparent text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
         {query && (
           <button
-            aria-label="Clear search"
+            aria-label={tg("clear")}
             onClick={() => {
               setQuery("")
               inputRef.current?.focus()
@@ -316,7 +318,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           </button>
         )}
         <button
-          aria-label="Search filters"
+          aria-label={tg("filters")}
           onClick={() => {
             setShowFilters((v) => !v)
             setOpen(true)
@@ -346,7 +348,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                       : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                   )}
                 >
-                  All
+                  {tg("all")}
                 </button>
                 {ALL_KINDS.map((k) => (
                   <button
@@ -360,7 +362,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                     )}
                   >
                     <span className={cn("mr-1 inline-block h-1.5 w-1.5 rounded-full", KIND_META[k].dot)} />
-                    {KIND_META[k].label}s
+                    {tg(`kindPlural.${k}`)}
                   </button>
                 ))}
               </div>
@@ -377,7 +379,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                         : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                     )}
                   >
-                    {d.label}
+                    {tg(`date.${d.key}`)}
                   </button>
                 ))}
               </div>
@@ -386,10 +388,10 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
 
           <div className="max-h-96 overflow-y-auto p-1.5">
             {!query.trim() ? (
-              <p className="px-3 py-6 text-center text-[13px] text-slate-400">Type to search.</p>
+              <p className="px-3 py-6 text-center text-[13px] text-slate-400">{tg("typeToSearch")}</p>
             ) : visible.length === 0 ? (
               <p className="px-3 py-6 text-center text-[13px] text-slate-400">
-                {searching ? "Searching…" : "No matches."}
+                {searching ? tg("searching") : tg("noMatches")}
               </p>
             ) : (
               visible.map((hit, idx) => (
@@ -408,7 +410,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                       KIND_META[hit.kind].badge
                     )}
                   >
-                    {KIND_META[hit.kind].label}
+                    {tg(`kind.${hit.kind}`)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13.5px] font-medium text-slate-900">
@@ -420,7 +422,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                   </span>
                   {hit.date ? (
                     <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-                      {fmtDate(hit.date)}
+                      {fmtDate(hit.date, locale)}
                     </span>
                   ) : null}
                 </button>

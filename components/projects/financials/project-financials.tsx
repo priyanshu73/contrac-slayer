@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Project, ProjectPayment, ProjectFinancialSummary } from '@/lib/types'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
+import { useTranslations } from 'next-intl'
 import { Loader2, Home, Plus } from 'lucide-react'
 import { FinancialSidebar } from './financial-sidebar'
 import { CostsMarginTab } from './costs-margin-tab'
@@ -19,6 +20,7 @@ interface ProjectFinancialsProps {
 
 export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancialsProps) {
   const { toast } = useToast()
+  const tf = useTranslations('projectsPage.financials')
   
   // Shared state that multiple components might need
   const [activeTab, setActiveTab] = useState('scope-billing')
@@ -38,7 +40,7 @@ export function ProjectFinancials({ project, onProjectUpdated }: ProjectFinancia
       setSummary(summaryData)
     } catch (err: any) {
       toast({
-        title: 'Error loading financials',
+        title: tf('loadError'),
         description: err.message,
         variant: 'destructive',
       })

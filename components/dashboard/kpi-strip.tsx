@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import type { DashboardSummary } from "@/lib/types/dashboard"
 
 const money = (n: number) =>
@@ -43,6 +44,7 @@ function Cell({
 }
 
 export function KpiStrip({ summary }: { summary: DashboardSummary | null }) {
+  const t = useTranslations("dashboardHome")
   if (!summary) {
     return (
       <div className="flex divide-x divide-slate-100 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -58,11 +60,11 @@ export function KpiStrip({ summary }: { summary: DashboardSummary | null }) {
   const { money: m, quotes, leads, schedule } = summary
   return (
     <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white shadow-sm sm:flex-row sm:divide-x sm:divide-y-0">
-      <Cell label="Unpaid" value={money(m.unpaid_total)} />
-      <Cell label="Past due" value={money(m.past_due_total)} tone={m.past_due_total > 0 ? "alert" : "ink"} />
-      <Cell label="Awaiting reply" value={String(quotes.awaiting_reply_count)} unit="quotes" />
-      <Cell label="New leads · 7d" value={String(leads.new_last_7d)} />
-      <Cell label="Booked this week" value={String(schedule.booked_this_week)} unit="jobs" />
+      <Cell label={t("unpaid")} value={money(m.unpaid_total)} />
+      <Cell label={t("pastDue")} value={money(m.past_due_total)} tone={m.past_due_total > 0 ? "alert" : "ink"} />
+      <Cell label={t("awaitingReply")} value={String(quotes.awaiting_reply_count)} unit={t("estimatesUnit")} />
+      <Cell label={t("newLeads7d")} value={String(leads.new_last_7d)} />
+      <Cell label={t("bookedThisWeek")} value={String(schedule.booked_this_week)} unit={t("jobsUnit")} />
     </div>
   )
 }

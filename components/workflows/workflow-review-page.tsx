@@ -2,12 +2,11 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { AlertTriangle, ArrowLeft, Check, RotateCcw, Trash2, X } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { WorkflowRunDetail, WorkflowStep } from "@/lib/types/workflow"
-import { WORKFLOW_KIND_LABEL, WORKFLOW_STEP_LABEL } from "@/lib/types/workflow"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -26,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { RunStatusBadge, StepStatusBadge, formatWhen, leadNameOf, money } from "@/components/workflows/shared"
+import { RunStatusBadge, StepStatusBadge, formatWhen, leadNameOf, money, useWorkflowLabels } from "@/components/workflows/shared"
 
 type Proposal = Record<string, any>
 
@@ -38,22 +37,24 @@ function sameJson(a: unknown, b: unknown) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 }
 
-function quoteProposalValidationError(value: Proposal | undefined): string | null {
+type TFn = (key: string, values?: Record<string, any>) => string
+
+function quoteProposalValidationError(value: Proposal | undefined, t: TFn): string | null {
   if (!value) return null
   const items: any[] = value.items ?? []
   for (const [index, item] of items.entries()) {
     const quantity = Number(item.quantity)
     const unitPrice = Number(item.cost_per_unit)
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      return `Quote item ${index + 1} needs a quantity greater than zero.`
+      return t("review.itemQty", { n: index + 1 })
     }
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
-      return `Quote item ${index + 1} needs a unit price greater than zero.`
+      return t("review.itemPrice", { n: index + 1 })
     }
   }
   const markup = Number(value.markup_percentage ?? 0)
   if (!Number.isFinite(markup) || markup < 0 || markup > 100) {
-    return "Quote markup must be between 0% and 100%."
+    return t("review.markupRange")
   }
   return null
 }
@@ -70,6 +71,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ClientEditor({ value, onChange, disabled }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+  const t = useTranslations("leads.workflows")
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [k]: e.target.value })
   const changes = value.changes ?? {}
   return (
@@ -77,22 +79,22 @@ function ClientEditor({ value, onChange, disabled }: { value: Proposal; onChange
       <p className="text-sm">
         {value.mode === "link" ? (
           <>
-            Links to existing client <span className="font-medium">#{value.client_id}</span>
-            {value.match_reason ? <span className="text-muted-foreground"> (matched by {value.match_reason})</span> : null}.
+            {t("review.linkExisting", { id: value.client_id })}
+            {value.match_reason ? <span className="text-muted-foreground"> {t("review.matchedBy", { reason: value.match_reason })}</span> : null}.
           </>
         ) : (
-          <>Creates a new client.</>
+          <>{t("review.createsClient")}</>
         )}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name"><Input value={value.name ?? ""} onChange={set("name")} disabled={disabled} /></Field>
-        <Field label="Email"><Input value={value.email ?? ""} onChange={set("email")} disabled={disabled} /></Field>
-        <Field label="Phone"><Input value={value.phone ?? ""} onChange={set("phone")} disabled={disabled} /></Field>
-        <Field label="Address"><Input value={value.address ?? ""} onChange={set("address")} disabled={disabled} /></Field>
+        <Field label={t("review.fieldName")}><Input value={value.name ?? ""} onChange={set("name")} disabled={disabled} /></Field>
+        <Field label={t("review.fieldEmail")}><Input value={value.email ?? ""} onChange={set("email")} disabled={disabled} /></Field>
+        <Field label={t("review.fieldPhone")}><Input value={value.phone ?? ""} onChange={set("phone")} disabled={disabled} /></Field>
+        <Field label={t("review.fieldAddress")}><Input value={value.address ?? ""} onChange={set("address")} disabled={disabled} /></Field>
       </div>
       {Object.keys(changes).length > 0 && (
         <div className="rounded-md bg-muted/60 p-3 text-xs">
-          <p className="mb-1 font-medium">Will update on the existing client</p>
+          <p className="mb-1 font-medium">{t("review.willUpdate")}</p>
           {Object.entries(changes).map(([k, v]: [string, any]) => (
             <p key={k} className="text-muted-foreground">
               {k}: <span className="line-through">{String(v.from ?? "—")}</span> → {String(v.to)}
@@ -105,15 +107,18 @@ function ClientEditor({ value, onChange, disabled }: { value: Proposal; onChange
 }
 
 function ProjectEditor({ value, onChange, disabled }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+  const t = useTranslations("leads.workflows")
   return (
     <div className="grid gap-3">
-      <Field label="Title"><Input value={value.title ?? ""} onChange={(e) => onChange({ ...value, title: e.target.value })} disabled={disabled} /></Field>
-      <Field label="Objective"><Textarea rows={3} value={value.objective ?? ""} onChange={(e) => onChange({ ...value, objective: e.target.value })} disabled={disabled} /></Field>
+      <Field label={t("review.fieldTitle")}><Input value={value.title ?? ""} onChange={(e) => onChange({ ...value, title: e.target.value })} disabled={disabled} /></Field>
+      <Field label={t("review.fieldObjective")}><Textarea rows={3} value={value.objective ?? ""} onChange={(e) => onChange({ ...value, objective: e.target.value })} disabled={disabled} /></Field>
     </div>
   )
 }
 
-function EstimateView({ value }: { value: Proposal }) {
+function EstimateView({ value, locale }: { value: Proposal; locale: string }) {
+  const t = useTranslations("leads.workflows")
+  const labels = useWorkflowLabels()
   if (value.mode === "clarify") {
     return (
       <div className="space-y-2 text-sm">
@@ -126,7 +131,7 @@ function EstimateView({ value }: { value: Proposal }) {
             </li>
           ))}
         </ol>
-        <p className="text-muted-foreground">The quote step is skipped. The email below asks the customer these questions.</p>
+        <p className="text-muted-foreground">{t("review.clarifySkipped")}</p>
       </div>
     )
   }
@@ -136,7 +141,7 @@ function EstimateView({ value }: { value: Proposal }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="text-xs text-muted-foreground">
-            <tr><th className="py-1 pr-2">Item</th><th className="py-1 pr-2">Qty</th><th className="py-1 pr-2">Unit</th><th className="py-1 pr-2 text-right">Rate</th><th className="py-1">Confidence</th></tr>
+            <tr><th className="py-1 pr-2">{t("review.colItem")}</th><th className="py-1 pr-2">{t("review.colQty")}</th><th className="py-1 pr-2">{t("review.colUnit")}</th><th className="py-1 pr-2 text-right">{t("review.colRate")}</th><th className="py-1">{t("review.colConfidence")}</th></tr>
           </thead>
           <tbody>
             {items.map((it, i) => (
@@ -144,8 +149,8 @@ function EstimateView({ value }: { value: Proposal }) {
                 <td className="py-1 pr-2">{it.title}{it.requires_review ? <span className="ml-1 text-amber-600">*</span> : null}</td>
                 <td className="py-1 pr-2">{it.quantity}</td>
                 <td className="py-1 pr-2">{it.unit}</td>
-                <td className="py-1 pr-2 text-right">{money(Number(it.rate ?? 0))}</td>
-                <td className="py-1 capitalize text-muted-foreground">{it.confidence ?? ""}</td>
+                <td className="py-1 pr-2 text-right">{money(Number(it.rate ?? 0), locale)}</td>
+                <td className="py-1 text-muted-foreground">{labels.confidence(it.confidence)}</td>
               </tr>
             ))}
           </tbody>
@@ -153,22 +158,23 @@ function EstimateView({ value }: { value: Proposal }) {
       </div>
       {value.assumptions?.length ? (
         <div>
-          <p className="text-xs font-medium text-muted-foreground">Assumptions</p>
+          <p className="text-xs font-medium text-muted-foreground">{t("review.assumptions")}</p>
           <ul className="list-disc pl-5 text-muted-foreground">{value.assumptions.map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
         </div>
       ) : null}
       {value.warnings?.length ? (
         <div>
-          <p className="text-xs font-medium text-amber-700">Warnings</p>
+          <p className="text-xs font-medium text-amber-700">{t("review.warnings")}</p>
           <ul className="list-disc pl-5 text-amber-700">{value.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}</ul>
         </div>
       ) : null}
-      <p className="text-xs text-muted-foreground">Edit prices and quantities on the quote step below. * needs a look.</p>
+      <p className="text-xs text-muted-foreground">{t("review.editPricesHint")}</p>
     </div>
   )
 }
 
-function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+function QuoteEditor({ value, onChange, disabled, locale }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean; locale: string }) {
+  const t = useTranslations("leads.workflows")
   const items: any[] = value.items ?? []
   const markup = Number(value.markup_percentage ?? 0)
   const total = items.reduce((sum, it) => sum + Number(it.quantity || 0) * Number(it.cost_per_unit || 0) * (1 + markup / 100), 0)
@@ -179,18 +185,18 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
   }
   const removeItem = (i: number) => onChange({ ...value, items: items.filter((_, j) => j !== i) })
   const addItem = () => onChange({ ...value, items: [...items, { title: "", description: "", quantity: 1, unit: "Each", cost_per_unit: 0, category: "materials" }] })
-  const validationError = quoteProposalValidationError(value)
+  const validationError = quoteProposalValidationError(value, t)
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Quote title"><Input value={value.title ?? ""} onChange={(e) => onChange({ ...value, title: e.target.value })} disabled={disabled} /></Field>
-        <Field label="Valid until"><Input type="date" value={value.expiration_date ?? ""} onChange={(e) => onChange({ ...value, expiration_date: e.target.value })} disabled={disabled} /></Field>
+        <Field label={t("review.estimateTitle")}><Input value={value.title ?? ""} onChange={(e) => onChange({ ...value, title: e.target.value })} disabled={disabled} /></Field>
+        <Field label={t("review.validUntil")}><Input type="date" value={value.expiration_date ?? ""} onChange={(e) => onChange({ ...value, expiration_date: e.target.value })} disabled={disabled} /></Field>
       </div>
-      <Field label="Description"><Textarea rows={2} value={value.description ?? ""} onChange={(e) => onChange({ ...value, description: e.target.value })} disabled={disabled} /></Field>
+      <Field label={t("review.description")}><Textarea rows={2} value={value.description ?? ""} onChange={(e) => onChange({ ...value, description: e.target.value })} disabled={disabled} /></Field>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
-            <tr><th className="py-1 pr-2">Item</th><th className="w-20 py-1 pr-2">Qty</th><th className="w-28 py-1 pr-2">Unit</th><th className="w-28 py-1 pr-2">Cost/unit</th><th className="w-8" /></tr>
+            <tr><th className="py-1 pr-2">{t("review.colItem")}</th><th className="w-20 py-1 pr-2">{t("review.colQty")}</th><th className="w-28 py-1 pr-2">{t("review.colUnit")}</th><th className="w-28 py-1 pr-2">{t("review.colCostUnit")}</th><th className="w-8" /></tr>
           </thead>
           <tbody>
             {items.map((it, i) => (
@@ -204,7 +210,7 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
                 <td className="py-1 pr-2"><Input type="number" min="0.01" step="0.01" value={it.cost_per_unit ?? 0} onChange={(e) => setItem(i, { cost_per_unit: Number(e.target.value) })} disabled={disabled} className="h-8" /></td>
                 <td className="py-1">
                   {!disabled && (
-                    <button type="button" onClick={() => removeItem(i)} className="text-muted-foreground hover:text-rose-600" aria-label="Remove item">
+                    <button type="button" onClick={() => removeItem(i)} className="text-muted-foreground hover:text-rose-600" aria-label={t("review.removeItem")}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
@@ -216,10 +222,10 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
       </div>
       {validationError && <p className="text-xs text-rose-600">{validationError}</p>}
       <div className="flex items-center justify-between">
-        {!disabled ? <Button type="button" variant="outline" size="sm" onClick={addItem}>Add item</Button> : <span />}
+        {!disabled ? <Button type="button" variant="outline" size="sm" onClick={addItem}>{t("review.addItem")}</Button> : <span />}
         <p className="text-sm">
-          <span className="text-muted-foreground">Est. total with {markup}% markup: </span>
-          <span className="font-medium">{money(total)}</span>
+          <span className="text-muted-foreground">{t("review.estTotal", { markup })} </span>
+          <span className="font-medium">{money(total, locale)}</span>
         </p>
       </div>
     </div>
@@ -227,25 +233,27 @@ function QuoteEditor({ value, onChange, disabled }: { value: Proposal; onChange:
 }
 
 function EmailEditor({ value, onChange, disabled }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+  const t = useTranslations("leads.workflows")
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="To"><Input value={value.to ?? ""} onChange={(e) => onChange({ ...value, to: e.target.value })} disabled={disabled} /></Field>
-        <Field label="Subject"><Input value={value.subject ?? ""} onChange={(e) => onChange({ ...value, subject: e.target.value })} disabled={disabled} /></Field>
+        <Field label={t("review.to")}><Input value={value.to ?? ""} onChange={(e) => onChange({ ...value, to: e.target.value })} disabled={disabled} /></Field>
+        <Field label={t("review.subject")}><Input value={value.subject ?? ""} onChange={(e) => onChange({ ...value, subject: e.target.value })} disabled={disabled} /></Field>
       </div>
-      <Field label={value.mode === "clarify" ? "Message (the questions are added below it)" : "Personal note (sits above the quote link)"}>
+      <Field label={value.mode === "clarify" ? t("review.noteClarify") : t("review.noteEstimate")}>
         <Textarea rows={4} value={value.note ?? ""} onChange={(e) => onChange({ ...value, note: e.target.value })} disabled={disabled} />
       </Field>
       {value.mode === "clarify" && value.questions?.length ? (
         <ol className="list-decimal pl-5 text-sm text-muted-foreground">{value.questions.map((q: any) => <li key={q.id}>{q.text}</li>)}</ol>
       ) : (
-        <p className="text-xs text-muted-foreground">The email uses the standard quote template with the public quote link. Only the note and subject are yours to change.</p>
+        <p className="text-xs text-muted-foreground">{t("review.emailHint")}</p>
       )}
     </div>
   )
 }
 
 function JsonEditor({ value, onChange, disabled }: { value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+  const t = useTranslations("leads.workflows")
   const [text, setText] = useState(JSON.stringify(value, null, 2))
   const [bad, setBad] = useState(false)
   useEffect(() => { setText(JSON.stringify(value, null, 2)) }, [value])
@@ -261,27 +269,28 @@ function JsonEditor({ value, onChange, disabled }: { value: Proposal; onChange: 
           try { onChange(JSON.parse(e.target.value)); setBad(false) } catch { setBad(true) }
         }}
       />
-      {bad && <p className="text-xs text-rose-600">Not valid JSON</p>}
+      {bad && <p className="text-xs text-rose-600">{t("review.invalidJson")}</p>}
     </div>
   )
 }
 
-function StepEditor({ stepKey, value, onChange, disabled }: { stepKey: string; value: Proposal; onChange: (p: Proposal) => void; disabled: boolean }) {
+function StepEditor({ stepKey, value, onChange, disabled, locale }: { stepKey: string; value: Proposal; onChange: (p: Proposal) => void; disabled: boolean; locale: string }) {
   switch (stepKey) {
     case "client": return <ClientEditor value={value} onChange={onChange} disabled={disabled} />
     case "project": return <ProjectEditor value={value} onChange={onChange} disabled={disabled} />
-    case "estimate": return <EstimateView value={value} />
-    case "quote": return <QuoteEditor value={value} onChange={onChange} disabled={disabled} />
+    case "estimate": return <EstimateView value={value} locale={locale} />
+    case "quote": return <QuoteEditor value={value} onChange={onChange} disabled={disabled} locale={locale} />
     case "email": return <EmailEditor value={value} onChange={onChange} disabled={disabled} />
     default: return <JsonEditor value={value} onChange={onChange} disabled={disabled} />
   }
 }
 
 function ResultLinks({ stepKey, result, locale }: { stepKey: string; result: Proposal; locale: string }) {
-  if (stepKey === "client" && result.client_id) return <Link className="text-sm underline" href={`/${locale}/clients/${result.client_id}`}>Open client</Link>
-  if (stepKey === "quote" && result.job_id) return <Link className="text-sm underline" href={`/${locale}/quotes/${result.job_id}`}>Open quote</Link>
-  if (stepKey === "project" && result.project_id) return <Link className="text-sm underline" href={`/${locale}/projects/${result.project_id}`}>Open project</Link>
-  if (stepKey === "email" && result.to) return <span className="text-sm text-muted-foreground">Sent to {result.to}</span>
+  const t = useTranslations("leads.workflows")
+  if (stepKey === "client" && result.client_id) return <Link className="text-sm underline" href={`/${locale}/clients/${result.client_id}`}>{t("review.openClient")}</Link>
+  if (stepKey === "quote" && result.job_id) return <Link className="text-sm underline" href={`/${locale}/quotes/${result.job_id}`}>{t("review.openEstimate")}</Link>
+  if (stepKey === "project" && result.project_id) return <Link className="text-sm underline" href={`/${locale}/projects/${result.project_id}`}>{t("review.openProject")}</Link>
+  if (stepKey === "email" && result.to) return <span className="text-sm text-muted-foreground">{t("review.sentTo", { to: result.to })}</span>
   return null
 }
 
@@ -289,6 +298,8 @@ function ResultLinks({ stepKey, result, locale }: { stepKey: string; result: Pro
 
 export function WorkflowReviewPage({ runId }: { runId: string }) {
   const locale = useLocale()
+  const t = useTranslations("leads.workflows")
+  const labels = useWorkflowLabels()
   const { toast } = useToast()
   const [run, setRun] = useState<WorkflowRunDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -315,9 +326,9 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
         return next
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load this run")
+      setError(e instanceof Error ? e.message : t("review.loadFailed"))
     }
-  }, [runId])
+  }, [runId, t])
 
   useEffect(() => { load() }, [load])
 
@@ -337,8 +348,8 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
     [drafts, stepsByKey],
   )
   const invalidDraftKeys = useMemo(
-    () => Object.keys(drafts).filter((key) => key === "quote" && quoteProposalValidationError(drafts[key])),
-    [drafts],
+    () => Object.keys(drafts).filter((key) => key === "quote" && quoteProposalValidationError(drafts[key], t)),
+    [drafts, t],
   )
   const blocked = (run?.steps ?? []).filter((s) => s.status === "BLOCKED")
   const undrafted = (run?.steps ?? []).filter((s) => s.status === "PENDING")
@@ -350,19 +361,19 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
       if (ok) toast({ title: ok })
       await load()
     } catch (e) {
-      toast({ title: `Couldn't ${label}`, description: e instanceof Error ? e.message : undefined, variant: "destructive" })
+      toast({ title: t(`review.err.${label}`), description: e instanceof Error ? e.message : undefined, variant: "destructive" })
     } finally {
       setBusy(null)
     }
   }
 
   const saveStep = (key: string) => {
-    const validationError = key === "quote" ? quoteProposalValidationError(drafts[key]) : null
+    const validationError = key === "quote" ? quoteProposalValidationError(drafts[key], t) : null
     if (validationError) {
-      toast({ title: "Fix the quote items", description: validationError, variant: "destructive" })
+      toast({ title: t("review.fixItemsTitle"), description: validationError, variant: "destructive" })
       return
     }
-    act("save", () => api.updateWorkflowStep(runId, key, { proposal: drafts[key] }), "Saved")
+    act("save", () => api.updateWorkflowStep(runId, key, { proposal: drafts[key] }), t("review.toastSaved"))
   }
   const resetStep = (key: string) => {
     const step = stepsByKey[key]
@@ -376,7 +387,7 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
     return (
       <main className="container mx-auto max-w-3xl px-4 py-10 text-center">
         <p className="text-rose-600">{error}</p>
-        <Button className="mt-4" variant="outline" asChild><Link href={`/${locale}/workflows`}>Back to workflows</Link></Button>
+        <Button className="mt-4" variant="outline" asChild><Link href={`/${locale}/workflows`}>{t("review.backToWorkflows")}</Link></Button>
       </main>
     )
   }
@@ -396,38 +407,37 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
     <div className="min-h-screen bg-background">
       <main className="container mx-auto max-w-3xl px-4 py-6 pb-32 md:pb-28">
         <Link href={`/${locale}/workflows`} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Workflows
+          <ArrowLeft className="h-4 w-4" /> {t("review.workflows")}
         </Link>
 
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold">{WORKFLOW_KIND_LABEL[run.kind] ?? run.kind}{leadName ? ` · ${leadName}` : ""}</h1>
+            <h1 className="text-2xl font-semibold">{labels.kind(run.kind)}{leadName ? ` · ${leadName}` : ""}</h1>
             <RunStatusBadge status={run.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Started {formatWhen(run.created_at)} from {run.trigger_ref_kind} {run.trigger_ref_id}
-            {run.trigger === "EVENT" ? " (automatic)" : run.trigger === "CHAT" ? " (assistant)" : ""}.
+            {t("review.started", { when: formatWhen(run.created_at, locale), kind: labels.refKind(run.trigger_ref_kind), id: run.trigger_ref_id, via: run.trigger === "EVENT" ? t("review.viaAuto") : run.trigger === "CHAT" ? t("review.viaChat") : "" })}
           </p>
           {run.summary && reviewing && <p className="mt-3 rounded-md border bg-muted/40 p-3 text-sm">{run.summary}</p>}
           {live && (
             <div className="mt-3">
-              <p className="text-sm">{progress.message ?? "Working…"}</p>
+              <p className="text-sm">{progress.message ?? t("review.working")}</p>
               {progress.steps_total ? (
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                   <div className="h-full bg-primary transition-all" style={{ width: `${Math.round(((progress.steps_done ?? 0) / progress.steps_total) * 100)}%` }} />
                 </div>
               ) : null}
-              {run.status === "DRAFTING" && <p className="mt-1 text-xs text-muted-foreground">The estimate is the slow part; this can take a few minutes. You can leave and come back.</p>}
+              {run.status === "DRAFTING" && <p className="mt-1 text-xs text-muted-foreground">{t("review.slowHint")}</p>}
             </div>
           )}
           {run.status === "FAILED" && (
             <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-              <p className="font-medium">The {run.failed_phase ?? "run"} step failed.</p>
+              <p className="font-medium">{t("review.phaseFailed", { phase: t.has(`phase.${run.failed_phase ?? "run"}`) ? t(`phase.${run.failed_phase ?? "run"}`) : (run.failed_phase ?? "") })}</p>
               <p className="mt-1">{run.error}</p>
-              <p className="mt-1 text-xs">Retry picks up where it stopped; steps that already applied are not repeated.</p>
+              <p className="mt-1 text-xs">{t("review.retryHint")}</p>
             </div>
           )}
-          {run.status === "COMPLETED" && <p className="mt-3 text-sm text-emerald-700">Everything applied. Links to what was created are on each step.</p>}
+          {run.status === "COMPLETED" && <p className="mt-3 text-sm text-emerald-700">{t("review.allApplied")}</p>}
         </div>
 
         <div className="space-y-4">
@@ -440,13 +450,13 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
               <Card key={step.key} className={`p-5 ${step.status === "SKIPPED" ? "opacity-70" : ""}`}>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <h2 className="font-medium">{WORKFLOW_STEP_LABEL[step.key] ?? step.key}</h2>
+                    <h2 className="font-medium">{labels.step(step.key)}</h2>
                     <StepStatusBadge status={step.status} />
-                    {dirty && <span className="text-xs text-violet-700">unsaved</span>}
+                    {dirty && <span className="text-xs text-violet-700">{t("review.unsaved")}</span>}
                   </div>
                   {canSkip && (
                     <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                      Skip
+                      {t("review.skip")}
                       <Switch checked={step.status === "SKIPPED"} onCheckedChange={(v) => toggleSkip(step.key, v)} disabled={busy !== null} />
                     </label>
                   )}
@@ -460,11 +470,11 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
                 {step.error && <p className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{step.error}</p>}
 
                 {step.status === "PENDING" ? (
-                  <p className="text-sm text-muted-foreground">{live ? "Not drafted yet." : "Not drafted."}</p>
+                  <p className="text-sm text-muted-foreground">{live ? t("review.notDraftedYet") : t("review.notDrafted")}</p>
                 ) : step.status === "SKIPPED" && !draft ? (
-                  <p className="text-sm text-muted-foreground">Skipped.</p>
+                  <p className="text-sm text-muted-foreground">{t("review.skipped")}</p>
                 ) : draft ? (
-                  <StepEditor stepKey={step.key} value={draft} onChange={(p) => setDrafts((d) => ({ ...d, [step.key]: p }))} disabled={!editable || busy !== null} />
+                  <StepEditor stepKey={step.key} value={draft} onChange={(p) => setDrafts((d) => ({ ...d, [step.key]: p }))} disabled={!editable || busy !== null} locale={locale} />
                 ) : null}
 
                 {(editable || step.result) && (
@@ -474,11 +484,11 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
                       <div className="flex gap-2">
                         {step.proposal_original && !sameJson(draft, step.proposal_original) && (
                           <Button type="button" variant="ghost" size="sm" onClick={() => resetStep(step.key)} disabled={busy !== null}>
-                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> {t("review.reset")}
                           </Button>
                         )}
                         <Button type="button" size="sm" variant={dirty ? "default" : "outline"} onClick={() => saveStep(step.key)} disabled={!dirty || busy !== null}>
-                          Save
+                          {t("review.save")}
                         </Button>
                       </div>
                     )}
@@ -491,11 +501,11 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
 
         {run.events.length > 0 && (
           <details className="mt-8 text-sm">
-            <summary className="cursor-pointer text-muted-foreground">Timeline ({run.events.length})</summary>
+            <summary className="cursor-pointer text-muted-foreground">{t("review.timeline", { count: run.events.length })}</summary>
             <ul className="mt-2 space-y-1">
               {run.events.map((e, i) => (
                 <li key={i} className="flex gap-3 text-muted-foreground">
-                  <span className="w-28 shrink-0 text-xs">{formatWhen(e.created_at)}</span>
+                  <span className="w-28 shrink-0 text-xs">{formatWhen(e.created_at, locale)}</span>
                   <span>{e.summary}</span>
                 </li>
               ))}
@@ -508,33 +518,33 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
         <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
           <div className="container mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
-              {reviewing && blocked.length > 0 && <span>Fix or skip the blocked step{blocked.length > 1 ? "s" : ""} first.</span>}
-              {reviewing && undrafted.length > 0 && <span>Some steps are not drafted yet.</span>}
-              {reviewing && dirtyKeys.length > 0 && <span>Save your edits before approving.</span>}
-              {reviewing && invalidDraftKeys.length > 0 && <span>Fix the quote's quantity, unit price, or markup before approving.</span>}
-              {reviewing && !blocked.length && !undrafted.length && !dirtyKeys.length && !invalidDraftKeys.length && <span>Approving creates the records and sends the email.</span>}
+              {reviewing && blocked.length > 0 && <span>{t("review.fixBlocked", { count: blocked.length })}</span>}
+              {reviewing && undrafted.length > 0 && <span>{t("review.someUndrafted")}</span>}
+              {reviewing && dirtyKeys.length > 0 && <span>{t("review.saveEdits")}</span>}
+              {reviewing && invalidDraftKeys.length > 0 && <span>{t("review.fixEstimateValues")}</span>}
+              {reviewing && !blocked.length && !undrafted.length && !dirtyKeys.length && !invalidDraftKeys.length && <span>{t("review.approvingCreates")}</span>}
             </div>
             <div className="flex gap-2">
               {(run.status === "DRAFTING" || run.status === "FAILED") && (
-                <Button variant="outline" onClick={() => act("cancel", () => api.cancelWorkflowRun(runId), "Cancelled")} disabled={busy !== null}>
-                  Cancel run
+                <Button variant="outline" onClick={() => act("cancel", () => api.cancelWorkflowRun(runId), t("review.toastCancelled"))} disabled={busy !== null}>
+                  {t("review.cancelRun")}
                 </Button>
               )}
               {run.status === "FAILED" && (
-                <Button onClick={() => act("retry", () => api.retryWorkflowRun(runId), "Retrying")} disabled={busy !== null}>
-                  <RotateCcw className="mr-2 h-4 w-4" /> Retry
+                <Button onClick={() => act("retry", () => api.retryWorkflowRun(runId), t("review.toastRetrying"))} disabled={busy !== null}>
+                  <RotateCcw className="mr-2 h-4 w-4" /> {t("review.retry")}
                 </Button>
               )}
               {reviewing && (
                 <>
                   <Button variant="outline" onClick={() => setRejectOpen(true)} disabled={busy !== null}>
-                    <X className="mr-2 h-4 w-4" /> Reject
+                    <X className="mr-2 h-4 w-4" /> {t("review.reject")}
                   </Button>
                   <Button
-                    onClick={() => act("approve", () => api.approveWorkflowRun(runId), "Approved. Applying now.")}
+                    onClick={() => act("approve", () => api.approveWorkflowRun(runId), t("review.toastApproved"))}
                     disabled={busy !== null || blocked.length > 0 || undrafted.length > 0 || dirtyKeys.length > 0 || invalidDraftKeys.length > 0}
                   >
-                    <Check className="mr-2 h-4 w-4" /> Approve and run
+                    <Check className="mr-2 h-4 w-4" /> {t("review.approve")}
                   </Button>
                 </>
               )}
@@ -546,19 +556,19 @@ export function WorkflowReviewPage({ runId }: { runId: string }) {
       <AlertDialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject this packet?</AlertDialogTitle>
-            <AlertDialogDescription>Nothing was created, so there is nothing to undo. A note helps you remember why later.</AlertDialogDescription>
+            <AlertDialogTitle>{t("review.rejectTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("review.rejectDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
-          <Textarea placeholder="Reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
+          <Textarea placeholder={t("review.reasonPlaceholder")} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogCancel>{t("review.keepIt")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setRejectOpen(false)
-                act("reject", () => api.rejectWorkflowRun(runId, rejectReason.trim() || undefined), "Rejected")
+                act("reject", () => api.rejectWorkflowRun(runId, rejectReason.trim() || undefined), t("review.toastRejected"))
               }}
             >
-              Reject
+              {t("review.reject")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

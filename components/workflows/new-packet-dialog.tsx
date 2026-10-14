@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Search, Sparkles } from "lucide-react"
 
 import { api } from "@/lib/api"
@@ -32,6 +32,7 @@ export function NewPacketDialog({
 }) {
   const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations("leads.workflows")
   const { toast } = useToast()
   const [leads, setLeads] = useState<Lead[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -45,10 +46,10 @@ export function NewPacketDialog({
       const data = (await api.getMyLeads(undefined, 0, 100)) as Lead[]
       setLeads(Array.isArray(data) ? data : [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load leads")
+      setError(e instanceof Error ? e.message : t("packet.loadFailed"))
       setLeads([])
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (open) {
@@ -82,7 +83,7 @@ export function NewPacketDialog({
       router.push(`/${locale}/workflows/${res.run.uuid}`)
     } catch (e) {
       toast({
-        title: "Couldn't start the packet",
+        title: t("packet.startFailed"),
         description: e instanceof Error ? e.message : undefined,
         variant: "destructive",
       })
@@ -94,10 +95,9 @@ export function NewPacketDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Draft a quote packet</DialogTitle>
+          <DialogTitle>{t("packet.title")}</DialogTitle>
           <DialogDescription>
-            Pick a lead. The assistant drafts the client, estimate, quote and email, then waits for
-            you to review it. Nothing is created or sent until you approve.
+            {t("packet.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -106,7 +106,7 @@ export function NewPacketDialog({
           <Input
             autoFocus
             className="pl-9"
-            placeholder="Search leads by name, email, phone or project"
+            placeholder={t("packet.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -123,7 +123,7 @@ export function NewPacketDialog({
             </>
           ) : filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {leads.length === 0 ? "No leads yet." : "No lead matches that search."}
+              {leads.length === 0 ? t("packet.noLeads") : t("packet.noMatch")}
             </p>
           ) : (
             filtered.map((lead) => {
@@ -142,16 +142,16 @@ export function NewPacketDialog({
                       )}
                       {lead.converted_to_job_id && (
                         <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                          already quoted
+                          {t("packet.alreadyEstimated")}
                         </span>
                       )}
                     </div>
                     <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                      {description || "No description"}
+                      {description || t("packet.noDescription")}
                     </p>
                     {thin && (
                       <p className="mt-0.5 text-xs text-amber-700">
-                        Too little detail to price. This drafts questions for the customer instead.
+                        {t("packet.thin")}
                       </p>
                     )}
                   </div>
@@ -162,7 +162,7 @@ export function NewPacketDialog({
                     onClick={() => start(lead)}
                   >
                     <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                    {startingId === lead.id ? "Starting…" : "Draft"}
+                    {startingId === lead.id ? t("packet.starting") : t("packet.draft")}
                   </Button>
                 </div>
               )

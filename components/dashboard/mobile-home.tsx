@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { CalendarDays, ChevronRight, FilePlus2, FolderPlus, UserPlus, CalendarPlus, BarChart3 } from "lucide-react"
 import { api } from "@/lib/api"
@@ -24,6 +24,7 @@ export function MobileHome({ summary, queue, queueLoading, onRefresh }: {
   onRefresh: () => void
 }) {
   const locale = useLocale()
+  const t = useTranslations("dashboardHome")
   const router = useRouter()
   const [stats, setStats] = useState<JobStats | null>(null)
   const [statsFailed, setStatsFailed] = useState(false)
@@ -69,10 +70,10 @@ export function MobileHome({ summary, queue, queueLoading, onRefresh }: {
       </div>
       <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
         {[
-          { label: "New leads", count: summary?.leads.new_last_7d, color: "bg-slate-800" },
-          { label: "Quoted", count: summary?.quotes.awaiting_reply_count, color: "bg-sky-500" },
-          { label: "Accepted", count: stats?.accepted_count, color: "bg-emerald-500" },
-          { label: "In progress", count: stats?.in_progress_count, color: "bg-amber-500" },
+          { label: t("stageLeads"), count: summary?.leads.new_last_7d, color: "bg-slate-800" },
+          { label: t("stageQuoted"), count: summary?.quotes.awaiting_reply_count, color: "bg-sky-500" },
+          { label: t("stageAccepted"), count: stats?.accepted_count, color: "bg-emerald-500" },
+          { label: t("stageInProgress"), count: stats?.in_progress_count, color: "bg-amber-500" },
         ].map(row => <div key={row.label}>
           <div className="flex justify-between text-xs text-slate-600"><span>{row.label}</span><span className="font-semibold text-slate-900">{row.count ?? "-"}</span></div>
           <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className={`h-1.5 rounded-full ${row.color}`} style={{ width: `${Math.min(100, ((row.count ?? 0) / Math.max(summary?.leads.new_last_7d ?? 0, summary?.quotes.awaiting_reply_count ?? 0, stats?.accepted_count ?? 0, stats?.in_progress_count ?? 0, 1)) * 100)}%` }} /></div>

@@ -22,6 +22,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const currentLocale = useLocale() as SupportedLocale;
   const router = useRouter();
   const pathname = usePathname();
+  // The public discovery form has its own explicit EN/ES links. Do not override
+  // the visitor's choice with an unrelated app-wide saved preference.
+  const isDiscoveryPage = /^\/(en|es)\/discover\/?$/.test(pathname ?? '');
   const { user } = useAuth();
   const [isChanging, setIsChanging] = useState(false);
 
@@ -71,23 +74,25 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   // Sync language on user login/logout
   useEffect(() => {
+    if (isDiscoveryPage) return;
     if (user && user.preferred_language) {
       const userLang = user.preferred_language as SupportedLocale;
       if (SUPPORTED_LOCALES.includes(userLang) && userLang !== currentLocale) {
         changeLanguage(userLang);
       }
     }
-  }, [user, currentLocale]);
+  }, [user, currentLocale, isDiscoveryPage]);
 
   // Initialize language from localStorage on mount
   useEffect(() => {
+    if (isDiscoveryPage) return;
     if (!user) {
       const storedLang = getStoredLanguage();
       if (storedLang !== currentLocale) {
         changeLanguage(storedLang);
       }
     }
-  }, [currentLocale, user]);
+  }, [currentLocale, user, isDiscoveryPage]);
 
   const value: LanguageContextType = {
     currentLocale,
@@ -110,5 +115,4 @@ export function useLanguageContext() {
   }
   return context;
 }
-
 

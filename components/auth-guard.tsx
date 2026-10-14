@@ -49,6 +49,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.match(/^\/[a-z]{2}\/(terms|support)$/) || // Public legal and support pages
     pathname?.match(/^\/(terms|support)$/) || // Legacy non-i18n
     pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) || // Public marketing feature pages
+    pathname?.match(/^\/[a-z]{2}\/discover\/?$/) || // Public business discovery questionnaire
     pathname?.startsWith("/features") || // Legacy non-i18n feature routes
     pathname?.match(/^\/[a-z]{2}\/(enterprise|trade-schools|blog)(\/|$)/) || // Public marketing pages
     pathname?.match(/^\/(enterprise|trade-schools|blog)(\/|$)/) ||

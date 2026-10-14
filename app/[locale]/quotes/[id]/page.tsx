@@ -198,9 +198,9 @@ export default function QuoteDetailPage() {
     try {
       await api.updateJob(job.id, { project_id: projectId })
       setJob((prev) => prev ? { ...prev, project_id: projectId } : prev)
-      toast({ title: "Quote linked to project" })
+      toast({ title: t("detail.linkedToProject") })
     } catch {
-      toast({ title: "Failed to link project", variant: "destructive" })
+      toast({ title: t("detail.linkFailed"), variant: "destructive" })
     } finally {
       setLinkingProject(false)
     }
@@ -212,9 +212,9 @@ export default function QuoteDetailPage() {
     try {
       await api.unlinkProjectQuote(job.project_id, job.id)
       setJob((prev) => prev ? { ...prev, project_id: undefined } : prev)
-      toast({ title: "Quote unlinked from project" })
+      toast({ title: t("detail.unlinkedFromProject") })
     } catch {
-      toast({ title: "Failed to unlink project", variant: "destructive" })
+      toast({ title: t("detail.unlinkFailed"), variant: "destructive" })
     } finally {
       setUnlinkingProject(false)
     }
@@ -342,11 +342,11 @@ export default function QuoteDetailPage() {
               }
               return
             } catch (err: any) {
-              setError(publicErr.message || "Failed to load quote")
+              setError(publicErr.message || "Failed to load estimate")
             }
           } else {
             // Customer trying to access - only public links work
-            setError("Quote not found. Please use the link provided by your contractor.")
+            setError("Estimate not found. Please use the link provided by your contractor.")
           }
         }
       } else {
@@ -359,11 +359,11 @@ export default function QuoteDetailPage() {
             fetchChangeOrderData((data as Job).id)
           }
         } catch (err: any) {
-          setError(err.message || "Failed to load quote")
+          setError(err.message || "Failed to load estimate")
         }
       }
     } catch (err: any) {
-      setError(err.message || "Failed to load quote")
+      setError(err.message || "Failed to load estimate")
     } finally {
       setLoading(false)
     }
@@ -393,8 +393,8 @@ export default function QuoteDetailPage() {
       router.push(`/quotes/${(newJob as Job).id}/edit`)
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err?.message || "Failed to create change order",
+        title: t("detail.error"),
+        description: err?.message || t("detail.changeOrderFailed"),
         variant: "destructive",
       })
     } finally {
@@ -468,14 +468,16 @@ export default function QuoteDetailPage() {
       const mail = await api.getMailStatus()
       if (!mail.connected) {
         toast({
-          title: "Email account not connected",
+          title: t("detail.emailNotConnected"),
           description: (
             <>
-              Connect Google or Microsoft in{" "}
-              <Link href="/settings" className="underline font-medium">
-                Settings → Integrations
-              </Link>{" "}
-              to send the quote from your connected account.
+              {t.rich("detail.connectEmailRich", {
+                link: (chunks) => (
+                  <Link href="/settings" className="underline font-medium">
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </>
           ),
           variant: "destructive",
@@ -492,8 +494,8 @@ export default function QuoteDetailPage() {
     } catch (err: any) {
       console.error("Failed to prepare send:", err)
       toast({
-        title: "Error",
-        description: err.message || "Failed to prepare email.",
+        title: t("detail.error"),
+        description: err.message || t("detail.prepareEmailFailed"),
         variant: "destructive",
       })
     }
@@ -504,8 +506,8 @@ export default function QuoteDetailPage() {
     const to = sendEmailTo.trim()
     if (!to) {
       toast({
-        title: "Enter email",
-        description: "Please enter the client's email address.",
+        title: t("detail.enterEmail"),
+        description: t("detail.enterClientEmail"),
         variant: "destructive",
       })
       return
@@ -513,8 +515,8 @@ export default function QuoteDetailPage() {
     const quoteUrl = getQuoteUrl()
     if (!quoteUrl) {
       toast({
-        title: "Error",
-        description: "Quote link is not available.",
+        title: t("detail.error"),
+        description: t("detail.linkUnavailable"),
         variant: "destructive",
       })
       return
@@ -526,15 +528,15 @@ export default function QuoteDetailPage() {
       setSendEmailSuccess(true)
       await fetchJob()
       toast({
-        title: "Quote sent",
-        description: `Sent to ${to}.`,
+        title: t("detail.estimateSent"),
+        description: t("detail.sentTo", { email: to }),
       })
     } catch (err: any) {
       const msg = err?.message ?? ""
       const isInvalidTo = /invalid to header|invalid email|valid email address/i.test(msg)
       toast({
-        title: "Send failed",
-        description: isInvalidTo ? "Please enter a valid email address in the To field and try again." : (msg || "Failed to send email."),
+        title: t("detail.sendFailed"),
+        description: isInvalidTo ? t("detail.invalidTo") : (msg || t("detail.sendEmailFailed")),
         variant: "destructive",
       })
     } finally {
@@ -562,14 +564,14 @@ export default function QuoteDetailPage() {
     try {
       await api.deleteJob(job.id)
       toast({
-        title: "Quote deleted",
-        description: `Quote #${job.id} has been removed.`,
+        title: t("detail.estimateDeleted"),
+        description: t("detail.estimateRemoved", { id: job.id }),
       })
       router.push(`/${locale}/quotes`)
     } catch (err: any) {
       toast({
-        title: "Delete failed",
-        description: err?.message || "Failed to delete quote.",
+        title: t("detail.deleteFailed"),
+        description: err?.message || t("detail.deleteEstimateFailed"),
         variant: "destructive",
       })
     } finally {
@@ -592,10 +594,10 @@ export default function QuoteDetailPage() {
         try {
           const qboResult = await api.createQBOInvoice(job.id, true)
           toast({
-            title: "Invoice created",
+            title: t("detail.invoiceCreated"),
             description: (
               <span>
-                Invoice created in ContractorOps and QuickBooks.{" "}
+                {t("detail.invoiceCreatedQbo")}{" "}
                 <a
                   href={qboResult.invoice_url}
                   target="_blank"
@@ -610,14 +612,14 @@ export default function QuoteDetailPage() {
         } catch (qboErr: any) {
           // Native invoice succeeded but QBO failed — still success
           toast({
-            title: "Invoice created",
-            description: `Invoice created in ContractorOps, but QuickBooks sync failed: ${qboErr?.message || "Unknown error"}`,
+            title: t("detail.invoiceCreated"),
+            description: t("detail.invoiceQboSyncFailed", { error: qboErr?.message || t("detail.unknownError") }),
           })
         }
       } else {
         toast({
-          title: "Invoice created",
-          description: `Invoice ${nativeResult?.invoice_number || ""} has been created. View it in your Invoices tab.`,
+          title: t("detail.invoiceCreated"),
+          description: t("detail.invoiceCreatedDesc", { number: nativeResult?.invoice_number || "" }),
         })
       }
 
@@ -631,8 +633,8 @@ export default function QuoteDetailPage() {
       console.error("Invoice creation error:", err)
 
       toast({
-        title: "Failed to create invoice",
-        description: err?.message || "Something went wrong.",
+        title: t("detail.invoiceFailed"),
+        description: err?.message || t("detail.somethingWrong"),
         variant: "destructive",
       })
     } finally {
@@ -646,13 +648,13 @@ export default function QuoteDetailPage() {
     try {
       const result = await api.sendQBOInvoiceEmail(job.id)
       toast({
-        title: "Invoice sent",
-        description: result.message || "Invoice emailed to client.",
+        title: t("detail.invoiceSent"),
+        description: result.message || t("detail.invoiceEmailed"),
       })
     } catch (err: any) {
       toast({
-        title: "Failed to send invoice",
-        description: err?.message || "Something went wrong.",
+        title: t("detail.invoiceSendFailed"),
+        description: err?.message || t("detail.somethingWrong"),
         variant: "destructive",
       })
     } finally {
@@ -668,26 +670,26 @@ export default function QuoteDetailPage() {
   const handleSendViaSms = async () => {
     if (!job || !user?.contractor_profile?.contractor_ai_sp_id) {
       toast({
-        title: "SMS not available",
-        description: "Contractor AI integration is not set up. Connect it in settings to send the quote via SMS.",
+        title: t("detail.smsUnavailable"),
+        description: t("detail.smsNotSetUp"),
         variant: "destructive",
       })
       return
     }
     if (!contractorOpsAiNumber?.trim()) {
       toast({
-        title: "Contractor Ops AI number required",
-        description: "Set up your Contractor Ops AI number in Settings → Integrations to send the quote via SMS.",
+        title: t("detail.numberRequired"),
+        description: t("detail.numberRequiredDesc"),
         variant: "destructive",
       })
       return
     }
     const customerPhone = job.client?.phone || ""
-    const customerName = job.client?.name || "Customer"
+    const customerName = job.client?.name || t("detail.customer")
     if (!customerPhone) {
       toast({
-        title: "No phone number",
-        description: "Add a phone number for this client to send the quote via SMS.",
+        title: t("detail.noPhone"),
+        description: t("detail.noPhoneDesc"),
         variant: "destructive",
       })
       return
@@ -703,12 +705,12 @@ export default function QuoteDetailPage() {
         setPortalUrl(url)
         quoteUrl = url
       } catch {
-        toast({ title: "Failed to generate quote link", description: "Please try again.", variant: "destructive" })
+        toast({ title: t("detail.linkGenFailed"), description: t("detail.tryAgain"), variant: "destructive" })
         return
       }
     }
     try {
-      const message = `Hi ${customerName}, your documents are ready. View them here: ${quoteUrl}`
+      const message = t("detail.smsDocsReady", { name: customerName, url: quoteUrl })
       await api.sendFollowupNow({
         client_id: job.client?.id,
         customer_number: customerPhone,
@@ -727,19 +729,19 @@ export default function QuoteDetailPage() {
       setTimeout(() => setSmsSentSuccessTo(null), 5000)
     } catch (err: any) {
       toast({
-        title: "Send failed",
-        description: "Failed to send SMS. Please try again.",
+        title: t("detail.sendFailed"),
+        description: t("detail.smsFailed"),
         variant: "destructive",
       })
     }
   }
 
   const getDefaultFollowupMessage = () => {
-    const customerName = job?.client?.name || "Customer"
+    const customerName = job?.client?.name || t("detail.customer")
     const quoteUrl = getQuoteUrl()
-    let msg = `Hi ${customerName}, just following up on the quote we sent. Do you have any questions?`
+    let msg = t("detail.followupBasic", { name: customerName })
     if (quoteUrl) {
-      msg = `Hi ${customerName}, just following up on the quote we sent. You can view it here: ${quoteUrl}\n\nDo you have any questions?`
+      msg = t("detail.followupWithLink", { name: customerName, url: quoteUrl })
     }
     return msg
   }
@@ -747,36 +749,36 @@ export default function QuoteDetailPage() {
   const handleSendFollowupSubmit = async (sendSms: boolean, sendEmail: boolean) => {
     if (!job || !user?.contractor_profile?.contractor_ai_sp_id) {
       toast({
-        title: "Error",
-        description: "Unable to send follow-up. Contractor AI integration not set up.",
+        title: t("detail.error"),
+        description: t("detail.followupNotSetUp"),
         variant: "destructive",
       })
       return
     }
-    const customerName = job.client?.name || "Customer"
+    const customerName = job.client?.name || t("detail.customer")
     const customerPhone = job.client?.phone || ""
     const clientEmail = job.client?.email || ""
 
     if (sendSms && !customerPhone) {
       toast({
-        title: "Error",
-        description: "Customer phone number not found. Add a phone number for the client to send SMS.",
+        title: t("detail.error"),
+        description: t("detail.customerPhoneMissing"),
         variant: "destructive",
       })
       return
     }
     if (sendEmail && !clientEmail?.trim()) {
       toast({
-        title: "Error",
-        description: "Client email not found. Add an email for the client to send follow-up by email.",
+        title: t("detail.error"),
+        description: t("detail.clientEmailMissing"),
         variant: "destructive",
       })
       return
     }
     if (!sendSms && !sendEmail) {
       toast({
-        title: "Error",
-        description: "Select at least one: SMS or Email.",
+        title: t("detail.error"),
+        description: t("detail.selectChannel"),
         variant: "destructive",
       })
       return
@@ -801,17 +803,15 @@ export default function QuoteDetailPage() {
         await api.sendFollowupEmail(job.id, clientEmail.trim(), message)
         results.email = true
       }
-      const parts = []
-      if (results.sms) parts.push("SMS")
-      if (results.email) parts.push("email")
+      const mix = results.sms && results.email ? "both" : results.sms ? "sms" : "email"
       toast({
-        title: "Follow-up sent!",
-        description: `${parts.join(" and ")} sent to ${customerName} successfully.`,
+        title: t("detail.followupSent"),
+        description: t("detail.followupSentDesc", { mix, name: customerName }),
       })
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send follow-up",
+        title: t("detail.error"),
+        description: error instanceof Error ? error.message : t("detail.followupFailed"),
         variant: "destructive",
       })
     } finally {
@@ -854,7 +854,7 @@ export default function QuoteDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold mb-2">Error Loading Quote</h2>
+          <h2 className="text-xl font-semibold mb-2">Error Loading Estimate</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Button onClick={() => window.location.reload()}>
             Try Again
@@ -868,11 +868,11 @@ export default function QuoteDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="p-8 text-center">
-          <h2 className="text-xl font-semibold mb-2">Quote Not Found</h2>
-          <p className="text-gray-600 mb-4">The quote you're looking for doesn't exist.</p>
+          <h2 className="text-xl font-semibold mb-2">Estimate Not Found</h2>
+          <p className="text-gray-600 mb-4">The estimate you're looking for doesn't exist.</p>
           {user?.is_contractor ? (
             <Button asChild>
-              <a href="/quotes">Back to Quotes</a>
+              <a href="/quotes">{t("detail.backToEstimates")}</a>
             </Button>
           ) : null}
         </Card>
@@ -930,7 +930,7 @@ export default function QuoteDetailPage() {
 
   const contractorName = job?.contractor?.company_name || "Your contractor"
   const jobTitle = job?.title || "your project"
-  const emailSubject = `Your quote for ${jobTitle} from ${contractorName}`
+  const emailSubject = `Your estimate for ${jobTitle} from ${contractorName}`
 
   // Authenticated contractor view
   return (
@@ -938,11 +938,11 @@ export default function QuoteDetailPage() {
       <AppBreadcrumb
         className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 print:hidden"
         items={[
-          { label: "Quotes", href: `/${locale}/quotes` },
+          { label: t("detail.breadcrumbEstimates"), href: `/${locale}/quotes` },
           {
             label: job.created_from_job_id
-              ? `Change Order #${identifier}`
-              : `Quote #${identifier}`,
+              ? t("detail.changeOrderNum", { id: identifier })
+              : t("detail.estimateNum", { id: identifier }),
           },
         ]}
       />
@@ -953,7 +953,7 @@ export default function QuoteDetailPage() {
           <div className="flex items-center gap-2.5 min-w-0">
             <FolderOpen className="h-4 w-4 shrink-0 text-sky-600" />
             <span className="text-sm text-sky-800 font-medium truncate">
-              {linkableProjects.find((p) => p.id === job.project_id)?.title ?? "Linked to project"}
+              {linkableProjects.find((p) => p.id === job.project_id)?.title ?? t("detail.linkedProject")}
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -994,7 +994,7 @@ export default function QuoteDetailPage() {
               </PopoverTrigger>
               <PopoverContent side="bottom" align="end" className="w-56 p-1">
                 {linkableProjects.length === 0 ? (
-                  <p className="px-2 py-3 text-xs text-muted-foreground text-center">No projects found</p>
+                  <p className="px-2 py-3 text-xs text-muted-foreground text-center">{t("detail.noProjects")}</p>
                 ) : (
                   <div className="max-h-52 overflow-y-auto">
                     {linkableProjects.map((p) => (
@@ -1016,7 +1016,7 @@ export default function QuoteDetailPage() {
               className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white h-8 gap-1.5 text-xs"
               onClick={() => setConvertToProjectOpen(true)}
             >
-              Create Project
+              {t("detail.createProject")}
               <ArrowRight className="h-3 w-3" />
             </Button>
           </div>
@@ -1062,17 +1062,17 @@ export default function QuoteDetailPage() {
       <Dialog open={deleteQuoteOpen} onOpenChange={setDeleteQuoteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete quote?</DialogTitle>
+            <DialogTitle>{t("detail.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              This permanently removes quote #{job.id}. This action cannot be undone.
+              {t("detail.deleteDesc", { id: job.id })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteQuoteOpen(false)} disabled={deletingQuote}>
-              Cancel
+              {t("detail.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDeleteQuote} disabled={deletingQuote}>
-              {deletingQuote ? "Deleting..." : "Delete quote"}
+              {deletingQuote ? t("detail.deleting") : t("detail.deleteEstimate")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1081,19 +1081,17 @@ export default function QuoteDetailPage() {
       <Dialog open={editAcceptedOpen} onOpenChange={setEditAcceptedOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>This quote has already been accepted</DialogTitle>
+            <DialogTitle>{t("detail.acceptedTitle")}</DialogTitle>
             <DialogDescription>
-              Quote #{job.id} has been accepted, so editing it directly would change a signed
-              contract. Create a change order instead to capture the revision while keeping the
-              original on record.
+              {t("detail.acceptedDesc", { id: job.id })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditAcceptedOpen(false)} disabled={creatingChangeOrder}>
-              Cancel
+              {t("detail.cancel")}
             </Button>
             <Button onClick={handleCreateChangeOrder} disabled={creatingChangeOrder}>
-              {creatingChangeOrder ? "Creating..." : "Create change order"}
+              {creatingChangeOrder ? t("detail.creating") : t("detail.createChangeOrder")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1119,9 +1117,9 @@ export default function QuoteDetailPage() {
       <Dialog open={beforeAfterOpen} onOpenChange={handleBeforeAfterOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto border-slate-200 bg-white sm:max-w-3xl">
           <DialogHeader className="pr-8">
-            <DialogTitle>AI Before and After</DialogTitle>
+            <DialogTitle>{t("detail.beforeAfterTitle")}</DialogTitle>
             <DialogDescription>
-              Upload a before photo, choose the saved quote items to include, and generate an AI preview for this quote. Generated images are not actual completed work.
+              {t("detail.beforeAfterDesc")}
             </DialogDescription>
           </DialogHeader>
           {job && (
@@ -1171,10 +1169,10 @@ export default function QuoteDetailPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
                   <Check className="h-5 w-5 shrink-0" />
-                  Quote sent to {sentToEmail}
+                  {t("detail.estimateSentTo", { email: sentToEmail })}
                 </DialogTitle>
                 <DialogDescription>
-                  Your client will receive the email from your connected account with a secure View & Sign link.
+                  {t("detail.sentConfirmDesc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 pt-6">
@@ -1187,7 +1185,7 @@ export default function QuoteDetailPage() {
                     if (url) {
                       await navigator.clipboard.writeText(url)
                       setCopiedLink(true)
-                      toast({ title: "Link copied" })
+                      toast({ title: t("detail.linkCopied") })
                       setTimeout(() => setCopiedLink(false), 2000)
                     }
                   }}
@@ -1197,27 +1195,27 @@ export default function QuoteDetailPage() {
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                  {copiedLink ? "Copied!" : "Copy share link"}
+                  {copiedLink ? t("detail.copied") : t("detail.copyShareLink")}
                 </Button>
                 <Button
                   className="w-full"
                   onClick={() => setSendEmailOpen(false)}
                 >
-                  Close
+                  {t("detail.close")}
                 </Button>
               </div>
             </div>
           ) : (
-            /* Gmail-style compose: Review & Send Quote */
+            /* Gmail-style compose: Review & Send Estimate */
             <>
               <DialogHeader className="pb-2">
-                <DialogTitle className="text-lg font-semibold">Review & Send Quote</DialogTitle>
+                <DialogTitle className="text-lg font-semibold">{t("detail.reviewSend")}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-0 border-t">
                 {/* From */}
                 <div className="flex items-center gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0">From</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">{t("detail.from")}</span>
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                       <UserCircle className="h-5 w-5" />
@@ -1229,12 +1227,12 @@ export default function QuoteDetailPage() {
 
                 {/* To */}
                 <div className="flex items-start gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">To</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5">{t("detail.to")}</span>
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <Input
                       id="send-email-to"
                       type="email"
-                      placeholder="Enter client email address"
+                      placeholder={t("detail.clientEmailPlaceholder")}
                       value={sendEmailTo}
                       onChange={(e) => setSendEmailTo(e.target.value)}
                       className="min-h-11 w-full px-3 py-2.5 text-base"
@@ -1254,7 +1252,7 @@ export default function QuoteDetailPage() {
 
                 {/* Subject */}
                 <div className="flex items-center gap-3 py-3 border-b px-1">
-                  <span className="text-muted-foreground text-sm w-12 shrink-0">Subject</span>
+                  <span className="text-muted-foreground text-sm w-12 shrink-0">{t("detail.subject")}</span>
                   <p className="min-w-0 flex-1 truncate text-sm text-foreground" title={emailSubject}>
                     {emailSubject}
                   </p>
@@ -1265,7 +1263,7 @@ export default function QuoteDetailPage() {
                   <span className="text-muted-foreground text-sm w-12 shrink-0 pt-2.5" />
                   <textarea
                     id="optional-note"
-                    placeholder="Add a short message (optional)"
+                    placeholder={t("detail.noteOptional")}
                     value={optionalNote}
                     onChange={(e) => setOptionalNote(e.target.value)}
                     className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -1275,17 +1273,17 @@ export default function QuoteDetailPage() {
 
                 {/* Email body preview */}
                 <div className="rounded-lg border bg-muted/30 p-3 mx-1 mt-2">
-                  <p className="text-xs text-muted-foreground mb-2">What your client will receive</p>
+                  <p className="text-xs text-muted-foreground mb-2">{t("detail.clientWillReceive")}</p>
                   <div className="rounded-md border bg-background p-3 text-left space-y-2">
                     <p className="text-sm text-muted-foreground">
                       Hi{job?.client?.name ? ` ${String(job.client.name).split(" ")[0]}` : ""},
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {contractorName} has prepared a quote for <strong className="text-foreground">{jobTitle}</strong>.
+                      {contractorName} has prepared an estimate for <strong className="text-foreground">{jobTitle}</strong>.
                     </p>
                     <div className="py-1">
                       <span className="inline-block rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-                        View & Sign Quote
+                        View & Sign Estimate
                       </span>
                     </div>
                   </div>
@@ -1300,7 +1298,7 @@ export default function QuoteDetailPage() {
                   disabled={sendEmailSending}
                   className="order-2 sm:order-1 text-muted-foreground"
                 >
-                  Discard
+                  {t("detail.discard")}
                 </Button>
                 <Button
                   onClick={handleSendQuoteEmail}
@@ -1308,7 +1306,7 @@ export default function QuoteDetailPage() {
                   className="order-1 sm:order-2 text-base font-medium gap-2"
                 >
                   <Send className="h-4 w-4" />
-                  {sendEmailSending ? "Sending…" : "Send Quote"}
+                  {sendEmailSending ? t("detail.sending") : t("detail.sendEstimate")}
                 </Button>
               </DialogFooter>
             </>

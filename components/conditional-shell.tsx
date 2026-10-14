@@ -33,6 +33,7 @@ function isPublicShellRoute(pathname: string): boolean {
     pathname === "/terms" ||
     pathname === "/support" ||
     !!pathname?.match(/^\/[a-z]{2}\/features(\/|$)/) ||
+    !!pathname?.match(/^\/[a-z]{2}\/discover\/?$/) ||
     pathname?.startsWith("/features") ||
     !!pathname?.match(/^\/[a-z]{2}\/(enterprise|trade-schools|blog)(\/|$)/) ||
     !!pathname?.match(/^\/(enterprise|trade-schools|blog)(\/|$)/) ||

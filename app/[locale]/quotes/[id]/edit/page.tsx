@@ -8,6 +8,7 @@ import { api } from "@/lib/api"
 import { AuthGuard } from "@/components/auth-guard"
 import { QuoteCreator } from "@/components/Quote-creator"
 import { Sparkles } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
 
 function openAiPanelForEstimate() {
   window.dispatchEvent(new CustomEvent("open-ai-panel-for-estimate"))
@@ -58,6 +59,8 @@ interface Job {
 }
 
 export default function EditQuotePage() {
+  const t = useTranslations("quotes")
+  const locale = useLocale()
   const params = useParams()
   const router = useRouter()
   const jobId = params.id as string
@@ -78,7 +81,7 @@ export default function EditQuotePage() {
       const data = await api.getJob(parseInt(jobId))
       setJob(data as Job)
     } catch (err: any) {
-      setError(err.message || "Failed to load quote")
+      setError(err.message || t("pages.edit.loadFailed"))
     } finally {
       setLoading(false)
     }
@@ -110,10 +113,10 @@ export default function EditQuotePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mb-2">Error Loading Quote</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("pages.edit.errorTitle")}</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
-              Try Again
+              {t("pages.edit.tryAgain")}
             </Button>
           </Card>
         </div>
@@ -126,10 +129,10 @@ export default function EditQuotePage() {
       <AuthGuard>
         <div className="min-h-screen bg-background flex items-center justify-center">
           <Card className="p-8 text-center">
-            <h2 className="text-xl font-semibold mb-2">Quote Not Found</h2>
-            <p className="text-muted-foreground mb-4">The quote you're looking for doesn't exist.</p>
+            <h2 className="text-xl font-semibold mb-2">{t("pages.edit.notFound")}</h2>
+            <p className="text-muted-foreground mb-4">{t("pages.edit.notFoundDesc")}</p>
             <Button asChild>
-              <a href="/quotes">Back to Quotes</a>
+              <a href={`/${locale}/quotes`}>{t("pages.edit.back")}</a>
             </Button>
           </Card>
         </div>
@@ -151,9 +154,9 @@ export default function EditQuotePage() {
                 </a>
               </Button>
               <div>
-                <h1 className="hidden text-lg font-semibold leading-none md:block">Edit Quote #{job.id}</h1>
+                <h1 className="hidden text-lg font-semibold leading-none md:block">{t("pages.edit.title", { id: job.id })}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Update quote details and line items
+                  {t("pages.edit.subtitle")}
                 </p>
               </div>
             </div>
@@ -164,7 +167,7 @@ export default function EditQuotePage() {
               className="flex items-center gap-1.5 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Estimate with AI
+              {t("pages.edit.aiBtn")}
             </Button>
           </div>
         </header>
@@ -179,4 +182,3 @@ export default function EditQuotePage() {
     </AuthGuard>
   )
 }
-

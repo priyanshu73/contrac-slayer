@@ -90,6 +90,7 @@ function AsyncListFilterPicker({
   fetchOptions: (search: string) => Promise<ListFilterOption[]>
   onSelect: (option?: ListFilterOption) => void
 }) {
+  const tQ = useTranslations("quotes")
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [options, setOptions] = useState<ListFilterOption[]>([])
@@ -123,7 +124,7 @@ function AsyncListFilterPicker({
             <CommandItem value="all" onSelect={() => { onSelect(); setOpen(false); setQuery("") }}>
               {allLabel}
             </CommandItem>
-            <CommandEmpty>No matches found.</CommandEmpty>
+            <CommandEmpty>{tQ("noMatchesFound")}</CommandEmpty>
             {options.map((option) => (
               <CommandItem key={option.id} value={String(option.id)} onSelect={() => { onSelect(option); setOpen(false); setQuery("") }}>
                 <span className="min-w-0">
@@ -357,11 +358,11 @@ export default function QuotesPage() {
   const statusFilterLabel = useMemo(() => {
     const parts: string[] = []
     if (activeStatuses.length === 1) parts.push(statusLabel(activeStatuses[0]))
-    else if (activeStatuses.length > 1) parts.push(`${activeStatuses.length} statuses`)
-    if (hasProposalFilter) parts.push("Has proposal")
+    else if (activeStatuses.length > 1) parts.push(tQuotes("statusesCount", { count: activeStatuses.length }))
+    if (hasProposalFilter) parts.push(tQuotes("hasProposal"))
     if (parts.length === 0) return tFilters("all")
     return parts.join(" · ")
-  }, [activeStatuses, hasProposalFilter, statusLabel, tFilters])
+  }, [activeStatuses, hasProposalFilter, statusLabel, tFilters, tQuotes])
 
   const handleDeleteClick = (e: React.MouseEvent, quote: Quote) => {
     e.preventDefault()
@@ -383,8 +384,8 @@ export default function QuotesPage() {
       setDeleting(true)
       await api.deleteJob(quoteToDelete.id)
       toast({
-        title: "Quote deleted",
-        description: `Quote for ${quoteToDelete.client?.name || "client"} has been deleted successfully.`,
+        title: tQuotes("quoteDeleted"),
+        description: tQuotes("quoteDeletedDesc", { client: quoteToDelete.client?.name || tQuotes("clientFallback") }),
       })
       setDeleteDialogOpen(false)
       setQuoteToDelete(null)
@@ -398,8 +399,8 @@ export default function QuotesPage() {
     } catch (error) {
       console.error("Failed to delete quote:", error)
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete quote. Please try again.",
+        title: tQuotes("errorTitle"),
+        description: error instanceof Error ? error.message : tQuotes("deleteFailed"),
         variant: "destructive",
       })
     } finally {
@@ -413,9 +414,9 @@ export default function QuotesPage() {
       setQuotes((prev) =>
         prev.map((q) => q.id === quote.id ? { ...q, project_id: projectId, project_title: projectTitle } : q)
       )
-      toast({ title: "Quote linked to project" })
+      toast({ title: tQuotes("linked") })
     } catch {
-      toast({ title: "Failed to link quote to project", variant: "destructive" })
+      toast({ title: tQuotes("linkFailed"), variant: "destructive" })
     }
   }
 
@@ -426,9 +427,9 @@ export default function QuotesPage() {
       setQuotes((prev) =>
         prev.map((q) => q.id === quote.id ? { ...q, project_id: null, project_title: null } : q)
       )
-      toast({ title: "Quote unlinked from project" })
+      toast({ title: tQuotes("unlinked") })
     } catch {
-      toast({ title: "Failed to unlink quote from project", variant: "destructive" })
+      toast({ title: tQuotes("unlinkFailed"), variant: "destructive" })
     }
   }
 
@@ -440,7 +441,7 @@ export default function QuotesPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString(locale, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -456,7 +457,7 @@ export default function QuotesPage() {
             <Button asChild size="sm" variant="outline" className="w-full gap-1.5 rounded-xl sm:w-auto">
               <a href={`${basePath}/copy`}>
                 <Copy className="h-4 w-4" />
-                Copy
+                {tQuotes("copy")}
               </a>
             </Button>
             <Button asChild size="sm" className="w-full gap-1.5 rounded-xl sm:w-auto">
@@ -481,7 +482,7 @@ export default function QuotesPage() {
             <Button asChild size="sm" variant="outline" className="gap-1.5">
               <a href={`${basePath}/copy`}>
                 <Copy className="h-4 w-4" />
-                Copy
+                {tQuotes("copy")}
               </a>
             </Button>
             <Button asChild size="sm" className="gap-1.5">
@@ -551,7 +552,7 @@ export default function QuotesPage() {
                     >
                       <span className="flex items-center gap-2">
                         <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                        Has proposal
+                        {tQuotes("hasProposal")}
                       </span>
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
@@ -560,7 +561,7 @@ export default function QuotesPage() {
               <div className="min-w-[180px] flex-1 md:flex-none">
                 <AsyncListFilterPicker
                   allLabel={tQuotes("allClients")}
-                  placeholder="Search clients..."
+                  placeholder={tQuotes("searchClients")}
                   valueLabel={clientFilterLabel}
                   fetchOptions={findClientOptions}
                   onSelect={(option) => {
@@ -572,7 +573,7 @@ export default function QuotesPage() {
               <div className="min-w-[180px] flex-1 md:flex-none">
                 <AsyncListFilterPicker
                   allLabel={tQuotes("allProjects")}
-                  placeholder="Search projects..."
+                  placeholder={tQuotes("searchProjects")}
                   valueLabel={projectFilterLabel}
                   fetchOptions={findProjectOptions}
                   onSelect={(option) => {
@@ -610,13 +611,13 @@ export default function QuotesPage() {
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <FileText className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold">{hasActiveFilters ? tQuotes("noMatches") : "No quotes yet"}</h3>
+              <h3 className="text-lg font-semibold">{hasActiveFilters ? tQuotes("noMatches") : tQuotes("noQuotesYet")}</h3>
               <p className="text-sm text-muted-foreground">
-                {hasActiveFilters ? tQuotes("tryAdjustFilters") : "Create your first quote to get started."}
+                {hasActiveFilters ? tQuotes("tryAdjustFilters") : tQuotes("createFirstQuote")}
               </p>
               {!hasActiveFilters && (
                 <Button size="sm" asChild className="mt-2 w-full md:w-auto">
-                  <a href={`${basePath}/new`}>Create Quote</a>
+                  <a href={`${basePath}/new`}>{tQuotes("createQuote")}</a>
                 </Button>
               )}
             </div>
@@ -652,7 +653,7 @@ export default function QuotesPage() {
                                 }}
                               >
                                 <FolderOpen className="mr-2 h-3.5 w-3.5" />
-                                View Project
+                                {tQuotes("viewProject")}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -663,7 +664,7 @@ export default function QuotesPage() {
                                 }}
                               >
                                 <Unlink className="mr-2 h-3.5 w-3.5" />
-                                Unlink
+                                {tQuotes("unlink")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -675,13 +676,13 @@ export default function QuotesPage() {
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <Plus className="h-2.5 w-2.5" />
-                                Project
+                                {tQuotes("project")}
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-56" onClick={(e) => e.stopPropagation()}>
                               {projects.length > 0 && (
                                 <>
-                                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">Link to existing project</div>
+                                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">{tQuotes("linkToExistingProject")}</div>
                                   <div className="max-h-48 overflow-y-auto">
                                     {projects.map((p) => (
                                       <DropdownMenuItem
@@ -707,7 +708,7 @@ export default function QuotesPage() {
                                 }}
                               >
                                 <Plus className="mr-2 h-3.5 w-3.5" />
-                                Create New Project
+                                {tQuotes("createNewProject")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -717,7 +718,7 @@ export default function QuotesPage() {
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                           <UserRound className="h-3 w-3" />
                         </span>
-                        <span className="truncate">{quote.client?.name || "Unknown client"}</span>
+                        <span className="truncate">{quote.client?.name || tQuotes("unknownClient")}</span>
                       </h3>
                       {quote.title?.trim() && (
                         <p className="text-sm text-muted-foreground line-clamp-1 pl-7">{quote.title}</p>
@@ -758,7 +759,7 @@ export default function QuotesPage() {
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
                         {quote.created_from_job_id
-                          ? `Change order · #${quote.id}`
+                          ? tQuotes("changeOrderNumber", { id: quote.id })
                           : tQuotes("quoteNumber", { id: quote.id })}
                       </span>
                       <Badge
@@ -776,7 +777,7 @@ export default function QuotesPage() {
                       size="sm"
                       className="h-5 w-5 rounded-full p-0 bg-background text-muted-foreground shadow-sm hover:bg-sky-600 hover:text-white"
                       onClick={(e) => handleCopyQuote(e, quote)}
-                      title="Copy to new quote"
+                      title={tQuotes("copyToNewQuote")}
                     >
                       <Copy className="w-3 h-3" />
                     </Button>
@@ -785,7 +786,7 @@ export default function QuotesPage() {
                       size="sm"
                       className="h-5 w-5 rounded-full p-0 bg-background text-muted-foreground shadow-sm hover:bg-destructive hover:text-white"
                       onClick={(e) => handleDeleteClick(e, quote)}
-                      title="Delete"
+                      title={tQuotes("delete")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -803,7 +804,7 @@ export default function QuotesPage() {
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading}
                 >
-                  Previous
+                  {tQuotes("previous")}
                 </Button>
                 <span className="rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground tabular-nums md:bg-transparent">Page {currentPage}</span>
                 <Button
@@ -813,7 +814,7 @@ export default function QuotesPage() {
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >
-                  Next
+                  {tQuotes("next")}
                 </Button>
               </div>
             )}
@@ -855,20 +856,22 @@ export default function QuotesPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Quote</AlertDialogTitle>
+            <AlertDialogTitle>{tQuotes("deleteQuoteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the quote for{" "}
-              <strong>{quoteToDelete?.client?.name || "this client"}</strong>? This action cannot be undone.
+              {tQuotes.rich("deleteQuoteConfirm", {
+                client: quoteToDelete?.client?.name || tQuotes("thisClient"),
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tQuotes("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? tQuotes("deleting") : tQuotes("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

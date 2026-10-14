@@ -54,6 +54,7 @@ export function NewTradeDialog({
     onTradeCreated,
 }: NewTradeDialogProps) {
     const t = useTranslations("projects.trades")
+    const tp = useTranslations("projectsPage.trades")
     const locale = useLocale()
     const { toast } = useToast()
 
@@ -106,7 +107,7 @@ export function NewTradeDialog({
     }
 
     const teamLabel = (m: TeamMember) =>
-        m.is_you ? "Me" : (m.full_name || m.email || m.invited_email || "Team member")
+        m.is_you ? tp("me") : (m.full_name || m.email || m.invited_email || tp("teamMember"))
 
     const selectTeamMember = (m: TeamMember) => {
         setAssignee({
@@ -151,13 +152,13 @@ export function NewTradeDialog({
 
     const handleSubmit = async () => {
         const missing: string[] = []
-        if (!tradeType.trim()) missing.push("Trade Type")
-        if (!assignee) missing.push("Assign To")
-        if (!scopeOfWork.trim()) missing.push("Scope of Work")
+        if (!tradeType.trim()) missing.push(tp("fieldTradeType"))
+        if (!assignee) missing.push(tp("fieldAssignTo"))
+        if (!scopeOfWork.trim()) missing.push(tp("scopeOfWork"))
         if (missing.length > 0) {
             toast({
-                title: "Required fields missing",
-                description: `Please fill: ${missing.join(", ")}. Scroll up if you don't see these fields.`,
+                title: tp("requiredMissing"),
+                description: tp("requiredMissingDesc", { fields: missing.join(", ") }),
                 variant: "destructive",
             })
             // Scroll to first missing field so user sees it (they may have scrolled down to Materials/Price)
@@ -195,19 +196,19 @@ export function NewTradeDialog({
                     )
                 } catch (err: any) {
                     toast({
-                        title: "Media Upload Failed",
-                        description: err?.message || "Trade was created but media failed to upload.",
+                        title: tp("mediaFailed"),
+                        description: err?.message || tp("mediaFailedDesc"),
                         variant: "destructive"
                     })
                 }
             }
 
-            toast({ title: "Trade scope added" })
+            toast({ title: tp("scopeAdded") })
             onTradeCreated(created)
             resetForm()
         } catch (err: any) {
             toast({
-                title: "Error creating trade scope",
+                title: tp("scopeCreateError"),
                 description: err?.message,
                 variant: "destructive",
             })
@@ -221,7 +222,7 @@ export function NewTradeDialog({
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-semibold text-slate-900">
-                        Add New Trade / Scope
+                        {tp("addNewTitle")}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -251,7 +252,7 @@ export function NewTradeDialog({
                             <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
                                 <Command>
                                     <CommandInput
-                                        placeholder="Search people or crew..."
+                                        placeholder={tp("searchPeople")}
                                         value={searchQuery}
                                         onValueChange={setSearchQuery}
                                         className="h-9"
@@ -322,23 +323,25 @@ export function NewTradeDialog({
                             </PopoverContent>
                         </Popover>
                         <p className="text-xs text-slate-500 px-1">
-                            Don&apos;t see them? Add a new crew member on the{" "}
-                            <Link href={`/${locale}/crew`} className="text-blue-600 hover:underline" target="_blank">
-                                Crew page
-                            </Link>
-                            {" "}first.
+                            {tp.rich("crewHint", {
+                                link: (chunks) => (
+                                    <Link href={`/${locale}/crew`} className="text-blue-600 hover:underline" target="_blank">
+                                        {chunks}
+                                    </Link>
+                                ),
+                            })}
                         </p>
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">Scope of Work</Label>
+                        <Label className="text-sm font-medium text-slate-700 uppercase p-1">{tp("scopeOfWork")}</Label>
                         <textarea
                             ref={scopeRef}
                             className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
                             rows={4}
                             value={scopeOfWork}
                             onChange={e => setScopeOfWork(e.target.value)}
-                            placeholder="Describe the scope for this trade..."
+                            placeholder={tp("scopePlaceholder")}
                         />
                     </div>
 
@@ -362,7 +365,7 @@ export function NewTradeDialog({
                             <UploadCloud className="h-5 w-5 text-blue-500" /> Upload Prep / Reference Attachments <span className="text-slate-400 font-normal text-sm">(optional)</span>
                         </div>
                         <p className="text-sm text-slate-500 mb-4">
-                            Upload reference photos or attachments for the assignee before assigning this scope.
+                            {tp("uploadHintAssignee")}
                         </p>
 
                         <label className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer">
@@ -407,10 +410,10 @@ export function NewTradeDialog({
                 </div>
 
                 <DialogFooter className="mt-4 gap-2">
-                    <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>Cancel</Button>
+                    <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>{tp("cancel")}</Button>
                     <Button onClick={handleSubmit} disabled={submitting} className="bg-[#0077CC] hover:bg-[#005FA3] text-white">
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {submitting ? "Uploading..." : "+ Add Trade"}
+                        {submitting ? tp("uploading") : tp("addTrade")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

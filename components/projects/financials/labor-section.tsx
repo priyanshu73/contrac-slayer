@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Project, ProjectLaborEntry } from '@/lib/types'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
@@ -27,6 +28,7 @@ interface LaborSectionProps {
  */
 export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
   const { toast } = useToast()
+  const tl = useTranslations('projectsPage.financials.labor')
   const [entries, setEntries] = useState<ProjectLaborEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -44,7 +46,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       const data = await api.getProjectLaborEntries(project.id)
       setEntries(data)
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+      toast({ title: tl('error'), description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -85,7 +87,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       setEntries(prev => prev.map(e => e.id === entryId ? (updated as ProjectLaborEntry) : e))
       if (updates.amount !== undefined) onRefreshTotal()
     } catch (err: any) {
-      toast({ title: 'Update failed', description: err.message, variant: 'destructive' })
+      toast({ title: tl('updateFailed'), description: err.message, variant: 'destructive' })
     }
   }
 
@@ -104,7 +106,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       setCreateOpen(false)
       if (parseMoney(newAmount) > 0) onRefreshTotal()
     } catch (err: any) {
-      toast({ title: 'Error adding worker', description: err.message, variant: 'destructive' })
+      toast({ title: tl('addError'), description: err.message, variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -117,7 +119,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       setEntries(prev => prev.filter(e => e.id !== entryId))
       onRefreshTotal()
     } catch (err: any) {
-      toast({ title: 'Delete failed', variant: 'destructive' })
+      toast({ title: tl('deleteFailed'), variant: 'destructive' })
     } finally {
       setDeletingId(null)
     }
@@ -129,8 +131,8 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
     <Card className="border shadow-sm overflow-hidden">
       <div className="flex items-end justify-between gap-3 border-b bg-muted/30 px-5 py-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Labor</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">Crew pay — the total rolls into job cost as fully-loaded labor.</p>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{tl('title')}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">{tl('hint')}</p>
         </div>
         <span className="text-sm font-bold text-foreground tabular-nums shrink-0">{formatCurrency(total)}</span>
       </div>
@@ -140,8 +142,8 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
         <Table className="table-fixed w-full">
           <TableHeader className="bg-muted">
             <TableRow>
-              <TableHead className="w-[70%] text-xs uppercase tracking-wider">Crew</TableHead>
-              <TableHead className="w-[26%] text-right text-xs uppercase tracking-wider">Amount</TableHead>
+              <TableHead className="w-[70%] text-xs uppercase tracking-wider">{tl('crew')}</TableHead>
+              <TableHead className="w-[26%] text-right text-xs uppercase tracking-wider">{tl('amount')}</TableHead>
               <TableHead className="w-[4%]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -152,7 +154,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
               </TableRow>
             ) : entries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-6 italic">No crew added.</TableCell>
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-6 italic">{tl('noCrew')}</TableCell>
               </TableRow>
             ) : entries.map(entry => (
               <TableRow key={entry.id} className="group hover:bg-muted border-b">
@@ -160,7 +162,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
                   <Input
                     className="border-border/40 hover:border-border bg-transparent h-8 shadow-none focus-visible:ring-1"
                     defaultValue={entry.worker_name}
-                    placeholder="e.g. Raul"
+                    placeholder={tl('workerPlaceholder')}
                     onBlur={e => { if (e.target.value !== entry.worker_name) handleUpdate(entry.id, { worker_name: e.target.value }) }}
                   />
                 </TableCell>
@@ -198,7 +200,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add crew</DialogTitle>
+            <DialogTitle>{tl('addCrew')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-4">
             {availableRoster.length > 0 && (
@@ -208,23 +210,23 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
                   onClick={() => { setAddMode('existing'); setNewWorker(''); setNewAmount('') }}
                   className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${addMode === 'existing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
                 >
-                  Existing crew
+                  {tl('existingCrew')}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setAddMode('new'); setNewWorker(''); setNewAmount('') }}
                   className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${addMode === 'new' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
                 >
-                  New crew member
+                  {tl('newCrewMember')}
                 </button>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Crew</Label>
+              <Label>{tl('crew')}</Label>
               {addMode === 'existing' && availableRoster.length > 0 ? (
                 <Select value={newWorker || undefined} onValueChange={handlePickExisting}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a crew member" />
+                    <SelectValue placeholder={tl('selectCrew')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableRoster.map(r => (
@@ -238,14 +240,14 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
                 <Input
                   value={newWorker}
                   onChange={e => setNewWorker(e.target.value)}
-                  placeholder="e.g. Raul"
+                  placeholder={tl('workerPlaceholder')}
                   autoFocus
                   required
                 />
               )}
             </div>
             <div className="space-y-2">
-              <Label>Amount (pay)</Label>
+              <Label>{tl('amountPay')}</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -256,7 +258,7 @@ export function LaborSection({ project, onRefreshTotal }: LaborSectionProps) {
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isSubmitting || !newWorker.trim()} className="bg-primary hover:bg-primary/90">
-                {isSubmitting ? 'Saving...' : 'Save'}
+                {isSubmitting ? tl('saving') : tl('save')}
               </Button>
             </div>
           </form>

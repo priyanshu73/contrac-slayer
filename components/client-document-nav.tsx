@@ -131,7 +131,7 @@ export function ClientDocumentNav({
   const navItems: NavItem[] = [
     {
       id: "quote",
-      label: "Quote",
+      label: "Estimate",
       icon: FileText,
       available: hasQuote || Boolean(quoteUrl),
       href: quoteUrl,

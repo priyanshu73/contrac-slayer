@@ -107,7 +107,7 @@ export function WebsitePhotoImporter({ destinationTitle, enabled, onAttach, onCa
     finally { inFlight.current = false; if (active.current) setBusy(false) }
   }
   return <div className={styles.importPanel} role="group" aria-label={t("fromProjects")}>
-    <h4>{t("fromProjects")}</h4><p className={styles.hint}>{t("importPrivacy", { title: destinationTitle })}</p>
+    <h4>{t("fromProjects")}</h4><p className={styles.hint}>{destinationTitle.trim() ? t("importPrivacy", { title: destinationTitle }) : t("importPrivacyUntitled")}</p>
     <label className={styles.field}><span>{t("sourceProject")}</span><select autoFocus disabled={busy} value={projectId} onChange={e => setProjectId(Number(e.target.value))}><option value={0}>{t("chooseSourceProject")}</option>{projects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>
     {projectCursor && <Button type="button" variant="outline" disabled={busy} onClick={() => void loadProjects(projectCursor)}>{t("moreProjects")}</Button>}
     <label className={styles.field}><span>{t("sourceType")}</span><select disabled={busy} value={kind} onChange={e => setKind(e.target.value as Kind)}><option value="project_media">{t("projectPhotos")}</option><option value="attachment">{t("projectAttachments")}</option></select></label>

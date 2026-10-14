@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { HeroSection } from '@/components/ui/hero-section-2'
-import { Features } from '@/components/features'
+import { landingFontClass } from '@/components/landing/landing-fonts'
+import { LandingBento, LandingBob, LandingWorkspace, LandingReceptionist, LandingLead, LandingOnline, LandingFinalCta } from '@/components/landing/landing-sections'
 import { Pricing } from '@/components/pricing'
-import { Enterprise } from '@/components/enterprise'
-import { CTA } from '@/components/cta'
 import { Header } from '@/components/header'
 import { LandingFooter } from '@/components/landing-footer'
 import { LandingScrollContainer } from '@/components/landing-scroll-container'
@@ -36,7 +35,7 @@ export default function Home() {
     () => [
       { id: 'hero', label: t('sectionHero') ?? 'Home' },
       { id: 'features', label: t('sectionFeatures') ?? 'Features' },
-      { id: 'enterprise', label: 'Enterprise' },
+      { id: 'receptionist', label: 'AI receptionist' },
       { id: 'pricing', label: t('sectionPricing') ?? 'Pricing' },
       { id: 'cta', label: t('sectionCta') ?? 'Get Started' },
     ],
@@ -79,7 +78,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="h-full min-h-screen bg-[#fbf6f1]">
+      <div className={`h-full min-h-screen bg-[#fbf6f1] ${landingFontClass}`}>
         <Header />
         <LandingScrollContainer sections={sections}>
           <LandingSection id="hero">
@@ -89,23 +88,27 @@ export default function Home() {
               contactInfo={{ website: "www.contractorops.ai", phone: "+1 (555) 123-4567", address: "20 Fieldstone Dr, Roswell, GA" }}
             />
           </LandingSection>
-          <LandingSection id="features">
-            <Features />
+          <LandingSection id="features" className="landing-section-auto">
+            <LandingBento />
+            <LandingBob />
+            <LandingWorkspace />
           </LandingSection>
-          <LandingSection id="enterprise">
-            <Enterprise locale={locale} />
+          <LandingSection id="receptionist" className="landing-section-auto">
+            <LandingReceptionist />
+            <LandingLead />
+            <LandingOnline />
           </LandingSection>
           <LandingSection id="pricing" className="landing-section-pricing">
             <Pricing />
           </LandingSection>
-          <LandingSection id="cta" className="landing-section-cta">
-            <CTA />
+          <LandingSection id="cta" className="landing-section-auto">
+            <LandingFinalCta />
           </LandingSection>
           <LandingFooter />
         </LandingScrollContainer>
       </div>
 
-      {/* Loader overlay — only active when SHOW_LANDING_LOADER = true */}
+      {/* Loader overlay: only active when SHOW_LANDING_LOADER = true */}
       {showLoader && !unmountLoader && (
         <LandingLoader exiting={exiting} onCurtainDone={handleCurtainDone} />
       )}

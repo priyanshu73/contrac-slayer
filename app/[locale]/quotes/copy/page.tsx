@@ -43,6 +43,7 @@ export default function CopyQuotePage() {
   const router = useRouter()
   const locale = useLocale()
   const t = useTranslations('filters')
+  const tq = useTranslations('quotes')
   const isMobile = useIsMobile()
   
   const [quotes, setQuotes] = useState<Quote[]>([])
@@ -104,14 +105,14 @@ export default function CopyQuotePage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale === 'es' ? 'es-US' : 'en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount)
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale === 'es' ? 'es-US' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -135,9 +136,9 @@ export default function CopyQuotePage() {
             <div>
               <h1 className="hidden text-lg font-semibold leading-none items-center gap-2 md:flex">
                 <Copy className="h-4 w-4 text-muted-foreground" />
-                Select Quote to Copy
+                {tq("pages.copy.title")}
               </h1>
-              <p className="text-sm text-muted-foreground md:mt-1">Choose an existing quote to use as a starting point</p>
+              <p className="text-sm text-muted-foreground md:mt-1">{tq("pages.copy.subtitle")}</p>
             </div>
           </div>
         </div>
@@ -199,12 +200,12 @@ export default function CopyQuotePage() {
                 <Copy className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-base font-semibold mb-1">No quotes to copy</h3>
+                <h3 className="text-base font-semibold mb-1">{tq("pages.copy.emptyTitle")}</h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  {activeFilter ? `No ${activeFilter.toLowerCase()} quotes found` : "You haven't created any quotes yet."}
+                  {activeFilter ? tq("pages.copy.emptyFiltered", { status: getFilterLabel(activeFilter).toLowerCase() }) : tq("pages.copy.emptyNone")}
                 </p>
                 <Button size="sm" asChild>
-                  <a href={`/${locale}/quotes/new`}>Create New Blank Quote</a>
+                  <a href={`/${locale}/quotes/new`}>{tq("pages.copy.createBlank")}</a>
                 </Button>
               </div>
             </div>
@@ -221,10 +222,10 @@ export default function CopyQuotePage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">
-                        {quote.title || quote.project_type || quote.client?.name || `Quote #${quote.id}`}
+                        {quote.title || quote.project_type || quote.client?.name || tq("pages.copy.estimateNum", { id: quote.id })}
                       </h3>
                       <Badge className={`shrink-0 text-[10px] px-1.5 py-0 ${getStatusColor(quote.status)}`}>
-                        {quote.status}
+                        {t.has(String(quote.status).toLowerCase()) ? t(String(quote.status).toLowerCase() as any) : quote.status}
                       </Badge>
                     </div>
                     {quote.client?.name && (
@@ -236,7 +237,7 @@ export default function CopyQuotePage() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground truncate">
-                      Created {formatDate(quote.created_at)}
+                      {tq("pages.copy.created", { date: formatDate(quote.created_at) })}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -245,7 +246,7 @@ export default function CopyQuotePage() {
                     </span>
                     <Button variant="secondary" size="sm" className="h-8 shadow-sm">
                       <Copy className="w-3.5 h-3.5 mr-1.5" />
-                      Select
+                      {tq("pages.copy.select")}
                     </Button>
                   </div>
                 </div>
@@ -261,16 +262,16 @@ export default function CopyQuotePage() {
                   disabled={currentPage === 1 || loading}
                 >
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                  Previous
+                  {tq("previous")}
                 </Button>
-                <span className="text-sm text-muted-foreground px-4">Page {currentPage}</span>
+                <span className="text-sm text-muted-foreground px-4">{tq("page")} {currentPage}</span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
                 >
-                  Next
+                  {tq("next")}
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </Button>
               </div>

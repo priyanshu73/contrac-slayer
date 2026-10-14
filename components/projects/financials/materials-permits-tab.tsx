@@ -5,6 +5,7 @@ import { Project, ProjectMaterial, ScopeQuoteLineItem } from '@/lib/types'
 import { api } from '@/lib/api'
 import { QuoteItemPicker } from './quote-item-picker'
 import { useToast } from '@/components/ui/use-toast'
+import { useTranslations } from 'next-intl'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,7 @@ interface MaterialsPermitsTabProps {
 
 export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaChanged }: MaterialsPermitsTabProps) {
   const { toast } = useToast()
+  const tm = useTranslations('projectsPage.financials.materials')
   const [items, setItems] = useState<ProjectMaterial[]>([])
   const [loading, setLoading] = useState(true)
   const [uploadingReceiptItemId, setUploadingReceiptItemId] = useState<number | null>(null)
@@ -41,7 +43,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
 
   const getReceipts = (item: ProjectMaterial) => {
     if (item.receipts && item.receipts.length > 0) return item.receipts
-    if (item.po_url) return [{ name: 'Attached Receipt', url: item.po_url }]
+    if (item.po_url) return [{ name: tm('attachedReceipt'), url: item.po_url }]
     return []
   }
 
@@ -51,7 +53,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       const data = await api.getProjectMaterials(project.id)
       setItems(data)
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+      toast({ title: tm('error'), description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -70,7 +72,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         onRefreshTotal()
       }
     } catch (err: any) {
-      toast({ title: 'Update failed', description: err.message, variant: 'destructive' })
+      toast({ title: tm('updateFailed'), description: err.message, variant: 'destructive' })
     }
   }
 
@@ -81,9 +83,9 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       setItems(prev => prev.filter(i => i.id !== itemId))
       onRefreshTotal()
       setDeleteConfirmId(null)
-      toast({ title: 'Deleted' })
+      toast({ title: tm('deleted') })
     } catch (err: any) {
-      toast({ title: 'Delete failed', variant: 'destructive' })
+      toast({ title: tm('deleteFailed'), variant: 'destructive' })
     } finally {
       setDeletingItemId(null)
     }
@@ -111,12 +113,12 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         po_url: poUrl
       })
       setItems(prev => prev.map(i => i.id === item.id ? (updated as ProjectMaterial) : i))
-      toast({ title: 'Receipt(s) attached' })
+      toast({ title: tm('receiptsAttached', { count: uploadedUrls.length }) })
       await onProjectMediaChanged?.()
     } catch (err: any) {
       toast({
-        title: 'Receipt upload failed',
-        description: err.message || 'Unable to upload receipt.',
+        title: tm('receiptUploadFailed'),
+        description: err.message || tm('uploadReceiptUnable'),
         variant: 'destructive',
       })
     } finally {
@@ -136,9 +138,9 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         po_url: poUrl
       })
       setItems(prev => prev.map(i => i.id === item.id ? (updated as ProjectMaterial) : i))
-      toast({ title: 'Receipt removed' })
+      toast({ title: tm('receiptRemoved') })
     } catch (err: any) {
-      toast({ title: 'Failed to remove receipt', variant: 'destructive' })
+      toast({ title: tm('receiptRemoveFailed'), variant: 'destructive' })
     } finally {
       setUploadingReceiptItemId(null)
     }
@@ -206,9 +208,9 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         })
         created.push(newItem as ProjectMaterial)
       }
-      toast({ title: `Added ${created.length} item${created.length === 1 ? '' : 's'} from quote` })
+      toast({ title: tm('addedFromEstimate', { count: created.length }) })
     } catch (err: any) {
-      toast({ title: 'Error adding from quote', description: err.message, variant: 'destructive' })
+      toast({ title: tm('addFromEstimateError'), description: err.message, variant: 'destructive' })
       throw err
     } finally {
       if (created.length) {
@@ -235,7 +237,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       setCreateDialogOpen(false)
       if (parseMoney(newItemCost) > 0) onRefreshTotal()
     } catch(err: any) {
-      toast({ title: 'Error creating item', description: err.message, variant: 'destructive' })
+      toast({ title: tm('createError'), description: err.message, variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -255,8 +257,8 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       <Card className="border shadow-sm overflow-hidden">
         <div className="flex items-end justify-between gap-3 border-b bg-muted/30 px-5 py-3">
           <div className="min-w-0">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Job Materials</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">Materials bought for the job.</p>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{tm('jobMaterials')}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{tm('jobMaterialsHint')}</p>
           </div>
           <span className="text-sm font-bold text-foreground tabular-nums shrink-0">{formatCurrency(jobMaterialsCost)}</span>
         </div>
@@ -265,11 +267,11 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
           <Table>
             <TableHeader className="bg-muted">
               <TableRow>
-                <TableHead className="w-[200px]">Item</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Detailed Notes</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="w-[100px] text-center">PO / Receipt</TableHead>
+                <TableHead className="w-[200px]">{tm('item')}</TableHead>
+                <TableHead>{tm('vendor')}</TableHead>
+                <TableHead>{tm('detailedNotes')}</TableHead>
+                <TableHead className="text-right">{tm('cost')}</TableHead>
+                <TableHead className="w-[100px] text-center">{tm('poReceipt')}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -285,7 +287,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   </TableCell>
                   <TableCell>
                     <Input 
-                      placeholder="e.g. Home Depot"
+                      placeholder={tm('vendorPlaceholder')}
                       className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm" 
                       defaultValue={item.vendor || ''}
                       onBlur={e => { if(e.target.value !== item.vendor) handleUpdate(item.id, { vendor: e.target.value }) }}
@@ -293,7 +295,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   </TableCell>
                   <TableCell>
                     <Input 
-                      placeholder="Details..."
+                      placeholder={tm('detailsPlaceholder')}
                       className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm text-muted-foreground" 
                       defaultValue={item.detailed_notes || ''}
                       onBlur={e => { if(e.target.value !== item.detailed_notes) handleUpdate(item.id, { detailed_notes: e.target.value }) }}
@@ -317,7 +319,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                           size="icon"
                           className={`h-8 w-8 hover:bg-primary/10 ${getReceipts(item).length > 0 ? 'text-status-active hover:text-status-active' : 'text-primary hover:text-primary'}`}
                           disabled={uploadingReceiptItemId === item.id}
-                          title={getReceipts(item).length > 0 ? `${getReceipts(item).length} receipt(s) attached` : 'Attach receipt'}
+                          title={getReceipts(item).length > 0 ? tm('receiptsCount', { count: getReceipts(item).length }) : tm('attachReceipt')}
                         >
                           {uploadingReceiptItemId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                         </Button>
@@ -357,7 +359,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                             onClick={() => openFilePickerForItem(item.id)}
                           >
                             <Upload className="w-4 h-4 mr-2" /> 
-                            {getReceipts(item).length > 0 ? 'Add more receipts' : 'Attach receipt'}
+                            {getReceipts(item).length > 0 ? tm('addMoreReceipts') : tm('attachReceipt')}
                           </Button>
                         </div>
                       </PopoverContent>
@@ -378,7 +380,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent side="top" align="end" className="w-52 p-3">
-                        <p className="mb-2 text-xs text-foreground">Delete this material?</p>
+                        <p className="mb-2 text-xs text-foreground">{tm('deleteMaterialConfirm')}</p>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
@@ -386,7 +388,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                             className="h-7 px-2 text-xs"
                             onClick={() => setDeleteConfirmId(null)}
                           >
-                            Cancel
+                            {tm('cancel')}
                           </Button>
                           <Button
                             size="sm"
@@ -394,7 +396,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                             disabled={deletingItemId === item.id}
                             onClick={() => handleDelete(item.id)}
                           >
-                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : tm('confirm')}
                           </Button>
                         </div>
                       </PopoverContent>
@@ -404,7 +406,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {jobMaterials.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6 italic">No materials added.</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6 italic">{tm('noMaterials')}</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -412,10 +414,10 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         </div>
         <div className="mt-3 flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('JOB_MATERIAL')} className="text-muted-foreground border-border hover:bg-muted">
-            <FileDown className="w-4 h-4 mr-1" /> From quote
+            <FileDown className="w-4 h-4 mr-1" /> {tm('fromEstimate')}
           </Button>
           <Button size="sm" onClick={() => openCreateDialog('JOB_MATERIAL')} className="bg-primary hover:bg-primary/90">
-            <Plus className="w-4 h-4 mr-1" /> Add Material
+            <Plus className="w-4 h-4 mr-1" /> {tm('addMaterial')}
           </Button>
         </div>
         </CardContent>
@@ -425,8 +427,8 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
       <Card className="border shadow-sm overflow-hidden">
         <div className="flex items-end justify-between gap-3 border-b bg-muted/30 px-5 py-3">
           <div className="min-w-0">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Site Services &amp; Admin</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">Permits, utilities, disposal &amp; admin.</p>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{tm('siteServices')}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{tm('siteServicesHint')}</p>
           </div>
           <span className="text-sm font-bold text-foreground tabular-nums shrink-0">{formatCurrency(siteServicesCost)}</span>
         </div>
@@ -435,9 +437,9 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
           <Table>
             <TableHeader className="bg-muted">
               <TableRow>
-                <TableHead>Service / Permit Name</TableHead>
-                <TableHead>Agency / Vendor</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
+                <TableHead>{tm('servicePermitName')}</TableHead>
+                <TableHead>{tm('agencyVendor')}</TableHead>
+                <TableHead className="text-right">{tm('cost')}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -453,7 +455,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   </TableCell>
                   <TableCell>
                     <Input 
-                      placeholder="e.g. City of Seattle"
+                      placeholder={tm('agencyPlaceholder')}
                       className="border-border/40 hover:border-border bg-transparent h-8 shadow-none text-sm text-muted-foreground" 
                       defaultValue={item.vendor || ''}
                       onBlur={e => { if(e.target.value !== item.vendor) handleUpdate(item.id, { vendor: e.target.value }) }}
@@ -481,7 +483,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent side="top" align="end" className="w-52 p-3">
-                        <p className="mb-2 text-xs text-foreground">Delete this service?</p>
+                        <p className="mb-2 text-xs text-foreground">{tm('deleteServiceConfirm')}</p>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
@@ -489,7 +491,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                             className="h-7 px-2 text-xs"
                             onClick={() => setDeleteConfirmId(null)}
                           >
-                            Cancel
+                            {tm('cancel')}
                           </Button>
                           <Button
                             size="sm"
@@ -497,7 +499,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                             disabled={deletingItemId === item.id}
                             onClick={() => handleDelete(item.id)}
                           >
-                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                            {deletingItemId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : tm('confirm')}
                           </Button>
                         </div>
                       </PopoverContent>
@@ -507,7 +509,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
               ))}
               {siteServices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6 italic">No site services added.</TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6 italic">{tm('noServices')}</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -515,10 +517,10 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         </div>
         <div className="mt-3 flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setQuotePickerCategory('SITE_SERVICE')} className="text-muted-foreground border-border hover:bg-muted">
-            <FileDown className="w-4 h-4 mr-1" /> From quote
+            <FileDown className="w-4 h-4 mr-1" /> {tm('fromEstimate')}
           </Button>
           <Button size="sm" onClick={() => openCreateDialog('SITE_SERVICE')} variant="outline" className="text-primary border-primary/30 hover:bg-primary/10">
-            <Plus className="w-4 h-4 mr-1" /> Add Service
+            <Plus className="w-4 h-4 mr-1" /> {tm('addService')}
           </Button>
         </div>
         </CardContent>
@@ -528,30 +530,30 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {createCategory === 'JOB_MATERIAL' ? 'Add Material' : 'Add Site Service / Permit'}
+              {createCategory === 'JOB_MATERIAL' ? tm('addMaterial') : tm('addServicePermit')}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label>{createCategory === 'JOB_MATERIAL' ? 'Item Name' : 'Service / Permit Name'}</Label>
+              <Label>{createCategory === 'JOB_MATERIAL' ? tm('itemName') : tm('servicePermitName')}</Label>
               <Input
                 value={newItemName}
                 onChange={e => setNewItemName(e.target.value)}
-                placeholder={createCategory === 'JOB_MATERIAL' ? 'e.g. 2x4 Lumber' : 'e.g. City Building Permit'}
+                placeholder={createCategory === 'JOB_MATERIAL' ? tm('itemPlaceholder') : tm('servicePlaceholder')}
                 autoFocus
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>{createCategory === 'JOB_MATERIAL' ? 'Vendor' : 'Agency / Vendor'} <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label>{createCategory === 'JOB_MATERIAL' ? tm('vendor') : tm('agencyVendor')} <span className="text-muted-foreground font-normal">{tm('optional')}</span></Label>
               <Input
                 value={newItemVendor}
                 onChange={e => setNewItemVendor(e.target.value)}
-                placeholder={createCategory === 'JOB_MATERIAL' ? 'e.g. Home Depot' : 'e.g. City of Seattle'}
+                placeholder={createCategory === 'JOB_MATERIAL' ? tm('vendorPlaceholder') : tm('agencyPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>Cost</Label>
+              <Label>{tm('cost')}</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -562,7 +564,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
-                {isSubmitting ? 'Saving...' : 'Save'}
+                {isSubmitting ? tm('saving') : tm('save')}
               </Button>
             </div>
           </form>
@@ -593,10 +595,10 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
                   <div className="bg-muted p-4 rounded-full mb-4">
                     <Link2 className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">No Preview Available</h3>
-                  <p className="text-muted-foreground mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                  <h3 className="text-lg font-medium text-foreground mb-2">{tm('noPreview')}</h3>
+                  <p className="text-muted-foreground mb-6 text-sm">{tm('noPreviewHint')}</p>
                   <Button onClick={() => window.open(previewAttachment.url, '_blank')} className="bg-primary hover:bg-primary/90">
-                    Download File
+                    {tm('downloadFile')}
                   </Button>
                 </div>
               )
@@ -611,7 +613,7 @@ export function MaterialsPermitsTab({ project, onRefreshTotal, onProjectMediaCha
           open={!!quotePickerCategory}
           onOpenChange={(o) => { if (!o) setQuotePickerCategory(null) }}
           pulledItemIds={pulledItemIds}
-          destinationLabel={quotePickerCategory === 'JOB_MATERIAL' ? 'Job Materials' : 'Site Services'}
+          destinationLabel={quotePickerCategory === 'JOB_MATERIAL' ? tm('jobMaterials') : tm('siteServicesShort')}
           onConfirm={(lineItems) => handleAddFromQuote(quotePickerCategory, lineItems)}
         />
       )}

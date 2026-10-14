@@ -36,6 +36,7 @@ export function EditTradeDialog({
     onTradeUpdated,
 }: EditTradeDialogProps) {
     const t = useTranslations("projects.trades")
+    const tp = useTranslations("projectsPage.trades")
     const { toast } = useToast()
 
     const [scopeOfWork, setScopeOfWork] = useState("")
@@ -77,9 +78,9 @@ export function EditTradeDialog({
                 reference_media: [...(trade.reference_media || []), ...uploadedArray]
             }
             onTradeUpdated(updatedTrade)
-            toast({ title: "Media uploaded successfully" })
+            toast({ title: tp("mediaUploaded") })
         } catch (err: any) {
-            toast({ title: "Error uploading media", description: err.message, variant: "destructive" })
+            toast({ title: tp("mediaUploadError"), description: err.message, variant: "destructive" })
         } finally {
             setUploading(false)
         }
@@ -87,7 +88,7 @@ export function EditTradeDialog({
 
     const handleSubmit = async () => {
         if (!trade || !scopeOfWork.trim()) {
-            toast({ title: "Scope is required", variant: "destructive" })
+            toast({ title: tp("scopeRequired"), variant: "destructive" })
             return
         }
 
@@ -99,12 +100,12 @@ export function EditTradeDialog({
                 agreed_price: agreedPrice ? parseFloat(agreedPrice) : undefined,
             })) as ProjectTrade
 
-            toast({ title: "Trade scope updated" })
+            toast({ title: tp("scopeUpdated") })
             onTradeUpdated({ ...trade, ...updated })
             onOpenChange(false)
         } catch (err: any) {
             toast({
-                title: "Error updating trade scope",
+                title: tp("scopeUpdateError"),
                 description: err?.message,
                 variant: "destructive",
             })
@@ -120,7 +121,7 @@ export function EditTradeDialog({
             <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto px-0 bg-slate-50">
                 <DialogHeader className="px-6 py-2 pb-0">
                     <DialogTitle className="text-xl font-semibold text-slate-900">
-                        Edit Scope — {trade.trade_type}
+                        {tp("editScopeTitle", { trade: trade.trade_type })}
                     </DialogTitle>
                     <div className="text-sm text-slate-500">Sub: {trade.subcontractor_name}</div>
                 </DialogHeader>
@@ -153,10 +154,10 @@ export function EditTradeDialog({
 
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between p-1">
-                            <Label className="text-sm font-medium text-slate-700 uppercase">Assigned Tasks</Label>
+                            <Label className="text-sm font-medium text-slate-700 uppercase">{tp("assignedTasks")}</Label>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setTaskDialogOpen(true)}>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add Task
+                                {tp("addTask")}
                             </Button>
                         </div>
                         {(!trade.tasks || trade.tasks.length === 0) ? (
@@ -212,7 +213,7 @@ export function EditTradeDialog({
                         <div className="bg-white">
                             <TabsContent value="gc" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
-                                    Upload reference photos or attachments for the crew member. You can add, view, or remove these files.
+                                    {tp("uploadHintGc")}
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     {trade.reference_media?.map(m => (
@@ -249,7 +250,7 @@ export function EditTradeDialog({
                             </TabsContent>
                             <TabsContent value="sub" className="m-0 p-6 space-y-4 border-b border-slate-200">
                                 <p className="text-sm text-slate-500">
-                                    Proof-of-work media uploaded by the crew member. You cannot delete these.
+                                    {tp("uploadHintSub")}
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     {trade.proof_of_work_media?.map(m => (
@@ -277,10 +278,10 @@ export function EditTradeDialog({
                 </div>
 
                 <DialogFooter className="px-6 py-4 bg-white border-t border-slate-200">
-                    <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>Cancel</Button>
+                    <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>{tp("cancel")}</Button>
                     <Button onClick={handleSubmit} disabled={submitting} className="bg-[#0077CC] hover:bg-[#005FA3] text-white">
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {tp("saveChanges")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

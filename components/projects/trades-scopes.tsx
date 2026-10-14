@@ -55,6 +55,7 @@ interface TradesScopesProps {
 
 export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
   const t = useTranslations("projects.trades")
+  const tp = useTranslations("projectsPage.trades")
   const locale = useLocale()
   const { toast } = useToast()
   const { user } = useAuth()
@@ -101,13 +102,13 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
     try {
       await navigator.clipboard.writeText(fullUrl)
       toast({
-        title: "Link Copied!",
-        description: "Trade portal link has been copied to your clipboard.",
+        title: tp("linkCopied"),
+        description: tp("linkCopiedDesc"),
       })
     } catch (error) {
       toast({
-        title: "Failed to copy",
-        description: "Please try again.",
+        title: tp("copyFailed"),
+        description: tp("tryAgain"),
         variant: "destructive",
       })
     }
@@ -124,13 +125,13 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
       await api.deleteProjectTrade(project.id, tradeToDelete)
       onTradesUpdated(trades.filter((t) => t.id !== tradeToDelete))
       toast({
-        title: "Trade Deleted",
-        description: "The trade scope has been successfully removed.",
+        title: tp("tradeDeleted"),
+        description: tp("tradeDeletedDesc"),
       })
     } catch (error: any) {
       toast({
-        title: "Failed to delete trade",
-        description: error.message || "Please try again.",
+        title: tp("deleteFailed"),
+        description: error.message || tp("tryAgain"),
         variant: "destructive",
       })
     } finally {
@@ -254,7 +255,7 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                                     <Edit3 className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Edit Scope</TooltipContent>
+                                <TooltipContent>{tp("editScope")}</TooltipContent>
                               </Tooltip>
 
                               <DropdownMenu>
@@ -265,14 +266,14 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 rounded-lg border border-slate-200 bg-white shadow-xl">
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendEmailTrade(trade); }} className="cursor-pointer">
-                                    Send via Email
+                                    {tp("sendViaEmail")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendSmsTrade(trade); }} className="cursor-pointer">
-                                    Send via SMS
+                                    {tp("sendViaSms")}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCopyLink(trade.uuid) }} className="cursor-pointer">
-                                    Copy link
+                                    {tp("copyLink")}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -350,14 +351,14 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 rounded-lg border border-slate-200 bg-white shadow-xl">
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendEmailTrade(trade); }} className="cursor-pointer">
-                            Send via Email
+                            {tp("sendViaEmail")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSendSmsTrade(trade); }} className="cursor-pointer">
-                            Send via SMS
+                            {tp("sendViaSms")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCopyLink(trade.uuid) }} className="cursor-pointer">
-                            Copy link
+                            {tp("copyLink")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -392,19 +393,19 @@ export function TradesScopes({ project, onTradesUpdated }: TradesScopesProps) {
         <AlertDialog open={!!tradeToDelete} onOpenChange={(o) => { if (!o) setTradeToDelete(null) }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogTitle>{tp("areYouSure")}</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the trade scope and any associated media.
+                {tp("deleteDesc")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isDeleting}>{tp("cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
                 className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
               >
-                {isDeleting ? "Deleting..." : "Delete Trade"}
+                {isDeleting ? tp("deleting") : tp("deleteTrade")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

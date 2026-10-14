@@ -135,7 +135,7 @@ function QuoteRow({ q, locale }: { q: ClientPortalQuoteItem; locale: string }) {
         {q.project_title && (
           <p className="text-sm font-semibold text-slate-900 truncate">{q.project_title}</p>
         )}
-        <p className={`${q.project_title ? "mt-1" : ""} text-sm text-slate-500 truncate`}>{q.title || "Quote"}</p>
+        <p className={`${q.project_title ? "mt-1" : ""} text-sm text-slate-500 truncate`}>{q.title || "Estimate"}</p>
         <div className="flex items-center gap-2 mt-1">
           <StatusBadge status={q.status} />
           {q.estimated_total != null && (
@@ -163,7 +163,7 @@ function QuoteRequestRow({ r }: { r: ClientPortalQuoteRequest }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm space-y-1">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-slate-900">{r.project_type || "Quote Request"}</p>
+        <p className="text-sm font-medium text-slate-900">{r.project_type || "Estimate Request"}</p>
         <StatusBadge status={r.status} />
       </div>
       {r.description && (
@@ -345,7 +345,7 @@ export default function ClientPortalPage() {
         {/* Quotes */}
         {portal.quotes.length > 0 && (
           <section>
-            <SectionHeader icon={<Receipt className="h-4 w-4" />} title="Quotes" />
+            <SectionHeader icon={<Receipt className="h-4 w-4" />} title="Estimates" />
             <div className="space-y-2">
               {portal.quotes.map((q) => <QuoteRow key={q.id} q={q} locale={locale} />)}
             </div>
@@ -355,7 +355,7 @@ export default function ClientPortalPage() {
         {/* Quote requests */}
         {portal.quote_requests.length > 0 && (
           <section>
-            <SectionHeader icon={<ClipboardList className="h-4 w-4" />} title="Quote Requests" />
+            <SectionHeader icon={<ClipboardList className="h-4 w-4" />} title="Estimate Requests" />
             <div className="space-y-2">
               {portal.quote_requests.map((r) => <QuoteRequestRow key={r.id} r={r} />)}
             </div>

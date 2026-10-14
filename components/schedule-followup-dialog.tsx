@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
+import { enUS, es as esLocale } from "date-fns/locale"
 import {
   Dialog,
   DialogContent,
@@ -35,7 +36,7 @@ import { CalendarIcon, ClockIcon, SendIcon, InfoIcon, ChevronsUpDown, PlusIcon }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn, formatPhoneForDisplay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import type { Client } from "@/lib/types"
 
@@ -61,11 +62,6 @@ interface ScheduleFollowupDialogProps {
 
 const TEMPLATE_IDS = ["appointment", "quote", "custom"] as const
 
-const DEFAULT_TEMPLATES: Record<string, string> = {
-  appointment: "Hi {client_name}! This is a friendly reminder about your upcoming appointment. Looking forward to seeing you!",
-  quote: "Hi {client_name}, just following up on the quote we sent. Do you have any questions?",
-  custom: "",
-}
 
 /** Time 1 hour from now in local time, formatted as HH:MM for the time input. */
 function getTimeOneHourFromNow(): string {
@@ -85,14 +81,20 @@ function parseScheduledToLocal(s: string): Date {
  * Used for BOTH the live preview and the actual send, so what the user sees is
  * exactly what gets delivered.
  */
-function fillTemplate(raw: string, clientName: string, dateTime?: Date): string {
-  const timeStr = dateTime ? format(dateTime, "h:mm a") : ""
-  const dateStr = dateTime ? format(dateTime, "MMMM d, yyyy") : ""
+function fillTemplate(
+  raw: string,
+  clientName: string,
+  dateTime: Date | undefined,
+  opts: { locale: string; fallbackName: string; join: (date: string, time: string) => string }
+): string {
+  const dfl = opts.locale === "es" ? esLocale : enUS
+  const timeStr = dateTime ? format(dateTime, "p", { locale: dfl }) : ""
+  const dateStr = dateTime ? format(dateTime, opts.locale === "es" ? "PPP" : "MMMM d, yyyy", { locale: dfl }) : ""
   return raw
-    .replace(/\{client_name\}/g, clientName || "there")
+    .replace(/\{client_name\}/g, clientName || opts.fallbackName)
     .replace(/\{time\}/g, timeStr)
     .replace(/\{date\}/g, dateStr)
-    .replace(/\{datetime\}/g, dateStr && timeStr ? `${dateStr} at ${timeStr}` : "")
+    .replace(/\{datetime\}/g, dateStr && timeStr ? opts.join(dateStr, timeStr) : "")
 }
 
 export function ScheduleFollowupDialog({
@@ -104,6 +106,15 @@ export function ScheduleFollowupDialog({
   onUpdated,
 }: ScheduleFollowupDialogProps) {
   const t = useTranslations("scheduling.dialog")
+  const locale = useLocale()
+  const dfLocale = locale === "es" ? esLocale : enUS
+  const fmtWhen = (d: Date) => format(d, locale === "es" ? "PPp" : "MMM d, yyyy 'at' h:mm a", { locale: dfLocale })
+  const fillOpts = { locale, fallbackName: t("defaultClientName"), join: (date: string, time: string) => t("dateTimeJoin", { date, time }) }
+  const DEFAULT_TEMPLATES: Record<string, string> = {
+    appointment: t("templateBodyAppointment"),
+    quote: t("templateBodyQuote"),
+    custom: "",
+  }
   const [clients, setClients] = useState<Client[]>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [selectedClient, setSelectedClient] = useState<string>("")
@@ -239,7 +250,7 @@ export function ScheduleFollowupDialog({
         return
       }
 
-      const formattedMessage = fillTemplate(messageText, nameForTemplate, dateTime)
+      const formattedMessage = fillTemplate(messageText, nameForTemplate, dateTime, fillOpts)
 
       if (isEditing) {
         await api.updateFollowup(editFollowup!.id, {
@@ -248,7 +259,7 @@ export function ScheduleFollowupDialog({
         })
         toast({
           title: t("updatedSuccess"),
-          description: `Message rescheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+          description: t("rescheduledDesc", { when: fmtWhen(dateTime) }),
         })
         onUpdated?.()
       } else {
@@ -261,7 +272,7 @@ export function ScheduleFollowupDialog({
         })
         toast({
           title: t("scheduledSuccess"),
-          description: `Message scheduled for ${format(dateTime, "MMM d, yyyy 'at' h:mm a")}`,
+          description: t("scheduledDesc", { when: fmtWhen(dateTime) }),
         })
         onScheduled?.()
       }
@@ -441,7 +452,7 @@ export function ScheduleFollowupDialog({
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : t("pickDate")}
+                      {selectedDate ? format(selectedDate, "PPP", { locale: dfLocale }) : t("pickDate")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -501,12 +512,12 @@ export function ScheduleFollowupDialog({
                 )}
               </p>
               <p className="whitespace-pre-wrap text-sm text-foreground">
-                {fillTemplate(messageText, recipientName, previewDateTime)}
+                {fillTemplate(messageText, recipientName, previewDateTime, fillOpts)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {t("previewSentOn")}{" "}
                 <span className="font-medium text-foreground">
-                  {format(previewDateTime, "MMMM d, yyyy 'at' h:mm a")}
+                  {t("previewWhen", { date: format(previewDateTime, locale === "es" ? "PPP" : "MMMM d, yyyy", { locale: dfLocale }), time: format(previewDateTime, "p", { locale: dfLocale }) })}
                 </span>
                 {typeof Intl !== "undefined" && (
                   <span> ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>

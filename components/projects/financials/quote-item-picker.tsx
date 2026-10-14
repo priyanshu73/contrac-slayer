@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 // Reusable "Add from quote" picker. Lists the line items of every quote linked to
 // the project (anchor + change orders) so you can pull scope into Job Costing or
 // Materials instead of re-typing it. Items already pulled in are greyed out, and
@@ -39,6 +41,7 @@ export function QuoteItemPicker({
   destinationLabel,
   onConfirm,
 }: QuoteItemPickerProps) {
+  const tq = useTranslations('projectsPage.financials.picker')
   const [scope, setScope] = useState<ProjectScopeBilling | null>(null)
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -102,7 +105,7 @@ export function QuoteItemPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base">Add from quote → {destinationLabel}</DialogTitle>
+          <DialogTitle className="text-base">{tq('title', { destination: destinationLabel })}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
@@ -110,7 +113,7 @@ export function QuoteItemPicker({
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
           </div>
         ) : !scope || scope.quotes.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No quotes linked to this project.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{tq('noEstimates')}</p>
         ) : (
           <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-4">
             {selectableItems.length > 0 && (
@@ -123,7 +126,7 @@ export function QuoteItemPicker({
                   className="h-8 px-3 text-xs font-semibold text-primary border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary"
                 >
                   <Check className="w-4 h-4 mr-1.5" />
-                  {allSelected ? 'Clear selection' : `Select all (${selectableItems.length})`}
+                  {allSelected ? tq('clearSelection') : tq('selectAll', { count: selectableItems.length })}
                 </Button>
               </div>
             )}
@@ -133,23 +136,23 @@ export function QuoteItemPicker({
                   <span className="text-sm font-semibold text-foreground">{q.title}</span>
                   {q.is_anchor && (
                     <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px]">
-                      Primary
+                      {tq('primary')}
                     </Badge>
                   )}
                   {q.is_change_order && (
                     <Badge variant="outline" className="border-chart-4/20 bg-chart-4/10 text-chart-4 text-[10px]">
-                      Change order
+                      {tq('changeOrder')}
                     </Badge>
                   )}
                   {!q.counts_toward_contract && (
                     <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
-                      Not in contract · {q.status}
+                      {tq('notInContract', { status: q.status })}
                     </Badge>
                   )}
                 </div>
                 <div className="space-y-1">
                   {q.line_items.length === 0 && (
-                    <p className="text-xs text-muted-foreground px-1">No line items on this quote.</p>
+                    <p className="text-xs text-muted-foreground px-1">{tq('noLineItems')}</p>
                   )}
                   {q.line_items.map((li) => {
                     const already = pulledItemIds.has(li.id)
@@ -178,9 +181,9 @@ export function QuoteItemPicker({
                           {isSel && <Check className="h-3 w-3" />}
                         </span>
                         <span className="flex-1 min-w-0 truncate text-sm text-foreground">{li.description}</span>
-                        {already && <Badge variant="outline" className="text-[10px] text-muted-foreground">Added</Badge>}
+                        {already && <Badge variant="outline" className="text-[10px] text-muted-foreground">{tq('added')}</Badge>}
                         <span className="shrink-0 text-right text-xs tabular-nums">
-                          <span className="text-muted-foreground">cost {formatCurrency(li.cost)}</span>
+                          <span className="text-muted-foreground">{tq('cost', { amount: formatCurrency(li.cost) })}</span>
                           {' · '}
                           <span className="font-medium text-foreground">{formatCurrency(li.total)}</span>
                         </span>
@@ -195,14 +198,14 @@ export function QuoteItemPicker({
 
         <div className="mt-2 flex justify-end gap-2 border-t pt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tq('cancel')}
           </Button>
           <Button
             className="bg-primary hover:bg-primary/90"
             disabled={!chosen.length || submitting}
             onClick={confirm}
           >
-            {submitting ? 'Adding…' : `Add ${chosen.length || ''} item${chosen.length === 1 ? '' : 's'}`}
+            {submitting ? tq('adding') : tq('addItems', { count: chosen.length })}
           </Button>
         </div>
       </DialogContent>
